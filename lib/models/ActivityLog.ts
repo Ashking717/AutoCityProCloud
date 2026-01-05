@@ -17,7 +17,7 @@ const ActivityLogSchema = new Schema<IActivityLog>(
     actionType: { type: String, required: true },
     module: { type: String, required: true },
     description: { type: String, required: true },
-    outletId: { type: Schema.Types.ObjectId, ref: 'Outlet', required: true },
+    outletId: { type: Schema.Types.ObjectId, ref: 'Outlet', required: false },
     timestamp: { type: Date, default: Date.now },
   },
   { timestamps: { createdAt: true, updatedAt: false } }

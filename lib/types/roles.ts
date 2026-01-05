@@ -7,7 +7,7 @@ export enum UserRole {
   ACCOUNTANT = 'ACCOUNTANT',
   VIEWER = 'VIEWER',
 }
-
+export type UserRoleType = 'SUPERADMIN' | 'ADMIN' | 'MANAGER' | 'CASHIER' | 'ACCOUNTANT' | 'VIEWER';
 // Permissions for each role
 export const RolePermissions = {
   [UserRole.SUPERADMIN]: {

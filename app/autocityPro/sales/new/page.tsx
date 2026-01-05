@@ -1,3 +1,4 @@
+// app/autocityPro/sales/new/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -555,9 +556,7 @@ export default function NewSalePage() {
                       <span className="text-gray-600">
                         Total: QAR {item.total.toFixed(2)}
                       </span>
-                      <span className="text-green-600">
-                        Profit: QAR {item.profit.toFixed(2)}
-                      </span>
+                      
                     </div>
                   </div>
                 ))}
@@ -695,10 +694,7 @@ export default function NewSalePage() {
                   <span>Total:</span>
                   <span>QAR {totals.total.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-green-600 font-semibold">
-                  <span>Profit:</span>
-                  <span>QAR {totals.totalProfit.toFixed(2)}</span>
-                </div>
+                
                 <div className="flex justify-between border-t pt-2">
                   <span className="text-gray-600">Paid:</span>
                   <span>QAR {totals.totalPaid.toFixed(2)}</span>

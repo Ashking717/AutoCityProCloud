@@ -6,11 +6,13 @@ export interface IProduct extends Document {
   category: mongoose.Types.ObjectId;
   sku: string;
   barcode?: string;
+  partNumber?: string; // Added
   
   isVehicle: boolean;
   vin?: string;
   carMake?: string;
   carModel?: string;
+  variant?: string; // NEW: Vehicle variant field (e.g., "LX", "EX", "Sport")
   year?: number;
   color?: string;
   
@@ -38,17 +40,19 @@ export interface IProduct extends Document {
 const ProductSchema = new Schema<IProduct>(
   {
     name: { type: String, required: true, trim: true },
-    description: String,
+    description: { type: String, default: '' },
     category: { type: Schema.Types.ObjectId, ref: 'Category', required: true },
-    sku: { type: String, required: true, unique: true, uppercase: true },
-    barcode: String,
+    sku: { type: String, required: true, uppercase: true },
+    barcode: { type: String, default: '' },
+    partNumber: { type: String, default: '' }, // Added
     
     isVehicle: { type: Boolean, default: false },
     vin: { type: String, trim: true, uppercase: true },
-    carMake: String,
-    carModel: String,
-    year: Number,
-    color: String,
+    carMake: { type: String, default: '' },
+    carModel: { type: String, default: '' },
+    variant: { type: String, default: '' }, // NEW: Vehicle variant field
+    year: { type: Number, default: null },
+    color: { type: String, default: '' },
     
     costPrice: { type: Number, required: true, min: 0 },
     sellingPrice: { type: Number, required: true, min: 0 },
@@ -59,10 +63,10 @@ const ProductSchema = new Schema<IProduct>(
     minStock: { type: Number, default: 0 },
     maxStock: { type: Number, default: 1000 },
     reorderPoint: { type: Number, default: 10 },
-    unit: { type: String, default: 'unit' },
+    unit: { type: String, default: 'pcs' }, // Changed from 'unit' to 'pcs' to match your frontend
     
-    images: [String],
-    primaryImage: String,
+    images: { type: [String], default: [] },
+    primaryImage: { type: String, default: '' },
     
     isActive: { type: Boolean, default: true },
     outletId: { type: Schema.Types.ObjectId, ref: 'Outlet', required: true },
@@ -70,7 +74,14 @@ const ProductSchema = new Schema<IProduct>(
   { timestamps: true }
 );
 
+// Add compound index for SKU uniqueness per outlet
+ProductSchema.index({ outletId: 1, sku: 1 }, { unique: true });
+
+// Add other indexes for better performance
 ProductSchema.index({ outletId: 1, isActive: 1 });
+ProductSchema.index({ outletId: 1, isVehicle: 1 });
+ProductSchema.index({ outletId: 1, category: 1 });
+ProductSchema.index({ outletId: 1, carMake: 1 });
 
 const Product = mongoose.models.Product || mongoose.model<IProduct>('Product', ProductSchema);
 export default Product;

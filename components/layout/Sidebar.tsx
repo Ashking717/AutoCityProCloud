@@ -273,10 +273,10 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
   // Helper function to format shortcut display
   const formatShortcut = (shortcut: string) => {
     return shortcut
-      .replace('Ctrl', '⌃')
-      .replace('Shift', '⇧')
-      .replace('Alt', '⌥')
-      .replace('+', '');
+      .replace('Ctrl', 'Ctrl')
+      .replace('Shift', 'Shift')
+      .replace('Alt', 'Alt')
+      .replace('+', '+');
   };
 
   return (
@@ -352,11 +352,11 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
                             <span>{item.name}</span>
                           </div>
                           <div className="flex items-center space-x-2">
-                            {shortcutKey && (
-                              <kbd className="px-1.5 py-0.5 text-xs bg-slate-700 rounded border border-slate-600 group-hover:bg-slate-600 transition-colors">
+                            {/* {shortcutKey && (
+                              <div className="text-xs bg-slate-700 rounded border border-slate-600 group-hover:bg-slate-600 transition-colors">
                                 {formatShortcut(shortcutKey)}
-                              </kbd>
-                            )}
+                              </div>
+                            )} */}
                             {isSubmenuExpanded ? (
                               <ChevronDown className="h-4 w-4" />
                             ) : (

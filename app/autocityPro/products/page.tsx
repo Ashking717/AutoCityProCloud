@@ -1,9 +1,20 @@
+// app/autocityPro/products/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
-import { Search, Plus, Edit, Trash2, Package, Car, X, Filter } from "lucide-react";
+import {
+  Search,
+  Plus,
+  Edit,
+  Trash2,
+  Package,
+  Car,
+  X,
+  Filter,
+  Eye,
+} from "lucide-react";
 import { CarMake, carMakesModels } from "@/lib/data/carData";
 import toast from "react-hot-toast";
 
@@ -15,13 +26,17 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<any>(null);
   const [isVehicle, setIsVehicle] = useState(false);
-  
+
   // Filters
   const [filterCategory, setFilterCategory] = useState("");
   const [filterMake, setFilterMake] = useState("");
   const [filterIsVehicle, setFilterIsVehicle] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
+
+  const [editingProduct, setEditingProduct] = useState<any>(null);
 
   const [newProduct, setNewProduct] = useState<{
     name: string;
@@ -38,6 +53,7 @@ export default function ProductsPage() {
     maxStock: number;
     carMake: CarMake | "";
     carModel: string;
+    variant: string;
     year: string;
     partNumber: string;
   }>({
@@ -55,6 +71,7 @@ export default function ProductsPage() {
     maxStock: 1000,
     carMake: "",
     carModel: "",
+    variant: "",
     year: "",
     partNumber: "",
   });
@@ -79,6 +96,7 @@ export default function ProductsPage() {
 
   const fetchProducts = async () => {
     try {
+      setLoading(true);
       const res = await fetch("/api/products", { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
@@ -129,6 +147,7 @@ export default function ProductsPage() {
       if (isVehicle && newProduct.carMake) {
         productData.carMake = newProduct.carMake;
         productData.carModel = newProduct.carModel;
+        productData.variant = newProduct.variant; // Add variant
         productData.year = newProduct.year;
         productData.partNumber = newProduct.partNumber;
         productData.isVehicle = true;
@@ -144,25 +163,7 @@ export default function ProductsPage() {
       if (res.ok) {
         toast.success("Product added successfully!");
         setShowAddModal(false);
-        setNewProduct({
-          name: "",
-          description: "",
-          categoryId: "",
-          sku: "",
-          barcode: "",
-          unit: "pcs",
-          costPrice: 0,
-          sellingPrice: 0,
-          taxRate: 0,
-          currentStock: 0,
-          minStock: 0,
-          maxStock: 1000,
-          carMake: "",
-          carModel: "",
-          year: "",
-          partNumber: "",
-        });
-        setIsVehicle(false);
+        resetNewProduct();
         fetchProducts();
       } else {
         const error = await res.json();
@@ -173,26 +174,155 @@ export default function ProductsPage() {
     }
   };
 
+  const handleEditProduct = async () => {
+    if (!editingProduct) return;
+
+    if (!editingProduct.name || !editingProduct.sku) {
+      toast.error("Name and SKU are required");
+      return;
+    }
+
+    try {
+      const productData: any = {
+        name: editingProduct.name,
+        description: editingProduct.description,
+        categoryId: editingProduct.categoryId || undefined,
+        sku: editingProduct.sku.toUpperCase(),
+        barcode: editingProduct.barcode || undefined,
+        unit: editingProduct.unit,
+        costPrice: parseFloat(editingProduct.costPrice as any) || 0,
+        sellingPrice: parseFloat(editingProduct.sellingPrice as any) || 0,
+        taxRate: parseFloat(editingProduct.taxRate as any) || 0,
+        currentStock: parseFloat(editingProduct.currentStock as any) || 0,
+        minStock: parseFloat(editingProduct.minStock as any) || 0,
+        maxStock: parseFloat(editingProduct.maxStock as any) || 1000,
+      };
+
+      // Add vehicle fields if it's a vehicle
+      if (editingProduct.isVehicle && editingProduct.carMake) {
+        productData.carMake = editingProduct.carMake;
+        productData.carModel = editingProduct.carModel;
+        productData.variant = editingProduct.variant; // Add variant
+        productData.year = editingProduct.year;
+        productData.partNumber = editingProduct.partNumber;
+        productData.isVehicle = true;
+      } else {
+        productData.isVehicle = false;
+        productData.carMake = undefined;
+        productData.carModel = undefined;
+        productData.variant = undefined;
+        productData.year = undefined;
+        productData.partNumber = undefined;
+      }
+
+      const res = await fetch(`/api/products/${editingProduct._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(productData),
+      });
+
+      if (res.ok) {
+        toast.success("Product updated successfully!");
+        setShowEditModal(false);
+        setEditingProduct(null);
+        fetchProducts();
+      } else {
+        const error = await res.json();
+        toast.error(error.error || "Failed to update product");
+      }
+    } catch (error) {
+      toast.error("Failed to update product");
+    }
+  };
+
+  const handleDeleteProduct = async () => {
+    if (!productToDelete) return;
+
+    try {
+      const res = await fetch(`/api/products/${productToDelete._id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (res.ok) {
+        toast.success("Product deleted successfully!");
+        setProductToDelete(null);
+        fetchProducts();
+      } else {
+        const error = await res.json();
+        toast.error(error.error || "Failed to delete product");
+      }
+    } catch (error) {
+      toast.error("Failed to delete product");
+    }
+  };
+
+  const openEditModal = (product: any) => {
+    setEditingProduct({
+      ...product,
+      categoryId: product.category?._id || "",
+      costPrice: product.costPrice || 0,
+      sellingPrice: product.sellingPrice || 0,
+      taxRate: product.taxRate || 0,
+      currentStock: product.currentStock || 0,
+      minStock: product.minStock || 0,
+      maxStock: product.maxStock || 1000,
+      variant: product.variant || "", // Add variant field
+    });
+    setIsVehicle(product.isVehicle || false);
+    setShowEditModal(true);
+  };
+
+  const resetNewProduct = () => {
+    setNewProduct({
+      name: "",
+      description: "",
+      categoryId: "",
+      sku: "",
+      barcode: "",
+      unit: "pcs",
+      costPrice: 0,
+      sellingPrice: 0,
+      taxRate: 0,
+      currentStock: 0,
+      minStock: 0,
+      maxStock: 1000,
+      carMake: "",
+      carModel: "",
+      variant: "",
+      year: "",
+      partNumber: "",
+    });
+    setIsVehicle(false);
+  };
+
   const filteredProducts = products.filter((p) => {
     const matchesSearch =
       p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.barcode?.includes(searchTerm) ||
       p.carMake?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.carModel?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesCategory = !filterCategory || p.category?._id === filterCategory;
+      p.carModel?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.variant?.toLowerCase().includes(searchTerm.toLowerCase()); // Search variant too
+
+    const matchesCategory =
+      !filterCategory || p.category?._id === filterCategory;
     const matchesMake = !filterMake || p.carMake === filterMake;
-    const matchesVehicleType = 
-      filterIsVehicle === "all" || 
+    const matchesVehicleType =
+      filterIsVehicle === "all" ||
       (filterIsVehicle === "vehicle" && p.isVehicle) ||
       (filterIsVehicle === "non-vehicle" && !p.isVehicle);
-    
-    return matchesSearch && matchesCategory && matchesMake && matchesVehicleType;
+
+    return (
+      matchesSearch && matchesCategory && matchesMake && matchesVehicleType
+    );
   });
 
   // Get unique makes from products
-  const availableMakes = [...new Set(products.filter(p => p.carMake).map(p => p.carMake))].sort();
+  const availableMakes = [
+    ...new Set(products.filter((p) => p.carMake).map((p) => p.carMake)),
+  ].sort();
 
   const clearFilters = () => {
     setFilterCategory("");
@@ -205,6 +335,25 @@ export default function ProductsPage() {
     window.location.href = "/autocityPro/login";
   };
 
+  // Common vehicle variants
+  const vehicleVariants = [
+    "Base",
+    "LX",
+    "EX",
+    "Sport",
+    "Limited",
+    "Premium",
+    "Touring",
+    "SE",
+    "LE",
+    "XLE",
+    "SR",
+    "TRD",
+    "GT",
+    "R/T",
+    "SXT",
+  ];
+
   return (
     <MainLayout user={user} onLogout={handleLogout}>
       <div className="p-8">
@@ -213,9 +362,8 @@ export default function ProductsPage() {
             <h1 className="text-3xl font-bold text-gray-900">Products</h1>
             <p className="text-gray-600 mt-1">
               {filteredProducts.length} products
-              {(filterCategory || filterMake || filterIsVehicle !== "all") && 
-                ` (filtered from ${products.length})`
-              }
+              {(filterCategory || filterMake || filterIsVehicle !== "all") &&
+                ` (filtered from ${products.length})`}
             </p>
           </div>
           <button
@@ -236,21 +384,29 @@ export default function ProductsPage() {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search by name, SKU, barcode, make, or model..."
+                placeholder="Search by name, SKU, barcode, make, model, or variant..."
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
               />
             </div>
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`flex items-center space-x-2 px-4 py-2 border rounded-lg transition-colors ${
-                showFilters ? 'bg-purple-50 border-purple-600 text-purple-600' : 'hover:bg-gray-50'
+                showFilters
+                  ? "bg-purple-50 border-purple-600 text-purple-600"
+                  : "hover:bg-gray-50"
               }`}
             >
               <Filter className="h-5 w-5" />
               <span>Filters</span>
               {(filterCategory || filterMake || filterIsVehicle !== "all") && (
                 <span className="ml-2 px-2 py-0.5 bg-purple-600 text-white text-xs rounded-full">
-                  {[filterCategory, filterMake, filterIsVehicle !== "all"].filter(Boolean).length}
+                  {
+                    [
+                      filterCategory,
+                      filterMake,
+                      filterIsVehicle !== "all",
+                    ].filter(Boolean).length
+                  }
                 </span>
               )}
             </button>
@@ -273,7 +429,9 @@ export default function ProductsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Category</label>
+                <label className="block text-sm font-medium mb-1">
+                  Category
+                </label>
                 <select
                   value={filterCategory}
                   onChange={(e) => setFilterCategory(e.target.value)}
@@ -289,7 +447,9 @@ export default function ProductsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Car Make</label>
+                <label className="block text-sm font-medium mb-1">
+                  Car Make
+                </label>
                 <select
                   value={filterMake}
                   onChange={(e) => setFilterMake(e.target.value)}
@@ -366,7 +526,9 @@ export default function ProductsPage() {
                     >
                       <Package className="h-12 w-12 mx-auto mb-2 text-gray-300" />
                       <p>No products found</p>
-                      {(filterCategory || filterMake || filterIsVehicle !== "all") && (
+                      {(filterCategory ||
+                        filterMake ||
+                        filterIsVehicle !== "all") && (
                         <button
                           onClick={clearFilters}
                           className="mt-2 text-purple-600 hover:text-purple-700 text-sm"
@@ -412,6 +574,9 @@ export default function ProductsPage() {
                             {product.carModel && (
                               <div className="text-gray-600 text-xs pl-4">
                                 Model: {product.carModel}
+                                {product.variant &&
+                                  ` (${product.variant})`}{" "}
+                                {/* Show variant */}
                               </div>
                             )}
                             {product.year && (
@@ -429,13 +594,17 @@ export default function ProductsPage() {
                       <td className="px-6 py-4 text-sm text-right">
                         <span
                           className={`${
-                            (product.currentStock || 0) <= (product.minStock || 0)
+                            (product.currentStock || 0) <=
+                            (product.minStock || 0)
                               ? "text-red-600 font-semibold"
                               : "text-gray-900"
                           }`}
                         >
                           {product.currentStock || 0}
                         </span>
+                        <div className="text-xs text-gray-500">
+                          Min: {product.minStock || 0}
+                        </div>
                       </td>
                       <td className="px-6 py-4 text-sm text-right text-gray-900">
                         QAR {product.costPrice || 0}
@@ -446,14 +615,27 @@ export default function ProductsPage() {
                       <td className="px-6 py-4 text-right text-sm font-medium">
                         <div className="flex justify-end space-x-2">
                           <button
-                            onClick={() => toast.success("Edit coming soon!")}
-                            className="text-indigo-600 hover:text-indigo-900"
+                            onClick={() =>
+                              router.push(
+                                `/autocityPro/products/${product._id}`
+                              )
+                            }
+                            className="text-blue-600 hover:text-blue-900 p-1"
+                            title="View Details"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => openEditModal(product)}
+                            className="text-indigo-600 hover:text-indigo-900 p-1"
+                            title="Edit"
                           >
                             <Edit className="h-4 w-4" />
                           </button>
                           <button
-                            onClick={() => toast.error("Delete coming soon!")}
-                            className="text-red-600 hover:text-red-900"
+                            onClick={() => setProductToDelete(product)}
+                            className="text-red-600 hover:text-red-900 p-1"
+                            title="Delete"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -474,7 +656,12 @@ export default function ProductsPage() {
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full my-8">
             <div className="flex justify-between items-center px-6 py-4 border-b">
               <h2 className="text-xl font-bold">Add New Product</h2>
-              <button onClick={() => setShowAddModal(false)}>
+              <button
+                onClick={() => {
+                  setShowAddModal(false);
+                  resetNewProduct();
+                }}
+              >
                 <X className="h-6 w-6" />
               </button>
             </div>
@@ -621,6 +808,7 @@ export default function ProductsPage() {
                           ...newProduct,
                           carMake: e.target.value as CarMake | "",
                           carModel: "",
+                          variant: "",
                         })
                       }
                       className="w-full px-3 py-2 border rounded-lg"
@@ -660,6 +848,54 @@ export default function ProductsPage() {
                         )}
                     </select>
                   </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Variant
+                    </label>
+                    <select
+                      value={newProduct.variant}
+                      onChange={(e) =>
+                        setNewProduct({
+                          ...newProduct,
+                          variant: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border rounded-lg"
+                    >
+                      <option value="">Select Variant</option>
+                      {vehicleVariants.map((variant) => (
+                        <option key={variant} value={variant}>
+                          {variant}
+                        </option>
+                      ))}
+                      <option value="custom">Custom...</option>
+                    </select>
+                  </div>
+
+                  {newProduct.variant === "custom" && (
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium mb-1">
+                        Custom Variant
+                      </label>
+                      <input
+                        type="text"
+                        value={
+                          newProduct.variant === "custom"
+                            ? ""
+                            : newProduct.variant
+                        }
+                        onChange={(e) =>
+                          setNewProduct({
+                            ...newProduct,
+                            variant: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 border rounded-lg"
+                        placeholder="Enter custom variant"
+                      />
+                    </div>
+                  )}
 
                   <div>
                     <label className="block text-sm font-medium mb-1">
@@ -817,7 +1053,10 @@ export default function ProductsPage() {
 
             <div className="flex justify-end space-x-3 px-6 py-4 border-t">
               <button
-                onClick={() => setShowAddModal(false)}
+                onClick={() => {
+                  setShowAddModal(false);
+                  resetNewProduct();
+                }}
                 className="px-4 py-2 border rounded-lg hover:bg-gray-50"
               >
                 Cancel
@@ -828,6 +1067,468 @@ export default function ProductsPage() {
               >
                 Add Product
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Product Modal */}
+      {showEditModal && editingProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full my-8">
+            <div className="flex justify-between items-center px-6 py-4 border-b">
+              <h2 className="text-xl font-bold">Edit Product</h2>
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingProduct(null);
+                }}
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              {/* Same form structure as Add Modal, but with editingProduct */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium mb-1">
+                    Product Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={editingProduct.name}
+                    onChange={(e) =>
+                      setEditingProduct({
+                        ...editingProduct,
+                        name: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    value={editingProduct.description}
+                    onChange={(e) =>
+                      setEditingProduct({
+                        ...editingProduct,
+                        description: e.target.value,
+                      })
+                    }
+                    rows={2}
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Category
+                  </label>
+                  <select
+                    value={editingProduct.categoryId}
+                    onChange={(e) =>
+                      setEditingProduct({
+                        ...editingProduct,
+                        categoryId: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border rounded-lg"
+                  >
+                    <option value="">Select Category</option>
+                    {categories.map((cat) => (
+                      <option key={cat._id} value={cat._id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    SKU *
+                  </label>
+                  <input
+                    type="text"
+                    value={editingProduct.sku}
+                    onChange={(e) =>
+                      setEditingProduct({
+                        ...editingProduct,
+                        sku: e.target.value.toUpperCase(),
+                      })
+                    }
+                    className="w-full px-3 py-2 border rounded-lg uppercase"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Barcode
+                  </label>
+                  <input
+                    type="text"
+                    value={editingProduct.barcode}
+                    onChange={(e) =>
+                      setEditingProduct({
+                        ...editingProduct,
+                        barcode: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Unit</label>
+                  <select
+                    value={editingProduct.unit}
+                    onChange={(e) =>
+                      setEditingProduct({
+                        ...editingProduct,
+                        unit: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border rounded-lg"
+                  >
+                    <option value="pcs">Pieces</option>
+                    <option value="kg">Kilogram</option>
+                    <option value="liter">Liter</option>
+                    <option value="meter">Meter</option>
+                    <option value="box">Box</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Vehicle Toggle */}
+              <div className="flex items-center space-x-2 p-3 bg-blue-50 rounded-lg">
+                <input
+                  type="checkbox"
+                  id="editIsVehicle"
+                  checked={isVehicle}
+                  onChange={(e) => setIsVehicle(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                <label
+                  htmlFor="editIsVehicle"
+                  className="text-sm font-medium flex items-center"
+                >
+                  <Car className="h-4 w-4 mr-2" />
+                  This is a vehicle or vehicle part
+                </label>
+              </div>
+
+              {/* Vehicle Details */}
+              {isVehicle && (
+                <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Make *
+                    </label>
+                    <select
+                      value={editingProduct.carMake || ""}
+                      onChange={(e) =>
+                        setEditingProduct({
+                          ...editingProduct,
+                          carMake: e.target.value as CarMake | "",
+                          carModel: "",
+                          variant: "",
+                        })
+                      }
+                      className="w-full px-3 py-2 border rounded-lg"
+                    >
+                      <option value="">Select Make</option>
+                      {Object.keys(carMakesModels).map((make) => (
+                        <option key={make} value={make}>
+                          {make}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Model
+                    </label>
+                    <select
+                      value={editingProduct.carModel || ""}
+                      onChange={(e) =>
+                        setEditingProduct({
+                          ...editingProduct,
+                          carModel: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border rounded-lg"
+                      disabled={!editingProduct.carMake}
+                    >
+                      <option value="">Select Model</option>
+                      {editingProduct.carMake &&
+                        carMakesModels[editingProduct.carMake as CarMake]?.map(
+                          (model: string) => (
+                            <option key={model} value={model}>
+                              {model}
+                            </option>
+                          )
+                        )}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Variant
+                    </label>
+                    <select
+                      value={editingProduct.variant || ""}
+                      onChange={(e) =>
+                        setEditingProduct({
+                          ...editingProduct,
+                          variant: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border rounded-lg"
+                    >
+                      <option value="">Select Variant</option>
+                      {vehicleVariants.map((variant) => (
+                        <option key={variant} value={variant}>
+                          {variant}
+                        </option>
+                      ))}
+                      <option value="custom">Custom...</option>
+                    </select>
+                  </div>
+
+                  {editingProduct.variant === "custom" && (
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium mb-1">
+                        Custom Variant
+                      </label>
+                      <input
+                        type="text"
+                        value={
+                          editingProduct.variant === "custom"
+                            ? ""
+                            : editingProduct.variant
+                        }
+                        onChange={(e) =>
+                          setEditingProduct({
+                            ...editingProduct,
+                            variant: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 border rounded-lg"
+                        placeholder="Enter custom variant"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Year
+                    </label>
+                    <input
+                      type="text"
+                      value={editingProduct.year || ""}
+                      onChange={(e) =>
+                        setEditingProduct({
+                          ...editingProduct,
+                          year: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border rounded-lg"
+                      placeholder="e.g., 2024"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Part Number
+                    </label>
+                    <input
+                      type="text"
+                      value={editingProduct.partNumber || ""}
+                      onChange={(e) =>
+                        setEditingProduct({
+                          ...editingProduct,
+                          partNumber: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border rounded-lg"
+                      placeholder="Part number"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Pricing */}
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Cost Price
+                  </label>
+                  <input
+                    type="number"
+                    value={editingProduct.costPrice}
+                    onChange={(e) =>
+                      setEditingProduct({
+                        ...editingProduct,
+                        costPrice: parseFloat(e.target.value),
+                      })
+                    }
+                    min="0"
+                    step="0.01"
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Selling Price
+                  </label>
+                  <input
+                    type="number"
+                    value={editingProduct.sellingPrice}
+                    onChange={(e) =>
+                      setEditingProduct({
+                        ...editingProduct,
+                        sellingPrice: parseFloat(e.target.value),
+                      })
+                    }
+                    min="0"
+                    step="0.01"
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Tax Rate (%)
+                  </label>
+                  <input
+                    type="number"
+                    value={editingProduct.taxRate}
+                    onChange={(e) =>
+                      setEditingProduct({
+                        ...editingProduct,
+                        taxRate: parseFloat(e.target.value),
+                      })
+                    }
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+              </div>
+
+              {/* Stock */}
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Current Stock
+                  </label>
+                  <input
+                    type="number"
+                    value={editingProduct.currentStock}
+                    onChange={(e) =>
+                      setEditingProduct({
+                        ...editingProduct,
+                        currentStock: parseFloat(e.target.value),
+                      })
+                    }
+                    min="0"
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Min Stock
+                  </label>
+                  <input
+                    type="number"
+                    value={editingProduct.minStock}
+                    onChange={(e) =>
+                      setEditingProduct({
+                        ...editingProduct,
+                        minStock: parseFloat(e.target.value),
+                      })
+                    }
+                    min="0"
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Max Stock
+                  </label>
+                  <input
+                    type="number"
+                    value={editingProduct.maxStock}
+                    onChange={(e) =>
+                      setEditingProduct({
+                        ...editingProduct,
+                        maxStock: parseFloat(e.target.value),
+                      })
+                    }
+                    min="0"
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 px-6 py-4 border-t">
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingProduct(null);
+                }}
+                className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEditProduct}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+              >
+                Update Product
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {productToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Delete Product
+              </h3>
+              <p className="text-gray-600 mb-4">
+                Are you sure you want to delete{" "}
+                <strong>{productToDelete.name}</strong>? This action cannot be
+                undone.
+              </p>
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => setProductToDelete(null)}
+                  className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteProduct}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           </div>
         </div>

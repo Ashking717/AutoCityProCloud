@@ -1,3 +1,4 @@
+// app/autocityPro/ledgers/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -111,7 +112,7 @@ export default function LedgersPage() {
   if (selectedAccount && ledgerData) {
     return (
       <MainLayout user={user} onLogout={handleLogout}>
-        <div className="p-8">
+        <div className="bg-slate-900 min-h-screen p-8">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-3">
               <button

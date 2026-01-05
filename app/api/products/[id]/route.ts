@@ -69,6 +69,7 @@ export async function PUT(
     if (body.barcode !== undefined) updateData.barcode = body.barcode;
     if (body.partNumber !== undefined) updateData.partNumber = body.partNumber;
     if (body.unit) updateData.unit = body.unit;
+    if (body.variant !== undefined) updateData.variant = body.variant;
     
     // Vehicle fields
     if (body.make !== undefined) {

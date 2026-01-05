@@ -198,7 +198,7 @@ export async function POST(request: NextRequest) {
 
     const grandTotal = subtotal - totalDiscount + totalTax;
     const paidAmount = amountPaid || 0;
-    const balanceDue = grandTotal - paidAmount;
+    const balanceDue = grandTotal - paidAmount-totalDiscount;
 
     // ✅ CREATE SALE
     const sale = await Sale.create({

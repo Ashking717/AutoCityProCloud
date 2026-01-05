@@ -1,0 +1,389 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import MainLayout from '@/components/layout/MainLayout';
+import { Wallet, Search, Plus, Edit2, Trash2, X, Eye } from 'lucide-react';
+import toast from 'react-hot-toast';
+
+export default function AccountsPage() {
+  const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<any>(null);
+  
+  const [formData, setFormData] = useState({
+    accountCode: '',
+    accountName: '',
+    accountType: 'asset' as 'asset' | 'liability' | 'equity' | 'revenue' | 'expense',
+    accountGroup: '',
+    openingBalance: 0,
+    description: '',
+  });
+  
+  useEffect(() => {
+    fetchUser();
+    fetchAccounts();
+  }, []);
+  
+  const fetchUser = async () => {
+    try {
+      const res = await fetch('/api/auth/me', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setUser(data.user);
+      }
+    } catch (error) {
+      console.error('Failed to fetch user');
+    }
+  };
+  
+  const fetchAccounts = async () => {
+    try {
+      const res = await fetch('/api/accounts', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setAccounts(data.accounts || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch accounts');
+      toast.error('Failed to fetch accounts');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const url = editingAccount ? `/api/accounts/${editingAccount._id}` : '/api/accounts';
+      const method = editingAccount ? 'PUT' : 'POST';
+      
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(formData),
+      });
+      
+      if (res.ok) {
+        toast.success(editingAccount ? 'Account updated!' : 'Account created!');
+        setShowAddModal(false);
+        setEditingAccount(null);
+        setFormData({
+          accountCode: '',
+          accountName: '',
+          accountType: 'asset',
+          accountGroup: '',
+          openingBalance: 0,
+          description: '',
+        });
+        fetchAccounts();
+      } else {
+        const error = await res.json();
+        toast.error(error.error || 'Failed to save account');
+      }
+    } catch (error) {
+      toast.error('Failed to save account');
+    }
+  };
+  
+  const handleEdit = (account: any) => {
+    setEditingAccount(account);
+    setFormData({
+      accountCode: account.accountNumber,
+      accountName: account.accountName,
+      accountType: account.accountType,
+      accountGroup: account.accountGroup,
+      openingBalance: account.openingBalance,
+      description: account.description || '',
+    });
+    setShowAddModal(true);
+  };
+  
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this account?')) return;
+    
+    try {
+      const res = await fetch(`/api/accounts/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      
+      if (res.ok) {
+        toast.success('Account deleted!');
+        fetchAccounts();
+      } else {
+        toast.error('Failed to delete account');
+      }
+    } catch (error) {
+      toast.error('Failed to delete account');
+    }
+  };
+  
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    window.location.href = '/autocityPro/login';
+  };
+  
+  const filteredAccounts = accounts.filter(acc =>
+    acc.accountName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    acc.accountNumber?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  
+  const accountGroups = {
+    asset: ['Current Assets', 'Fixed Assets', 'Cash & Bank', 'Investments'],
+    liability: ['Current Liabilities', 'Long-term Liabilities', 'Loans'],
+    equity: ['Owner Equity', 'Retained Earnings'],
+    revenue: ['Sales Revenue', 'Service Revenue', 'Other Income'],
+    expense: ['Operating Expenses', 'Administrative Expenses', 'Financial Expenses'],
+  };
+  
+  return (
+    <MainLayout user={user} onLogout={handleLogout}>
+      <div className="p-8">
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center space-x-3">
+            <Wallet className="h-8 w-8 text-purple-600" />
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Chart of Accounts</h1>
+              <p className="text-gray-600 mt-1">{filteredAccounts.length} accounts</p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setEditingAccount(null);
+              setFormData({
+                accountCode: '',
+                accountName: '',
+                accountType: 'asset',
+                accountGroup: '',
+                openingBalance: 0,
+                description: '',
+              });
+              setShowAddModal(true);
+            }}
+            className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+          >
+            <Plus className="h-5 w-5" />
+            <span>Add Account</span>
+          </button>
+        </div>
+        
+        {/* Search */}
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search accounts..."
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+            />
+          </div>
+        </div>
+        
+        {/* Accounts Table */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Account Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Group</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Opening</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Current</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                    Loading accounts...
+                  </td>
+                </tr>
+              ) : filteredAccounts.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                    <Wallet className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                    <p>No accounts found</p>
+                  </td>
+                </tr>
+              ) : (
+                filteredAccounts.map((account) => (
+                  <tr key={account._id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900">{account.accountNumber}</td>
+                    <td className="px-6 py-4 text-sm text-gray-900">{account.accountName}</td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                        account.accountType === 'asset' ? 'bg-green-100 text-green-800' :
+                        account.accountType === 'liability' ? 'bg-red-100 text-red-800' :
+                        account.accountType === 'equity' ? 'bg-purple-100 text-purple-800' :
+                        account.accountType === 'revenue' ? 'bg-blue-100 text-blue-800' :
+                        'bg-orange-100 text-orange-800'
+                      }`}>
+                        {account.accountType}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{account.accountGroup}</td>
+                    <td className="px-6 py-4 text-sm text-right">QAR {account.openingBalance?.toFixed(2) || '0.00'}</td>
+                    <td className="px-6 py-4 text-sm text-right font-semibold">
+                      <span className={account.currentBalance >= 0 ? 'text-green-600' : 'text-red-600'}>
+                        QAR {account.currentBalance?.toFixed(2) || '0.00'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right text-sm font-medium">
+                      <div className="flex justify-end space-x-2">
+                        <button
+                          onClick={() => router.push(`/autocityPro/account/${account._id}`)}
+                          className="text-purple-600 hover:text-purple-900"
+                          title="View Details"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleEdit(account)}
+                          className="text-blue-600 hover:text-blue-900"
+                          title="Edit"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(account._id)}
+                          className="text-red-600 hover:text-red-900"
+                          title="Delete"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      {/* Add/Edit Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center px-6 py-4 border-b">
+              <h2 className="text-xl font-bold">{editingAccount ? 'Edit Account' : 'Add Account'}</h2>
+              <button onClick={() => setShowAddModal(false)}>
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Account Code *</label>
+                  <input
+                    type="text"
+                    value={formData.accountCode}
+                    onChange={(e) => setFormData({ ...formData, accountCode: e.target.value })}
+                    required
+                    className="w-full px-3 py-2 border rounded-lg"
+                    placeholder="e.g., 1001"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1">Account Name *</label>
+                  <input
+                    type="text"
+                    value={formData.accountName}
+                    onChange={(e) => setFormData({ ...formData, accountName: e.target.value })}
+                    required
+                    className="w-full px-3 py-2 border rounded-lg"
+                    placeholder="e.g., Cash in Hand"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Account Type *</label>
+                  <select
+                    value={formData.accountType}
+                    onChange={(e) => setFormData({ ...formData, accountType: e.target.value as any, accountGroup: '' })}
+                    className="w-full px-3 py-2 border rounded-lg"
+                  >
+                    <option value="asset">Asset</option>
+                    <option value="liability">Liability</option>
+                    <option value="equity">Equity</option>
+                    <option value="revenue">Revenue</option>
+                    <option value="expense">Expense</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1">Account Group *</label>
+                  <select
+                    value={formData.accountGroup}
+                    onChange={(e) => setFormData({ ...formData, accountGroup: e.target.value })}
+                    required
+                    className="w-full px-3 py-2 border rounded-lg"
+                  >
+                    <option value="">Select Group</option>
+                    {accountGroups[formData.accountType].map(group => (
+                      <option key={group} value={group}>{group}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-1">Opening Balance</label>
+                <input
+                  type="number"
+                  value={formData.openingBalance}
+                  onChange={(e) => setFormData({ ...formData, openingBalance: parseFloat(e.target.value) || 0 })}
+                  step="0.01"
+                  className="w-full px-3 py-2 border rounded-lg"
+                  placeholder="0.00"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-1">Description</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={3}
+                  className="w-full px-3 py-2 border rounded-lg"
+                  placeholder="Optional description"
+                />
+              </div>
+              
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                >
+                  {editingAccount ? 'Update' : 'Create'} Account
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </MainLayout>
+  );
+}

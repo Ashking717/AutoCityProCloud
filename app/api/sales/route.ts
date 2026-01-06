@@ -20,12 +20,29 @@ export async function GET(request: NextRequest) {
     }
 
     const user = verifyToken(token);
+
+    // Add this to your existing GET function, after verifying token:
     const { searchParams } = new URL(request.url);
+    const startDate = searchParams.get("startDate");
+    const endDate = searchParams.get("endDate");
+    const status = searchParams.get("status");
 
     const query: any = {
       outletId: user.outletId,
     };
 
+    // Add date filter if provided
+    if (startDate && endDate) {
+      query.saleDate = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate + "T23:59:59.999Z"),
+      };
+    }
+
+    // Add status filter if provided
+    if (status && status !== "all") {
+      query.status = status;
+    }
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "20");
     const skip = (page - 1) * limit;
@@ -82,7 +99,12 @@ export async function POST(request: NextRequest) {
 
     console.log("Received sale items:", JSON.stringify(items, null, 2));
 
-    if (!customerId || !customerName || !Array.isArray(items) || items.length === 0) {
+    if (
+      !customerId ||
+      !customerName ||
+      !Array.isArray(items) ||
+      items.length === 0
+    ) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -104,10 +126,10 @@ export async function POST(request: NextRequest) {
     // ✅ Process each item
     for (const item of items) {
       console.log("Processing item:", item);
-      
+
       // Check if it's a labor item
       const isLabor = item.isLabor === true || item.sku === "LABOR";
-      
+
       if (isLabor) {
         console.log("Item is labor:", item);
         const unitPrice = item.unitPrice || 0;
@@ -126,7 +148,7 @@ export async function POST(request: NextRequest) {
           name: item.name || "Labor Service",
           sku: item.sku || "LABOR",
           quantity,
-          unit: 'hour',
+          unit: "hour",
           unitPrice,
           taxRate,
           taxAmount: itemTax,
@@ -144,11 +166,17 @@ export async function POST(request: NextRequest) {
       // ✅ Regular product validation
       if (!item.productId) {
         console.log("Missing productId for item:", item);
-        throw new Error(`Invalid sale item: productId is missing for ${item.name || 'unknown item'}`);
+        throw new Error(
+          `Invalid sale item: productId is missing for ${
+            item.name || "unknown item"
+          }`
+        );
       }
 
       if (!item.quantity || item.quantity <= 0) {
-        throw new Error(`Invalid sale item: quantity must be greater than 0 for ${item.name}`);
+        throw new Error(
+          `Invalid sale item: quantity must be greater than 0 for ${item.name}`
+        );
       }
 
       const product = await Product.findById(item.productId);
@@ -180,7 +208,7 @@ export async function POST(request: NextRequest) {
         name: product.name,
         sku: product.sku,
         quantity: item.quantity,
-        unit: product.unit || 'unit',
+        unit: product.unit || "unit",
         unitPrice,
         taxRate,
         taxAmount: itemTax,
@@ -198,7 +226,7 @@ export async function POST(request: NextRequest) {
 
     const grandTotal = subtotal - totalDiscount + totalTax;
     const paidAmount = amountPaid || 0;
-    const balanceDue = grandTotal - paidAmount-totalDiscount;
+    const balanceDue = grandTotal - paidAmount - totalDiscount;
 
     // ✅ CREATE SALE
     const sale = await Sale.create({
@@ -235,7 +263,9 @@ export async function POST(request: NextRequest) {
       username: user.email,
       actionType: "create",
       module: "sales",
-      description: `Created sale: ${invoiceNumber} - QAR ${grandTotal.toFixed(2)}`,
+      description: `Created sale: ${invoiceNumber} - QAR ${grandTotal.toFixed(
+        2
+      )}`,
       outletId: user.outletId,
       timestamp: new Date(),
     });

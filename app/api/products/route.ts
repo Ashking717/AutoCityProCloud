@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/mongodb';
-import Category from '@/lib/models/Category';
+import '@/lib/models/Category';
 import ActivityLog from '@/lib/models/ActivityLog';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth/jwt';

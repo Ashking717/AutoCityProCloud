@@ -13,6 +13,14 @@ export interface ICustomer extends Document {
     country?: string;
     postalCode?: string;
   };
+  // Vehicle Information
+  vehicleRegistrationNumber?: string;
+  vehicleMake?: string;
+  vehicleModel?: string;
+  vehicleYear?: number;
+  vehicleColor?: string;
+  vehicleVIN?: string;
+  
   gstNumber?: string;
   creditLimit: number;
   currentBalance: number; // Positive = customer owes, Negative = advance payment
@@ -57,6 +65,34 @@ const CustomerSchema = new Schema<ICustomer>(
       country: { type: String, trim: true, default: 'Qatar' },
       postalCode: { type: String, trim: true },
     },
+    // Vehicle Information
+    vehicleRegistrationNumber: {
+      type: String,
+      trim: true,
+      uppercase: true,
+    },
+    vehicleMake: {
+      type: String,
+      trim: true,
+    },
+    vehicleModel: {
+      type: String,
+      trim: true,
+    },
+    vehicleYear: {
+      type: Number,
+      min: 1900,
+      max: new Date().getFullYear() + 1,
+    },
+    vehicleColor: {
+      type: String,
+      trim: true,
+    },
+    vehicleVIN: {
+      type: String,
+      trim: true,
+      uppercase: true,
+    },
     gstNumber: {
       type: String,
       trim: true,
@@ -88,7 +124,7 @@ const CustomerSchema = new Schema<ICustomer>(
 CustomerSchema.index({ outletId: 1, code: 1 }, { unique: true });
 CustomerSchema.index({ outletId: 1, isActive: 1 });
 CustomerSchema.index({ outletId: 1, email: 1 }, { sparse: true });
-CustomerSchema.index({ name: 'text', email: 'text', phone: 'text' });
+CustomerSchema.index({ name: 'text', email: 'text', phone: 'text', vehicleRegistrationNumber: 'text' });
 
 const Customer: Model<ICustomer> = mongoose.models.Customer || mongoose.model<ICustomer>('Customer', CustomerSchema);
 

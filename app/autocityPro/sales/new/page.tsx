@@ -13,9 +13,16 @@ import {
   User,
   Wrench,
   X,
+  Star,
 } from "lucide-react";
-import { carMakesModels, carColors, carYears } from "@/lib/data/carData";
+import {
+  carMakesModels,
+  carColors,
+  carYears,
+  CarMake,
+} from "@/lib/data/carData";
 import toast from "react-hot-toast";
+import InvoicePrint from "@/components/InvoicePrint";
 
 interface CartItem {
   productId?: string;
@@ -49,6 +56,7 @@ export default function NewSalePage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
+  const [frequentProducts, setFrequentProducts] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -61,13 +69,23 @@ export default function NewSalePage() {
     "percentage" | "fixed"
   >("percentage");
 
-  // Quick customer creation
+  // Invoice printing
+  const [showInvoice, setShowInvoice] = useState(false);
+  const [invoiceData, setInvoiceData] = useState<any>(null);
+
+  // Quick customer creation with vehicle info
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [newCustomer, setNewCustomer] = useState({
     name: "",
     phone: "",
     email: "",
     address: "",
+    vehicleRegistrationNumber: "",
+    vehicleMake: "",
+    vehicleModel: "",
+    vehicleYear: "",
+    vehicleColor: "",
+    vehicleVIN: "",
   });
 
   // Labor charge
@@ -82,6 +100,7 @@ export default function NewSalePage() {
   useEffect(() => {
     fetchUser();
     fetchProducts();
+    fetchFrequentProducts();
     fetchCustomers();
   }, []);
 
@@ -106,6 +125,30 @@ export default function NewSalePage() {
       }
     } catch (error) {
       console.error("Failed to fetch products");
+    }
+  };
+
+  const fetchFrequentProducts = async () => {
+    try {
+      // Fetch top 6 most sold products
+      const res = await fetch("/api/products/frequent", {
+        credentials: "include",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setFrequentProducts(data.products || []);
+      } else {
+        // Fallback: get first 6 products
+        const res2 = await fetch("/api/products?limit=6", {
+          credentials: "include",
+        });
+        if (res2.ok) {
+          const data = await res2.json();
+          setFrequentProducts((data.products || []).slice(0, 6));
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch frequent products");
     }
   };
 
@@ -144,15 +187,25 @@ export default function NewSalePage() {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          ...newCustomer,
+          name: newCustomer.name,
           code,
+          phone: newCustomer.phone,
+          email: newCustomer.email,
           address: {
             street: newCustomer.address,
             city: "",
             state: "",
-            country: "",
+            country: "Qatar",
             postalCode: "",
           },
+          vehicleRegistrationNumber: newCustomer.vehicleRegistrationNumber,
+          vehicleMake: newCustomer.vehicleMake,
+          vehicleModel: newCustomer.vehicleModel,
+          vehicleYear: newCustomer.vehicleYear
+            ? parseInt(newCustomer.vehicleYear)
+            : undefined,
+          vehicleColor: newCustomer.vehicleColor,
+          vehicleVIN: newCustomer.vehicleVIN,
         }),
       });
 
@@ -162,7 +215,18 @@ export default function NewSalePage() {
         setCustomers([...customers, data.customer]);
         setSelectedCustomer(data.customer);
         setShowAddCustomer(false);
-        setNewCustomer({ name: "", phone: "", email: "", address: "" });
+        setNewCustomer({
+          name: "",
+          phone: "",
+          email: "",
+          address: "",
+          vehicleRegistrationNumber: "",
+          vehicleMake: "",
+          vehicleModel: "",
+          vehicleYear: "",
+          vehicleColor: "",
+          vehicleVIN: "",
+        });
       } else {
         const error = await res.json();
         toast.error(error.error || "Failed to add customer");
@@ -183,7 +247,7 @@ export default function NewSalePage() {
       productName: `Labor: ${laborCharge.description}`,
       sku: "LABOR",
       isVehicle: false,
-      isLabor: true, // ✅ Make sure this is set to true
+      isLabor: true,
       quantity: laborCharge.hours,
       costPrice: 0,
       sellingPrice: laborCharge.rate,
@@ -199,6 +263,10 @@ export default function NewSalePage() {
     setLaborCharge({ description: "", hours: 1, rate: 0, taxRate: 0 });
     toast.success("Labor charge added!");
   };
+  // Type guard function
+  function isValidCarMake(make: any): make is CarMake {
+    return Object.keys(carMakesModels).includes(make);
+  }
   const addToCart = (product: any) => {
     const existingItem = cart.find((item) => item.productId === product._id);
 
@@ -214,7 +282,7 @@ export default function NewSalePage() {
         productName: product.name,
         sku: product.sku,
         isVehicle: product.isVehicle || false,
-        isLabor: false, // ✅ Add this for regular products
+        isLabor: false,
         vin: product.vin,
         carMake: product.carMake,
         carModel: product.carModel,
@@ -234,6 +302,7 @@ export default function NewSalePage() {
 
     toast.success("Added to cart");
   };
+
   const removeFromCart = (index: number) => {
     setCart(cart.filter((_, i) => i !== index));
     toast.success("Removed from cart");
@@ -273,7 +342,6 @@ export default function NewSalePage() {
       0
     );
 
-    // Overall discount
     let overallDiscountAmount = 0;
     if (overallDiscountType === "percentage") {
       overallDiscountAmount = subtotal * (overallDiscount / 100);
@@ -316,11 +384,9 @@ export default function NewSalePage() {
 
     const totals = calculateTotals();
 
-    // Prepare sale items for the API - FIXED VERSION
     const saleItems = cart.map((item) => {
       if (item.isLabor) {
         return {
-          // Don't include productId at all for labor items
           name: item.productName,
           sku: item.sku,
           quantity: item.quantity,
@@ -342,7 +408,6 @@ export default function NewSalePage() {
         isLabor: false,
       };
     });
-    console.log("Sending sale items:", JSON.stringify(saleItems, null, 2)); // Debug log
 
     setLoading(true);
 
@@ -365,14 +430,45 @@ export default function NewSalePage() {
         const data = await res.json();
         toast.success(`Sale ${data.sale.invoiceNumber} created successfully!`);
 
+        // Prepare invoice data for printing
+        setInvoiceData({
+          invoiceNumber: data.sale.invoiceNumber,
+          saleDate: data.sale.saleDate,
+          customerName: selectedCustomer.name,
+          customerPhone: selectedCustomer.phone,
+          customerAddress: selectedCustomer.address?.street,
+          items: cart.map((item) => ({
+            name: item.productName,
+            sku: item.sku,
+            quantity: item.quantity,
+            unitPrice: item.sellingPrice,
+            discount: (item.sellingPrice * item.quantity * item.discount) / 100,
+            taxAmount: (item.subtotal * item.taxRate) / 100,
+            total: item.total,
+            isLabor: item.isLabor,
+          })),
+          subtotal: totals.subtotal,
+          totalDiscount: totals.totalDiscount + totals.overallDiscountAmount,
+          totalTax: totals.totalTax,
+          grandTotal: totals.total,
+          amountPaid: totals.totalPaid,
+          balanceDue: totals.total - totals.totalPaid,
+          paymentMethod: payments[0].method.toUpperCase(),
+          notes: "",
+        });
+
+        // Show invoice print dialog
+        setShowInvoice(true);
+
         // Reset form
         setCart([]);
         setSelectedCustomer(null);
         setPayments([{ method: "cash", amount: 0 }]);
         setOverallDiscount(0);
 
-        // Refresh products to update stock
+        // Refresh products and frequent products
         fetchProducts();
+        fetchFrequentProducts();
       } else {
         const error = await res.json();
         toast.error(error.error || "Failed to create sale");
@@ -385,13 +481,15 @@ export default function NewSalePage() {
     }
   };
 
-  const filteredProducts = products.filter(
-    (p) =>
-      p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.barcode?.includes(searchTerm) ||
-      p.vin?.includes(searchTerm)
-  );
+  const filteredProducts = searchTerm
+    ? products.filter(
+        (p) =>
+          p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.barcode?.includes(searchTerm) ||
+          p.vin?.includes(searchTerm)
+      )
+    : [];
 
   const totals = calculateTotals();
 
@@ -399,6 +497,8 @@ export default function NewSalePage() {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     window.location.href = "/autocityPro/login";
   };
+
+  const availableCarMakes = Object.keys(carMakesModels);
 
   return (
     <MainLayout user={user} onLogout={handleLogout}>
@@ -408,6 +508,52 @@ export default function NewSalePage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Product Search & Cart */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Frequent Products */}
+            {!searchTerm && frequentProducts.length > 0 && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-lg font-semibold mb-4 flex items-center">
+                  <Star className="h-5 w-5 mr-2 text-yellow-500" />
+                  Frequent Products
+                </h2>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {frequentProducts.map((product) => (
+                    <div
+                      key={product._id}
+                      onClick={() => addToCart(product)}
+                      className="p-3 border border-gray-200 rounded-lg hover:border-purple-600 hover:shadow-md cursor-pointer transition"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-sm text-gray-900 truncate">
+                            {product.name}
+                          </h3>
+                          <p className="text-xs text-gray-500 truncate">
+                            {product.sku}
+                          </p>
+                          {product.isVehicle && (
+                            <div className="flex items-center mt-1">
+                              <Car className="h-3 w-3 text-purple-600 mr-1" />
+                              <span className="text-xs text-purple-600 truncate">
+                                {product.carMake}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-right ml-2">
+                          <p className="font-bold text-sm text-purple-600">
+                            {product.sellingPrice}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {product.currentStock}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Search */}
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center gap-3 mb-4">
@@ -430,42 +576,50 @@ export default function NewSalePage() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
-                {filteredProducts.map((product) => (
-                  <div
-                    key={product._id}
-                    onClick={() => addToCart(product)}
-                    className="p-4 border border-gray-200 rounded-lg hover:border-purple-600 hover:shadow-md cursor-pointer transition"
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900">
-                          {product.name}
-                        </h3>
-                        <p className="text-sm text-gray-500">
-                          SKU: {product.sku}
-                        </p>
-                        {product.isVehicle && (
-                          <div className="flex items-center mt-1">
-                            <Car className="h-4 w-4 text-purple-600 mr-1" />
-                            <span className="text-xs text-purple-600">
-                              {product.carMake} {product.carModel}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-purple-600">
-                          QAR {product.sellingPrice}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Stock: {product.currentStock}
-                        </p>
-                      </div>
+              {searchTerm && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
+                  {filteredProducts.length === 0 ? (
+                    <div className="col-span-2 text-center py-8 text-gray-500">
+                      No products found
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ) : (
+                    filteredProducts.map((product) => (
+                      <div
+                        key={product._id}
+                        onClick={() => addToCart(product)}
+                        className="p-4 border border-gray-200 rounded-lg hover:border-purple-600 hover:shadow-md cursor-pointer transition"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-gray-900">
+                              {product.name}
+                            </h3>
+                            <p className="text-sm text-gray-500">
+                              SKU: {product.sku}
+                            </p>
+                            {product.isVehicle && (
+                              <div className="flex items-center mt-1">
+                                <Car className="h-4 w-4 text-purple-600 mr-1" />
+                                <span className="text-xs text-purple-600">
+                                  {product.carMake} {product.carModel}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-purple-600">
+                              QAR {product.sellingPrice}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Stock: {product.currentStock}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Cart */}
@@ -556,7 +710,6 @@ export default function NewSalePage() {
                       <span className="text-gray-600">
                         Total: QAR {item.total.toFixed(2)}
                       </span>
-                      
                     </div>
                   </div>
                 ))}
@@ -582,6 +735,8 @@ export default function NewSalePage() {
                 {customers.map((customer) => (
                   <option key={customer._id} value={customer._id}>
                     {customer.name} - {customer.phone}
+                    {customer.vehicleRegistrationNumber &&
+                      ` - ${customer.vehicleRegistrationNumber}`}
                   </option>
                 ))}
               </select>
@@ -694,7 +849,7 @@ export default function NewSalePage() {
                   <span>Total:</span>
                   <span>QAR {totals.total.toFixed(2)}</span>
                 </div>
-                
+
                 <div className="flex justify-between border-t pt-2">
                   <span className="text-gray-600">Paid:</span>
                   <span>QAR {totals.totalPaid.toFixed(2)}</span>
@@ -725,70 +880,217 @@ export default function NewSalePage() {
         </div>
       </div>
 
-      {/* Add Customer Modal */}
+      {/* Add Customer Modal with Vehicle Info */}
       {showAddCustomer && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full my-8">
             <div className="flex justify-between items-center px-6 py-4 border-b">
               <h2 className="text-xl font-bold">Quick Add Customer</h2>
               <button onClick={() => setShowAddCustomer(false)}>
                 <X className="h-6 w-6" />
               </button>
             </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Name *</label>
-                <input
-                  type="text"
-                  value={newCustomer.name}
-                  onChange={(e) =>
-                    setNewCustomer({ ...newCustomer, name: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border rounded-lg"
-                  placeholder="Customer name"
-                />
+            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium mb-1">
+                    Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={newCustomer.name}
+                    onChange={(e) =>
+                      setNewCustomer({ ...newCustomer, name: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border rounded-lg"
+                    placeholder="Customer name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Phone *
+                  </label>
+                  <input
+                    type="text"
+                    value={newCustomer.phone}
+                    onChange={(e) =>
+                      setNewCustomer({ ...newCustomer, phone: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border rounded-lg"
+                    placeholder="Phone number"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={newCustomer.email}
+                    onChange={(e) =>
+                      setNewCustomer({ ...newCustomer, email: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border rounded-lg"
+                    placeholder="email@example.com"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium mb-1">
+                    Address
+                  </label>
+                  <textarea
+                    value={newCustomer.address}
+                    onChange={(e) =>
+                      setNewCustomer({
+                        ...newCustomer,
+                        address: e.target.value,
+                      })
+                    }
+                    rows={2}
+                    className="w-full px-3 py-2 border rounded-lg"
+                    placeholder="Customer address"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Phone *
-                </label>
-                <input
-                  type="text"
-                  value={newCustomer.phone}
-                  onChange={(e) =>
-                    setNewCustomer({ ...newCustomer, phone: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border rounded-lg"
-                  placeholder="Phone number"
-                />
+
+              {/* Vehicle Information */}
+              <div className="border-t pt-4">
+                <h3 className="text-sm font-semibold mb-3 flex items-center">
+                  <Car className="h-4 w-4 mr-2 text-purple-600" />
+                  Vehicle Information (Optional)
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium mb-1">
+                      Registration Number
+                    </label>
+                    <input
+                      type="text"
+                      value={newCustomer.vehicleRegistrationNumber}
+                      onChange={(e) =>
+                        setNewCustomer({
+                          ...newCustomer,
+                          vehicleRegistrationNumber:
+                            e.target.value.toUpperCase(),
+                        })
+                      }
+                      className="w-full px-3 py-2 border rounded-lg uppercase"
+                      placeholder="ABC-1234"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Make
+                    </label>
+                    <select
+                      value={newCustomer.vehicleMake}
+                      onChange={(e) =>
+                        setNewCustomer({
+                          ...newCustomer,
+                          vehicleMake: e.target.value,
+                          vehicleModel: "",
+                        })
+                      }
+                      className="w-full px-3 py-2 border rounded-lg"
+                    >
+                      <option value="">Select Make</option>
+                      {availableCarMakes.map((make) => (
+                        <option key={make} value={make}>
+                          {make}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Model
+                    </label>
+                    <select
+                      value={newCustomer.vehicleModel}
+                      onChange={(e) =>
+                        setNewCustomer({
+                          ...newCustomer,
+                          vehicleModel: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border rounded-lg"
+                      disabled={!newCustomer.vehicleMake}
+                    >
+                      <option value="">Select Model</option>
+
+                      {isValidCarMake(newCustomer.vehicleMake) &&
+                        carMakesModels[newCustomer.vehicleMake].map((model) => (
+                          <option key={model} value={model}>
+                            {model}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Year
+                    </label>
+                    <select
+                      value={newCustomer.vehicleYear}
+                      onChange={(e) =>
+                        setNewCustomer({
+                          ...newCustomer,
+                          vehicleYear: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border rounded-lg"
+                    >
+                      <option value="">Select Year</option>
+                      {carYears.map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Color
+                    </label>
+                    <select
+                      value={newCustomer.vehicleColor}
+                      onChange={(e) =>
+                        setNewCustomer({
+                          ...newCustomer,
+                          vehicleColor: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border rounded-lg"
+                    >
+                      <option value="">Select Color</option>
+                      {carColors.map((color) => (
+                        <option key={color} value={color}>
+                          {color}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium mb-1">
+                      VIN Number
+                    </label>
+                    <input
+                      type="text"
+                      value={newCustomer.vehicleVIN}
+                      onChange={(e) =>
+                        setNewCustomer({
+                          ...newCustomer,
+                          vehicleVIN: e.target.value.toUpperCase(),
+                        })
+                      }
+                      className="w-full px-3 py-2 border rounded-lg uppercase"
+                      placeholder="Vehicle Identification Number"
+                    />
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Email</label>
-                <input
-                  type="email"
-                  value={newCustomer.email}
-                  onChange={(e) =>
-                    setNewCustomer({ ...newCustomer, email: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border rounded-lg"
-                  placeholder="email@example.com"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Address
-                </label>
-                <textarea
-                  value={newCustomer.address}
-                  onChange={(e) =>
-                    setNewCustomer({ ...newCustomer, address: e.target.value })
-                  }
-                  rows={2}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  placeholder="Customer address"
-                />
-              </div>
-              <div className="flex justify-end space-x-3 pt-4">
+
+              <div className="flex justify-end space-x-3 pt-4 border-t">
                 <button
                   onClick={() => setShowAddCustomer(false)}
                   className="px-4 py-2 border rounded-lg hover:bg-gray-50"
@@ -922,6 +1224,19 @@ export default function NewSalePage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Invoice Print Modal */}
+      {showInvoice && invoiceData && (
+        <InvoicePrint
+          invoice={invoiceData}
+          outletName={user?.outletId?.name || "AutoCity Accounting Pro"}
+          outletAddress={user?.outletId?.address?.city || "Doha, Qatar"}
+          outletPhone={user?.outletId?.phone || "+974-XXXXXXXX"}
+          outletEmail={user?.outletId?.email || "info@autocity.com"}
+          taxNumber={user?.outletId?.taxNumber || "TAX123456"}
+          onClose={() => setShowInvoice(false)}
+        />
       )}
     </MainLayout>
   );

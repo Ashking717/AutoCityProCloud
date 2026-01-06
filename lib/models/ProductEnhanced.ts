@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import './Category';
 
 export interface IProduct extends Document {
   name: string;

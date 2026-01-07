@@ -520,17 +520,17 @@ export default function DashboardPage() {
       description: getChangeDescription(percentageChanges.customerChange, 'customers'),
       showTrendIcon: true,
     },
-    {
-      title: 'Pending Payments',
-      value: formatCurrency(stats.pendingPayments),
-      icon: CreditCard,
-      gradient: 'from-rose-500 to-pink-500',
-      change: `${stats.pendingCount} outstanding invoices`,
-      changePositive: false,
-      description: 'Total unpaid amount',
-      alert: stats.pendingPayments > 0,
-      showTrendIcon: false,
-    },
+    // {
+    //   title: 'Pending Payments',
+    //   value: formatCurrency(stats.pendingPayments),
+    //   icon: CreditCard,
+    //   gradient: 'from-rose-500 to-pink-500',
+    //   change: `${stats.pendingCount} outstanding invoices`,
+    //   changePositive: false,
+    //   description: 'Total unpaid amount',
+    //   alert: stats.pendingPayments > 0,
+    //   showTrendIcon: false,
+    // },
   ];
 
   return (
@@ -602,7 +602,7 @@ export default function DashboardPage() {
 
         {/* Stats Grid */}
         <div className="px-8 pb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
             {statCards.map((stat, index) => {
               const isPositive = stat.changePositive;
               const changeValue = stat.change;

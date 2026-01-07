@@ -3,18 +3,40 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
-import { Download, Printer, Activity } from 'lucide-react';
+import { Download, Printer, Activity, Loader2, ChevronLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+// Types for the API response
+interface CashFlowSection {
+  items: { [key: string]: number };
+  total: number;
+}
+
+interface CashFlowData {
+  operatingActivities: CashFlowSection;
+  investingActivities: CashFlowSection;
+  financingActivities: CashFlowSection;
+  netCashFlow: number;
+  openingCash: number;
+  closingCash: number;
+  metadata: {
+    outletName: string;
+    outletId: string;
+    generatedAt: string;
+    fromDate: string;
+    toDate: string;
+  };
+}
 
 export default function CashFlowPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [reportData, setReportData] = useState<any>(null);
   const [dateRange, setDateRange] = useState({
     fromDate: new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0],
     toDate: new Date().toISOString().split('T')[0],
   });
+  const [reportData, setReportData] = useState<CashFlowData | null>(null);
   
   useEffect(() => {
     fetchUser();
@@ -36,15 +58,19 @@ export default function CashFlowPage() {
   const fetchReport = async () => {
     setLoading(true);
     try {
-      const res = await fetch(
-        `/api/reports/cashflow?fromDate=${dateRange.fromDate}&toDate=${dateRange.toDate}`,
-        { credentials: 'include' }
-      );
+      const params = new URLSearchParams({ 
+        fromDate: dateRange.fromDate, 
+        toDate: dateRange.toDate 
+      });
+      const res = await fetch(`/api/reports/cashflow?${params}`, {
+        credentials: 'include'
+      });
+      
       if (res.ok) {
         const data = await res.json();
         setReportData(data);
       } else {
-        toast.error('Failed to generate report');
+        toast.error('Failed to generate cash flow report');
       }
     } catch (error) {
       console.error('Error fetching report:', error);
@@ -54,212 +80,391 @@ export default function CashFlowPage() {
     }
   };
   
+  const handleExport = async (format: 'pdf' | 'excel') => {
+    if (!reportData) {
+      toast.error('No data to export');
+      return;
+    }
+    
+    try {
+      if (format === 'pdf') {
+        // Client-side PDF generation
+        toast.loading('Generating PDF...');
+        
+        // Dynamic import to avoid SSR issues
+        const { exportToPDF } = await import('@/lib/export/cashFlowExport');
+        exportToPDF(reportData, dateRange.fromDate, dateRange.toDate, user?.outletName || 'AutoCity Pro');
+        
+        toast.dismiss();
+        toast.success('PDF generated successfully');
+        
+      } else if (format === 'excel') {
+        // Server-side Excel generation
+        toast.loading('Generating Excel file...');
+        
+        const params = new URLSearchParams({ 
+          fromDate: dateRange.fromDate,
+          toDate: dateRange.toDate,
+          format: 'excel'
+        });
+        
+        const res = await fetch(`/api/reports/cashflow/export?${params}`, {
+          credentials: 'include',
+        });
+        
+        if (res.ok) {
+          const blob = await res.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `cash-flow-${dateRange.fromDate}-to-${dateRange.toDate}.xlsx`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+          
+          toast.dismiss();
+          toast.success('Excel file downloaded');
+        } else {
+          const error = await res.json();
+          toast.dismiss();
+          toast.error(error.error || 'Export failed');
+        }
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.dismiss();
+      toast.error('Export failed. Please try again.');
+    }
+  };
+  
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     window.location.href = '/autocityPro/login';
   };
   
-  if (loading || !reportData) {
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-QA', {
+      style: 'currency',
+      currency: 'QAR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  };
+  
+  const renderCashFlowItems = (items: { [key: string]: number }) => {
+    return Object.entries(items).map(([name, value]) => (
+      <div key={name} className="flex justify-between hover:bg-slate-700/50 p-2 rounded transition-colors">
+        <span className="text-slate-300 capitalize">{name.replace(/([A-Z])/g, ' $1').trim()}</span>
+        <span className={`font-semibold ${value >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+          {formatCurrency(value)}
+        </span>
+      </div>
+    ));
+  };
+  
+  if (loading && !reportData) {
     return (
       <MainLayout user={user} onLogout={handleLogout}>
-        <div className="p-8 flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-purple-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Generating cash flow statement...</p>
-          </div>
+        <div className="flex items-center justify-center h-screen bg-slate-900">
+          <Loader2 className="h-8 w-8 animate-spin text-red-400" />
+          <span className="ml-2 text-slate-300">Generating cash flow statement...</span>
         </div>
       </MainLayout>
     );
   }
-  
+
   return (
     <MainLayout user={user} onLogout={handleLogout}>
-      <div className="p-8">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center space-x-3">
-            <Activity className="h-8 w-8 text-red-600" />
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Cash Flow Statement</h1>
-              <p className="text-gray-600 mt-1">Operating, investing, and financing activities</p>
-            </div>
-          </div>
-          <button
-            onClick={() => router.back()}
-            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-          >
-            Back
-          </button>
-        </div>
-        
-        {/* Filters */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
-              <input
-                type="date"
-                value={dateRange.fromDate}
-                onChange={(e) => setDateRange({ ...dateRange, fromDate: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
-              <input
-                type="date"
-                value={dateRange.toDate}
-                onChange={(e) => setDateRange({ ...dateRange, toDate: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-            <div className="flex items-end">
-              <button
-                onClick={fetchReport}
-                disabled={loading}
-                className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
-              >
-                Generate
-              </button>
-            </div>
-            <div className="flex items-end space-x-2">
-              <button
-                onClick={() => toast.success('PDF export coming soon!')}
-                className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                <Download className="h-4 w-4" />
-                <span>PDF</span>
-              </button>
-              <button
-                onClick={() => window.print()}
-                className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                <Printer className="h-5 w-5" />
-              </button>
+      <div className="min-h-screen bg-slate-900">
+        {/* Header with gradient */}
+        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 border-b border-pink-500/30 shadow-lg">
+          <div className="px-8 py-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={() => router.back()}
+                  className="flex items-center space-x-2 text-white/90 hover:text-white transition-colors"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                  <span>Back</span>
+                </button>
+                <div className="h-8 w-0.5 bg-white/30"></div>
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                    <Activity className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl font-bold text-white">Cash Flow Statement</h1>
+                    <p className="text-white/80 text-sm">Operating, investing, and financing activities</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-4">
+                <div className="text-right">
+                  <p className="text-white/90 text-sm">Period</p>
+                  <p className="text-white font-semibold">
+                    {new Date(dateRange.fromDate).toLocaleDateString('en-US', { 
+                      month: 'short', 
+                      day: 'numeric' 
+                    })} - {new Date(dateRange.toDate).toLocaleDateString('en-US', { 
+                      month: 'short', 
+                      day: 'numeric',
+                      year: 'numeric'
+                    })}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-        
-        {/* Cash Flow Statement */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="px-6 py-4 bg-gradient-to-r from-red-600 to-pink-600 text-white">
-            <h2 className="text-xl font-bold">AutoCity Pro</h2>
-            <p className="text-sm opacity-90">
-              Period: {new Date(dateRange.fromDate).toLocaleDateString()} - {new Date(dateRange.toDate).toLocaleDateString()}
-            </p>
-          </div>
-          
-          <div className="p-6 space-y-6">
-            {/* Operating Activities */}
-            <div>
-              <h3 className="text-lg font-bold text-gray-900 mb-3 border-b-2 border-gray-200 pb-2">
-                CASH FLOWS FROM OPERATING ACTIVITIES
-              </h3>
-              <div className="space-y-2 pl-4">
-                <div className="flex justify-between">
-                  <span className="text-gray-700">Cash from Sales</span>
-                  <span className="font-semibold text-green-600">
-                    QAR {reportData.operatingActivities.cashFromSales.toFixed(2)}
+
+        {/* Filters Panel */}
+        <div className="px-8 py-6">
+          <div className="bg-slate-800 rounded-xl shadow-lg border border-slate-700 p-6 mb-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
+              <div className="lg:col-span-3">
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <span className="flex items-center">
+                    <span className="h-2 w-2 bg-red-400 rounded-full mr-2"></span>
+                    From Date
                   </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-700">Cash Paid for Expenses</span>
-                  <span className="font-semibold text-red-600">
-                    QAR {reportData.operatingActivities.cashPaidForExpenses.toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex justify-between pt-2 border-t font-bold">
-                  <span>Net Cash from Operating Activities</span>
-                  <span className={reportData.operatingActivities.netOperatingCash >= 0 ? 'text-green-600' : 'text-red-600'}>
-                    QAR {reportData.operatingActivities.netOperatingCash.toFixed(2)}
-                  </span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={dateRange.fromDate}
+                    onChange={(e) => setDateRange({ ...dateRange, fromDate: e.target.value })}
+                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all text-slate-100"
+                  />
+                  <div className="absolute right-3 top-3 text-slate-400">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
                 </div>
               </div>
-            </div>
-            
-            {/* Investing Activities */}
-            <div>
-              <h3 className="text-lg font-bold text-gray-900 mb-3 border-b-2 border-gray-200 pb-2">
-                CASH FLOWS FROM INVESTING ACTIVITIES
-              </h3>
-              <div className="space-y-2 pl-4">
-                <div className="flex justify-between">
-                  <span className="text-gray-700">Purchase of Assets</span>
-                  <span className="font-semibold text-red-600">
-                    QAR {reportData.investingActivities.assetPurchases.toFixed(2)}
+              
+              <div className="lg:col-span-3">
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <span className="flex items-center">
+                    <span className="h-2 w-2 bg-red-400 rounded-full mr-2"></span>
+                    To Date
                   </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-700">Sale of Assets</span>
-                  <span className="font-semibold text-green-600">
-                    QAR {reportData.investingActivities.assetSales.toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex justify-between pt-2 border-t font-bold">
-                  <span>Net Cash from Investing Activities</span>
-                  <span className={reportData.investingActivities.netInvestingCash >= 0 ? 'text-green-600' : 'text-red-600'}>
-                    QAR {reportData.investingActivities.netInvestingCash.toFixed(2)}
-                  </span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={dateRange.toDate}
+                    onChange={(e) => setDateRange({ ...dateRange, toDate: e.target.value })}
+                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all text-slate-100"
+                  />
+                  <div className="absolute right-3 top-3 text-slate-400">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
                 </div>
               </div>
-            </div>
-            
-            {/* Financing Activities */}
-            <div>
-              <h3 className="text-lg font-bold text-gray-900 mb-3 border-b-2 border-gray-200 pb-2">
-                CASH FLOWS FROM FINANCING ACTIVITIES
-              </h3>
-              <div className="space-y-2 pl-4">
-                <div className="flex justify-between">
-                  <span className="text-gray-700">Loan Receipts</span>
-                  <span className="font-semibold text-green-600">
-                    QAR {reportData.financingActivities.loanReceipts.toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-700">Loan Repayments</span>
-                  <span className="font-semibold text-red-600">
-                    QAR {reportData.financingActivities.loanRepayments.toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex justify-between pt-2 border-t font-bold">
-                  <span>Net Cash from Financing Activities</span>
-                  <span className={reportData.financingActivities.netFinancingCash >= 0 ? 'text-green-600' : 'text-red-600'}>
-                    QAR {reportData.financingActivities.netFinancingCash.toFixed(2)}
-                  </span>
-                </div>
+              
+              <div className="lg:col-span-3">
+                <button
+                  onClick={fetchReport}
+                  disabled={loading}
+                  className="w-full px-4 py-3 bg-gradient-to-r from-red-600 to-pink-600 text-white rounded-lg hover:from-red-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 shadow-md hover:shadow-lg transition-all duration-200 font-medium"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Loading...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Activity className="h-4 w-4" />
+                      <span>Generate Report</span>
+                    </>
+                  )}
+                </button>
               </div>
-            </div>
-            
-            {/* Net Change in Cash */}
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="text-lg font-bold text-blue-900">NET CHANGE IN CASH</h3>
-                <span className={`text-2xl font-bold ${reportData.netCashFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  QAR {reportData.netCashFlow.toFixed(2)}
-                </span>
-              </div>
-            </div>
-            
-            {/* Cash Reconciliation */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-700">Opening Cash Balance</span>
-                  <span className="font-semibold">QAR {reportData.openingCash.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-700">Net Change in Cash</span>
-                  <span className={`font-semibold ${reportData.netCashFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    QAR {reportData.netCashFlow.toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex justify-between pt-2 border-t-2 border-gray-300 font-bold text-lg">
-                  <span>Closing Cash Balance</span>
-                  <span className="text-blue-600">QAR {reportData.closingCash.toFixed(2)}</span>
+              
+              <div className="lg:col-span-3">
+                <div className="flex items-center justify-end space-x-3">
+                  <span className="text-sm font-medium text-slate-300"></span>
+                  <button
+                    onClick={() => handleExport('pdf')}
+                    disabled={!reportData || loading}
+                    className="px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-lg hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 shadow-sm hover:shadow transition-all duration-200"
+                  >
+                    <Download className="h-4 w-4 text-red-400" />
+                    <span className="text-slate-200">PDF</span>
+                  </button>
+                  
+                   
+                  <button
+                    onClick={() => window.print()}
+                    disabled={!reportData || loading}
+                    className="px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-lg hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-sm hover:shadow transition-all duration-200"
+                  >
+                    <Printer className="h-4 w-4 text-slate-300" />
+                  </button>
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Report Content */}
+          {!reportData ? (
+            <div className="bg-slate-800 rounded-xl shadow-lg border border-slate-700 p-12 text-center">
+              <div className="max-w-md mx-auto">
+                <div className="p-4 bg-slate-700 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                  <Activity className="h-8 w-8 text-slate-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-slate-200 mb-2">No Cash Flow Data</h3>
+                <p className="text-slate-400 mb-6">
+                  Generate a cash flow statement to view your cash movements.
+                </p>
+                <button
+                  onClick={fetchReport}
+                  disabled={loading}
+                  className="px-6 py-2.5 bg-gradient-to-r from-red-600 to-pink-600 text-white rounded-lg hover:from-red-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center space-x-2 font-medium"
+                >
+                  <Activity className="h-4 w-4" />
+                  <span>Generate Report</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-slate-800 rounded-xl shadow-lg border border-slate-700 overflow-hidden">
+              {/* Header */}
+              <div className="px-6 py-4 bg-gradient-to-r from-red-600 to-pink-600 border-b border-red-500/30">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-bold text-white">{user?.outletName || 'AutoCity Pro'}</h2>
+                    <p className="text-sm text-white/90 mt-1">
+                      Period: {new Date(dateRange.fromDate).toLocaleDateString()} - {new Date(dateRange.toDate).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="px-3 py-1 bg-white/20 rounded-full backdrop-blur-sm">
+                    <span className="text-sm font-semibold text-white">
+                      {formatCurrency(reportData.closingCash)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="p-6 space-y-8">
+                {/* Operating Activities */}
+                <div className="bg-slate-700/30 rounded-xl p-5 border border-slate-600">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-bold text-slate-200 flex items-center">
+                      <span className="h-3 w-3 bg-red-500 rounded-full mr-2"></span>
+                      CASH FLOWS FROM OPERATING ACTIVITIES
+                    </h3>
+                    <span className={`font-bold text-lg ${reportData.operatingActivities.total >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {formatCurrency(reportData.operatingActivities.total)}
+                    </span>
+                  </div>
+                  <div className="space-y-2 pl-5">
+                    {Object.keys(reportData.operatingActivities.items).length > 0 ? (
+                      renderCashFlowItems(reportData.operatingActivities.items)
+                    ) : (
+                      <div className="text-center py-4">
+                        <p className="text-slate-400 text-sm">No operating activities found</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Investing Activities */}
+                <div className="bg-slate-700/30 rounded-xl p-5 border border-slate-600">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-bold text-slate-200 flex items-center">
+                      <span className="h-3 w-3 bg-blue-500 rounded-full mr-2"></span>
+                      CASH FLOWS FROM INVESTING ACTIVITIES
+                    </h3>
+                    <span className={`font-bold text-lg ${reportData.investingActivities.total >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {formatCurrency(reportData.investingActivities.total)}
+                    </span>
+                  </div>
+                  <div className="space-y-2 pl-5">
+                    {Object.keys(reportData.investingActivities.items).length > 0 ? (
+                      renderCashFlowItems(reportData.investingActivities.items)
+                    ) : (
+                      <div className="text-center py-4">
+                        <p className="text-slate-400 text-sm">No investing activities found</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Financing Activities */}
+                <div className="bg-slate-700/30 rounded-xl p-5 border border-slate-600">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-bold text-slate-200 flex items-center">
+                      <span className="h-3 w-3 bg-purple-500 rounded-full mr-2"></span>
+                      CASH FLOWS FROM FINANCING ACTIVITIES
+                    </h3>
+                    <span className={`font-bold text-lg ${reportData.financingActivities.total >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {formatCurrency(reportData.financingActivities.total)}
+                    </span>
+                  </div>
+                  <div className="space-y-2 pl-5">
+                    {Object.keys(reportData.financingActivities.items).length > 0 ? (
+                      renderCashFlowItems(reportData.financingActivities.items)
+                    ) : (
+                      <div className="text-center py-4">
+                        <p className="text-slate-400 text-sm">No financing activities found</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Net Cash Flow */}
+                <div className={`${reportData.netCashFlow >= 0 ? 'bg-gradient-to-r from-green-900/30 to-emerald-900/30 border-green-800/50' : 'bg-gradient-to-r from-red-900/30 to-pink-900/30 border-red-800/50'} p-6 rounded-xl border`}>
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-lg font-bold text-slate-200">NET CHANGE IN CASH</h3>
+                    <span className={`text-2xl font-bold ${reportData.netCashFlow >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {formatCurrency(reportData.netCashFlow)}
+                    </span>
+                  </div>
+                  <div className={`mt-2 h-1 rounded-full ${reportData.netCashFlow >= 0 ? 'bg-gradient-to-r from-green-500 to-emerald-500' : 'bg-gradient-to-r from-red-500 to-pink-500'}`}></div>
+                </div>
+                
+                {/* Cash Reconciliation */}
+                <div className="bg-gradient-to-r from-blue-900/30 to-indigo-900/30 p-6 rounded-xl border border-blue-800/50">
+                  <h3 className="text-lg font-bold text-blue-300 mb-4">CASH RECONCILIATION</h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-slate-300">Opening Cash Balance</span>
+                      <span className="font-semibold text-slate-100">
+                        {formatCurrency(reportData.openingCash)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-300">Net Change in Cash</span>
+                      <span className={`font-semibold ${reportData.netCashFlow >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {formatCurrency(reportData.netCashFlow)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between pt-3 border-t border-blue-700/50">
+                      <span className="text-lg font-bold text-blue-300">Closing Cash Balance</span>
+                      <span className="text-xl font-bold text-blue-400">
+                        {formatCurrency(reportData.closingCash)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Footer */}
+              <div className="px-6 py-4 bg-slate-900/50 border-t border-slate-700 text-center">
+                <p className="text-sm text-slate-400">
+                  Generated on: {new Date().toLocaleString()}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </MainLayout>

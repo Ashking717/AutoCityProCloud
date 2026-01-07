@@ -151,7 +151,7 @@ export default function InvoicePrint({
               </h1>
             </div>
             
-            <div className="w-16 h-16 rounded-full bg-gray-400 flex items-center justify-center overflow-hidden">
+            <div className="w-32 h-32 rounded-full bg-gray-400 flex items-center justify-center overflow-hidden">
               <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
             </div>
           </div>

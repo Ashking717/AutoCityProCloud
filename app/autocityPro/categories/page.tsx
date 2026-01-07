@@ -1,4 +1,3 @@
-// app/autocityPro/categories/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -165,48 +164,54 @@ export default function CategoriesPage() {
   
   return (
     <MainLayout user={user} onLogout={handleLogout}>
-      <div className="p-8">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Categories</h1>
-            <p className="text-gray-600 mt-1">{filteredCategories.length} categories found</p>
+      {/* Header Section with Gradient Background */}
+      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 border border-purple-500/30 shadow-lg overflow-hidden">
+        <div className="p-8">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold text-white">Categories</h1>
+              <p className="text-purple-100 mt-1">{filteredCategories.length} categories found</p>
+            </div>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center space-x-2 px-4 py-2 bg-white text-slate-800 rounded-lg hover:bg-slate-100 transition-colors shadow-md"
+            >
+              <Plus className="h-5 w-5" />
+              <span>Add Category</span>
+            </button>
           </div>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-          >
-            <Plus className="h-5 w-5" />
-            <span>Add Category</span>
-          </button>
+          
+          {/* Search */}
+          {/* <div className="mt-6">
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-5 w-5 text-purple-400" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search categories..."
+                className="w-full pl-10 pr-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg focus:ring-2 focus:ring-white/50 focus:border-transparent text-white placeholder-purple-200"
+              />
+            </div>
+          </div> */}
         </div>
-        
-        {/* Search */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search categories..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600"
-            />
-          </div>
-        </div>
-        
+      </div>
+            <div className='p-6 bg-slate-900 border-b border-slate-700'>
+
+      {/* Main Content */}
+      <div className="p-8 bg-slate-800 min-h-screen">
         {/* Categories Grid */}
         {loading ? (
           <div className="text-center py-12">
-            <p className="text-gray-500">Loading categories...</p>
+            <p className="text-slate-400">Loading categories...</p>
           </div>
         ) : filteredCategories.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <FolderOpen className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-            <p className="text-gray-500 mb-4">No categories found</p>
+          <div className="bg-slate-900 rounded-lg shadow p-12 text-center border border-slate-700">
+            <FolderOpen className="h-12 w-12 mx-auto mb-4 text-slate-600" />
+            <p className="text-slate-400 mb-4">No categories found</p>
             <button
               onClick={() => setShowAddModal(true)}
-              className="inline-flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+              className="inline-flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:opacity-90 transition-opacity"
             >
               <Plus className="h-5 w-5" />
               <span>Add Your First Category</span>
@@ -217,35 +222,37 @@ export default function CategoriesPage() {
             {filteredCategories.map((category) => (
               <div
                 key={category._id}
-                className="bg-white rounded-lg shadow hover:shadow-md transition p-6"
+                className="bg-slate-900 rounded-lg border border-slate-700 hover:border-slate-600 transition-all p-6 hover:shadow-lg hover:shadow-purple-500/5"
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center space-x-3">
-                    <div className="bg-purple-100 p-2 rounded-lg">
-                      <FolderOpen className="h-6 w-6 text-purple-600" />
+                    <div className="bg-purple-900/30 p-2 rounded-lg border border-purple-800/50">
+                      <FolderOpen className="h-6 w-6 text-purple-400" />
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900">{category.name}</h3>
+                    <h3 className="text-lg font-semibold text-slate-100">{category.name}</h3>
                   </div>
                 </div>
                 
                 {category.description && (
-                  <p className="text-sm text-gray-600 mb-4">{category.description}</p>
+                  <p className="text-sm text-slate-400 mb-4">{category.description}</p>
                 )}
                 
-                <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                  <span className="text-sm text-gray-500">
+                <div className="flex items-center justify-between pt-4 border-t border-slate-700">
+                  <span className="text-sm text-slate-500">
                     {category.productCount || 0} products
                   </span>
                   <div className="flex space-x-2">
                     <button
                       onClick={() => handleEdit(category)}
-                      className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition"
+                      className="p-2 text-purple-400 hover:bg-purple-900/30 hover:text-purple-300 rounded-lg transition-colors"
+                      title="Edit category"
                     >
                       <Edit className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => handleDelete(category._id, category.name)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                      className="p-2 text-red-400 hover:bg-red-900/30 hover:text-red-300 rounded-lg transition-colors"
+                      title="Delete category"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -256,22 +263,26 @@ export default function CategoriesPage() {
           </div>
         )}
       </div>
+      </div>
       
       {/* Add Category Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-gray-900">Add New Category</h2>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">
+          <div className="bg-slate-800 rounded-lg shadow-xl max-w-md w-full border border-slate-700">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-700">
+              <h2 className="text-xl font-bold text-slate-100">Add New Category</h2>
+              <button 
+                onClick={() => setShowAddModal(false)} 
+                className="text-slate-400 hover:text-slate-300 transition-colors"
+              >
                 <X className="h-6 w-6" />
               </button>
             </div>
             
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Category Name <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-slate-300 mb-1">
+                  Category Name <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="text"
@@ -279,18 +290,18 @@ export default function CategoriesPage() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="e.g., Vehicles, Parts, Accessories"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600"
+                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-slate-100"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Description</label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="Optional description"
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600"
+                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-slate-100"
                 />
               </div>
               
@@ -298,14 +309,14 @@ export default function CategoriesPage() {
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  className="px-4 py-2 border border-slate-700 rounded-lg text-slate-300 hover:bg-slate-700 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
                 >
                   {submitting ? 'Adding...' : 'Add Category'}
                 </button>
@@ -318,35 +329,38 @@ export default function CategoriesPage() {
       {/* Edit Category Modal */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-gray-900">Edit Category</h2>
-              <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600">
+          <div className="bg-slate-800 rounded-lg shadow-xl max-w-md w-full border border-slate-700">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-700">
+              <h2 className="text-xl font-bold text-slate-100">Edit Category</h2>
+              <button 
+                onClick={() => setShowEditModal(false)} 
+                className="text-slate-400 hover:text-slate-300 transition-colors"
+              >
                 <X className="h-6 w-6" />
               </button>
             </div>
             
             <form onSubmit={handleUpdate} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Category Name <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-slate-300 mb-1">
+                  Category Name <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="text"
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600"
+                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-slate-100"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Description</label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600"
+                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-slate-100"
                 />
               </div>
               
@@ -354,14 +368,14 @@ export default function CategoriesPage() {
                 <button
                   type="button"
                   onClick={() => setShowEditModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  className="px-4 py-2 border border-slate-700 rounded-lg text-slate-300 hover:bg-slate-700 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
                 >
                   {submitting ? 'Updating...' : 'Update Category'}
                 </button>

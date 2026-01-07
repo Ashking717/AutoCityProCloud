@@ -14,21 +14,57 @@ export default function AccountsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingAccount, setEditingAccount] = useState<any>(null);
-  
+
   const [formData, setFormData] = useState({
     accountCode: '',
     accountName: '',
     accountType: 'asset' as 'asset' | 'liability' | 'equity' | 'revenue' | 'expense',
+    accountSubType: '',
     accountGroup: '',
     openingBalance: 0,
     description: '',
   });
-  
+
+  const accountGroups: Record<string, string[]> = {
+    asset: ['Current Assets', 'Fixed Assets', 'Cash & Bank', 'Investments'],
+    liability: ['Current Liabilities', 'Long-term Liabilities', 'Loans'],
+    equity: ['Owner Equity', 'Retained Earnings'],
+    revenue: ['Sales Revenue', 'Service Revenue', 'Other Income'],
+    expense: ['Operating Expenses', 'Administrative Expenses', 'Financial Expenses'],
+  };
+
+  const accountSubTypes: Record<string, { value: string; label: string }[]> = {
+    asset: [
+      { value: 'cash', label: 'Cash' },
+      { value: 'bank', label: 'Bank' },
+      { value: 'accounts_receivable', label: 'Accounts Receivable' },
+      { value: 'inventory', label: 'Inventory' },
+      { value: 'fixed_asset', label: 'Fixed Asset' },
+    ],
+    liability: [
+      { value: 'accounts_payable', label: 'Accounts Payable' },
+      { value: 'loan', label: 'Loan' },
+    ],
+    equity: [
+      { value: 'owner_equity', label: 'Owner Equity' },
+      { value: 'retained_earnings', label: 'Retained Earnings' },
+    ],
+    revenue: [
+      { value: 'sales_revenue', label: 'Sales Revenue' },
+      { value: 'service_revenue', label: 'Service Revenue' },
+    ],
+    expense: [
+      { value: 'cogs', label: 'Cost of Goods Sold' },
+      { value: 'operating_expense', label: 'Operating Expense' },
+      { value: 'administrative_expense', label: 'Administrative Expense' },
+    ],
+  };
+
   useEffect(() => {
     fetchUser();
     fetchAccounts();
   }, []);
-  
+
   const fetchUser = async () => {
     try {
       const res = await fetch('/api/auth/me', { credentials: 'include' });
@@ -40,7 +76,7 @@ export default function AccountsPage() {
       console.error('Failed to fetch user');
     }
   };
-  
+
   const fetchAccounts = async () => {
     try {
       const res = await fetch('/api/accounts', { credentials: 'include' });
@@ -55,21 +91,21 @@ export default function AccountsPage() {
       setLoading(false);
     }
   };
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       const url = editingAccount ? `/api/accounts/${editingAccount._id}` : '/api/accounts';
       const method = editingAccount ? 'PUT' : 'POST';
-      
+
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(formData),
       });
-      
+
       if (res.ok) {
         toast.success(editingAccount ? 'Account updated!' : 'Account created!');
         setShowAddModal(false);
@@ -78,6 +114,7 @@ export default function AccountsPage() {
           accountCode: '',
           accountName: '',
           accountType: 'asset',
+          accountSubType: '',
           accountGroup: '',
           openingBalance: 0,
           description: '',
@@ -91,29 +128,30 @@ export default function AccountsPage() {
       toast.error('Failed to save account');
     }
   };
-  
+
   const handleEdit = (account: any) => {
     setEditingAccount(account);
     setFormData({
       accountCode: account.accountNumber,
       accountName: account.accountName,
       accountType: account.accountType,
+      accountSubType: account.accountSubType || '',
       accountGroup: account.accountGroup,
       openingBalance: account.openingBalance,
       description: account.description || '',
     });
     setShowAddModal(true);
   };
-  
+
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this account?')) return;
-    
+
     try {
       const res = await fetch(`/api/accounts/${id}`, {
         method: 'DELETE',
         credentials: 'include',
       });
-      
+
       if (res.ok) {
         toast.success('Account deleted!');
         fetchAccounts();
@@ -124,25 +162,17 @@ export default function AccountsPage() {
       toast.error('Failed to delete account');
     }
   };
-  
+
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     window.location.href = '/autocityPro/login';
   };
-  
+
   const filteredAccounts = accounts.filter(acc =>
     acc.accountName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     acc.accountNumber?.toLowerCase().includes(searchTerm.toLowerCase())
   );
-  
-  const accountGroups = {
-    asset: ['Current Assets', 'Fixed Assets', 'Cash & Bank', 'Investments'],
-    liability: ['Current Liabilities', 'Long-term Liabilities', 'Loans'],
-    equity: ['Owner Equity', 'Retained Earnings'],
-    revenue: ['Sales Revenue', 'Service Revenue', 'Other Income'],
-    expense: ['Operating Expenses', 'Administrative Expenses', 'Financial Expenses'],
-  };
-  
+
   return (
     <MainLayout user={user} onLogout={handleLogout}>
       <div className="p-8">
@@ -161,6 +191,7 @@ export default function AccountsPage() {
                 accountCode: '',
                 accountName: '',
                 accountType: 'asset',
+                accountSubType: '',
                 accountGroup: '',
                 openingBalance: 0,
                 description: '',
@@ -173,7 +204,7 @@ export default function AccountsPage() {
             <span>Add Account</span>
           </button>
         </div>
-        
+
         {/* Search */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <div className="relative">
@@ -187,7 +218,7 @@ export default function AccountsPage() {
             />
           </div>
         </div>
-        
+
         {/* Accounts Table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <table className="min-w-full divide-y divide-gray-200">
@@ -196,6 +227,7 @@ export default function AccountsPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Account Name</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sub Type</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Group</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Opening</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Current</th>
@@ -205,13 +237,13 @@ export default function AccountsPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                     Loading accounts...
                   </td>
                 </tr>
               ) : filteredAccounts.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                     <Wallet className="h-12 w-12 mx-auto mb-2 text-gray-300" />
                     <p>No accounts found</p>
                   </td>
@@ -231,6 +263,9 @@ export default function AccountsPage() {
                       }`}>
                         {account.accountType}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {accountSubTypes[account.accountType]?.find(st => st.value === account.accountSubType)?.label || account.accountSubType || '-'}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">{account.accountGroup}</td>
                     <td className="px-6 py-4 text-sm text-right">QAR {account.openingBalance?.toFixed(2) || '0.00'}</td>
@@ -271,18 +306,21 @@ export default function AccountsPage() {
           </table>
         </div>
       </div>
-      
+
       {/* Add/Edit Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center px-6 py-4 border-b">
               <h2 className="text-xl font-bold">{editingAccount ? 'Edit Account' : 'Add Account'}</h2>
-              <button onClick={() => setShowAddModal(false)}>
+              <button 
+                onClick={() => setShowAddModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
                 <X className="h-6 w-6" />
               </button>
             </div>
-            
+
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -292,11 +330,11 @@ export default function AccountsPage() {
                     value={formData.accountCode}
                     onChange={(e) => setFormData({ ...formData, accountCode: e.target.value })}
                     required
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
                     placeholder="e.g., 1001"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium mb-1">Account Name *</label>
                   <input
@@ -304,19 +342,24 @@ export default function AccountsPage() {
                     value={formData.accountName}
                     onChange={(e) => setFormData({ ...formData, accountName: e.target.value })}
                     required
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
                     placeholder="e.g., Cash in Hand"
                   />
                 </div>
               </div>
-              
-              <div className="grid grid-cols-2 gap-4">
+
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">Account Type *</label>
                   <select
                     value={formData.accountType}
-                    onChange={(e) => setFormData({ ...formData, accountType: e.target.value as any, accountGroup: '' })}
-                    className="w-full px-3 py-2 border rounded-lg"
+                    onChange={(e) => setFormData({ 
+                      ...formData, 
+                      accountType: e.target.value as any,
+                      accountSubType: '',
+                      accountGroup: ''
+                    })}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
                   >
                     <option value="asset">Asset</option>
                     <option value="liability">Liability</option>
@@ -325,14 +368,30 @@ export default function AccountsPage() {
                     <option value="expense">Expense</option>
                   </select>
                 </div>
-                
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Account Sub Type</label>
+                  <select
+                    value={formData.accountSubType}
+                    onChange={(e) => setFormData({ ...formData, accountSubType: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+                  >
+                    <option value="">Select Sub Type</option>
+                    {accountSubTypes[formData.accountType].map(st => (
+                      <option key={st.value} value={st.value}>
+                        {st.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium mb-1">Account Group *</label>
                   <select
                     value={formData.accountGroup}
                     onChange={(e) => setFormData({ ...formData, accountGroup: e.target.value })}
                     required
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
                   >
                     <option value="">Select Group</option>
                     {accountGroups[formData.accountType].map(group => (
@@ -341,7 +400,7 @@ export default function AccountsPage() {
                   </select>
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium mb-1">Opening Balance</label>
                 <input
@@ -349,33 +408,33 @@ export default function AccountsPage() {
                   value={formData.openingBalance}
                   onChange={(e) => setFormData({ ...formData, openingBalance: parseFloat(e.target.value) || 0 })}
                   step="0.01"
-                  className="w-full px-3 py-2 border rounded-lg"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
                   placeholder="0.00"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium mb-1">Description</label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={3}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
                   placeholder="Optional description"
                 />
               </div>
-              
+
               <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
                 >
                   {editingAccount ? 'Update' : 'Create'} Account
                 </button>

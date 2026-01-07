@@ -1,4 +1,3 @@
-// app/autocityPro/products/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -352,168 +351,191 @@ export default function ProductsPage() {
     "GT",
     "R/T",
     "SXT",
-  ];
+    "Gx",
+    "Gxr",
+    "Vx",
+    "Vxr",
+    "Vxs",
+    "Twin turbo",
+    "Platinium",
+    "Lx470",
+    "Lx570",
+    "Lx600",
+    "V8",
+    "V6"
+];
 
   return (
     <MainLayout user={user} onLogout={handleLogout}>
-      <div className="p-8">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Products</h1>
-            <p className="text-gray-600 mt-1">
-              {filteredProducts.length} products
-              {(filterCategory || filterMake || filterIsVehicle !== "all") &&
-                ` (filtered from ${products.length})`}
-            </p>
-          </div>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:opacity-90"
-          >
-            <Plus className="h-5 w-5" />
-            <span>Add Product</span>
-          </button>
-        </div>
-
-        {/* Search and Filters */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6 space-y-4">
-          <div className="flex gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search by name, SKU, barcode, make, model, or variant..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
-              />
+      {/* Header Section with Gradient Background */}
+      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 border border-purple-500/30 shadow-lg overflow-hidden">
+        <div className="p-8">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold text-white">Products</h1>
+              <p className="text-purple-100 mt-1">
+                {filteredProducts.length} products
+                {(filterCategory || filterMake || filterIsVehicle !== "all") &&
+                  ` (filtered from ${products.length})`}
+              </p>
             </div>
             <button
-              onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center space-x-2 px-4 py-2 border rounded-lg transition-colors ${
-                showFilters
-                  ? "bg-purple-50 border-purple-600 text-purple-600"
-                  : "hover:bg-gray-50"
-              }`}
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center space-x-2 px-4 py-2 bg-white text-slate-800 rounded-lg hover:bg-slate-100 transition-colors shadow-md"
             >
-              <Filter className="h-5 w-5" />
-              <span>Filters</span>
-              {(filterCategory || filterMake || filterIsVehicle !== "all") && (
-                <span className="ml-2 px-2 py-0.5 bg-purple-600 text-white text-xs rounded-full">
-                  {
-                    [
-                      filterCategory,
-                      filterMake,
-                      filterIsVehicle !== "all",
-                    ].filter(Boolean).length
-                  }
-                </span>
-              )}
+              <Plus className="h-5 w-5" />
+              <span>Add Product</span>
             </button>
           </div>
 
-          {/* Filter Options */}
-          {showFilters && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4 border-t">
-              <div>
-                <label className="block text-sm font-medium mb-1">Type</label>
-                <select
-                  value={filterIsVehicle}
-                  onChange={(e) => setFilterIsVehicle(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg"
-                >
-                  <option value="all">All Products</option>
-                  <option value="vehicle">Vehicles/Parts Only</option>
-                  <option value="non-vehicle">Non-Vehicle Products</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Category
-                </label>
-                <select
-                  value={filterCategory}
-                  onChange={(e) => setFilterCategory(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg"
-                >
-                  <option value="">All Categories</option>
-                  {categories.map((cat) => (
-                    <option key={cat._id} value={cat._id}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Car Make
-                </label>
-                <select
-                  value={filterMake}
-                  onChange={(e) => setFilterMake(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg"
-                >
-                  <option value="">All Makes</option>
-                  {availableMakes.map((make) => (
-                    <option key={make} value={make}>
-                      {make}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-end">
-                <button
-                  onClick={clearFilters}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  Clear Filters
-                </button>
-              </div>
-            </div>
-          )}
         </div>
+      </div>
+      
+      <div className='p-6 bg-slate-900 border-b border-slate-700'>
+
+      {/* Main Content */}
+      <div className="p-8 bg-slate-800 min-h-screen">
+                  {/* Search and Filters in Header */}
+          <div className="mt-2 space-y-4 mb-4">
+            <div className="flex gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-3 h-5 w-5 text-purple-400" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search by name, SKU, barcode, make, model, or variant..."
+                  className="w-full pl-10 pr-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg focus:ring-2 focus:ring-white/50 focus:border-transparent text-white placeholder-purple-200"
+                />
+              </div>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`flex items-center space-x-2 px-4 py-2 border border-white/30 rounded-lg transition-colors ${
+                  showFilters
+                    ? "bg-white/20 backdrop-blur-sm text-white"
+                    : "hover:bg-white/10 text-white"
+                }`}
+              >
+                <Filter className="h-5 w-5" />
+                <span>Filters</span>
+                {(filterCategory || filterMake || filterIsVehicle !== "all") && (
+                  <span className="ml-2 px-2 py-0.5 bg-white text-slate-800 text-xs rounded-full">
+                    {
+                      [
+                        filterCategory,
+                        filterMake,
+                        filterIsVehicle !== "all",
+                      ].filter(Boolean).length
+                    }
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* Filter Options */}
+            {showFilters && (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4 border-t border-white/20">
+                <div>
+                  <label className="block text-sm font-medium text-white mb-1">
+                    Type
+                  </label>
+                  <select
+                    value={filterIsVehicle}
+                    onChange={(e) => setFilterIsVehicle(e.target.value)}
+                    className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white"
+                  >
+                    <option value="all" className="text-slate-800">All Products</option>
+                    <option value="vehicle" className="text-slate-800">Vehicles/Parts Only</option>
+                    <option value="non-vehicle" className="text-slate-800">Non-Vehicle Products</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-white mb-1">
+                    Category
+                  </label>
+                  <select
+                    value={filterCategory}
+                    onChange={(e) => setFilterCategory(e.target.value)}
+                    className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white"
+                  >
+                    <option value="" className="text-slate-800">All Categories</option>
+                    {categories.map((cat) => (
+                      <option key={cat._id} value={cat._id} className="text-slate-800">
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-white mb-1">
+                    Car Make
+                  </label>
+                  <select
+                    value={filterMake}
+                    onChange={(e) => setFilterMake(e.target.value)}
+                    className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white"
+                  >
+                    <option value="" className="text-slate-800">All Makes</option>
+                    {availableMakes.map((make) => (
+                      <option key={make} value={make} className="text-slate-800">
+                        {make}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-end">
+                  <button
+                    onClick={clearFilters}
+                    className="w-full px-4 py-2 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg hover:bg-white/30 text-white transition-colors"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
 
         {/* Products Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-slate-900 rounded-lg shadow overflow-hidden border border-slate-700">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-slate-700">
+              <thead className="bg-slate-800">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
                     Product
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
                     SKU
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
                     Category
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
                     Vehicle Info
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-300 uppercase tracking-wider">
                     Stock
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-300 uppercase tracking-wider">
                     Cost
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-300 uppercase tracking-wider">
                     Price
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-300 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-slate-800 divide-y divide-slate-700">
                 {loading ? (
                   <tr>
                     <td
                       colSpan={8}
-                      className="px-6 py-12 text-center text-gray-500"
+                      className="px-6 py-12 text-center text-slate-400"
                     >
                       Loading products...
                     </td>
@@ -522,16 +544,16 @@ export default function ProductsPage() {
                   <tr>
                     <td
                       colSpan={8}
-                      className="px-6 py-12 text-center text-gray-500"
+                      className="px-6 py-12 text-center text-slate-400"
                     >
-                      <Package className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                      <Package className="h-12 w-12 mx-auto mb-2 text-slate-600" />
                       <p>No products found</p>
                       {(filterCategory ||
                         filterMake ||
                         filterIsVehicle !== "all") && (
                         <button
                           onClick={clearFilters}
-                          className="mt-2 text-purple-600 hover:text-purple-700 text-sm"
+                          className="mt-2 text-purple-400 hover:text-purple-300 text-sm transition-colors"
                         >
                           Clear filters
                         </button>
@@ -540,39 +562,39 @@ export default function ProductsPage() {
                   </tr>
                 ) : (
                   filteredProducts.map((product) => (
-                    <tr key={product._id} className="hover:bg-gray-50">
+                    <tr key={product._id} className="hover:bg-slate-750 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center">
                           {product.isVehicle && (
-                            <Car className="h-4 w-4 mr-2 text-purple-600 flex-shrink-0" />
+                            <Car className="h-4 w-4 mr-2 text-purple-400 flex-shrink-0" />
                           )}
                           <div>
-                            <p className="text-sm font-medium text-gray-900">
+                            <p className="text-sm font-medium text-slate-100">
                               {product.name}
                             </p>
                             {product.partNumber && (
-                              <p className="text-xs text-gray-500">
+                              <p className="text-xs text-slate-400">
                                 Part#: {product.partNumber}
                               </p>
                             )}
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
+                      <td className="px-6 py-4 text-sm text-slate-200">
                         {product.sku}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
+                      <td className="px-6 py-4 text-sm text-slate-400">
                         {product.category?.name || "N/A"}
                       </td>
                       <td className="px-6 py-4 text-sm">
                         {product.carMake ? (
                           <div className="space-y-1">
-                            <div className="flex items-center text-gray-900 font-medium">
-                              <Car className="h-3 w-3 mr-1 text-purple-600 flex-shrink-0" />
+                            <div className="flex items-center text-slate-200 font-medium">
+                              <Car className="h-3 w-3 mr-1 text-purple-400 flex-shrink-0" />
                               <span>{product.carMake}</span>
                             </div>
                             {product.carModel && (
-                              <div className="text-gray-600 text-xs pl-4">
+                              <div className="text-slate-400 text-xs pl-4">
                                 Model: {product.carModel}
                                 {product.variant &&
                                   ` (${product.variant})`}{" "}
@@ -580,13 +602,13 @@ export default function ProductsPage() {
                               </div>
                             )}
                             {product.year && (
-                              <div className="text-gray-500 text-xs pl-4">
+                              <div className="text-slate-500 text-xs pl-4">
                                 Year: {product.year}
                               </div>
                             )}
                           </div>
                         ) : (
-                          <span className="text-gray-400 text-xs">
+                          <span className="text-slate-500 text-xs">
                             {product.isVehicle ? "Vehicle (no details)" : "-"}
                           </span>
                         )}
@@ -596,20 +618,20 @@ export default function ProductsPage() {
                           className={`${
                             (product.currentStock || 0) <=
                             (product.minStock || 0)
-                              ? "text-red-600 font-semibold"
-                              : "text-gray-900"
+                              ? "text-red-400 font-semibold"
+                              : "text-slate-200"
                           }`}
                         >
                           {product.currentStock || 0}
                         </span>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-slate-500">
                           Min: {product.minStock || 0}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-right text-gray-900">
+                      <td className="px-6 py-4 text-sm text-right text-slate-300">
                         QAR {product.costPrice || 0}
                       </td>
-                      <td className="px-6 py-4 text-sm text-right font-semibold text-gray-900">
+                      <td className="px-6 py-4 text-sm text-right font-semibold text-slate-100">
                         QAR {product.sellingPrice || 0}
                       </td>
                       <td className="px-6 py-4 text-right text-sm font-medium">
@@ -620,21 +642,21 @@ export default function ProductsPage() {
                                 `/autocityPro/products/${product._id}`
                               )
                             }
-                            className="text-blue-600 hover:text-blue-900 p-1"
+                            className="text-blue-400 hover:text-blue-300 p-1 transition-colors"
                             title="View Details"
                           >
                             <Eye className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => openEditModal(product)}
-                            className="text-indigo-600 hover:text-indigo-900 p-1"
+                            className="text-indigo-400 hover:text-indigo-300 p-1 transition-colors"
                             title="Edit"
                           >
                             <Edit className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => setProductToDelete(product)}
-                            className="text-red-600 hover:text-red-900 p-1"
+                            className="text-red-400 hover:text-red-300 p-1 transition-colors"
                             title="Delete"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -649,18 +671,20 @@ export default function ProductsPage() {
           </div>
         </div>
       </div>
+      </div>
 
       {/* Add Product Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full my-8">
-            <div className="flex justify-between items-center px-6 py-4 border-b">
-              <h2 className="text-xl font-bold">Add New Product</h2>
+          <div className="bg-slate-800 rounded-lg shadow-xl max-w-2xl w-full my-8 border border-slate-700">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-700">
+              <h2 className="text-xl font-bold text-slate-100">Add New Product</h2>
               <button
                 onClick={() => {
                   setShowAddModal(false);
                   resetNewProduct();
                 }}
+                className="text-slate-400 hover:text-slate-300"
               >
                 <X className="h-6 w-6" />
               </button>
@@ -670,7 +694,7 @@ export default function ProductsPage() {
               {/* Basic Info */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
                     Product Name *
                   </label>
                   <input
@@ -679,13 +703,13 @@ export default function ProductsPage() {
                     onChange={(e) =>
                       setNewProduct({ ...newProduct, name: e.target.value })
                     }
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     placeholder="Product name"
                   />
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
                     Description
                   </label>
                   <textarea
@@ -697,13 +721,13 @@ export default function ProductsPage() {
                       })
                     }
                     rows={2}
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     placeholder="Product description"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
                     Category
                   </label>
                   <select
@@ -714,11 +738,11 @@ export default function ProductsPage() {
                         categoryId: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   >
-                    <option value="">Select Category</option>
+                    <option value="" className="text-slate-800">Select Category</option>
                     {categories.map((cat) => (
-                      <option key={cat._id} value={cat._id}>
+                      <option key={cat._id} value={cat._id} className="text-slate-800">
                         {cat.name}
                       </option>
                     ))}
@@ -726,7 +750,7 @@ export default function ProductsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
                     SKU *
                   </label>
                   <input
@@ -738,13 +762,13 @@ export default function ProductsPage() {
                         sku: e.target.value.toUpperCase(),
                       })
                     }
-                    className="w-full px-3 py-2 border rounded-lg uppercase"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent uppercase"
                     placeholder="SKU"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
                     Barcode
                   </label>
                   <input
@@ -753,52 +777,52 @@ export default function ProductsPage() {
                     onChange={(e) =>
                       setNewProduct({ ...newProduct, barcode: e.target.value })
                     }
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     placeholder="Barcode"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">Unit</label>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Unit</label>
                   <select
                     value={newProduct.unit}
                     onChange={(e) =>
                       setNewProduct({ ...newProduct, unit: e.target.value })
                     }
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   >
-                    <option value="pcs">Pieces</option>
-                    <option value="kg">Kilogram</option>
-                    <option value="liter">Liter</option>
-                    <option value="meter">Meter</option>
-                    <option value="box">Box</option>
+                    <option value="pcs" className="text-slate-800">Pieces</option>
+                    <option value="kg" className="text-slate-800">Kilogram</option>
+                    <option value="liter" className="text-slate-800">Liter</option>
+                    <option value="meter" className="text-slate-800">Meter</option>
+                    <option value="box" className="text-slate-800">Box</option>
                   </select>
                 </div>
               </div>
 
               {/* Vehicle Toggle */}
-              <div className="flex items-center space-x-2 p-3 bg-blue-50 rounded-lg">
+              <div className="flex items-center space-x-2 p-3 bg-blue-900/30 rounded-lg border border-blue-800/50">
                 <input
                   type="checkbox"
                   id="isVehicle"
                   checked={isVehicle}
                   onChange={(e) => setIsVehicle(e.target.checked)}
-                  className="h-4 w-4"
+                  className="h-4 w-4 text-purple-600"
                 />
                 <label
                   htmlFor="isVehicle"
-                  className="text-sm font-medium flex items-center"
+                  className="text-sm font-medium text-slate-300 flex items-center"
                 >
-                  <Car className="h-4 w-4 mr-2" />
+                  <Car className="h-4 w-4 mr-2 text-blue-400" />
                   This is a vehicle or vehicle part
                 </label>
               </div>
 
               {/* Vehicle Details */}
               {isVehicle && (
-                <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+                <div className="grid grid-cols-2 gap-4 p-4 bg-slate-900/50 rounded-lg border border-slate-700">
                   <div>
-                    <label className="block text-sm font-medium mb-1">
+                    <label className="block text-sm font-medium text-slate-300 mb-1">
                       Make *
                     </label>
                     <select
@@ -811,11 +835,11 @@ export default function ProductsPage() {
                           variant: "",
                         })
                       }
-                      className="w-full px-3 py-2 border rounded-lg"
+                      className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     >
-                      <option value="">Select Make</option>
+                      <option value="" className="text-slate-800">Select Make</option>
                       {Object.keys(carMakesModels).map((make) => (
-                        <option key={make} value={make}>
+                        <option key={make} value={make} className="text-slate-800">
                           {make}
                         </option>
                       ))}
@@ -823,7 +847,7 @@ export default function ProductsPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-1">
+                    <label className="block text-sm font-medium text-slate-300 mb-1">
                       Model
                     </label>
                     <select
@@ -834,14 +858,14 @@ export default function ProductsPage() {
                           carModel: e.target.value,
                         })
                       }
-                      className="w-full px-3 py-2 border rounded-lg"
+                      className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       disabled={!newProduct.carMake}
                     >
-                      <option value="">Select Model</option>
+                      <option value="" className="text-slate-800">Select Model</option>
                       {newProduct.carMake &&
                         carMakesModels[newProduct.carMake]?.map(
                           (model: string) => (
-                            <option key={model} value={model}>
+                            <option key={model} value={model} className="text-slate-800">
                               {model}
                             </option>
                           )
@@ -850,7 +874,7 @@ export default function ProductsPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-1">
+                    <label className="block text-sm font-medium text-slate-300 mb-1">
                       Variant
                     </label>
                     <select
@@ -861,21 +885,21 @@ export default function ProductsPage() {
                           variant: e.target.value,
                         })
                       }
-                      className="w-full px-3 py-2 border rounded-lg"
+                      className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     >
-                      <option value="">Select Variant</option>
+                      <option value="" className="text-slate-800">Select Variant</option>
                       {vehicleVariants.map((variant) => (
-                        <option key={variant} value={variant}>
+                        <option key={variant} value={variant} className="text-slate-800">
                           {variant}
                         </option>
                       ))}
-                      <option value="custom">Custom...</option>
+                      <option value="custom" className="text-slate-800">Custom...</option>
                     </select>
                   </div>
 
                   {newProduct.variant === "custom" && (
                     <div className="col-span-2">
-                      <label className="block text-sm font-medium mb-1">
+                      <label className="block text-sm font-medium text-slate-300 mb-1">
                         Custom Variant
                       </label>
                       <input
@@ -891,14 +915,14 @@ export default function ProductsPage() {
                             variant: e.target.value,
                           })
                         }
-                        className="w-full px-3 py-2 border rounded-lg"
+                        className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         placeholder="Enter custom variant"
                       />
                     </div>
                   )}
 
                   <div>
-                    <label className="block text-sm font-medium mb-1">
+                    <label className="block text-sm font-medium text-slate-300 mb-1">
                       Year
                     </label>
                     <input
@@ -907,13 +931,13 @@ export default function ProductsPage() {
                       onChange={(e) =>
                         setNewProduct({ ...newProduct, year: e.target.value })
                       }
-                      className="w-full px-3 py-2 border rounded-lg"
+                      className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       placeholder="e.g., 2024"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-1">
+                    <label className="block text-sm font-medium text-slate-300 mb-1">
                       Part Number
                     </label>
                     <input
@@ -925,7 +949,7 @@ export default function ProductsPage() {
                           partNumber: e.target.value,
                         })
                       }
-                      className="w-full px-3 py-2 border rounded-lg"
+                      className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       placeholder="Part number"
                     />
                   </div>
@@ -935,7 +959,7 @@ export default function ProductsPage() {
               {/* Pricing */}
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
                     Cost Price
                   </label>
                   <input
@@ -949,12 +973,12 @@ export default function ProductsPage() {
                     }
                     min="0"
                     step="0.01"
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
                     Selling Price
                   </label>
                   <input
@@ -968,12 +992,12 @@ export default function ProductsPage() {
                     }
                     min="0"
                     step="0.01"
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
                     Tax Rate (%)
                   </label>
                   <input
@@ -988,7 +1012,7 @@ export default function ProductsPage() {
                     min="0"
                     max="100"
                     step="0.1"
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
               </div>
@@ -996,7 +1020,7 @@ export default function ProductsPage() {
               {/* Stock */}
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
                     Current Stock
                   </label>
                   <input
@@ -1009,12 +1033,12 @@ export default function ProductsPage() {
                       })
                     }
                     min="0"
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
                     Min Stock
                   </label>
                   <input
@@ -1027,12 +1051,12 @@ export default function ProductsPage() {
                       })
                     }
                     min="0"
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
                     Max Stock
                   </label>
                   <input
@@ -1045,25 +1069,25 @@ export default function ProductsPage() {
                       })
                     }
                     min="0"
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="flex justify-end space-x-3 px-6 py-4 border-t">
+            <div className="flex justify-end space-x-3 px-6 py-4 border-t border-slate-700">
               <button
                 onClick={() => {
                   setShowAddModal(false);
                   resetNewProduct();
                 }}
-                className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 border border-slate-700 text-slate-300 rounded-lg hover:bg-slate-700 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddProduct}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:opacity-90 transition-opacity"
               >
                 Add Product
               </button>
@@ -1072,17 +1096,18 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* Edit Product Modal */}
+      {/* Edit Product Modal - Similar structure with slate-800 theme */}
       {showEditModal && editingProduct && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full my-8">
-            <div className="flex justify-between items-center px-6 py-4 border-b">
-              <h2 className="text-xl font-bold">Edit Product</h2>
+          <div className="bg-slate-800 rounded-lg shadow-xl max-w-2xl w-full my-8 border border-slate-700">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-700">
+              <h2 className="text-xl font-bold text-slate-100">Edit Product</h2>
               <button
                 onClick={() => {
                   setShowEditModal(false);
                   setEditingProduct(null);
                 }}
+                className="text-slate-400 hover:text-slate-300"
               >
                 <X className="h-6 w-6" />
               </button>
@@ -1092,7 +1117,7 @@ export default function ProductsPage() {
               {/* Same form structure as Add Modal, but with editingProduct */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
                     Product Name *
                   </label>
                   <input
@@ -1104,12 +1129,12 @@ export default function ProductsPage() {
                         name: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
                     Description
                   </label>
                   <textarea
@@ -1121,12 +1146,12 @@ export default function ProductsPage() {
                       })
                     }
                     rows={2}
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
                     Category
                   </label>
                   <select
@@ -1137,11 +1162,11 @@ export default function ProductsPage() {
                         categoryId: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   >
-                    <option value="">Select Category</option>
+                    <option value="" className="text-slate-800">Select Category</option>
                     {categories.map((cat) => (
-                      <option key={cat._id} value={cat._id}>
+                      <option key={cat._id} value={cat._id} className="text-slate-800">
                         {cat.name}
                       </option>
                     ))}
@@ -1149,7 +1174,7 @@ export default function ProductsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
                     SKU *
                   </label>
                   <input
@@ -1161,12 +1186,12 @@ export default function ProductsPage() {
                         sku: e.target.value.toUpperCase(),
                       })
                     }
-                    className="w-full px-3 py-2 border rounded-lg uppercase"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent uppercase"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
                     Barcode
                   </label>
                   <input
@@ -1178,12 +1203,12 @@ export default function ProductsPage() {
                         barcode: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">Unit</label>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Unit</label>
                   <select
                     value={editingProduct.unit}
                     onChange={(e) =>
@@ -1192,40 +1217,40 @@ export default function ProductsPage() {
                         unit: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   >
-                    <option value="pcs">Pieces</option>
-                    <option value="kg">Kilogram</option>
-                    <option value="liter">Liter</option>
-                    <option value="meter">Meter</option>
-                    <option value="box">Box</option>
+                    <option value="pcs" className="text-slate-800">Pieces</option>
+                    <option value="kg" className="text-slate-800">Kilogram</option>
+                    <option value="liter" className="text-slate-800">Liter</option>
+                    <option value="meter" className="text-slate-800">Meter</option>
+                    <option value="box" className="text-slate-800">Box</option>
                   </select>
                 </div>
               </div>
 
               {/* Vehicle Toggle */}
-              <div className="flex items-center space-x-2 p-3 bg-blue-50 rounded-lg">
+              <div className="flex items-center space-x-2 p-3 bg-blue-900/30 rounded-lg border border-blue-800/50">
                 <input
                   type="checkbox"
                   id="editIsVehicle"
                   checked={isVehicle}
                   onChange={(e) => setIsVehicle(e.target.checked)}
-                  className="h-4 w-4"
+                  className="h-4 w-4 text-purple-600"
                 />
                 <label
                   htmlFor="editIsVehicle"
-                  className="text-sm font-medium flex items-center"
+                  className="text-sm font-medium text-slate-300 flex items-center"
                 >
-                  <Car className="h-4 w-4 mr-2" />
+                  <Car className="h-4 w-4 mr-2 text-blue-400" />
                   This is a vehicle or vehicle part
                 </label>
               </div>
 
               {/* Vehicle Details */}
               {isVehicle && (
-                <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+                <div className="grid grid-cols-2 gap-4 p-4 bg-slate-900/50 rounded-lg border border-slate-700">
                   <div>
-                    <label className="block text-sm font-medium mb-1">
+                    <label className="block text-sm font-medium text-slate-300 mb-1">
                       Make *
                     </label>
                     <select
@@ -1238,11 +1263,11 @@ export default function ProductsPage() {
                           variant: "",
                         })
                       }
-                      className="w-full px-3 py-2 border rounded-lg"
+                      className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     >
-                      <option value="">Select Make</option>
+                      <option value="" className="text-slate-800">Select Make</option>
                       {Object.keys(carMakesModels).map((make) => (
-                        <option key={make} value={make}>
+                        <option key={make} value={make} className="text-slate-800">
                           {make}
                         </option>
                       ))}
@@ -1250,7 +1275,7 @@ export default function ProductsPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-1">
+                    <label className="block text-sm font-medium text-slate-300 mb-1">
                       Model
                     </label>
                     <select
@@ -1261,14 +1286,14 @@ export default function ProductsPage() {
                           carModel: e.target.value,
                         })
                       }
-                      className="w-full px-3 py-2 border rounded-lg"
+                      className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       disabled={!editingProduct.carMake}
                     >
-                      <option value="">Select Model</option>
+                      <option value="" className="text-slate-800">Select Model</option>
                       {editingProduct.carMake &&
                         carMakesModels[editingProduct.carMake as CarMake]?.map(
                           (model: string) => (
-                            <option key={model} value={model}>
+                            <option key={model} value={model} className="text-slate-800">
                               {model}
                             </option>
                           )
@@ -1277,7 +1302,7 @@ export default function ProductsPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-1">
+                    <label className="block text-sm font-medium text-slate-300 mb-1">
                       Variant
                     </label>
                     <select
@@ -1288,21 +1313,21 @@ export default function ProductsPage() {
                           variant: e.target.value,
                         })
                       }
-                      className="w-full px-3 py-2 border rounded-lg"
+                      className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     >
-                      <option value="">Select Variant</option>
+                      <option value="" className="text-slate-800">Select Variant</option>
                       {vehicleVariants.map((variant) => (
-                        <option key={variant} value={variant}>
+                        <option key={variant} value={variant} className="text-slate-800">
                           {variant}
                         </option>
                       ))}
-                      <option value="custom">Custom...</option>
+                      <option value="custom" className="text-slate-800">Custom...</option>
                     </select>
                   </div>
 
                   {editingProduct.variant === "custom" && (
                     <div className="col-span-2">
-                      <label className="block text-sm font-medium mb-1">
+                      <label className="block text-sm font-medium text-slate-300 mb-1">
                         Custom Variant
                       </label>
                       <input
@@ -1318,14 +1343,14 @@ export default function ProductsPage() {
                             variant: e.target.value,
                           })
                         }
-                        className="w-full px-3 py-2 border rounded-lg"
+                        className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         placeholder="Enter custom variant"
                       />
                     </div>
                   )}
 
                   <div>
-                    <label className="block text-sm font-medium mb-1">
+                    <label className="block text-sm font-medium text-slate-300 mb-1">
                       Year
                     </label>
                     <input
@@ -1337,13 +1362,13 @@ export default function ProductsPage() {
                           year: e.target.value,
                         })
                       }
-                      className="w-full px-3 py-2 border rounded-lg"
+                      className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       placeholder="e.g., 2024"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-1">
+                    <label className="block text-sm font-medium text-slate-300 mb-1">
                       Part Number
                     </label>
                     <input
@@ -1355,7 +1380,7 @@ export default function ProductsPage() {
                           partNumber: e.target.value,
                         })
                       }
-                      className="w-full px-3 py-2 border rounded-lg"
+                      className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       placeholder="Part number"
                     />
                   </div>
@@ -1365,7 +1390,7 @@ export default function ProductsPage() {
               {/* Pricing */}
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
                     Cost Price
                   </label>
                   <input
@@ -1379,12 +1404,12 @@ export default function ProductsPage() {
                     }
                     min="0"
                     step="0.01"
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
                     Selling Price
                   </label>
                   <input
@@ -1398,12 +1423,12 @@ export default function ProductsPage() {
                     }
                     min="0"
                     step="0.01"
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
                     Tax Rate (%)
                   </label>
                   <input
@@ -1418,7 +1443,7 @@ export default function ProductsPage() {
                     min="0"
                     max="100"
                     step="0.1"
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
               </div>
@@ -1426,7 +1451,7 @@ export default function ProductsPage() {
               {/* Stock */}
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
                     Current Stock
                   </label>
                   <input
@@ -1439,12 +1464,12 @@ export default function ProductsPage() {
                       })
                     }
                     min="0"
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
                     Min Stock
                   </label>
                   <input
@@ -1457,12 +1482,12 @@ export default function ProductsPage() {
                       })
                     }
                     min="0"
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
                     Max Stock
                   </label>
                   <input
@@ -1475,25 +1500,25 @@ export default function ProductsPage() {
                       })
                     }
                     min="0"
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="flex justify-end space-x-3 px-6 py-4 border-t">
+            <div className="flex justify-end space-x-3 px-6 py-4 border-t border-slate-700">
               <button
                 onClick={() => {
                   setShowEditModal(false);
                   setEditingProduct(null);
                 }}
-                className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 border border-slate-700 text-slate-300 rounded-lg hover:bg-slate-700 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleEditProduct}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:opacity-90 transition-opacity"
               >
                 Update Product
               </button>
@@ -1505,26 +1530,26 @@ export default function ProductsPage() {
       {/* Delete Confirmation Modal */}
       {productToDelete && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+          <div className="bg-slate-800 rounded-lg shadow-xl max-w-md w-full border border-slate-700">
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className="text-lg font-semibold text-slate-100 mb-2">
                 Delete Product
               </h3>
-              <p className="text-gray-600 mb-4">
+              <p className="text-slate-400 mb-4">
                 Are you sure you want to delete{" "}
-                <strong>{productToDelete.name}</strong>? This action cannot be
+                <strong className="text-slate-200">{productToDelete.name}</strong>? This action cannot be
                 undone.
               </p>
               <div className="flex justify-end space-x-3">
                 <button
                   onClick={() => setProductToDelete(null)}
-                  className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                  className="px-4 py-2 border border-slate-700 text-slate-300 rounded-lg hover:bg-slate-700 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleDeleteProduct}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                 >
                   Delete
                 </button>
@@ -1532,6 +1557,7 @@ export default function ProductsPage() {
             </div>
           </div>
         </div>
+        
       )}
     </MainLayout>
   );

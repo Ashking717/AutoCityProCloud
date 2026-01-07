@@ -91,21 +91,8 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
     {
       title: 'Reports',
       items: [
-        { 
-          name: 'Sales Report', 
-          icon: BarChart3, 
-          href: '#',
-          submenu: [
-            { name: 'Sales Report', href: '/autocityPro/reports/sales' },
-            { name: 'Profit & Loss', href: '/autocityPro/reports/profit-loss' },
-            { name: 'Balance Sheet', href: '/autocityPro/reports/balance-sheet' },
-            { name: 'Stock Report', href: '/autocityPro/reports/stock' },
-            { name: 'Customer Ledger', href: '/autocityPro/reports/customer-ledger' },
-            { name: 'Daybook', href: '/autocityPro/reports/daybook' },
-            { name: 'Cash Flow', href: '/autocityPro/reports/cash-flow' },
-          ]
-        },
-      ],
+        { name: 'Reports', icon: Users, href: '/autocityPro/reports' },
+        ],
     },
     {
       title: 'System',

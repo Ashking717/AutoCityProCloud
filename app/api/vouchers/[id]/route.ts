@@ -1,3 +1,4 @@
+// app/api/vouchers/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/mongodb';
 import Voucher from '@/lib/models/Voucher';

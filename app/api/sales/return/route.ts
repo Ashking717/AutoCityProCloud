@@ -1,7 +1,10 @@
+// app/api/sales/return/route.ts - COMPLETE WITH LEDGER INTEGRATION
 import { NextRequest, NextResponse } from 'next/server';
 import Sale, { ISale } from '@/lib/models/Sale';
 import Product from '@/lib/models/ProductEnhanced';
 import ActivityLog from '@/lib/models/ActivityLog';
+import InventoryMovement from '@/lib/models/InventoryMovement';
+import { postReturnToLedger } from '@/lib/services/accountingService';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth/jwt';
 import { connectDB } from '@/lib/db/mongodb';
@@ -28,6 +31,10 @@ interface ReturnRequest {
 export async function POST(request: NextRequest) {
   try {
     await connectDB();
+    
+    console.log('\n═══════════════════════════════════════════════════════════');
+    console.log('RETURN PROCESSING');
+    console.log('═══════════════════════════════════════════════════════════');
     
     const cookieStore = cookies();
     const token = cookieStore.get('auth-token')?.value;
@@ -89,7 +96,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
     
-    // Validate return items - IMPORTANT: Filter out labor items here too
+    // Validate return items - IMPORTANT: Filter out labor items
     const validatedItems: Array<{
       originalItem: any;
       quantity: number;
@@ -147,7 +154,7 @@ export async function POST(request: NextRequest) {
       
       // Calculate return amount (including original tax and discount proportion)
       const itemValue = originalItem.unitPrice * returnItem.quantity;
-      const taxAmount = (itemValue * originalItem.taxRate) / 100;
+      const taxAmount = (itemValue * (originalItem.taxRate || 0)) / 100;
       const discountAmount = (originalItem.discount / originalItem.quantity) * returnItem.quantity;
       const itemTotal = itemValue + taxAmount - discountAmount;
       
@@ -184,7 +191,9 @@ export async function POST(request: NextRequest) {
       }
     });
     
-    const returnNumber = `RTN-${year}${month}-${(returnCount + 1).toString().padStart(4, '0')}`;
+    const returnNumber = `RET-${year}${month}-${(returnCount + 1).toString().padStart(5, '0')}`;
+    
+    console.log(`✓ Generated return number: ${returnNumber}`);
     
     // Process each return item
     const returnDetails: any[] = [];
@@ -197,10 +206,33 @@ export async function POST(request: NextRequest) {
       
       // Update product stock if applicable
       if (originalItem.productId) {
-        const product = await Product.findById(originalItem.productId);
-        if (product) {
-          product.currentStock += quantity;
-          await product.save();
+        try {
+          const product = await Product.findById(originalItem.productId);
+          if (product) {
+            product.currentStock += quantity;
+            await product.save();
+            
+            // Create inventory movement
+            await InventoryMovement.create({
+              productId: originalItem.productId,
+              productName: originalItem.name,
+              sku: originalItem.sku,
+              movementType: 'RETURN',
+              quantity: quantity,
+              unitCost: originalItem.costPrice || originalItem.unitPrice,
+              totalCost: quantity * (originalItem.costPrice || originalItem.unitPrice),
+              referenceType: 'RETURN',
+              referenceId: sale._id,
+              referenceNumber: returnNumber,
+              outletId: user.outletId,
+              createdBy: new mongoose.Types.ObjectId(user.userId),
+              notes: reason,
+            });
+            
+            console.log(`  ✓ Restored ${quantity} x ${originalItem.name}`);
+          }
+        } catch (error: any) {
+          console.error(`  ⚠️ Failed to restore inventory for ${originalItem.sku}:`, error.message);
         }
       }
       
@@ -217,6 +249,44 @@ export async function POST(request: NextRequest) {
       });
     }
     
+    // ═══════════════════════════════════════════════════════════
+    // POST TO LEDGER
+    // ═══════════════════════════════════════════════════════════
+    console.log('\n💰 Posting return to ledger...');
+    
+    const returnData = {
+      _id: new mongoose.Types.ObjectId(),
+      returnNumber,
+      returnDate: new Date(),
+      reason: reason || 'Customer return',
+      items: returnDetails,
+      totalAmount,
+      processedBy: new mongoose.Types.ObjectId(user.userId),
+      processedByName: user.email,
+      // Sale info for ledger posting
+      saleId: sale._id,
+      invoiceNumber: sale.invoiceNumber,
+      customerId: sale.customerId,
+      customerName: sale.customerName,
+      paymentMethod: sale.paymentMethod,
+      outletId: user.outletId,
+    };
+    
+    let voucherId = null;
+    
+    try {
+      const ledgerResult = await postReturnToLedger(returnData, new mongoose.Types.ObjectId(user.userId));
+      voucherId = ledgerResult.voucherId;
+      console.log(`✓ Posted to ledger: ${ledgerResult.voucherNumber}`);
+    } catch (ledgerError: any) {
+      console.error('⚠️ Ledger posting error:', ledgerError);
+      // Continue even if ledger fails - we can re-post later
+    }
+    
+    // ═══════════════════════════════════════════════════════════
+    // UPDATE SALE RECORD
+    // ═══════════════════════════════════════════════════════════
+    
     // Initialize returns array if needed
     if (!sale.returns) {
       sale.returns = [];
@@ -229,6 +299,7 @@ export async function POST(request: NextRequest) {
       reason,
       items: returnDetails,
       totalAmount,
+      voucherId,
       processedBy: new mongoose.Types.ObjectId(user.userId),
       processedByName: user.email
     });
@@ -245,13 +316,18 @@ export async function POST(request: NextRequest) {
     
     await sale.save();
     
-    // Log activity
+    console.log(`✓ Return saved to sale record`);
+    
+    // ═══════════════════════════════════════════════════════════
+    // ACTIVITY LOG
+    // ═══════════════════════════════════════════════════════════
+    
     await ActivityLog.create({
       userId: user.userId,
       username: user.email,
       actionType: 'return',
       module: 'sales',
-      description: `Processed return ${returnNumber} for sale ${invoiceNumber}`,
+      description: `Processed return ${returnNumber} for sale ${invoiceNumber} - QAR ${totalAmount.toFixed(2)}`,
       details: {
         saleId: sale._id,
         invoiceNumber,
@@ -268,6 +344,12 @@ export async function POST(request: NextRequest) {
       timestamp: new Date(),
     });
     
+    console.log(`\n✓ Return processed successfully`);
+    console.log(`  Return Number: ${returnNumber}`);
+    console.log(`  Items: ${returnDetails.length}`);
+    console.log(`  Amount: QAR ${totalAmount.toFixed(2)}`);
+    console.log('═══════════════════════════════════════════════════════════\n');
+    
     return NextResponse.json({ 
       success: true,
       message: 'Return processed successfully',
@@ -275,13 +357,15 @@ export async function POST(request: NextRequest) {
         returnNumber,
         totalAmount,
         returnDetails,
+        voucherId,
         sale: {
           _id: sale._id,
           invoiceNumber: sale.invoiceNumber,
           status: sale.status,
           balanceDue: sale.balanceDue,
           amountPaid: sale.amountPaid,
-          grandTotal: sale.grandTotal
+          grandTotal: sale.grandTotal,
+          totalReturnedAmount: totalReturned,
         }
       }
     });
@@ -294,7 +378,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Get returns function remains the same...
 // Get returns
 export async function GET(request: NextRequest) {
   try {

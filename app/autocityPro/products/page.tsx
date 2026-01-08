@@ -13,6 +13,7 @@ import {
   X,
   Filter,
   Eye,
+  Tag,
 } from "lucide-react";
 import { CarMake, carMakesModels } from "@/lib/data/carData";
 import toast from "react-hot-toast";
@@ -35,6 +36,10 @@ export default function ProductsPage() {
   const [filterIsVehicle, setFilterIsVehicle] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
 
+  // Quick Add Category
+  const [showQuickAddCategory, setShowQuickAddCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+
   const [editingProduct, setEditingProduct] = useState<any>(null);
 
   const [newProduct, setNewProduct] = useState<{
@@ -55,6 +60,7 @@ export default function ProductsPage() {
     variant: string;
     year: string;
     partNumber: string;
+    color: string;
   }>({
     name: "",
     description: "",
@@ -73,7 +79,68 @@ export default function ProductsPage() {
     variant: "",
     year: "",
     partNumber: "",
+    color: "",
   });
+
+  // Common vehicle variants
+  const vehicleVariants = [
+    "Base",
+    "LX",
+    "EX",
+    "Sport",
+    "Limited",
+    "Premium",
+    "Touring",
+    "SE",
+    "LE",
+    "XLE",
+    "SR",
+    "TRD",
+    "GT",
+    "R/T",
+    "SXT",
+    "Gx",
+    "Gxr",
+    "Vx",
+    "Vxr",
+    "Vxs",
+    "Twin turbo",
+    "Platinium",
+    "Lx470",
+    "Lx570",
+    "Lx600",
+    "V8",
+    "V6"
+  ];
+
+  // Common vehicle colors
+  const vehicleColors = [
+    "White",
+    "Black",
+    "Gray",
+    "Silver",
+    "Red",
+    "Blue",
+    "Green",
+    "Brown",
+    "Yellow",
+    "Orange",
+    "Purple",
+    "Gold",
+    "Beige",
+    "Maroon",
+    "Navy",
+    "Burgundy",
+    "Teal",
+    "Champagne",
+    "Bronze",
+    "Pearl White",
+    "Metallic Black",
+    "Graphite Gray",
+    "Midnight Blue",
+    "Racing Red",
+    "Forest Green"
+  ];
 
   useEffect(() => {
     fetchUser();
@@ -120,6 +187,47 @@ export default function ProductsPage() {
     }
   };
 
+  const handleQuickAddCategory = async () => {
+    if (!newCategoryName.trim()) {
+      toast.error("Category name is required");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ name: newCategoryName }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        toast.success("Category added successfully!");
+        
+        // Add the new category to the list
+        const newCategoryWithCount = {
+          ...data.category,
+          productCount: 0
+        };
+        
+        setCategories([...categories, newCategoryWithCount]);
+        
+        // Set the new category as selected in the product form
+        setNewProduct(prev => ({ ...prev, categoryId: data.category._id }));
+        
+        // Reset and close
+        setNewCategoryName("");
+        setShowQuickAddCategory(false);
+      } else {
+        const error = await res.json();
+        toast.error(error.error || "Failed to add category");
+      }
+    } catch (error) {
+      toast.error("Failed to add category");
+    }
+  };
+
   const handleAddProduct = async () => {
     if (!newProduct.name || !newProduct.sku) {
       toast.error("Name and SKU are required");
@@ -146,9 +254,10 @@ export default function ProductsPage() {
       if (isVehicle && newProduct.carMake) {
         productData.carMake = newProduct.carMake;
         productData.carModel = newProduct.carModel;
-        productData.variant = newProduct.variant; // Add variant
+        productData.variant = newProduct.variant;
         productData.year = newProduct.year;
         productData.partNumber = newProduct.partNumber;
+        productData.color = newProduct.color;
         productData.isVehicle = true;
       }
 
@@ -201,9 +310,10 @@ export default function ProductsPage() {
       if (editingProduct.isVehicle && editingProduct.carMake) {
         productData.carMake = editingProduct.carMake;
         productData.carModel = editingProduct.carModel;
-        productData.variant = editingProduct.variant; // Add variant
+        productData.variant = editingProduct.variant;
         productData.year = editingProduct.year;
         productData.partNumber = editingProduct.partNumber;
+        productData.color = editingProduct.color;
         productData.isVehicle = true;
       } else {
         productData.isVehicle = false;
@@ -212,6 +322,7 @@ export default function ProductsPage() {
         productData.variant = undefined;
         productData.year = undefined;
         productData.partNumber = undefined;
+        productData.color = undefined;
       }
 
       const res = await fetch(`/api/products/${editingProduct._id}`, {
@@ -267,7 +378,8 @@ export default function ProductsPage() {
       currentStock: product.currentStock || 0,
       minStock: product.minStock || 0,
       maxStock: product.maxStock || 1000,
-      variant: product.variant || "", // Add variant field
+      variant: product.variant || "",
+      color: product.color || "",
     });
     setIsVehicle(product.isVehicle || false);
     setShowEditModal(true);
@@ -292,6 +404,7 @@ export default function ProductsPage() {
       variant: "",
       year: "",
       partNumber: "",
+      color: "",
     });
     setIsVehicle(false);
   };
@@ -303,7 +416,8 @@ export default function ProductsPage() {
       p.barcode?.includes(searchTerm) ||
       p.carMake?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.carModel?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.variant?.toLowerCase().includes(searchTerm.toLowerCase()); // Search variant too
+      p.variant?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.color?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesCategory =
       !filterCategory || p.category?._id === filterCategory;
@@ -334,37 +448,6 @@ export default function ProductsPage() {
     window.location.href = "/autocityPro/login";
   };
 
-  // Common vehicle variants
-  const vehicleVariants = [
-    "Base",
-    "LX",
-    "EX",
-    "Sport",
-    "Limited",
-    "Premium",
-    "Touring",
-    "SE",
-    "LE",
-    "XLE",
-    "SR",
-    "TRD",
-    "GT",
-    "R/T",
-    "SXT",
-    "Gx",
-    "Gxr",
-    "Vx",
-    "Vxr",
-    "Vxs",
-    "Twin turbo",
-    "Platinium",
-    "Lx470",
-    "Lx570",
-    "Lx600",
-    "V8",
-    "V6"
-];
-
   return (
     <MainLayout user={user} onLogout={handleLogout}>
       {/* Header Section with Gradient Background */}
@@ -387,15 +470,13 @@ export default function ProductsPage() {
               <span>Add Product</span>
             </button>
           </div>
-
         </div>
       </div>
       
       <div className='p-6 bg-slate-900 border-b border-slate-700'>
-
-      {/* Main Content */}
-      <div className="p-8 bg-slate-800 min-h-screen">
-                  {/* Search and Filters in Header */}
+        {/* Main Content */}
+        <div className="p-8 bg-slate-800 min-h-screen">
+          {/* Search and Filters in Header */}
           <div className="mt-2 space-y-4 mb-4">
             <div className="flex gap-4">
               <div className="relative flex-1">
@@ -404,7 +485,7 @@ export default function ProductsPage() {
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search by name, SKU, barcode, make, model, or variant..."
+                  placeholder="Search by name, SKU, barcode, make, model, variant, or color..."
                   className="w-full pl-10 pr-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg focus:ring-2 focus:ring-white/50 focus:border-transparent text-white placeholder-purple-200"
                 />
               </div>
@@ -462,7 +543,7 @@ export default function ProductsPage() {
                     <option value="" className="text-slate-800">All Categories</option>
                     {categories.map((cat) => (
                       <option key={cat._id} value={cat._id} className="text-slate-800">
-                        {cat.name}
+                        {cat.name} ({cat.productCount})
                       </option>
                     ))}
                   </select>
@@ -498,179 +579,183 @@ export default function ProductsPage() {
             )}
           </div>
 
-        {/* Products Table */}
-        <div className="bg-slate-900 rounded-lg shadow overflow-hidden border border-slate-700">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-700">
-              <thead className="bg-slate-800">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
-                    Product
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
-                    SKU
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
-                    Category
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
-                    Vehicle Info
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-300 uppercase tracking-wider">
-                    Stock
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-300 uppercase tracking-wider">
-                    Cost
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-300 uppercase tracking-wider">
-                    Price
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-300 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-slate-800 divide-y divide-slate-700">
-                {loading ? (
+          {/* Products Table */}
+          <div className="bg-slate-900 rounded-lg shadow overflow-hidden border border-slate-700">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-slate-700">
+                <thead className="bg-slate-800">
                   <tr>
-                    <td
-                      colSpan={8}
-                      className="px-6 py-12 text-center text-slate-400"
-                    >
-                      Loading products...
-                    </td>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                      Product
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                      SKU
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                      Category
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                      Vehicle Info
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-slate-300 uppercase tracking-wider">
+                      Stock
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-slate-300 uppercase tracking-wider">
+                      Cost
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-slate-300 uppercase tracking-wider">
+                      Price
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-slate-300 uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
-                ) : filteredProducts.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={8}
-                      className="px-6 py-12 text-center text-slate-400"
-                    >
-                      <Package className="h-12 w-12 mx-auto mb-2 text-slate-600" />
-                      <p>No products found</p>
-                      {(filterCategory ||
-                        filterMake ||
-                        filterIsVehicle !== "all") && (
-                        <button
-                          onClick={clearFilters}
-                          className="mt-2 text-purple-400 hover:text-purple-300 text-sm transition-colors"
-                        >
-                          Clear filters
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ) : (
-                  filteredProducts.map((product) => (
-                    <tr key={product._id} className="hover:bg-slate-750 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center">
-                          {product.isVehicle && (
-                            <Car className="h-4 w-4 mr-2 text-purple-400 flex-shrink-0" />
-                          )}
-                          <div>
-                            <p className="text-sm font-medium text-slate-100">
-                              {product.name}
-                            </p>
-                            {product.partNumber && (
-                              <p className="text-xs text-slate-400">
-                                Part#: {product.partNumber}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-200">
-                        {product.sku}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-400">
-                        {product.category?.name || "N/A"}
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        {product.carMake ? (
-                          <div className="space-y-1">
-                            <div className="flex items-center text-slate-200 font-medium">
-                              <Car className="h-3 w-3 mr-1 text-purple-400 flex-shrink-0" />
-                              <span>{product.carMake}</span>
-                            </div>
-                            {product.carModel && (
-                              <div className="text-slate-400 text-xs pl-4">
-                                Model: {product.carModel}
-                                {product.variant &&
-                                  ` (${product.variant})`}{" "}
-                                {/* Show variant */}
-                              </div>
-                            )}
-                            {product.year && (
-                              <div className="text-slate-500 text-xs pl-4">
-                                Year: {product.year}
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-slate-500 text-xs">
-                            {product.isVehicle ? "Vehicle (no details)" : "-"}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-right">
-                        <span
-                          className={`${
-                            (product.currentStock || 0) <=
-                            (product.minStock || 0)
-                              ? "text-red-400 font-semibold"
-                              : "text-slate-200"
-                          }`}
-                        >
-                          {product.currentStock || 0}
-                        </span>
-                        <div className="text-xs text-slate-500">
-                          Min: {product.minStock || 0}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-right text-slate-300">
-                        QAR {product.costPrice || 0}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-right font-semibold text-slate-100">
-                        QAR {product.sellingPrice || 0}
-                      </td>
-                      <td className="px-6 py-4 text-right text-sm font-medium">
-                        <div className="flex justify-end space-x-2">
-                          <button
-                            onClick={() =>
-                              router.push(
-                                `/autocityPro/products/${product._id}`
-                              )
-                            }
-                            className="text-blue-400 hover:text-blue-300 p-1 transition-colors"
-                            title="View Details"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => openEditModal(product)}
-                            className="text-indigo-400 hover:text-indigo-300 p-1 transition-colors"
-                            title="Edit"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => setProductToDelete(product)}
-                            className="text-red-400 hover:text-red-300 p-1 transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
+                </thead>
+                <tbody className="bg-slate-800 divide-y divide-slate-700">
+                  {loading ? (
+                    <tr>
+                      <td
+                        colSpan={8}
+                        className="px-6 py-12 text-center text-slate-400"
+                      >
+                        Loading products...
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : filteredProducts.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={8}
+                        className="px-6 py-12 text-center text-slate-400"
+                      >
+                        <Package className="h-12 w-12 mx-auto mb-2 text-slate-600" />
+                        <p>No products found</p>
+                        {(filterCategory ||
+                          filterMake ||
+                          filterIsVehicle !== "all") && (
+                          <button
+                            onClick={clearFilters}
+                            className="mt-2 text-purple-400 hover:text-purple-300 text-sm transition-colors"
+                          >
+                            Clear filters
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredProducts.map((product) => (
+                      <tr key={product._id} className="hover:bg-slate-750 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center">
+                            {product.isVehicle && (
+                              <Car className="h-4 w-4 mr-2 text-purple-400 flex-shrink-0" />
+                            )}
+                            <div>
+                              <p className="text-sm font-medium text-slate-100">
+                                {product.name}
+                              </p>
+                              {product.partNumber && (
+                                <p className="text-xs text-slate-400">
+                                  Part#: {product.partNumber}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-200">
+                          {product.sku}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-400">
+                          {product.category?.name || "N/A"}
+                        </td>
+                        <td className="px-6 py-4 text-sm">
+                          {product.carMake ? (
+                            <div className="space-y-1">
+                              <div className="flex items-center text-slate-200 font-medium">
+                                <Car className="h-3 w-3 mr-1 text-purple-400 flex-shrink-0" />
+                                <span>{product.carMake}</span>
+                              </div>
+                              {product.carModel && (
+                                <div className="text-slate-400 text-xs pl-4">
+                                  Model: {product.carModel}
+                                  {product.variant &&
+                                    ` (${product.variant})`}
+                                </div>
+                              )}
+                              {product.year && (
+                                <div className="text-slate-500 text-xs pl-4">
+                                  Year: {product.year}
+                                </div>
+                              )}
+                              {product.color && (
+                                <div className="text-slate-500 text-xs pl-4">
+                                  Color: {product.color}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-slate-500 text-xs">
+                              {product.isVehicle ? "Vehicle (no details)" : "-"}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-right">
+                          <span
+                            className={`${
+                              (product.currentStock || 0) <=
+                              (product.minStock || 0)
+                                ? "text-red-400 font-semibold"
+                                : "text-slate-200"
+                            }`}
+                          >
+                            {product.currentStock || 0}
+                          </span>
+                          <div className="text-xs text-slate-500">
+                            Min: {product.minStock || 0}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-right text-slate-300">
+                          QAR {product.costPrice?.toFixed(0) || 0}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-right font-semibold text-slate-100">
+                          QAR {product.sellingPrice || 0}
+                        </td>
+                        <td className="px-6 py-4 text-right text-sm font-medium">
+                          <div className="flex justify-end space-x-2">
+                            <button
+                              onClick={() =>
+                                router.push(
+                                  `/autocityPro/products/${product._id}`
+                                )
+                              }
+                              className="text-blue-400 hover:text-blue-300 p-1 transition-colors"
+                              title="View Details"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => openEditModal(product)}
+                              className="text-indigo-400 hover:text-indigo-300 p-1 transition-colors"
+                              title="Edit"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => setProductToDelete(product)}
+                              className="text-red-400 hover:text-red-300 p-1 transition-colors"
+                              title="Delete"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
-      </div>
       </div>
 
       {/* Add Product Modal */}
@@ -730,23 +815,32 @@ export default function ProductsPage() {
                   <label className="block text-sm font-medium text-slate-300 mb-1">
                     Category
                   </label>
-                  <select
-                    value={newProduct.categoryId}
-                    onChange={(e) =>
-                      setNewProduct({
-                        ...newProduct,
-                        categoryId: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  >
-                    <option value="" className="text-slate-800">Select Category</option>
-                    {categories.map((cat) => (
-                      <option key={cat._id} value={cat._id} className="text-slate-800">
-                        {cat.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex gap-2">
+                    <select
+                      value={newProduct.categoryId}
+                      onChange={(e) =>
+                        setNewProduct({
+                          ...newProduct,
+                          categoryId: e.target.value,
+                        })
+                      }
+                      className="flex-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    >
+                      <option value="" className="text-slate-800">Select Category</option>
+                      {categories.map((cat) => (
+                        <option key={cat._id} value={cat._id} className="text-slate-800">
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => setShowQuickAddCategory(true)}
+                      className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg hover:bg-slate-600 transition-colors text-slate-200"
+                      title="Quick Add Category"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
 
                 <div>
@@ -897,6 +991,30 @@ export default function ProductsPage() {
                     </select>
                   </div>
 
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-1">
+                      Color
+                    </label>
+                    <select
+                      value={newProduct.color}
+                      onChange={(e) =>
+                        setNewProduct({
+                          ...newProduct,
+                          color: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    >
+                      <option value="" className="text-slate-800">Select Color</option>
+                      {vehicleColors.map((color) => (
+                        <option key={color} value={color} className="text-slate-800">
+                          {color}
+                        </option>
+                      ))}
+                      <option value="custom" className="text-slate-800">Custom...</option>
+                    </select>
+                  </div>
+
                   {newProduct.variant === "custom" && (
                     <div className="col-span-2">
                       <label className="block text-sm font-medium text-slate-300 mb-1">
@@ -917,6 +1035,30 @@ export default function ProductsPage() {
                         }
                         className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         placeholder="Enter custom variant"
+                      />
+                    </div>
+                  )}
+
+                  {newProduct.color === "custom" && (
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-slate-300 mb-1">
+                        Custom Color
+                      </label>
+                      <input
+                        type="text"
+                        value={
+                          newProduct.color === "custom"
+                            ? ""
+                            : newProduct.color
+                        }
+                        onChange={(e) =>
+                          setNewProduct({
+                            ...newProduct,
+                            color: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        placeholder="Enter custom color"
                       />
                     </div>
                   )}
@@ -1096,7 +1238,73 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* Edit Product Modal - Similar structure with slate-800 theme */}
+      {/* Quick Add Category Modal */}
+      {showQuickAddCategory && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-lg shadow-xl max-w-md w-full border border-slate-700">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-700">
+              <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+                <Tag className="h-5 w-5" />
+                Quick Add Category
+              </h2>
+              <button
+                onClick={() => {
+                  setShowQuickAddCategory(false);
+                  setNewCategoryName("");
+                }}
+                className="text-slate-400 hover:text-slate-300"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
+                    Category Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="Enter category name"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleQuickAddCategory();
+                      }
+                    }}
+                  />
+                  <p className="text-xs text-slate-400 mt-1">
+                    This will create a new category and automatically select it
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowQuickAddCategory(false);
+                    setNewCategoryName("");
+                  }}
+                  className="px-4 py-2 border border-slate-700 text-slate-300 rounded-lg hover:bg-slate-700 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleQuickAddCategory}
+                  className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:opacity-90 transition-opacity"
+                >
+                  Add Category
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Product Modal - Updated with color field */}
       {showEditModal && editingProduct && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-slate-800 rounded-lg shadow-xl max-w-2xl w-full my-8 border border-slate-700">
@@ -1114,7 +1322,6 @@ export default function ProductsPage() {
             </div>
 
             <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-              {/* Same form structure as Add Modal, but with editingProduct */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-slate-300 mb-1">
@@ -1154,23 +1361,32 @@ export default function ProductsPage() {
                   <label className="block text-sm font-medium text-slate-300 mb-1">
                     Category
                   </label>
-                  <select
-                    value={editingProduct.categoryId}
-                    onChange={(e) =>
-                      setEditingProduct({
-                        ...editingProduct,
-                        categoryId: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  >
-                    <option value="" className="text-slate-800">Select Category</option>
-                    {categories.map((cat) => (
-                      <option key={cat._id} value={cat._id} className="text-slate-800">
-                        {cat.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex gap-2">
+                    <select
+                      value={editingProduct.categoryId}
+                      onChange={(e) =>
+                        setEditingProduct({
+                          ...editingProduct,
+                          categoryId: e.target.value,
+                        })
+                      }
+                      className="flex-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    >
+                      <option value="" className="text-slate-800">Select Category</option>
+                      {categories.map((cat) => (
+                        <option key={cat._id} value={cat._id} className="text-slate-800">
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => setShowQuickAddCategory(true)}
+                      className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg hover:bg-slate-600 transition-colors text-slate-200"
+                      title="Quick Add Category"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
 
                 <div>
@@ -1325,6 +1541,30 @@ export default function ProductsPage() {
                     </select>
                   </div>
 
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-1">
+                      Color
+                    </label>
+                    <select
+                      value={editingProduct.color || ""}
+                      onChange={(e) =>
+                        setEditingProduct({
+                          ...editingProduct,
+                          color: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    >
+                      <option value="" className="text-slate-800">Select Color</option>
+                      {vehicleColors.map((color) => (
+                        <option key={color} value={color} className="text-slate-800">
+                          {color}
+                        </option>
+                      ))}
+                      <option value="custom" className="text-slate-800">Custom...</option>
+                    </select>
+                  </div>
+
                   {editingProduct.variant === "custom" && (
                     <div className="col-span-2">
                       <label className="block text-sm font-medium text-slate-300 mb-1">
@@ -1345,6 +1585,30 @@ export default function ProductsPage() {
                         }
                         className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         placeholder="Enter custom variant"
+                      />
+                    </div>
+                  )}
+
+                  {editingProduct.color === "custom" && (
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-slate-300 mb-1">
+                        Custom Color
+                      </label>
+                      <input
+                        type="text"
+                        value={
+                          editingProduct.color === "custom"
+                            ? ""
+                            : editingProduct.color
+                        }
+                        onChange={(e) =>
+                          setEditingProduct({
+                            ...editingProduct,
+                            color: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        placeholder="Enter custom color"
                       />
                     </div>
                   )}
@@ -1557,7 +1821,6 @@ export default function ProductsPage() {
             </div>
           </div>
         </div>
-        
       )}
     </MainLayout>
   );

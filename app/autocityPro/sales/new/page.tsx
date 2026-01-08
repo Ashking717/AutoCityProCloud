@@ -14,6 +14,7 @@ import {
   Wrench,
   X,
   Star,
+  Percent,
 } from "lucide-react";
 import {
   carMakesModels,
@@ -24,7 +25,6 @@ import {
 import toast from "react-hot-toast";
 import InvoicePrint from "@/components/InvoicePrint";
 
-// Add ICustomer and IOutlet imports if available, otherwise define types
 interface ICustomer {
   _id: string;
   name: string;
@@ -75,6 +75,7 @@ interface CartItem {
   sku: string;
   isVehicle: boolean;
   isLabor?: boolean;
+  unit: string;
   vin?: string;
   carMake?: string;
   carModel?: string;
@@ -84,6 +85,7 @@ interface CartItem {
   costPrice: number;
   sellingPrice: number;
   discount: number;
+  discountType: "percentage" | "fixed"; // NEW: Track discount type per item
   taxRate: number;
   subtotal: number;
   total: number;
@@ -150,23 +152,26 @@ export default function NewSalePage() {
     fetchCustomers();
   }, []);
 
-const fetchUser = async () => {
-  try {
-    const res = await fetch("/api/auth/me", { credentials: "include" });
-    if (res.ok) {
-      const data = await res.json();
-      console.log("User data structure:", {
-        user: data.user,
-        outletId: data.user?.outletId,
-        typeOfOutletId: typeof data.user?.outletId,
-        isObject: typeof data.user?.outletId === 'object'
-      });
-      setUser(data.user);
+  // NEW: Auto-update payment amount when cart changes
+  useEffect(() => {
+    const totals = calculateTotals();
+    if (payments.length === 1 && cart.length > 0) {
+      setPayments([{ ...payments[0], amount: totals.total }]);
     }
-  } catch (error) {
-    console.error("Failed to fetch user");
-  }
-};
+  }, [cart, overallDiscount, overallDiscountType]);
+
+  const fetchUser = async () => {
+    try {
+      const res = await fetch("/api/auth/me", { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setUser(data.user);
+      }
+    } catch (error) {
+      console.error("Failed to fetch user");
+    }
+  };
+
   const fetchProducts = async () => {
     try {
       const res = await fetch("/api/products", { credentials: "include" });
@@ -181,7 +186,6 @@ const fetchUser = async () => {
 
   const fetchFrequentProducts = async () => {
     try {
-      // Fetch top 6 most sold products
       const res = await fetch("/api/products/frequent", {
         credentials: "include",
       });
@@ -189,7 +193,6 @@ const fetchUser = async () => {
         const data = await res.json();
         setFrequentProducts(data.products || []);
       } else {
-        // Fallback: get first 6 products
         const res2 = await fetch("/api/products?limit=6", {
           credentials: "include",
         });
@@ -299,10 +302,12 @@ const fetchUser = async () => {
       sku: "LABOR",
       isVehicle: false,
       isLabor: true,
+      unit: "job",
       quantity: laborCharge.hours,
       costPrice: 0,
       sellingPrice: laborCharge.rate,
       discount: 0,
+      discountType: "percentage",
       taxRate: laborCharge.taxRate,
       subtotal: amount,
       total: amount * (1 + laborCharge.taxRate / 100),
@@ -314,10 +319,11 @@ const fetchUser = async () => {
     setLaborCharge({ description: "", hours: 1, rate: 0, taxRate: 0 });
     toast.success("Labor charge added!");
   };
-  // Type guard function
+
   function isValidCarMake(make: any): make is CarMake {
     return Object.keys(carMakesModels).includes(make);
   }
+
   const addToCart = (product: any) => {
     const existingItem = cart.find((item) => item.productId === product._id);
 
@@ -334,6 +340,7 @@ const fetchUser = async () => {
         sku: product.sku,
         isVehicle: product.isVehicle || false,
         isLabor: false,
+        unit: product.unit || "pcs",
         vin: product.vin,
         carMake: product.carMake,
         carModel: product.carModel,
@@ -343,6 +350,7 @@ const fetchUser = async () => {
         costPrice: product.costPrice || 0,
         sellingPrice: product.sellingPrice,
         discount: 0,
+        discountType: "percentage",
         taxRate: product.taxRate || 0,
         subtotal: product.sellingPrice,
         total: product.sellingPrice * (1 + (product.taxRate || 0) / 100),
@@ -365,12 +373,18 @@ const fetchUser = async () => {
         if (item.productId === productId) {
           const updated = { ...item, [field]: value };
 
-          const discountedPrice =
-            updated.sellingPrice * (1 - updated.discount / 100);
-          updated.subtotal = discountedPrice * updated.quantity;
+          // Calculate discount amount based on type
+          let discountAmount = 0;
+          if (updated.discountType === "percentage") {
+            discountAmount = (updated.sellingPrice * updated.quantity * updated.discount) / 100;
+          } else {
+            discountAmount = updated.discount;
+          }
+
+          const discountedPrice = updated.sellingPrice * updated.quantity - discountAmount;
+          updated.subtotal = discountedPrice;
           updated.total = updated.subtotal * (1 + updated.taxRate / 100);
-          updated.profit =
-            (updated.sellingPrice - updated.costPrice) * updated.quantity;
+          updated.profit = (updated.sellingPrice - updated.costPrice) * updated.quantity - discountAmount;
 
           return updated;
         }
@@ -386,24 +400,34 @@ const fetchUser = async () => {
   };
 
   const calculateTotals = () => {
-    const subtotal = cart.reduce((sum, item) => sum + item.subtotal, 0);
-    const totalDiscount = cart.reduce(
-      (sum, item) =>
-        sum + (item.sellingPrice * item.quantity * item.discount) / 100,
-      0
-    );
+    const subtotal = cart.reduce((sum, item) => {
+      return sum + item.sellingPrice * item.quantity;
+    }, 0);
+
+    const totalDiscount = cart.reduce((sum, item) => {
+      if (item.discountType === "percentage") {
+        return sum + (item.sellingPrice * item.quantity * item.discount) / 100;
+      } else {
+        return sum + item.discount;
+      }
+    }, 0);
 
     let overallDiscountAmount = 0;
     if (overallDiscountType === "percentage") {
-      overallDiscountAmount = subtotal * (overallDiscount / 100);
+      overallDiscountAmount = (subtotal - totalDiscount) * (overallDiscount / 100);
     } else {
       overallDiscountAmount = overallDiscount;
     }
 
-    const subtotalAfterDiscount =
-      subtotal - totalDiscount - overallDiscountAmount;
+    const subtotalAfterDiscount = subtotal - totalDiscount - overallDiscountAmount;
     const totalTax = cart.reduce((sum, item) => {
-      const itemSubtotal = item.subtotal * (1 - item.discount / 100);
+      let itemDiscountAmount = 0;
+      if (item.discountType === "percentage") {
+        itemDiscountAmount = (item.sellingPrice * item.quantity * item.discount) / 100;
+      } else {
+        itemDiscountAmount = item.discount;
+      }
+      const itemSubtotal = item.sellingPrice * item.quantity - itemDiscountAmount;
       return sum + (itemSubtotal * item.taxRate) / 100;
     }, 0);
 
@@ -422,114 +446,139 @@ const fetchUser = async () => {
     };
   };
 
-const handleSubmit = async () => {
-  if (cart.length === 0) {
-    toast.error("Cart is empty");
-    return;
-  }
+  const handleSubmit = async () => {
+    if (cart.length === 0) {
+      toast.error("Cart is empty");
+      return;
+    }
 
-  if (!selectedCustomer) {
-    toast.error("Please select a customer");
-    return;
-  }
+    if (!selectedCustomer) {
+      toast.error("Please select a customer");
+      return;
+    }
 
-  // Save customer data for invoice before resetting
-  setInvoiceCustomer(selectedCustomer);
+    setInvoiceCustomer(selectedCustomer);
 
-  const totals = calculateTotals();
+    const totals = calculateTotals();
 
-  const saleItems = cart.map((item) => {
-    if (item.isLabor) {
+    const saleItems = cart.map((item) => {
+      // Calculate discount amount and percentage for API
+      let discountAmount = 0;
+      let discountPercentage = 0;
+
+      if (item.discountType === "percentage") {
+        discountPercentage = item.discount;
+        discountAmount = (item.sellingPrice * item.quantity * item.discount) / 100;
+      } else {
+        discountAmount = item.discount;
+        discountPercentage = item.sellingPrice * item.quantity > 0 
+          ? (item.discount / (item.sellingPrice * item.quantity)) * 100 
+          : 0;
+      }
+
+      if (item.isLabor) {
+        return {
+          name: item.productName,
+          sku: item.sku,
+          quantity: item.quantity,
+          unit: item.unit || "pcs",
+          unitPrice: item.sellingPrice,
+          taxRate: item.taxRate,
+          discount: discountPercentage, // Send as percentage
+          discountAmount: discountAmount, // Send amount too
+          discountType: item.discountType, // Send type
+          isLabor: true,
+        };
+      }
+
       return {
+        productId: item.productId,
         name: item.productName,
         sku: item.sku,
         quantity: item.quantity,
+        unit: item.unit || "pcs",
         unitPrice: item.sellingPrice,
         taxRate: item.taxRate,
-        discount: item.discount,
-        isLabor: true,
+        discount: discountPercentage, // Send as percentage
+        discountAmount: discountAmount, // Send amount too
+        discountType: item.discountType, // Send type
+        isLabor: false,
       };
-    }
-
-    return {
-      productId: item.productId,
-      name: item.productName,
-      sku: item.sku,
-      quantity: item.quantity,
-      unitPrice: item.sellingPrice,
-      taxRate: item.taxRate,
-      discount: item.discount,
-      isLabor: false,
-    };
-  });
-
-  setLoading(true);
-
-  try {
-    const res = await fetch("/api/sales", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        customerId: selectedCustomer._id,
-        customerName: selectedCustomer.name,
-        items: saleItems,
-        paymentMethod: payments[0].method,
-        amountPaid: totals.totalPaid,
-        notes: "",
-      }),
     });
 
-    if (res.ok) {
-      const data = await res.json();
-      toast.success(`Sale ${data.sale.invoiceNumber} created successfully!`);
+    setLoading(true);
 
-      // Prepare invoice data for printing
-      setInvoiceData({
-        invoiceNumber: data.sale.invoiceNumber,
-        saleDate: data.sale.saleDate,
-        items: cart.map((item) => ({
-          name: item.productName,
-          quantity: item.quantity,
-          unitPrice: item.sellingPrice,
-          discount: (item.sellingPrice * item.quantity * item.discount) / 100,
-          taxAmount: (item.subtotal * item.taxRate) / 100,
-          total: item.total,
-          isLabor: item.isLabor,
-        })),
-        subtotal: totals.subtotal,
-        totalDiscount: totals.totalDiscount + totals.overallDiscountAmount,
-        totalTax: totals.totalTax,
-        grandTotal: totals.total,
-        amountPaid: totals.totalPaid,
-        balanceDue: totals.total - totals.totalPaid,
-        paymentMethod: payments[0].method.toUpperCase(),
-        notes: "",
+    try {
+      const res = await fetch("/api/sales", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          customerId: selectedCustomer._id,
+          customerName: selectedCustomer.name,
+          items: saleItems,
+          paymentMethod: payments[0].method,
+          amountPaid: totals.totalPaid,
+          notes: "",
+        }),
       });
 
-      // Show invoice print dialog
-      setShowInvoice(true);
+      if (res.ok) {
+        const data = await res.json();
+        toast.success(`Sale ${data.sale.invoiceNumber} created successfully!`);
 
-      // Reset form (but keep invoiceCustomer)
-      setCart([]);
-      setSelectedCustomer(null);
-      setPayments([{ method: "cash", amount: 0 }]);
-      setOverallDiscount(0);
+        setInvoiceData({
+          invoiceNumber: data.sale.invoiceNumber,
+          saleDate: data.sale.saleDate,
+          items: cart.map((item) => {
+            let discountAmount = 0;
+            if (item.discountType === "percentage") {
+              discountAmount = (item.sellingPrice * item.quantity * item.discount) / 100;
+            } else {
+              discountAmount = item.discount;
+            }
 
-      // Refresh products and frequent products
-      fetchProducts();
-      fetchFrequentProducts();
-    } else {
-      const error = await res.json();
-      toast.error(error.error || "Failed to create sale");
+            const itemSubtotal = item.sellingPrice * item.quantity - discountAmount;
+            return {
+              name: item.productName,
+              quantity: item.quantity,
+              unitPrice: item.sellingPrice,
+              discount: discountAmount,
+              taxAmount: (itemSubtotal * item.taxRate) / 100,
+              total: item.total,
+              isLabor: item.isLabor,
+            };
+          }),
+          subtotal: totals.subtotal,
+          totalDiscount: totals.totalDiscount + totals.overallDiscountAmount,
+          totalTax: totals.totalTax,
+          grandTotal: totals.total,
+          amountPaid: totals.totalPaid,
+          balanceDue: totals.total - totals.totalPaid,
+          paymentMethod: payments[0].method.toUpperCase(),
+          notes: "",
+        });
+
+        setShowInvoice(true);
+
+        setCart([]);
+        setSelectedCustomer(null);
+        setPayments([{ method: "cash", amount: 0 }]);
+        setOverallDiscount(0);
+
+        fetchProducts();
+        fetchFrequentProducts();
+      } else {
+        const error = await res.json();
+        toast.error(error.error || "Failed to create sale");
+      }
+    } catch (error) {
+      console.error("Error creating sale:", error);
+      toast.error("Failed to create sale");
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error("Error creating sale:", error);
-    toast.error("Failed to create sale");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const filteredProducts = searchTerm
     ? products.filter(
@@ -553,8 +602,7 @@ const handleSubmit = async () => {
   return (
     <MainLayout user={user} onLogout={handleLogout}>
       {/* Header with Gradient */}
-      <div className="py-2 bg-gradient-to-r from-indigo-600 to-purple-600 border border-purple-500/30 shadow-lg overflow-hidden  relative">
-        {/* Subtle pattern overlay */}
+      <div className="py-2 bg-gradient-to-r from-indigo-600 to-purple-600 border border-purple-500/30 shadow-lg overflow-hidden relative">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSIjOUM5MkFDIiBmaWxsLW9wYWNpdHk9IjAuMDUiIGZpbGwtcnVsZT0iZXZlbm9kZCI+PGNpcmNsZSBjeD0iMyIgY3k9IjMiIHI9IjMiLz48Y2lyY2xlIGN4PSIxMyIgY3k9IjEzIiByPSIzIi8+PC9nPjwvc3ZnPg==')] opacity-10"></div>
 
         <div className="p-6 relative z-10">
@@ -578,7 +626,6 @@ const handleSubmit = async () => {
               </div>
             </div>
           </div>
-
         </div>
       </div>
 
@@ -748,51 +795,74 @@ const handleSubmit = async () => {
                       </div>
 
                       {!item.isLabor && (
-                        <div className="grid grid-cols-3 gap-2 mt-3">
-                          <input
-                            type="number"
-                            value={item.quantity}
-                            onChange={(e) =>
-                              updateCartItem(
-                                item.productId!,
-                                "quantity",
-                                parseFloat(e.target.value) || 1
-                              )
-                            }
-                            placeholder="Qty"
-                            min="1"
-                            className="px-3 py-2 bg-slate-600 border border-slate-500 rounded text-sm text-white focus:ring-1 focus:ring-purple-500 focus:border-transparent"
-                          />
-                          <input
-                            type="number"
-                            value={item.sellingPrice}
-                            onChange={(e) =>
-                              updateCartItem(
-                                item.productId!,
-                                "sellingPrice",
-                                parseFloat(e.target.value) || 0
-                              )
-                            }
-                            placeholder="Price"
-                            min="0"
-                            className="px-3 py-2 bg-slate-600 border border-slate-500 rounded text-sm text-white focus:ring-1 focus:ring-purple-500 focus:border-transparent"
-                          />
-                          <input
-                            type="number"
-                            value={item.discount}
-                            onChange={(e) =>
-                              updateCartItem(
-                                item.productId!,
-                                "discount",
-                                parseFloat(e.target.value) || 0
-                              )
-                            }
-                            placeholder="Disc %"
-                            min="0"
-                            max="100"
-                            className="px-3 py-2 bg-slate-600 border border-slate-500 rounded text-sm text-white focus:ring-1 focus:ring-purple-500 focus:border-transparent"
-                          />
-                        </div>
+                        <>
+                          <div className="grid grid-cols-4 gap-2 mt-3">
+                            <input
+                              type="number"
+                              value={item.quantity}
+                              onChange={(e) =>
+                                updateCartItem(
+                                  item.productId!,
+                                  "quantity",
+                                  parseFloat(e.target.value) || 1
+                                )
+                              }
+                              placeholder="Qty"
+                              min="1"
+                              className="px-3 py-2 bg-slate-600 border border-slate-500 rounded text-sm text-white focus:ring-1 focus:ring-purple-500 focus:border-transparent"
+                            />
+                            <input
+                              type="number"
+                              value={item.sellingPrice}
+                              onChange={(e) =>
+                                updateCartItem(
+                                  item.productId!,
+                                  "sellingPrice",
+                                  parseFloat(e.target.value) || 0
+                                )
+                              }
+                              placeholder="Price"
+                              min="0"
+                              className="px-3 py-2 bg-slate-600 border border-slate-500 rounded text-sm text-white focus:ring-1 focus:ring-purple-500 focus:border-transparent"
+                            />
+                            <input
+                              type="number"
+                              value={item.discount}
+                              onChange={(e) =>
+                                updateCartItem(
+                                  item.productId!,
+                                  "discount",
+                                  parseFloat(e.target.value) || 0
+                                )
+                              }
+                              placeholder={item.discountType === "percentage" ? "%" : "QAR"}
+                              min="0"
+                              className="px-3 py-2 bg-slate-600 border border-slate-500 rounded text-sm text-white focus:ring-1 focus:ring-purple-500 focus:border-transparent"
+                            />
+                            <button
+                              onClick={() => {
+                                const newType = item.discountType === "percentage" ? "fixed" : "percentage";
+                                updateCartItem(item.productId!, "discountType", newType);
+                              }}
+                              className="px-2 py-2 bg-slate-500 border border-slate-400 rounded text-xs text-white hover:bg-slate-400 transition-colors flex items-center justify-center"
+                              title={`Switch to ${item.discountType === "percentage" ? "Fixed" : "Percentage"}`}
+                            >
+                              {item.discountType === "percentage" ? (
+                                <Percent className="h-4 w-4" />
+                              ) : (
+                                <span className="font-bold">QAR</span>
+                              )}
+                            </button>
+                          </div>
+                          {item.discount > 0 && (
+                            <div className="mt-2 text-xs text-emerald-400">
+                              Discount: {item.discountType === "percentage" 
+                                ? `${item.discount}% (QAR ${((item.sellingPrice * item.quantity * item.discount) / 100).toFixed(2)})`
+                                : `QAR ${item.discount.toFixed(2)} (${((item.discount / (item.sellingPrice * item.quantity)) * 100).toFixed(1)}%)`
+                              }
+                            </div>
+                          )}
+                        </>
                       )}
 
                       <div className="mt-3 flex justify-between items-center text-sm">
@@ -1080,7 +1150,6 @@ const handleSubmit = async () => {
           </div>
         </div>
       </div>
-
       {/* Add Customer Modal with Vehicle Info */}
       {showAddCustomer && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">

@@ -1,10 +1,9 @@
+// app/api/reports/cashflow/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/mongodb';
-import Sale from '@/lib/models/Sale';
-import Voucher from '@/lib/models/Voucher';
 import Account from '@/lib/models/Account';
+import LedgerEntry from '@/lib/models/LedgerEntry';
 import Outlet from '@/lib/models/Outlet';
-import Product from '@/lib/models/ProductEnhanced';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth/jwt';
 
@@ -32,273 +31,302 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
 
     const fromDate = new Date(
-      searchParams.get('fromDate') ??
-        new Date(new Date().getFullYear(), 0, 1)
+      searchParams.get('fromDate') ?? new Date(new Date().getFullYear(), 0, 1)
     );
-    const toDate = new Date(
-      searchParams.get('toDate') ?? new Date()
-    );
+    const toDate = new Date(searchParams.get('toDate') ?? new Date());
 
-    // Set time to end of day for toDate
+    // Set time boundaries
     toDate.setHours(23, 59, 59, 999);
     fromDate.setHours(0, 0, 0, 0);
+
+    console.log('='.repeat(60));
+    console.log('CASH FLOW STATEMENT GENERATION');
+    console.log('='.repeat(60));
+    console.log('From:', fromDate.toISOString());
+    console.log('To:', toDate.toISOString());
+    console.log('Outlet ID:', outletId);
 
     // Fetch outlet information
     const outlet = await Outlet.findById(outletId).lean();
 
-    // 1. Get all cash accounts for opening balance
-    const cashAccounts = await Account.find({
-      outletId,
-      accountGroup: 'Cash & Bank',
-    }).lean();
+    // Get all accounts (case-insensitive)
+    const accounts = await Account.find({ outletId, isActive: true }).lean() as any[];
 
-    // Calculate opening balance (sum of all cash accounts at beginning of period)
-    const openingCash = cashAccounts.reduce(
-      (sum: number, account: any) => sum + (account.openingBalance || 0),
-      0
+    // Categorize accounts by type and subType
+    const cashAccounts = accounts.filter((a: any) => {
+      const subType = a.subType?.toString().toUpperCase();
+      return subType === 'CASH' || subType === 'BANK';
+    });
+
+    const revenueAccounts = accounts.filter((a: any) => 
+      a.type?.toString().toUpperCase() === 'REVENUE'
     );
 
-    // 2. OPERATING ACTIVITIES
-    // Cash from sales (only cash payments)
-    const sales = await Sale.find({
+    const expenseAccounts = accounts.filter((a: any) => 
+      a.type?.toString().toUpperCase() === 'EXPENSE'
+    );
+
+    const assetAccounts = accounts.filter((a: any) => 
+      a.type?.toString().toUpperCase() === 'ASSET'
+    );
+
+    const liabilityAccounts = accounts.filter((a: any) => 
+      a.type?.toString().toUpperCase() === 'LIABILITY'
+    );
+
+    const equityAccounts = accounts.filter((a: any) => 
+      a.type?.toString().toUpperCase() === 'EQUITY'
+    );
+
+    console.log('\n📋 Account Summary:');
+    console.log('  Cash/Bank:', cashAccounts.length);
+    console.log('  Revenue:', revenueAccounts.length);
+    console.log('  Expense:', expenseAccounts.length);
+    console.log('  Asset:', assetAccounts.length);
+    console.log('  Liability:', liabilityAccounts.length);
+    console.log('  Equity:', equityAccounts.length);
+
+    // Calculate opening cash balance (before period starts)
+    let openingCash = 0;
+    for (const cashAccount of cashAccounts) {
+      const entries = await LedgerEntry.find({
+        accountId: (cashAccount as any)._id,
+        outletId,
+        date: { $lt: fromDate } // Before period
+      }).lean();
+
+      const balance = entries.reduce((sum, entry) => 
+        sum + (entry.debit || 0) - (entry.credit || 0), 0
+      );
+      
+      openingCash += balance;
+      console.log(`  Opening ${(cashAccount as any).name}: ${balance.toFixed(2)}`);
+    }
+
+    console.log(`\n💰 Total Opening Cash: ${openingCash.toFixed(2)}`);
+
+    // Get all ledger entries for the period
+    const periodEntries = await LedgerEntry.find({
       outletId,
-      saleDate: { $gte: fromDate, $lte: toDate },
-      status: 'COMPLETED',
+      date: { $gte: fromDate, $lte: toDate }
     }).lean();
 
-    let cashFromSales = 0;
-    let creditSales = 0;
+    console.log(`\n📊 Period Entries: ${periodEntries.length}`);
 
-    sales.forEach((sale: any) => {
-      // Cash payments
-      if (sale.paymentMode === 'cash') {
-        cashFromSales += sale.amountPaid || 0;
+    // ==== OPERATING ACTIVITIES ====
+    console.log('\n💼 OPERATING ACTIVITIES:');
+    const operatingItems: { [key: string]: number } = {};
+
+    // 1. Cash from Revenue (Credits to Revenue accounts = Income received)
+    let totalRevenueCash = 0;
+    for (const account of revenueAccounts) {
+      const entries = periodEntries.filter(e => 
+        e.accountId.toString() === (account as any)._id.toString()
+      );
+
+      const cashFromRevenue = entries.reduce((sum, entry) => 
+        sum + (entry.credit || 0) - (entry.debit || 0), 0
+      );
+
+      if (Math.abs(cashFromRevenue) > 0.01) {
+        operatingItems[`Cash from ${(account as any).name}`] = cashFromRevenue;
+        totalRevenueCash += cashFromRevenue;
+        console.log(`  ✓ ${(account as any).name}: +${cashFromRevenue.toFixed(2)}`);
       }
-      // Bank transfers (considered as cash for cash flow)
-      else if (sale.paymentMode === 'bank') {
-        cashFromSales += sale.amountPaid || 0;
+    }
+
+    // 2. Cash paid for Expenses (Debits to Expense accounts = Cash paid out)
+    let totalExpenseCash = 0;
+    for (const account of expenseAccounts) {
+      const entries = periodEntries.filter(e => 
+        e.accountId.toString() === (account as any)._id.toString()
+      );
+
+      const cashForExpense = entries.reduce((sum, entry) => 
+        sum + (entry.debit || 0) - (entry.credit || 0), 0
+      );
+
+      if (Math.abs(cashForExpense) > 0.01) {
+        operatingItems[`${(account as any).name}`] = -cashForExpense;
+        totalExpenseCash += cashForExpense;
+        console.log(`  ✓ ${(account as any).name}: -${cashForExpense.toFixed(2)}`);
       }
-      // Credit sales
-      else if (sale.paymentMode === 'credit') {
-        creditSales += sale.totalAmount || 0;
+    }
+
+    // 3. Changes in Operating Assets/Liabilities (AR, AP, Inventory)
+    const arAccount = accounts.find((a: any) => 
+      a.subType?.toString().toUpperCase() === 'ACCOUNTS_RECEIVABLE'
+    );
+    const apAccount = accounts.find((a: any) => 
+      a.subType?.toString().toUpperCase() === 'ACCOUNTS_PAYABLE'
+    );
+    const inventoryAccount = accounts.find((a: any) => 
+      a.subType?.toString().toUpperCase() === 'INVENTORY'
+    );
+
+    // Accounts Receivable: Increase = Cash decrease, Decrease = Cash increase
+    if (arAccount) {
+      const entries = periodEntries.filter(e => 
+        e.accountId.toString() === (arAccount as any)._id.toString()
+      );
+      const arChange = entries.reduce((sum, entry) => 
+        sum + (entry.debit || 0) - (entry.credit || 0), 0
+      );
+      
+      if (Math.abs(arChange) > 0.01) {
+        operatingItems['(Increase) in Accounts Receivable'] = -arChange;
+        console.log(`  ✓ AR Change: ${(-arChange).toFixed(2)}`);
       }
-    });
+    }
 
-    // Cash paid for expenses (expense vouchers)
-    const expenseVouchers = await Voucher.find({
-      outletId,
-      date: { $gte: fromDate, $lte: toDate },
-      status: { $in: ['posted', 'approved'] },
-      voucherType: 'payment',
-    }).lean();
+    // Accounts Payable: Increase = Cash increase, Decrease = Cash decrease
+    if (apAccount) {
+      const entries = periodEntries.filter(e => 
+        e.accountId.toString() === (apAccount as any)._id.toString()
+      );
+      const apChange = entries.reduce((sum, entry) => 
+        sum + (entry.credit || 0) - (entry.debit || 0), 0
+      );
+      
+      if (Math.abs(apChange) > 0.01) {
+        operatingItems['Increase in Accounts Payable'] = apChange;
+        console.log(`  ✓ AP Change: ${apChange.toFixed(2)}`);
+      }
+    }
 
-    let cashPaidForExpenses = 0;
-    const operatingExpenses: { [key: string]: number } = {};
+    // Inventory: Increase = Cash decrease, Decrease = Cash increase
+    if (inventoryAccount) {
+      const entries = periodEntries.filter(e => 
+        e.accountId.toString() === (inventoryAccount as any)._id.toString()
+      );
+      const inventoryChange = entries.reduce((sum, entry) => 
+        sum + (entry.debit || 0) - (entry.credit || 0), 0
+      );
+      
+      if (Math.abs(inventoryChange) > 0.01) {
+        operatingItems['(Increase) in Inventory'] = -inventoryChange;
+        console.log(`  ✓ Inventory Change: ${(-inventoryChange).toFixed(2)}`);
+      }
+    }
 
-    expenseVouchers.forEach((voucher: any) => {
-      const total = voucher.totalDebit || 0;
-      cashPaidForExpenses += total;
+    const netOperatingCash = Object.values(operatingItems).reduce((sum, val) => sum + val, 0);
+    console.log(`  📊 Net Operating Cash Flow: ${netOperatingCash.toFixed(2)}`);
 
-      // Categorize expenses
-      voucher.entries?.forEach((entry: any) => {
-        if (entry.debit > 0 && entry.accountName) {
-          const accountName = entry.accountName.toLowerCase();
-          
-          if (accountName.includes('salary') || accountName.includes('wage')) {
-            operatingExpenses['Salaries & Wages'] = (operatingExpenses['Salaries & Wages'] || 0) + entry.debit;
-          } else if (accountName.includes('rent')) {
-            operatingExpenses['Rent Expense'] = (operatingExpenses['Rent Expense'] || 0) + entry.debit;
-          } else if (accountName.includes('utility') || accountName.includes('electricity') || accountName.includes('water')) {
-            operatingExpenses['Utilities'] = (operatingExpenses['Utilities'] || 0) + entry.debit;
-          } else if (accountName.includes('supply') || accountName.includes('material')) {
-            operatingExpenses['Supplies & Materials'] = (operatingExpenses['Supplies & Materials'] || 0) + entry.debit;
-          } else if (accountName.includes('advert') || accountName.includes('marketing')) {
-            operatingExpenses['Advertising'] = (operatingExpenses['Advertising'] || 0) + entry.debit;
-          } else {
-            operatingExpenses['Other Operating Expenses'] = (operatingExpenses['Other Operating Expenses'] || 0) + entry.debit;
-          }
+    // ==== INVESTING ACTIVITIES ====
+    console.log('\n🏗️ INVESTING ACTIVITIES:');
+    const investingItems: { [key: string]: number } = {};
+
+    // Fixed assets (excluding cash, AR, inventory, AP)
+    for (const account of assetAccounts) {
+      const subType = (account as any).subType?.toString().toUpperCase();
+      
+      // Skip current assets
+      if (subType === 'CASH' || subType === 'BANK' || 
+          subType === 'ACCOUNTS_RECEIVABLE' || subType === 'INVENTORY') {
+        continue;
+      }
+
+      const entries = periodEntries.filter(e => 
+        e.accountId.toString() === (account as any)._id.toString()
+      );
+
+      const assetChange = entries.reduce((sum, entry) => 
+        sum + (entry.debit || 0) - (entry.credit || 0), 0
+      );
+
+      if (Math.abs(assetChange) > 0.01) {
+        if (assetChange > 0) {
+          // Purchase of asset (cash outflow)
+          investingItems[`Purchase of ${(account as any).name}`] = -assetChange;
+          console.log(`  ✓ Purchase ${(account as any).name}: -${assetChange.toFixed(2)}`);
+        } else {
+          // Sale of asset (cash inflow)
+          investingItems[`Sale of ${(account as any).name}`] = Math.abs(assetChange);
+          console.log(`  ✓ Sale ${(account as any).name}: +${Math.abs(assetChange).toFixed(2)}`);
         }
-      });
-    });
+      }
+    }
 
-    // Cash from customer receipts (receipt vouchers for credit sales)
-    const receiptVouchers = await Voucher.find({
-      outletId,
-      date: { $gte: fromDate, $lte: toDate },
-      status: { $in: ['posted', 'approved'] },
-      voucherType: 'receipt',
-    }).lean();
+    const netInvestingCash = Object.values(investingItems).reduce((sum, val) => sum + val, 0);
+    console.log(`  📊 Net Investing Cash Flow: ${netInvestingCash.toFixed(2)}`);
 
-    let cashFromCustomers = 0;
-    receiptVouchers.forEach((voucher: any) => {
-      voucher.entries?.forEach((entry: any) => {
-        if (entry.credit > 0) {
-          cashFromCustomers += entry.credit;
-        }
-      });
-    });
-
-    // Inventory purchase (cost of goods sold)
-    const purchaseVouchers = await Voucher.find({
-      outletId,
-      date: { $gte: fromDate, $lte: toDate },
-      status: { $in: ['posted', 'approved'] },
-      voucherType: 'payment',
-    }).lean();
-
-    let cashPaidForInventory = 0;
-    purchaseVouchers.forEach((voucher: any) => {
-      voucher.entries?.forEach((entry: any) => {
-        const accountName = entry.accountName?.toLowerCase() || '';
-        if ((accountName.includes('inventory') || accountName.includes('stock') || accountName.includes('purchase')) && entry.debit > 0) {
-          cashPaidForInventory += entry.debit;
-        }
-      });
-    });
-
-    // 3. INVESTING ACTIVITIES
-    const allVouchers = await Voucher.find({
-      outletId,
-      date: { $gte: fromDate, $lte: toDate },
-      status: { $in: ['posted', 'approved'] },
-    }).lean();
-
-    let purchaseOfAssets = 0;
-    let saleOfAssets = 0;
-    const assetCategories: { [key: string]: number } = {};
-
-    allVouchers.forEach((voucher: any) => {
-      voucher.entries?.forEach((entry: any) => {
-        const accountName = entry.accountName?.toLowerCase() || '';
-        const isAssetAccount = accountName.includes('asset') || 
-                              accountName.includes('equipment') || 
-                              accountName.includes('vehicle') || 
-                              accountName.includes('property') ||
-                              accountName.includes('building') ||
-                              accountName.includes('machine');
-
-        if (isAssetAccount) {
-          if (entry.debit > 0) {
-            purchaseOfAssets += entry.debit;
-            
-            // Categorize assets
-            if (accountName.includes('vehicle')) {
-              assetCategories['Vehicles'] = (assetCategories['Vehicles'] || 0) + entry.debit;
-            } else if (accountName.includes('equipment') || accountName.includes('machine')) {
-              assetCategories['Equipment & Machinery'] = (assetCategories['Equipment & Machinery'] || 0) + entry.debit;
-            } else if (accountName.includes('property') || accountName.includes('building')) {
-              assetCategories['Property & Building'] = (assetCategories['Property & Building'] || 0) + entry.debit;
-            } else if (accountName.includes('furniture') || accountName.includes('fixture')) {
-              assetCategories['Furniture & Fixtures'] = (assetCategories['Furniture & Fixtures'] || 0) + entry.debit;
-            } else {
-              assetCategories['Other Assets'] = (assetCategories['Other Assets'] || 0) + entry.debit;
-            }
-          }
-          if (entry.credit > 0) {
-            saleOfAssets += entry.credit;
-          }
-        }
-      });
-    });
-
-    // 4. FINANCING ACTIVITIES
-    let loanReceipts = 0;
-    let loanRepayments = 0;
-    let capitalContributions = 0;
-    let dividendsPaid = 0;
+    // ==== FINANCING ACTIVITIES ====
+    console.log('\n💳 FINANCING ACTIVITIES:');
     const financingItems: { [key: string]: number } = {};
 
-    allVouchers.forEach((voucher: any) => {
-      voucher.entries?.forEach((entry: any) => {
-        const accountName = entry.accountName?.toLowerCase() || '';
-        
-        // Loans
-        if (accountName.includes('loan') || accountName.includes('borrowing')) {
-          if (entry.credit > 0) {
-            loanReceipts += entry.credit;
-            financingItems['Loan Proceeds'] = (financingItems['Loan Proceeds'] || 0) + entry.credit;
-          }
-          if (entry.debit > 0) {
-            loanRepayments += entry.debit;
-            financingItems['Loan Repayments'] = (financingItems['Loan Repayments'] || 0) - entry.debit;
-          }
-        }
-        
-        // Equity/Capital
-        if (accountName.includes('capital') || accountName.includes('equity')) {
-          if (entry.credit > 0) {
-            capitalContributions += entry.credit;
-            financingItems['Capital Contributions'] = (financingItems['Capital Contributions'] || 0) + entry.credit;
-          }
-          if (entry.debit > 0 && accountName.includes('dividend')) {
-            dividendsPaid += entry.debit;
-            financingItems['Dividends Paid'] = (financingItems['Dividends Paid'] || 0) - entry.debit;
-          }
-        }
-      });
-    });
+    // Equity and Liability changes (excluding AP)
+    for (const account of [...equityAccounts, ...liabilityAccounts]) {
+      const subType = (account as any).subType?.toString().toUpperCase();
+      
+      // Skip AP (already in operating)
+      if (subType === 'ACCOUNTS_PAYABLE') {
+        continue;
+      }
 
-    // Calculate net cash flows
-    const netOperatingCash = cashFromSales + cashFromCustomers - cashPaidForExpenses - cashPaidForInventory;
-    const netInvestingCash = saleOfAssets - purchaseOfAssets;
-    const netFinancingCash = loanReceipts + capitalContributions - loanRepayments - dividendsPaid;
+      const entries = periodEntries.filter(e => 
+        e.accountId.toString() === (account as any)._id.toString()
+      );
+
+      const change = entries.reduce((sum, entry) => 
+        sum + (entry.credit || 0) - (entry.debit || 0), 0
+      );
+
+      if (Math.abs(change) > 0.01) {
+        if (change > 0) {
+          // Increase in equity/liability = Cash inflow
+          financingItems[`${(account as any).name} - Contribution`] = change;
+          console.log(`  ✓ ${(account as any).name}: +${change.toFixed(2)}`);
+        } else {
+          // Decrease in equity/liability = Cash outflow
+          financingItems[`${(account as any).name} - Payment`] = change;
+          console.log(`  ✓ ${(account as any).name}: ${change.toFixed(2)}`);
+        }
+      }
+    }
+
+    const netFinancingCash = Object.values(financingItems).reduce((sum, val) => sum + val, 0);
+    console.log(`  📊 Net Financing Cash Flow: ${netFinancingCash.toFixed(2)}`);
+
+    // ==== CALCULATE NET CASH FLOW ====
     const netCashFlow = netOperatingCash + netInvestingCash + netFinancingCash;
     const closingCash = openingCash + netCashFlow;
 
-    // Structure the response data
-    const operatingItems: { [key: string]: number } = {
-      'Cash Sales': cashFromSales,
-      'Collections from Customers': cashFromCustomers,
-    };
+    console.log('\n' + '='.repeat(60));
+    console.log('CASH FLOW SUMMARY');
+    console.log('='.repeat(60));
+    console.log('Opening Cash:         ', openingCash.toFixed(2));
+    console.log('Operating Activities: ', netOperatingCash.toFixed(2));
+    console.log('Investing Activities: ', netInvestingCash.toFixed(2));
+    console.log('Financing Activities: ', netFinancingCash.toFixed(2));
+    console.log('Net Cash Flow:        ', netCashFlow.toFixed(2));
+    console.log('Closing Cash:         ', closingCash.toFixed(2));
+    console.log('='.repeat(60) + '\n');
 
-    // Add categorized expenses
-    Object.entries(operatingExpenses).forEach(([category, amount]) => {
-      operatingItems[category] = -amount;
-    });
-
-    // Add inventory purchase
-    if (cashPaidForInventory > 0) {
-      operatingItems['Inventory Purchases'] = -cashPaidForInventory;
-    }
-
-    // Add credit sales (as decrease in cash flow)
-    if (creditSales > 0) {
-      operatingItems['Credit Sales (Not Collected)'] = -creditSales;
-    }
-
-    const investingItems: { [key: string]: number } = {};
-    
-    // Add categorized asset purchases (as negative cash flow)
-    Object.entries(assetCategories).forEach(([category, amount]) => {
-      investingItems[`Purchase of ${category}`] = -amount;
-    });
-    
-    // Add asset sales (as positive cash flow)
-    if (saleOfAssets > 0) {
-      investingItems['Sale of Assets'] = saleOfAssets;
-    }
-
-    // Calculate totals
-    const operatingTotal = Object.values(operatingItems).reduce((sum, val) => sum + val, 0);
-    const investingTotal = Object.values(investingItems).reduce((sum, val) => sum + val, 0);
-    const financingTotal = Object.values(financingItems).reduce((sum, val) => sum + val, 0);
+    // Round all values
+    const roundToTwo = (num: number) => Math.round(num * 100) / 100;
 
     return NextResponse.json({
       operatingActivities: {
-        items: operatingItems,
-        total: operatingTotal,
+        items: Object.fromEntries(
+          Object.entries(operatingItems).map(([k, v]) => [k, roundToTwo(v)])
+        ),
+        total: roundToTwo(netOperatingCash),
       },
       investingActivities: {
-        items: investingItems,
-        total: investingTotal,
+        items: Object.fromEntries(
+          Object.entries(investingItems).map(([k, v]) => [k, roundToTwo(v)])
+        ),
+        total: roundToTwo(netInvestingCash),
       },
       financingActivities: {
-        items: financingItems,
-        total: financingTotal,
+        items: Object.fromEntries(
+          Object.entries(financingItems).map(([k, v]) => [k, roundToTwo(v)])
+        ),
+        total: roundToTwo(netFinancingCash),
       },
-      netCashFlow,
-      openingCash,
-      closingCash,
+      netCashFlow: roundToTwo(netCashFlow),
+      openingCash: roundToTwo(openingCash),
+      closingCash: roundToTwo(closingCash),
       metadata: {
         outletName: outlet?.name || 'AutoCity Pro',
         outletId,
@@ -307,8 +335,10 @@ export async function GET(request: NextRequest) {
         toDate: toDate.toISOString(),
       },
     });
+
   } catch (error: any) {
-    console.error('Error generating cash flow:', error);
+    console.error('❌ Error generating cash flow:', error);
+    console.error('Stack trace:', error.stack);
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
       { status: 500 }

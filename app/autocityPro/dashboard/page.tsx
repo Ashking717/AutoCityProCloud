@@ -537,7 +537,7 @@ export default function DashboardPage() {
     <MainLayout user={user} onLogout={handleLogout}>
       <div className="min-h-screen bg-slate-800">
         {/* Header */}
-  <div className="ml-1  mb-6 py-9  bg-gradient-to-r from-indigo-600 to-purple-600 border border-purple-500/30 shadow-lg overflow-hidden">
+  <div className="ml-1  mb-6 py-9  bg-gradient-to-r from-indigo-600 to-purple-600 border border-purple-500/30 shadow-lg overflow-hidden fixed-inset-top-0">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h1 className="ml-2 text-2xl font-bold text-white">Dashboard</h1>

@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -22,9 +22,9 @@ import {
   ChevronDown,
   ChevronRight,
   Keyboard,
-} from 'lucide-react';
-import { useState, useEffect } from 'react';
-import Image from 'next/image';
+} from "lucide-react";
+import { useState, useEffect } from "react";
+import Image from "next/image";
 
 interface SidebarProps {
   user: any;
@@ -34,161 +34,154 @@ interface SidebarProps {
 export default function Sidebar({ user, onLogout }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [expandedMenus, setExpandedMenus] = useState<string[]>(['vouchers', 'reports']);
   const [showHelp, setShowHelp] = useState(false);
 
-  const toggleMenu = (menu: string) => {
-    setExpandedMenus(prev =>
-      prev.includes(menu) ? prev.filter(m => m !== menu) : [...prev, menu]
-    );
-  };
-
-  const isParentActive = (paths: string[]) => paths.some(path => pathname.startsWith(path));
+  const isParentActive = (paths: string[]) =>
+    paths.some((path) => pathname.startsWith(path));
 
   const navigation = [
     {
-      title: 'Main',
+      title: "Main",
       items: [
-        { name: 'Dashboard', icon: LayoutDashboard, href: '/autocityPro/dashboard' },
-        { name: 'New Sale', icon: Sparkles, href: '/autocityPro/sales/new' },
-        { name: 'Sales', icon: ShoppingCart, href: '/autocityPro/sales' },
-      ],
-    },
-    {
-      title: 'Inventory',
-      items: [
-        { name: 'Products', icon: Package, href: '/autocityPro/products' },
-        { name: 'Categories', icon: List, href: '/autocityPro/categories' },
-        { name: 'Stock', icon: TrendingUp, href: '/autocityPro/stock' },
-      ],
-    },
-    {
-      title: 'Parties',
-      items: [
-        { name: 'Customers', icon: Users, href: '/autocityPro/customers' },
-        { name: 'Suppliers', icon: Truck, href: '/autocityPro/suppliers' },
-      ],
-    },
-    {
-      title: 'Accounting',
-      items: [
-        { 
-          name: 'Vouchers', 
-          icon: Receipt, 
-          href: '#',
-          submenu: [
-            { name: 'All Vouchers', href: '/autocityPro/vouchers' },
-            { name: 'Payment', href: '/autocityPro/vouchers/payment' },
-            { name: 'Receipt', href: '/autocityPro/vouchers/receipt' },
-            { name: 'Journal', href: '/autocityPro/vouchers/journal' },
-            { name: 'Contra', href: '/autocityPro/vouchers/contra' },
-          ]
+        {
+          name: "Dashboard",
+          icon: LayoutDashboard,
+          href: "/autocityPro/dashboard",
         },
-        { name: 'Accounts', icon: BookOpen, href: '/autocityPro/accounts' },
-        { name: 'Ledgers', icon: DollarSign, href: '/autocityPro/ledgers' },
+        { name: "New Sale", icon: Sparkles, href: "/autocityPro/sales/new" },
+        { name: "Sales", icon: ShoppingCart, href: "/autocityPro/sales" },
       ],
     },
     {
-      title: 'Reports',
+      title: "Inventory",
       items: [
-        { name: 'Reports', icon: Users, href: '/autocityPro/reports' },
-        ],
+        { name: "Products", icon: Package, href: "/autocityPro/products" },
+        { name: "Stock", icon: TrendingUp, href: "/autocityPro/stock" },
+      ],
     },
     {
-      title: 'System',
+      title: "Parties",
       items: [
-        { name: 'Day & Month Closing', icon: Lock, href: '/autocityPro/closings' },
-        { name: 'Settings', icon: Settings, href: '/autocityPro/settings' },
+        { name: "Customers", icon: Users, href: "/autocityPro/customers" },
+        { name: "Portal", icon: Truck, href: "/autocityPro/portal" },
+      ],
+    },
+    {
+      title: "Accounting",
+      items: [
+        {
+          name: "Vouchers",
+          icon: Receipt,
+          href: "/autocityPro/vouchers", // Direct link to vouchers
+        },
+        { name: "Accounts", icon: BookOpen, href: "/autocityPro/accounts" },
+        { name: "Ledgers", icon: DollarSign, href: "/autocityPro/ledgers" },
+      ],
+    },
+    {
+      title: "Reports",
+      items: [{ name: "Reports", icon: Users, href: "/autocityPro/reports" }],
+    },
+    {
+      title: "System",
+      items: [
+        {
+          name: "Day & Month Closing",
+          icon: Lock,
+          href: "/autocityPro/closings",
+        },
+        { name: "Settings", icon: Settings, href: "/autocityPro/settings" },
       ],
     },
   ];
 
-  if (user?.role === 'SUPERADMIN') {
+  if (user?.role === "SUPERADMIN") {
     navigation.push({
-      title: 'Admin',
+      title: "Admin",
       items: [
-        { name: 'Outlets', icon: LayoutDashboard, href: '/autocityPro/settings/outlets' },
-        { name: 'Users', icon: Users, href: '/autocityPro/settings/users' },
-        { name: 'Activity Logs', icon: Activity, href: '/autocityPro/settings/logs' },
+        {
+          name: "Outlets",
+          icon: LayoutDashboard,
+          href: "/autocityPro/settings/outlets",
+        },
+        { name: "Users", icon: Users, href: "/autocityPro/settings/users" },
+        {
+          name: "Activity Logs",
+          icon: Activity,
+          href: "/autocityPro/settings/logs",
+        },
       ],
     });
   }
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
         return;
       }
 
       const isCtrl = e.ctrlKey || e.metaKey;
       const isShift = e.shiftKey;
       const isAlt = e.altKey;
-      
-      if (e.key === '?' && !isCtrl && !isShift && !isAlt) {
+
+      if (e.key === "?" && !isCtrl && !isShift && !isAlt) {
         e.preventDefault();
-        setShowHelp(prev => !prev);
+        setShowHelp((prev) => !prev);
         return;
       }
 
       const keyMap: Record<string, () => void> = {
-        'Ctrl+1': () => router.push('/autocityPro/dashboard'),
-        'Ctrl+2': () => router.push('/autocityPro/sales/new'),
-        'Ctrl+3': () => router.push('/autocityPro/sales'),
-        'Ctrl+4': () => router.push('/autocityPro/products'),
-        'Ctrl+5': () => router.push('/autocityPro/categories'),
-        'Ctrl+6': () => router.push('/autocityPro/stock'),
-        'Ctrl+7': () => router.push('/autocityPro/customers'),
-        'Ctrl+8': () => router.push('/autocityPro/suppliers'),
-        'Ctrl+9': () => toggleMenu('vouchers'),
-        'Ctrl+A': () => router.push('/autocityPro/accounts'),
-        'Ctrl+L': () => router.push('/autocityPro/ledgers'),
-        'Ctrl+,': () => router.push('/autocityPro/settings'),
-        'Ctrl+M': () => router.push('/autocityPro/closings'),
-        'Ctrl+O': () => router.push('/autocityPro/settings/outlets'),
-        'Ctrl+U': () => router.push('/autocityPro/settings/users'),
-        'Ctrl+Q': () => onLogout(),
-        'Ctrl+Shift+V': () => router.push('/autocityPro/vouchers'),
-        'Ctrl+Shift+P': () => router.push('/autocityPro/vouchers/payment'),
-        'Ctrl+Shift+R': () => router.push('/autocityPro/vouchers/receipt'),
-        'Ctrl+Shift+J': () => router.push('/autocityPro/vouchers/journal'),
-        'Ctrl+Shift+C': () => router.push('/autocityPro/vouchers/contra'),
-        'Ctrl+Shift+S': () => router.push('/autocityPro/reports/sales'),
-        'Ctrl+Shift+B': () => router.push('/autocityPro/reports/balance-sheet'),
-        'Ctrl+Shift+T': () => router.push('/autocityPro/reports/stock'),
-        'Ctrl+Shift+D': () => router.push('/autocityPro/reports/daybook'),
-        'Ctrl+Shift+F': () => router.push('/autocityPro/reports/cash-flow'),
-        'Ctrl+Alt+L': () => router.push('/autocityPro/settings/logs'),
-        'Alt+H': () => router.push('/autocityPro/dashboard'),
-        'Alt+N': () => router.push('/autocityPro/sales/new'),
+        "Ctrl+1": () => router.push("/autocityPro/dashboard"),
+        "Ctrl+2": () => router.push("/autocityPro/sales/new"),
+        "Ctrl+3": () => router.push("/autocityPro/sales"),
+        "Ctrl+4": () => router.push("/autocityPro/products"),
+        "Ctrl+5": () => router.push("/autocityPro/categories"),
+        "Ctrl+6": () => router.push("/autocityPro/stock"),
+        "Ctrl+7": () => router.push("/autocityPro/customers"),
+        "Ctrl+8": () => router.push("/autocityPro/suppliers"),
+        "Ctrl+9": () => router.push("/autocityPro/vouchers"), // Direct to vouchers
+        "Ctrl+A": () => router.push("/autocityPro/accounts"),
+        "Ctrl+L": () => router.push("/autocityPro/ledgers"),
+        "Ctrl+,": () => router.push("/autocityPro/settings"),
+        "Ctrl+M": () => router.push("/autocityPro/closings"),
+        "Ctrl+O": () => router.push("/autocityPro/settings/outlets"),
+        "Ctrl+U": () => router.push("/autocityPro/settings/users"),
+        "Ctrl+Q": () => onLogout(),
+        "Ctrl+Shift+S": () => router.push("/autocityPro/reports/sales"),
+        "Ctrl+Shift+B": () => router.push("/autocityPro/reports/balance-sheet"),
+        "Ctrl+Shift+T": () => router.push("/autocityPro/reports/stock"),
+        "Ctrl+Shift+D": () => router.push("/autocityPro/reports/daybook"),
+        "Ctrl+Shift+F": () => router.push("/autocityPro/reports/cash-flow"),
+        "Ctrl+Alt+L": () => router.push("/autocityPro/settings/logs"),
+        "Alt+H": () => router.push("/autocityPro/dashboard"),
+        "Alt+N": () => router.push("/autocityPro/sales/new"),
       };
 
-      let keyCombo = '';
-      
+      let keyCombo = "";
+
       if (isCtrl && isShift) {
-        if (e.key === 'V') keyCombo = 'Ctrl+Shift+V';
-        else if (e.key === 'P') keyCombo = 'Ctrl+Shift+P';
-        else if (e.key === 'R') keyCombo = 'Ctrl+Shift+R';
-        else if (e.key === 'J') keyCombo = 'Ctrl+Shift+J';
-        else if (e.key === 'C') keyCombo = 'Ctrl+Shift+C';
-        else if (e.key === 'S') keyCombo = 'Ctrl+Shift+S';
-        else if (e.key === 'B') keyCombo = 'Ctrl+Shift+B';
-        else if (e.key === 'T') keyCombo = 'Ctrl+Shift+T';
-        else if (e.key === 'D') keyCombo = 'Ctrl+Shift+D';
-        else if (e.key === 'F') keyCombo = 'Ctrl+Shift+F';
+        if (e.key === "S") keyCombo = "Ctrl+Shift+S";
+        else if (e.key === "B") keyCombo = "Ctrl+Shift+B";
+        else if (e.key === "T") keyCombo = "Ctrl+Shift+T";
+        else if (e.key === "D") keyCombo = "Ctrl+Shift+D";
+        else if (e.key === "F") keyCombo = "Ctrl+Shift+F";
       } else if (isCtrl && isAlt) {
-        if (e.key === 'L') keyCombo = 'Ctrl+Alt+L';
+        if (e.key === "L") keyCombo = "Ctrl+Alt+L";
       } else if (isCtrl) {
-        if (e.key >= '1' && e.key <= '9') keyCombo = `Ctrl+${e.key}`;
-        else if (e.key === 'a' || e.key === 'A') keyCombo = 'Ctrl+A';
-        else if (e.key === 'l' || e.key === 'L') keyCombo = 'Ctrl+L';
-        else if (e.key === ',') keyCombo = 'Ctrl+,';
-        else if (e.key === 'm' || e.key === 'M') keyCombo = 'Ctrl+M';
-        else if (e.key === 'o' || e.key === 'O') keyCombo = 'Ctrl+O';
-        else if (e.key === 'u' || e.key === 'U') keyCombo = 'Ctrl+U';
-        else if (e.key === 'q' || e.key === 'Q') keyCombo = 'Ctrl+Q';
+        if (e.key >= "1" && e.key <= "9") keyCombo = `Ctrl+${e.key}`;
+        else if (e.key === "a" || e.key === "A") keyCombo = "Ctrl+A";
+        else if (e.key === "l" || e.key === "L") keyCombo = "Ctrl+L";
+        else if (e.key === ",") keyCombo = "Ctrl+,";
+        else if (e.key === "m" || e.key === "M") keyCombo = "Ctrl+M";
+        else if (e.key === "o" || e.key === "O") keyCombo = "Ctrl+O";
+        else if (e.key === "u" || e.key === "U") keyCombo = "Ctrl+U";
+        else if (e.key === "q" || e.key === "Q") keyCombo = "Ctrl+Q";
       } else if (isAlt) {
-        if (e.key === 'h' || e.key === 'H') keyCombo = 'Alt+H';
-        else if (e.key === 'n' || e.key === 'N') keyCombo = 'Alt+N';
+        if (e.key === "h" || e.key === "H") keyCombo = "Alt+H";
+        else if (e.key === "n" || e.key === "N") keyCombo = "Alt+N";
       }
 
       if (keyCombo && keyMap[keyCombo]) {
@@ -197,8 +190,8 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
       }
     };
 
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
+    window.addEventListener("keydown", handleKeyPress);
+    return () => window.removeEventListener("keydown", handleKeyPress);
   }, [router, onLogout]);
 
   return (
@@ -226,26 +219,38 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
             className="mt-3 flex items-center space-x-2 text-xs text-purple-200 opacity-80 hover:opacity-100 transition bg-purple-700/30 px-3 py-1.5 rounded-lg border border-purple-500/30"
           >
             <Keyboard className="h-3 w-3" />
-            <span>Press <kbd className="px-1.5 py-0.5 bg-purple-800 rounded text-xs">?</kbd> for shortcuts</span>
+            <span>
+              Press{" "}
+              <kbd className="px-1.5 py-0.5 bg-purple-800 rounded text-xs">
+                ?
+              </kbd>{" "}
+              for shortcuts
+            </span>
           </button>
         </div>
 
-        {/* User Info */}
         {user && (
           <div className="p-4 border-b border-white/10 bg-slate-700/10">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-center shadow-lg">
-                <span className="text-sm font-bold">
-                  {user.firstName?.[0]}{user.lastName?.[0]}
-                </span>
+            <button
+              onClick={() => router.push("/autocityPro/profile")}
+              className="w-full flex items-center space-x-3 text-left rounded-lg hover:bg-slate-700"
+            >
+              <div className="flex items-center space-x-3 w-full">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-center shadow-lg">
+                  <span className="text-sm font-bold">
+                    {user.firstName?.[0]}
+                    {user.lastName?.[0]}
+                  </span>
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">
+                    {user.firstName} {user.lastName}
+                  </p>
+                  <p className="text-xs text-slate-300 truncate">{user.role}</p>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">
-                  {user.firstName} {user.lastName}
-                </p>
-                <p className="text-xs text-slate-300 truncate">{user.role}</p>
-              </div>
-            </div>
+            </button>
           </div>
         )}
 
@@ -261,66 +266,15 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
               <div className="space-y-1">
                 {section.items.map((item) => {
                   const isActive = pathname === item.href;
-                  const hasSubmenu = item.submenu && item.submenu.length > 0;
-                  const isSubmenuExpanded = expandedMenus.includes(item.name.toLowerCase().replace(' ', '-'));
-                  const hasActiveChild = hasSubmenu && isParentActive(item.submenu!.map(sub => sub.href));
-
-                  if (hasSubmenu) {
-                    return (
-                      <div key={item.name}>
-                        <button
-                          onClick={() => toggleMenu(item.name.toLowerCase().replace(' ', '-'))}
-                          className={`w-full flex items-center justify-between space-x-3 px-4 py-3 text-sm transition-all group ${
-                            hasActiveChild
-                              ? 'bg-gradient-to-r from-purple-600/20 to-indigo-600/20 text-white border-l-4 border-purple-500 pl-3'
-                              : 'text-slate-300 hover:bg-gradient-to-r hover:from-purple-600/10 hover:to-indigo-600/10 hover:text-white hover:pl-5'
-                          }`}
-                        >
-                          <div className="flex items-center space-x-3">
-                            <item.icon className="h-5 w-5 flex-shrink-0" />
-                            <span>{item.name}</span>
-                          </div>
-                          <div className="flex items-center">
-                            {isSubmenuExpanded ? (
-                              <ChevronDown className="h-4 w-4" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4" />
-                            )}
-                          </div>
-                        </button>
-
-                        {isSubmenuExpanded && (
-                          <div className="ml-8 mt-1 space-y-1">
-                            {item.submenu!.map((subItem) => {
-                              const isSubActive = pathname === subItem.href;
-                              return (
-                                <button
-                                  key={subItem.href}
-                                  onClick={() => router.push(subItem.href)}
-                                  className={`w-full flex items-center space-x-3 px-4 py-2 text-sm transition-all group ${
-                                    isSubActive
-                                      ? 'bg-gradient-to-r from-purple-600/20 to-indigo-600/20 text-white border-l-2 border-purple-400 pl-3'
-                                      : 'text-slate-300 hover:bg-gradient-to-r hover:from-purple-600/10 hover:to-indigo-600/10 hover:text-white hover:pl-5'
-                                  }`}
-                                >
-                                  <span className="ml-5">{subItem.name}</span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  }
-
+                  
                   return (
                     <button
                       key={item.href}
                       onClick={() => router.push(item.href)}
                       className={`w-full flex items-center space-x-3 px-4 py-3 text-sm transition-all group ${
                         isActive
-                          ? 'bg-gradient-to-r from-purple-600/20 to-indigo-600/20 text-white border-l-4 border-purple-500 pl-3'
-                          : 'text-slate-300 hover:bg-gradient-to-r hover:from-purple-600/10 hover:to-indigo-600/10 hover:text-white hover:pl-5'
+                          ? "bg-gradient-to-r from-purple-600/20 to-indigo-600/20 text-white border-l-4 border-purple-500 pl-3"
+                          : "text-slate-300 hover:bg-gradient-to-r hover:from-purple-600/10 hover:to-indigo-600/10 hover:text-white hover:pl-5"
                       }`}
                     >
                       <div className="flex items-center space-x-3">
@@ -356,16 +310,20 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
             <div className="flex justify-between items-center px-6 py-4 border-b border-slate-700 bg-gradient-to-r from-purple-600/20 to-indigo-600/20">
               <div className="flex items-center space-x-3">
                 <Keyboard className="h-6 w-6 text-purple-400" />
-                <h2 className="text-xl font-bold text-white">Keyboard Shortcuts</h2>
+                <h2 className="text-xl font-bold text-white">
+                  Keyboard Shortcuts
+                </h2>
               </div>
               <button
                 onClick={() => setShowHelp(false)}
                 className="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-700 transition"
               >
-                <kbd className="px-2 py-1 bg-slate-700 rounded border border-slate-600">ESC</kbd>
+                <kbd className="px-2 py-1 bg-slate-700 rounded border border-slate-600">
+                  ESC
+                </kbd>
               </button>
             </div>
-            
+
             <div className="p-6 overflow-y-auto max-h-[60vh]">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Main Navigation */}
@@ -382,10 +340,16 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
                     <ShortcutRow shortcut="Ctrl + 6" description="Stock" />
                     <ShortcutRow shortcut="Ctrl + 7" description="Customers" />
                     <ShortcutRow shortcut="Ctrl + 8" description="Suppliers" />
-                    <ShortcutRow shortcut="Ctrl + 9" description="Toggle Vouchers" />
+                    <ShortcutRow
+                      shortcut="Ctrl + 9"
+                      description="Vouchers"
+                    />
                     <ShortcutRow shortcut="Ctrl + A" description="Accounts" />
                     <ShortcutRow shortcut="Ctrl + L" description="Ledgers" />
-                    <ShortcutRow shortcut="Ctrl + M" description="Month Closing" />
+                    <ShortcutRow
+                      shortcut="Ctrl + M"
+                      description="Month Closing"
+                    />
                     <ShortcutRow shortcut="Ctrl + ," description="Settings" />
                   </div>
                 </div>
@@ -393,20 +357,29 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
                 {/* Vouchers & Reports */}
                 <div>
                   <h3 className="text-lg font-semibold text-purple-300 mb-4 pb-2 border-b border-slate-700">
-                    Vouchers & Reports
+                    Reports
                   </h3>
                   <div className="space-y-3">
-                    <ShortcutRow shortcut="Ctrl + Shift + V" description="All Vouchers" />
-                    <ShortcutRow shortcut="Ctrl + Shift + P" description="Payment Voucher" />
-                    <ShortcutRow shortcut="Ctrl + Shift + R" description="Receipt Voucher" />
-                    <ShortcutRow shortcut="Ctrl + Shift + J" description="Journal Voucher" />
-                    <ShortcutRow shortcut="Ctrl + Shift + C" description="Contra Voucher" />
-                    <ShortcutRow shortcut="Ctrl + Shift + S" description="Sales Report" />
-                    <ShortcutRow shortcut="Ctrl + Shift + P" description="Profit & Loss" />
-                    <ShortcutRow shortcut="Ctrl + Shift + B" description="Balance Sheet" />
-                    <ShortcutRow shortcut="Ctrl + Shift + T" description="Stock Report" />
-                    <ShortcutRow shortcut="Ctrl + Shift + D" description="Daybook" />
-                    <ShortcutRow shortcut="Ctrl + Shift + F" description="Cash Flow" />
+                    <ShortcutRow
+                      shortcut="Ctrl + Shift + S"
+                      description="Sales Report"
+                    />
+                    <ShortcutRow
+                      shortcut="Ctrl + Shift + B"
+                      description="Balance Sheet"
+                    />
+                    <ShortcutRow
+                      shortcut="Ctrl + Shift + T"
+                      description="Stock Report"
+                    />
+                    <ShortcutRow
+                      shortcut="Ctrl + Shift + D"
+                      description="Daybook"
+                    />
+                    <ShortcutRow
+                      shortcut="Ctrl + Shift + F"
+                      description="Cash Flow"
+                    />
                   </div>
 
                   <h3 className="text-lg font-semibold text-purple-300 mb-4 pb-2 border-b border-slate-700 mt-6">
@@ -414,31 +387,44 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
                   </h3>
                   <div className="space-y-3">
                     <ShortcutRow shortcut="Ctrl + Q" description="Logout" />
-                    <ShortcutRow shortcut="Alt + H" description="Home (Dashboard)" />
+                    <ShortcutRow
+                      shortcut="Alt + H"
+                      description="Home (Dashboard)"
+                    />
                     <ShortcutRow shortcut="Alt + N" description="New Sale" />
                     <ShortcutRow shortcut="?" description="Show/Hide Help" />
                     <ShortcutRow shortcut="ESC" description="Close Help" />
                   </div>
                 </div>
               </div>
-              
+
               <div className="mt-8 p-4 bg-slate-900/50 rounded-lg border border-slate-700">
-                <h4 className="text-sm font-semibold text-slate-300 mb-2">Key Symbols</h4>
+                <h4 className="text-sm font-semibold text-slate-300 mb-2">
+                  Key Symbols
+                </h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-slate-400">
                   <div className="flex items-center space-x-2">
-                    <kbd className="px-2 py-1 bg-slate-700 rounded border border-slate-600">Ctrl</kbd>
+                    <kbd className="px-2 py-1 bg-slate-700 rounded border border-slate-600">
+                      Ctrl
+                    </kbd>
                     <span>Control / Command</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <kbd className="px-2 py-1 bg-slate-700 rounded border border-slate-600">Shift</kbd>
+                    <kbd className="px-2 py-1 bg-slate-700 rounded border border-slate-600">
+                      Shift
+                    </kbd>
                     <span>Shift</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <kbd className="px-2 py-1 bg-slate-700 rounded border border-slate-600">Alt</kbd>
+                    <kbd className="px-2 py-1 bg-slate-700 rounded border border-slate-600">
+                      Alt
+                    </kbd>
                     <span>Alt / Option</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <kbd className="px-2 py-1 bg-slate-700 rounded border border-slate-600">+</kbd>
+                    <kbd className="px-2 py-1 bg-slate-700 rounded border border-slate-600">
+                      +
+                    </kbd>
                     <span>Press keys together</span>
                   </div>
                 </div>
@@ -452,17 +438,23 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
 }
 
 // Helper component for shortcut rows showing text keys
-function ShortcutRow({ shortcut, description }: { shortcut: string; description: string }) {
+function ShortcutRow({
+  shortcut,
+  description,
+}: {
+  shortcut: string;
+  description: string;
+}) {
   return (
     <div className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-slate-700/50 transition">
       <span className="text-slate-300">{description}</span>
       <div className="flex items-center space-x-1">
-        {shortcut.split(' + ').map((key, index) => (
+        {shortcut.split(" + ").map((key, index) => (
           <span key={index} className="flex items-center">
             <kbd className="px-2 py-1 bg-slate-700 rounded border border-slate-600 text-sm font-medium mx-0.5">
               {key}
             </kbd>
-            {index < shortcut.split(' + ').length - 1 && (
+            {index < shortcut.split(" + ").length - 1 && (
               <span className="text-slate-500 mx-1">+</span>
             )}
           </span>

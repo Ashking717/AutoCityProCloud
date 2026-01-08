@@ -1,3 +1,4 @@
+// lib/models/Supplier.ts
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface ISupplier extends Document {

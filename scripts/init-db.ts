@@ -95,10 +95,10 @@ async function initializeDatabase() {
       { code: 'REV-002', name: 'Service Revenue', type: AccountType.REVENUE, subType: AccountSubType.SERVICE_REVENUE },
       
       // Expenses
-      { code: 'EXP-001', name: 'Cost of Goods Sold', type: AccountType.EXPENSE, subType: AccountSubType.COST_OF_GOODS_SOLD },
+      { code: 'EXP-001', name: 'Cost of Goods Sold', type: AccountType.EXPENSE, subType: AccountSubType.COGS },
       { code: 'EXP-002', name: 'Rent Expense', type: AccountType.EXPENSE, subType: AccountSubType.OPERATING_EXPENSE },
       { code: 'EXP-003', name: 'Utilities', type: AccountType.EXPENSE, subType: AccountSubType.OPERATING_EXPENSE },
-      { code: 'EXP-004', name: 'Salaries', type: AccountType.EXPENSE, subType: AccountSubType.ADMINISTRATIVE_EXPENSE },
+      { code: 'EXP-004', name: 'Salaries', type: AccountType.EXPENSE, subType: AccountSubType.ADMIN_EXPENSE },
     ];
 
     for (const account of defaultAccounts) {

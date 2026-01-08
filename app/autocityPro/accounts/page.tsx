@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
-import { Wallet, Search, Plus, Edit2, Trash2, X, Eye } from 'lucide-react';
+import { Wallet, Search, Plus, Edit2, Trash2, X, Eye, Calculator } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function AccountsPage() {
@@ -184,25 +184,34 @@ export default function AccountsPage() {
               <p className="text-gray-600 mt-1">{filteredAccounts.length} accounts</p>
             </div>
           </div>
-          <button
-            onClick={() => {
-              setEditingAccount(null);
-              setFormData({
-                accountCode: '',
-                accountName: '',
-                accountType: 'asset',
-                accountSubType: '',
-                accountGroup: '',
-                openingBalance: 0,
-                description: '',
-              });
-              setShowAddModal(true);
-            }}
-            className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-          >
-            <Plus className="h-5 w-5" />
-            <span>Add Account</span>
-          </button>
+          <div className="flex space-x-3">
+            <button
+              onClick={() => router.push('/autocityPro/accounts/opening-balance')}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              <Calculator className="h-5 w-5" />
+              <span>Opening Balance</span>
+            </button>
+            <button
+              onClick={() => {
+                setEditingAccount(null);
+                setFormData({
+                  accountCode: '',
+                  accountName: '',
+                  accountType: 'asset',
+                  accountSubType: '',
+                  accountGroup: '',
+                  openingBalance: 0,
+                  description: '',
+                });
+                setShowAddModal(true);
+              }}
+              className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+            >
+              <Plus className="h-5 w-5" />
+              <span>Add Account</span>
+            </button>
+          </div>
         </div>
 
         {/* Search */}
@@ -252,7 +261,12 @@ export default function AccountsPage() {
                 filteredAccounts.map((account) => (
                   <tr key={account._id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">{account.accountNumber}</td>
-                    <td className="px-6 py-4 text-sm text-gray-900">{account.accountName}</td>
+                    <td className="px-6 py-4 text-sm text-gray-900">
+                      {account.accountName}
+                      {account.isSystem && (
+                        <span className="ml-2 px-2 py-0.5 text-xs bg-gray-200 text-gray-600 rounded">System</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4">
                       <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
                         account.accountType === 'asset' ? 'bg-green-100 text-green-800' :
@@ -277,7 +291,7 @@ export default function AccountsPage() {
                     <td className="px-6 py-4 text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
                         <button
-                          onClick={() => router.push(`/autocityPro/account/${account._id}`)}
+                          onClick={() => router.push(`/autocityPro/accounts/${account._id}`)}
                           className="text-purple-600 hover:text-purple-900"
                           title="View Details"
                         >
@@ -290,13 +304,15 @@ export default function AccountsPage() {
                         >
                           <Edit2 className="h-4 w-4" />
                         </button>
-                        <button
-                          onClick={() => handleDelete(account._id)}
-                          className="text-red-600 hover:text-red-900"
-                          title="Delete"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {!account.isSystem && (
+                          <button
+                            onClick={() => handleDelete(account._id)}
+                            className="text-red-600 hover:text-red-900"
+                            title="Delete"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -330,7 +346,8 @@ export default function AccountsPage() {
                     value={formData.accountCode}
                     onChange={(e) => setFormData({ ...formData, accountCode: e.target.value })}
                     required
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+                    disabled={editingAccount?.isSystem}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent disabled:bg-gray-100"
                     placeholder="e.g., 1001"
                   />
                 </div>
@@ -359,7 +376,8 @@ export default function AccountsPage() {
                       accountSubType: '',
                       accountGroup: ''
                     })}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+                    disabled={editingAccount?.isSystem}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent disabled:bg-gray-100"
                   >
                     <option value="asset">Asset</option>
                     <option value="liability">Liability</option>
@@ -374,10 +392,11 @@ export default function AccountsPage() {
                   <select
                     value={formData.accountSubType}
                     onChange={(e) => setFormData({ ...formData, accountSubType: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+                    disabled={editingAccount?.isSystem}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent disabled:bg-gray-100"
                   >
                     <option value="">Select Sub Type</option>
-                    {accountSubTypes[formData.accountType].map(st => (
+                    {(accountSubTypes[formData.accountType] || []).map(st => (
                       <option key={st.value} value={st.value}>
                         {st.label}
                       </option>
@@ -394,7 +413,7 @@ export default function AccountsPage() {
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
                   >
                     <option value="">Select Group</option>
-                    {accountGroups[formData.accountType].map(group => (
+                    {(accountGroups[formData.accountType] || []).map(group => (
                       <option key={group} value={group}>{group}</option>
                     ))}
                   </select>
@@ -402,7 +421,12 @@ export default function AccountsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Opening Balance</label>
+                <label className="block text-sm font-medium mb-1">
+                  Opening Balance
+                  {editingAccount && (
+                    <span className="text-xs text-gray-500 ml-2">(Updates will create a journal entry)</span>
+                  )}
+                </label>
                 <input
                   type="number"
                   value={formData.openingBalance}

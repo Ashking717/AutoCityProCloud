@@ -1,22 +1,21 @@
-// app/api/auth/login/route.ts
+// ═══════════════════════════════════════════════════════════
+// app/api/auth/login/route.ts - Updated Login API
+// ═══════════════════════════════════════════════════════════
+
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/mongodb';
 import User from '@/lib/models/User';
 import Outlet from '@/lib/models/Outlet';
 import { signToken } from '@/lib/auth/jwt';
 import { cookies } from 'next/headers';
-import bcrypt from 'bcryptjs';
 
 export async function POST(request: Request) {
   try {
-    const { email, password } = await request.json();
+    const { identifier, password } = await request.json();
 
-    console.log('Login attempt for identifier:', email);
-    console.log('Password received (first 5 chars):', password?.substring(0, 5) + '...');
-
-    if (!email || !password) {
+    if (!identifier || !password) {
       return NextResponse.json(
-        { error: 'Email and password are required' },
+        { error: 'Username/Email and password are required' },
         { status: 400 }
       );
     }
@@ -26,49 +25,28 @@ export async function POST(request: Request) {
     // Find user by email OR username
     const user = await User.findOne({
       $or: [
-        { email: email },
-        { username: email }
+        { email: identifier.toLowerCase() },
+        { username: identifier }
       ],
       isActive: true
     }).select('+password');
 
     if (!user) {
-      console.log('❌ User not found for:', email);
       return NextResponse.json(
-        { error: 'Invalid email or password' },
+        { error: 'Invalid credentials' },
         { status: 401 }
       );
     }
 
-    console.log('✅ User found:', {
-      id: user._id,
-      email: user.email,
-      username: user.username,
-      hasPassword: !!user.password,
-      passwordHashLength: user.password?.length,
-      role: user.role
-    });
-
-    // Debug: Log the stored password hash (first 30 chars)
-    console.log('Stored password hash (first 30 chars):', user.password?.substring(0, 30) + '...');
-
-    // Verify password using bcrypt directly
-    console.log('Comparing password with bcrypt...');
-    const isValidPassword = await bcrypt.compare(password, user.password);
-    
-    console.log('Password comparison result:', isValidPassword);
+    // Verify password using the model's comparePassword method
+    const isValidPassword = await user.comparePassword(password);
 
     if (!isValidPassword) {
-      console.log('❌ Invalid password for user:', user.email);
-      // For debugging, let's also check if it's a simple string match
-      console.log('Plain text match:', password === user.password);
       return NextResponse.json(
-        { error: 'Invalid email or password' },
+        { error: 'Invalid credentials' },
         { status: 401 }
       );
     }
-
-    console.log('✅ Password verified successfully');
 
     // Update last login
     user.lastLogin = new Date();
@@ -98,7 +76,7 @@ export async function POST(request: Request) {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7,
+      maxAge: 60 * 60 * 24 * 7, // 7 days
       path: '/',
     });
 
@@ -116,7 +94,7 @@ export async function POST(request: Request) {
       },
     });
   } catch (error: any) {
-    console.error('❌ Login error:', error);
+    console.error('Login error:', error);
     return NextResponse.json(
       { error: 'An error occurred during login' },
       { status: 500 }

@@ -70,14 +70,37 @@ export async function PUT(
     if (body.partNumber !== undefined) updateData.partNumber = body.partNumber;
     if (body.unit) updateData.unit = body.unit;
     if (body.variant !== undefined) updateData.variant = body.variant;
+    if (body.color !== undefined) updateData.color = body.color; // Added color field
     
     // Vehicle fields
     if (body.make !== undefined) {
       updateData.make = body.make;
       updateData.isVehicle = !!body.make;
     }
+    
+    // Handle carMake (preferred field name)
+    if (body.carMake !== undefined) {
+      updateData.carMake = body.carMake;
+      updateData.isVehicle = !!body.carMake;
+    }
+    
+    if (body.isVehicle !== undefined) {
+      updateData.isVehicle = body.isVehicle;
+    }
+    
     if (body.carModel !== undefined) updateData.carModel = body.carModel;
     if (body.year !== undefined) updateData.year = body.year ? parseInt(body.year) : undefined;
+    
+    // If isVehicle is false, clear vehicle-specific fields
+    if (body.isVehicle === false || (!body.carMake && !body.make && body.isVehicle !== undefined)) {
+      updateData.carMake = undefined;
+      updateData.carModel = undefined;
+      updateData.variant = undefined;
+      updateData.year = undefined;
+      updateData.color = undefined;
+      updateData.vin = undefined;
+      updateData.isVehicle = false;
+    }
     
     // Pricing fields (nested or flat)
     if (body.pricing) {
@@ -101,6 +124,43 @@ export async function PUT(
       if (body.maxStock !== undefined) updateData.maxStock = body.maxStock;
     }
     
+    // Validate required fields
+    const existingProduct = await Product.findById(params.id);
+    if (!existingProduct) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
+    
+    if (!updateData.name || !updateData.sku || updateData.costPrice === undefined || updateData.sellingPrice === undefined) {
+      return NextResponse.json(
+        { error: 'Missing required fields: name, sku, costPrice, sellingPrice' },
+        { status: 400 }
+      );
+    }
+    
+    // Check if SKU already exists for another product
+    const skuExists = await Product.findOne({
+      sku: updateData.sku,
+      outletId: user.outletId,
+      _id: { $ne: params.id },
+    });
+    
+    if (skuExists) {
+      return NextResponse.json(
+        { error: 'Product with this SKU already exists' },
+        { status: 400 }
+      );
+    }
+    
+    // Validate vehicle-specific fields if it's a vehicle
+    if (updateData.isVehicle || body.isVehicle) {
+      if (!updateData.carMake && !body.carMake) {
+        return NextResponse.json(
+          { error: 'Car make is required for vehicle products' },
+          { status: 400 }
+        );
+      }
+    }
+    
     const product = await Product.findOneAndUpdate(
       { _id: params.id, outletId: user.outletId },
       { $set: updateData },
@@ -111,17 +171,40 @@ export async function PUT(
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
     
+    // Create detailed activity log
+    const logDescription = `Updated product: ${product.name} (${product.sku})${
+      product.isVehicle ? 
+      ` [Vehicle: ${product.carMake || ''}${product.carModel ? ` ${product.carModel}` : ''}${product.variant ? ` ${product.variant}` : ''}${product.color ? `, ${product.color}` : ''}${product.year ? `, ${product.year}` : ''}]` : ''
+    }${
+      updateData.currentStock !== undefined ? ` | Stock: ${product.currentStock}` : ''
+    }${
+      updateData.costPrice !== undefined ? ` | Cost: QAR ${product.costPrice}` : ''
+    }${
+      updateData.sellingPrice !== undefined ? ` | Price: QAR ${product.sellingPrice}` : ''
+    }`;
+    
     await ActivityLog.create({
       userId: user.userId,
       username: user.email,
       actionType: 'update',
       module: 'products',
-      description: `Updated product: ${product.name}`,
+      description: logDescription,
       outletId: user.outletId,
       timestamp: new Date(),
     });
     
-    return NextResponse.json({ product });
+    console.log(`✓ Product updated: ${product.name} (SKU: ${product.sku})`);
+    if (product.isVehicle) {
+      console.log(`   Type: Vehicle`);
+      console.log(`   Make: ${product.carMake || ''}${product.carModel ? ` ${product.carModel}` : ''}${product.variant ? ` ${product.variant}` : ''}`);
+      if (product.color) console.log(`   Color: ${product.color}`);
+      if (product.year) console.log(`   Year: ${product.year}`);
+    }
+    
+    return NextResponse.json({ 
+      product,
+      message: 'Product updated successfully',
+    });
   } catch (error: any) {
     console.error('Error updating product:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -160,7 +243,7 @@ export async function DELETE(
       username: user.email,
       actionType: 'delete',
       module: 'products',
-      description: `Deleted product: ${product.name}`,
+      description: `Deleted product: ${product.name} (${product.sku})`,
       outletId: user.outletId,
       timestamp: new Date(),
     });

@@ -1,13 +1,19 @@
+// app/api/sales/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import Sale from "@/lib/models/Sale";
-import Customer from "@/lib/models/Customer";
-import ActivityLog from "@/lib/models/ActivityLog";
+import mongoose from "mongoose";
 import { cookies } from "next/headers";
+
+import Sale from "@/lib/models/Sale";
+import Product from "@/lib/models/ProductEnhanced";
+import Outlet from "@/lib/models/Outlet";
+import ActivityLog from "@/lib/models/ActivityLog";
+import User from "@/lib/models/User";
+
+import { postSaleToLedger } from "@/lib/services/accountingService";
 import { verifyToken } from "@/lib/auth/jwt";
 import { connectDB } from "@/lib/db/mongodb";
-import Product from "@/lib/models/ProductEnhanced";
 
-// GET /api/sales
+/// GET /api/sales
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
@@ -21,7 +27,6 @@ export async function GET(request: NextRequest) {
 
     const user = verifyToken(token);
 
-    // Add this to your existing GET function, after verifying token:
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
@@ -31,7 +36,6 @@ export async function GET(request: NextRequest) {
       outletId: user.outletId,
     };
 
-    // Add date filter if provided
     if (startDate && endDate) {
       query.saleDate = {
         $gte: new Date(startDate),
@@ -39,10 +43,10 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    // Add status filter if provided
     if (status && status !== "all") {
       query.status = status;
     }
+    
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "20");
     const skip = (page - 1) * limit;
@@ -73,21 +77,30 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/sales - Updated version for new schema
 export async function POST(request: NextRequest) {
   try {
     await connectDB();
 
-    const cookieStore = cookies();
-    const token = cookieStore.get("auth-token")?.value;
-
+    // ───────────────── AUTH ─────────────────
+    const token = cookies().get("auth-token")?.value;
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const user = verifyToken(token);
-    const body = await request.json();
 
+    const userId = new mongoose.Types.ObjectId(user.userId);
+    if (!user.outletId) {
+      return NextResponse.json(
+        { error: "Invalid token: outletId missing" },
+        { status: 401 }
+      );
+    }
+
+    const outletId = new mongoose.Types.ObjectId(user.outletId);
+
+    // ───────────────── BODY ─────────────────
+    const body = await request.json();
     const {
       customerId,
       customerName,
@@ -96,8 +109,6 @@ export async function POST(request: NextRequest) {
       amountPaid,
       notes,
     } = body;
-
-    console.log("Received sale items:", JSON.stringify(items, null, 2));
 
     if (
       !customerId ||
@@ -111,144 +122,115 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate invoice number
-    const count = await Sale.countDocuments({ outletId: user.outletId });
-    const invoiceNumber = `INV-${new Date().getFullYear()}${String(
-      new Date().getMonth() + 1
+    // ───────────────── OUTLET ─────────────────
+    const outlet = await Outlet.findById(outletId);
+    if (!outlet) {
+      return NextResponse.json({ error: "Outlet not found" }, { status: 404 });
+    }
+
+    // ───────────────── INVOICE NUMBER ─────────────────
+    const count = await Sale.countDocuments({ outletId });
+    const now = new Date();
+
+    const invoiceNumber = `INV-${now.getFullYear()}${String(
+      now.getMonth() + 1
     ).padStart(2, "0")}-${String(count + 1).padStart(5, "0")}`;
 
+    // ───────────────── CALCULATIONS ─────────────────
     let subtotal = 0;
-    let totalTax = 0;
     let totalDiscount = 0;
 
     const saleItems: any[] = [];
 
-    // ✅ Process each item
     for (const item of items) {
-      console.log("Processing item:", item);
+      const isLabor = item.isLabor === true;
 
-      // Check if it's a labor item
-      const isLabor = item.isLabor === true || item.sku === "LABOR";
+      let product: any = null;
 
-      if (isLabor) {
-        console.log("Item is labor:", item);
-        const unitPrice = item.unitPrice || 0;
-        const taxRate = item.taxRate || 0;
-        const discountRate = item.discount || 0;
-        const quantity = item.quantity || 1;
+      if (!isLabor) {
+        product = await Product.findById(item.productId);
+        if (!product) {
+          throw new Error(`Product not found: ${item.productId}`);
+        }
 
-        const itemSubtotal = unitPrice * quantity;
-        const itemDiscount = (itemSubtotal * discountRate) / 100;
-        const itemAfterDiscount = itemSubtotal - itemDiscount;
-        const itemTax = (itemAfterDiscount * taxRate) / 100;
-        const itemTotal = itemAfterDiscount + itemTax;
-
-        saleItems.push({
-          // Don't include productId for labor items
-          name: item.name || "Labor Service",
-          sku: item.sku || "LABOR",
-          quantity,
-          unit: "hour",
-          unitPrice,
-          taxRate,
-          taxAmount: itemTax,
-          discount: itemDiscount,
-          total: itemTotal,
-          isLabor: true,
-        });
-
-        subtotal += itemSubtotal;
-        totalDiscount += itemDiscount;
-        totalTax += itemTax;
-        continue;
+        if (product.currentStock < item.quantity) {
+          throw new Error(
+            `Insufficient stock for ${product.name}. Available: ${product.currentStock}`
+          );
+        }
       }
 
-      // ✅ Regular product validation
-      if (!item.productId) {
-        console.log("Missing productId for item:", item);
-        throw new Error(
-          `Invalid sale item: productId is missing for ${
-            item.name || "unknown item"
-          }`
-        );
+      const quantity = Number(item.quantity) || 1;
+      const unitPrice = Number(item.unitPrice) || 0;
+      const costPrice = isLabor ? 0 : Number(product.costPrice || 0);
+
+      // ✅ NEW: Handle discount type (percentage or fixed amount)
+      const discountType = item.discountType || "percentage";
+      let itemDiscount = 0;
+
+      if (discountType === "percentage") {
+        // Discount is a percentage (0-100)
+        const discountRate = Number(item.discount) || 0;
+        const itemSubtotalBeforeDiscount = unitPrice * quantity;
+        itemDiscount = (itemSubtotalBeforeDiscount * discountRate) / 100;
+      } else {
+        // Discount is a fixed amount in QAR
+        itemDiscount = Number(item.discountAmount) || Number(item.discount) || 0;
       }
 
-      if (!item.quantity || item.quantity <= 0) {
-        throw new Error(
-          `Invalid sale item: quantity must be greater than 0 for ${item.name}`
-        );
-      }
+      const itemSubtotalBeforeDiscount = unitPrice * quantity;
+      const itemTotal = itemSubtotalBeforeDiscount - itemDiscount;
 
-      const product = await Product.findById(item.productId);
+      subtotal += itemSubtotalBeforeDiscount;
+      totalDiscount += itemDiscount;
 
-      if (!product) {
-        throw new Error(`Product not found: ${item.productId}`);
-      }
-
-      const availableStock = product.currentStock ?? 0;
-
-      if (availableStock < item.quantity) {
-        throw new Error(
-          `Insufficient stock for ${product.name}. Available: ${availableStock}`
-        );
-      }
-
-      const unitPrice = item.unitPrice ?? product.sellingPrice ?? 0;
-      const taxRate = item.taxRate ?? product.taxRate ?? 0;
-      const discountRate = item.discount ?? 0;
-
-      const itemSubtotal = unitPrice * item.quantity;
-      const itemDiscount = (itemSubtotal * discountRate) / 100;
-      const itemAfterDiscount = itemSubtotal - itemDiscount;
-      const itemTax = (itemAfterDiscount * taxRate) / 100;
-      const itemTotal = itemAfterDiscount + itemTax;
+      // ✅ UNIT ENFORCEMENT
+      const unit = item.unit || (isLabor ? "job" : product.unit || "pcs");
 
       saleItems.push({
-        productId: product._id,
-        name: product.name,
-        sku: product.sku,
-        quantity: item.quantity,
-        unit: product.unit || "unit",
+        productId: isLabor ? undefined : product._id,
+        name: item.name || product?.name || "Labor Service",
+        sku: item.sku || product?.sku || "LABOR",
+        quantity,
+        unit,
         unitPrice,
-        taxRate,
-        taxAmount: itemTax,
-        discount: itemDiscount,
+        costPrice,
+        discount: itemDiscount, // ✅ Store discount AMOUNT in QAR
         total: itemTotal,
-        isLabor: false,
+        isLabor,
       });
-
-      subtotal += itemSubtotal;
-      totalDiscount += itemDiscount;
-      totalTax += itemTax;
     }
 
-    console.log("Processed sale items:", saleItems);
+    const grandTotal = subtotal - totalDiscount;
+    const paidAmount = Number(amountPaid) || 0;
+    const balanceDue = grandTotal - paidAmount;
 
-    const grandTotal = subtotal - totalDiscount + totalTax;
-    const paidAmount = amountPaid || 0;
-    const balanceDue = grandTotal - paidAmount - totalDiscount;
+    // ───────────────── CREATE SALE ─────────────────
+    const saleDocs = await Sale.create([
+      {
+        invoiceNumber,
+        outletId,
+        customerId,
+        customerName,
+        items: saleItems,
+        subtotal,
+        totalDiscount,
+        totalVAT: 0,
+        grandTotal,
+        paymentMethod: paymentMethod?.toUpperCase() || "CASH",
+        amountPaid: paidAmount,
+        balanceDue,
+        status: "COMPLETED",
+        notes,
+        createdBy: userId,
+        saleDate: now,
+        isPostedToGL: false,
+      },
+    ]);
 
-    // ✅ CREATE SALE
-    const sale = await Sale.create({
-      invoiceNumber,
-      outletId: user.outletId,
-      customerId,
-      customerName,
-      items: saleItems,
-      subtotal,
-      totalTax,
-      totalDiscount,
-      grandTotal,
-      paymentMethod: (paymentMethod || "CASH").toUpperCase(),
-      amountPaid: paidAmount,
-      balanceDue,
-      status: "COMPLETED",
-      notes,
-      createdBy: user.userId,
-      saleDate: new Date(),
-    });
+    const sale = saleDocs[0];
 
-    // ✅ UPDATE STOCK (only for non-labor items)
+    // ───────────────── UPDATE STOCK ─────────────────
     for (const item of saleItems) {
       if (!item.isLabor && item.productId) {
         await Product.findByIdAndUpdate(item.productId, {
@@ -257,23 +239,40 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ✅ LOG ACTIVITY
-    await ActivityLog.create({
-      userId: user.userId,
-      username: user.email,
-      actionType: "create",
-      module: "sales",
-      description: `Created sale: ${invoiceNumber} - QAR ${grandTotal.toFixed(
-        2
-      )}`,
-      outletId: user.outletId,
-      timestamp: new Date(),
-    });
+    // ───────────────── ACCOUNTING ─────────────────
+    const { voucherId, cogsVoucherId } = await postSaleToLedger(sale, userId);
+
+    sale.voucherId = voucherId;
+    sale.cogsVoucherId = cogsVoucherId || undefined;
+    sale.isPostedToGL = true;
+    await sale.save();
+
+    // ───────────────── FETCH USERNAME FOR ACTIVITY LOG ─────────────────
+    const userDoc = await User.findById(userId).lean();
+    const username =
+      userDoc?.username ||
+      user.username ||
+      user.email ||
+      "Unknown User";
+
+    // ───────────────── ACTIVITY LOG ─────────────────
+    await ActivityLog.create([
+      {
+        userId,
+        username,
+        actionType: "create",
+        module: "sales",
+        description: `Created sale ${invoiceNumber} - QAR ${grandTotal.toFixed(
+          2
+        )}`,
+        outletId,
+        timestamp: new Date(),
+      },
+    ]);
 
     return NextResponse.json({ sale }, { status: 201 });
   } catch (error: any) {
-    console.error("Error creating sale:", error);
-    console.error("Error stack:", error.stack);
+    console.error("SALE ERROR:", error);
     return NextResponse.json(
       { error: error.message || "Failed to create sale" },
       { status: 500 }

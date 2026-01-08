@@ -75,7 +75,7 @@ const PurchaseSchema = new Schema<IPurchase>(
     },
     totalTax: {
       type: Number,
-      required: true,
+      
       min: 0,
     },
     grandTotal: {

@@ -106,10 +106,10 @@ export default function VouchersPage() {
   };
   
   const voucherTypes = [
-    { value: 'payment', label: 'Payment Voucher', icon: DollarSign, color: 'red', href: '/autocityPro/vouchers/create?type=payment' },
-    { value: 'receipt', label: 'Receipt Voucher', icon: DollarSign, color: 'green', href: '/autocityPro/vouchers/create?type=receipt' },
-    { value: 'journal', label: 'Journal Entry', icon: BookOpen, color: 'blue', href: '/autocityPro/vouchers/create?type=journal' },
-    { value: 'contra', label: 'Contra Voucher', icon: ArrowLeftRight, color: 'purple', href: '/autocityPro/vouchers/create?type=contra' },
+    { value: 'payment', label: 'Payment Voucher', icon: DollarSign, color: 'red', href: '/autocityPro/vouchers/payment' },
+    { value: 'receipt', label: 'Receipt Voucher', icon: DollarSign, color: 'green', href: '/autocityPro/vouchers/receipt' },
+    { value: 'journal', label: 'Journal Entry', icon: BookOpen, color: 'blue', href: '/autocityPro/vouchers/journal' },
+    { value: 'contra', label: 'Contra Voucher', icon: ArrowLeftRight, color: 'purple', href: '/autocityPro/vouchers/contra' },
   ];
   
   const clearFilters = () => {

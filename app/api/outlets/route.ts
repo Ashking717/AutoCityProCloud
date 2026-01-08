@@ -1,8 +1,9 @@
-import { NextResponse } from 'next/server';
-import { connectDB } from '@/lib/db/mongodb';
-import Outlet from '@/lib/models/Outlet';
-import { requireAuth, requireRole } from '@/lib/auth/session';
-import { UserRole } from '@/lib/types/roles';
+import { NextResponse } from "next/server";
+import { connectDB } from "@/lib/db/mongodb";
+import Outlet from "@/lib/models/Outlet";
+import { requireAuth, requireRole } from "@/lib/auth/session";
+import { UserRole } from "@/lib/types/roles";
+import { seedSystemAccounts } from "@/lib/accounting/seedSystemAccounts";
 
 // GET /api/outlets - List outlets
 export async function GET(request: Request) {
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
     if (user.role !== UserRole.SUPERADMIN) {
       if (!user.outletId) {
         return NextResponse.json(
-          { error: 'User has no assigned outlet' },
+          { error: "User has no assigned outlet" },
           { status: 403 }
         );
       }
@@ -27,9 +28,9 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ outlets });
   } catch (error: any) {
-    console.error('Get outlets error:', error);
+    console.error("Get outlets error:", error);
     return NextResponse.json(
-      { error: error.message || 'An error occurred' },
+      { error: error.message || "An error occurred" },
       { status: 500 }
     );
   }
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
 
     if (!name || !code) {
       return NextResponse.json(
-        { error: 'Name and code are required' },
+        { error: "Name and code are required" },
         { status: 400 }
       );
     }
@@ -53,10 +54,13 @@ export async function POST(request: Request) {
     await connectDB();
 
     // Check if code already exists
-    const existingOutlet = await Outlet.findOne({ code: code.toUpperCase() });
+    const existingOutlet = await Outlet.findOne({
+      code: code.toUpperCase(),
+    });
+
     if (existingOutlet) {
       return NextResponse.json(
-        { error: 'Outlet code already exists' },
+        { error: "Outlet code already exists" },
         { status: 409 }
       );
     }
@@ -71,11 +75,14 @@ export async function POST(request: Request) {
       isActive: true,
     });
 
+    // ✅ AUTO-SEED SYSTEM ACCOUNTS (SAFE ON VERCEL)
+    await seedSystemAccounts(outlet._id.toString());
+
     return NextResponse.json({ outlet }, { status: 201 });
   } catch (error: any) {
-    console.error('Create outlet error:', error);
+    console.error("Create outlet error:", error);
     return NextResponse.json(
-      { error: error.message || 'An error occurred' },
+      { error: error.message || "An error occurred" },
       { status: 500 }
     );
   }

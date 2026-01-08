@@ -112,13 +112,8 @@ export default function OpeningBalancePage() {
 
     const totals = calculateTotals();
     if (Math.abs(totals.difference) > 0.01) {
-      toast.error(
-        `Accounting equation not balanced! Difference: QAR ${totals.difference.toFixed(
-          2
-        )}`
-      );
-      return;
-    }
+    toast.success(`An Opening Balance Equity account will be created with QAR ${Math.abs(totals.difference).toFixed(2)}`);
+  }
 
     setLoading(true);
 

@@ -58,8 +58,8 @@ export async function GET(
     
     const accountType = (accountRaw.type || accountRaw.accountType || '').toUpperCase();
     let currentBalance = accountRaw.openingBalance || 0;
-    
-    if (accountType === 'ASSET' || accountType === 'EXPENSE') {
+
+    if (accountType === 'asset' || accountType === 'expense') {
       currentBalance += (totalDebits - totalCredits);
     } else {
       currentBalance += (totalCredits - totalDebits);

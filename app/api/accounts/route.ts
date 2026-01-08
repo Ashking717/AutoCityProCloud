@@ -58,8 +58,8 @@ export async function GET(request: NextRequest) {
         // For liabilities, equity, and revenue: credit increases, debit decreases
         const accountType = (acc.type || acc.accountType || '').toUpperCase();
         let currentBalance = acc.openingBalance || 0;
-        
-        if (accountType === 'ASSET' || accountType === 'EXPENSE') {
+
+        if (accountType === 'asset' || accountType === 'expense') {
           currentBalance += (totalDebits - totalCredits);
         } else {
           // LIABILITY, EQUITY, REVENUE

@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Validate it's an expense account
-      if (account.type !== 'EXPENSE') {
+      if (account.type !== 'EXPENSE' && account.type !== 'expense') {
         throw new Error(`Account ${account.code} - ${account.name} is not an expense account`);
       }
 

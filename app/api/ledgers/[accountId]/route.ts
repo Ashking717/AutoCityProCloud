@@ -76,8 +76,8 @@ export async function GET(
     // Calculate opening balance based on account type
     const accountType = (accountRaw.type || accountRaw.accountType || '').toUpperCase();
     let openingBalance = 0;
-    
-    if (accountType === 'ASSET' || accountType === 'EXPENSE') {
+
+    if (accountType === 'asset' || accountType === 'expense') {
       openingBalance = totalDebitBefore - totalCreditBefore;
     } else {
       openingBalance = totalCreditBefore - totalDebitBefore;
@@ -105,7 +105,7 @@ export async function GET(
       const credit = entry.credit || 0;
       
       // Update running balance based on account type
-      if (accountType === 'ASSET' || accountType === 'EXPENSE') {
+      if (accountType === 'asset' || accountType === 'expense') {
         runningBalance += (debit - credit);
       } else {
         runningBalance += (credit - debit);

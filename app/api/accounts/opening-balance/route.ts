@@ -43,11 +43,11 @@ export async function POST(request: NextRequest) {
         const accountType = (account.type || account.accountType || '').toUpperCase();
         const balance = parseFloat(entry.balance) || 0;
 
-        if (accountType === 'ASSET') {
+        if (accountType === 'asset') {
           totalAssets += balance;
-        } else if (accountType === 'LIABILITY') {
+        } else if (accountType === 'liability') {
           totalLiabilities += balance;
-        } else if (accountType === 'EQUITY') {
+        } else if (accountType === 'equity') {
           totalEquity += balance;
         }
 
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
       const accountName = account.name || account.accountName;
 
       // Assets and Expenses have debit balances
-      if (accountType === 'ASSET' || accountType === 'EXPENSE') {
+      if (accountType === 'asset' || accountType === 'expense') {
         journalEntries.push({
           accountId: account._id,
           accountNumber,

@@ -171,7 +171,7 @@ export default function ExpensesPage() {
     <MainLayout user={user} onLogout={handleLogout}>
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         {/* Header */}
-        <div className="bg-gradient-to-r from-orange-600 to-red-600 shadow-lg">
+        <div className="py-0.5 bg-gradient-to-br from-indigo-600 to-purple-600 shadow-lg">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="flex items-center justify-between">
               <div>
@@ -186,7 +186,7 @@ export default function ExpensesPage() {
 
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="px-6 py-3 bg-white text-orange-600 rounded-lg font-medium hover:bg-orange-50 flex items-center space-x-2 shadow-lg hover:shadow-xl transition-all duration-200"
+                className="px-6 py-3 bg-white text-indigo-600 rounded-lg font-medium hover:bg-orange-50 flex items-center space-x-2 shadow-lg hover:shadow-xl transition-all duration-200"
               >
                 <Plus className="w-5 h-5" />
                 <span>Record Expense</span>

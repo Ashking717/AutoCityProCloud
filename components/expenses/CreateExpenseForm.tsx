@@ -66,7 +66,7 @@ export default function CreateExpenseForm({ onClose, onSuccess }: CreateExpenseF
       }
       
       // Fetch cash/bank accounts
-      const payRes = await fetch('/api/accounts?type=ASSET', { credentials: 'include' });
+      const payRes = await fetch('/api/accounts?type=asset', { credentials: 'include' });
       if (payRes.ok) {
         const data = await payRes.json();
         const cashBankAccounts = (data.accounts || []).filter((a: any) => {

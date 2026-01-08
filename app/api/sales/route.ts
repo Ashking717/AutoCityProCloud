@@ -164,7 +164,7 @@ export async function POST(request: NextRequest) {
       const unitPrice = Number(item.unitPrice) || 0;
       const costPrice = isLabor ? 0 : Number(product.costPrice || 0);
 
-      // ✅ NEW: Handle discount type (percentage or fixed amount)
+      // ✅ Handle discount type (percentage or fixed amount)
       const discountType = item.discountType || "percentage";
       let itemDiscount = 0;
 
@@ -181,7 +181,9 @@ export async function POST(request: NextRequest) {
       const itemSubtotalBeforeDiscount = unitPrice * quantity;
       const itemTotal = itemSubtotalBeforeDiscount - itemDiscount;
 
-      subtotal += itemSubtotalBeforeDiscount;
+      // ✅ FIX: Add the item total (after discount) to subtotal
+      // We also track totalDiscount separately for reporting
+      subtotal += itemTotal;
       totalDiscount += itemDiscount;
 
       // ✅ UNIT ENFORCEMENT
@@ -201,7 +203,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const grandTotal = subtotal - totalDiscount;
+    // ✅ FIX: grandTotal equals subtotal since subtotal is already after discount
+    // We still save totalDiscount separately for reporting purposes
+    const grandTotal = subtotal;
     const paidAmount = Number(amountPaid) || 0;
     const balanceDue = grandTotal - paidAmount;
 

@@ -14,6 +14,7 @@ import {
   Filter,
   Eye,
   Tag,
+  FileDown,
 } from "lucide-react";
 import { CarMake, carMakesModels } from "@/lib/data/carData";
 import toast from "react-hot-toast";
@@ -46,7 +47,6 @@ export default function ProductsPage() {
     name: string;
     description: string;
     categoryId: string;
-    sku: string;
     barcode: string;
     unit: string;
     costPrice: number;
@@ -65,7 +65,6 @@ export default function ProductsPage() {
     name: "",
     description: "",
     categoryId: "",
-    sku: "",
     barcode: "",
     unit: "pcs",
     costPrice: 0,
@@ -148,6 +147,27 @@ export default function ProductsPage() {
     fetchCategories();
   }, []);
 
+  // Generate next SKU based on existing products
+  const generateNextSKU = (): string => {
+    if (products.length === 0) {
+      return "10001";
+    }
+
+    // Extract numeric SKUs and find the highest
+    const numericSKUs = products
+      .map(p => p.sku)
+      .filter((sku: string) => /^\d+$/.test(sku)) // Only numeric SKUs
+      .map((sku: string) => parseInt(sku, 10));
+
+    if (numericSKUs.length === 0) {
+      return "10001";
+    }
+
+    const maxSKU = Math.max(...numericSKUs);
+    const nextSKU = Math.max(maxSKU + 1, 10001); // Ensure it's at least 10001
+    return nextSKU.toString();
+  };
+
   const fetchUser = async () => {
     try {
       const res = await fetch("/api/auth/me", { credentials: "include" });
@@ -229,17 +249,20 @@ export default function ProductsPage() {
   };
 
   const handleAddProduct = async () => {
-    if (!newProduct.name || !newProduct.sku) {
-      toast.error("Name and SKU are required");
+    if (!newProduct.name) {
+      toast.error("Product name is required");
       return;
     }
 
     try {
+      // Generate SKU automatically
+      const generatedSKU = generateNextSKU();
+
       const productData: any = {
         name: newProduct.name,
         description: newProduct.description,
         categoryId: newProduct.categoryId || undefined,
-        sku: newProduct.sku.toUpperCase(),
+        sku: generatedSKU,
         barcode: newProduct.barcode || undefined,
         unit: newProduct.unit,
         costPrice: parseFloat(newProduct.costPrice as any) || 0,
@@ -269,7 +292,7 @@ export default function ProductsPage() {
       });
 
       if (res.ok) {
-        toast.success("Product added successfully!");
+        toast.success(`Product added successfully! SKU: ${generatedSKU}`);
         setShowAddModal(false);
         resetNewProduct();
         fetchProducts();
@@ -390,7 +413,6 @@ export default function ProductsPage() {
       name: "",
       description: "",
       categoryId: "",
-      sku: "",
       barcode: "",
       unit: "pcs",
       costPrice: 0,
@@ -448,6 +470,79 @@ export default function ProductsPage() {
     window.location.href = "/autocityPro/login";
   };
 
+  const downloadProductsCSV = () => {
+    if (filteredProducts.length === 0) {
+      toast.error("No products to export");
+      return;
+    }
+
+    // Prepare CSV headers
+    const headers = [
+      "SKU",
+      "Name",
+      "Category",
+      "Barcode",
+      
+      
+      "Selling Price",
+      
+      "Current Stock",
+      
+      "Car Make",
+      "Car Model",
+      "Variant",
+      "Year",
+      "Part Number",
+      "Color"
+    ];
+
+    // Prepare CSV rows
+    const rows = filteredProducts.map(product => [
+      product.sku || "",
+      product.name || "",
+      product.category?.name || "",
+      product.barcode || "",
+      product.sellingPrice || 0,
+      product.currentStock || 0,
+      product.carMake || "",
+      product.carModel || "",
+      product.variant || "",
+      product.year || "",
+      product.partNumber || "",
+      product.color || ""
+    ]);
+
+    // Convert to CSV format
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => 
+        row.map(cell => {
+          // Escape quotes and wrap in quotes if contains comma or newline
+          const cellStr = String(cell);
+          if (cellStr.includes(",") || cellStr.includes("\n") || cellStr.includes('"')) {
+            return `"${cellStr.replace(/"/g, '""')}"`;
+          }
+          return cellStr;
+        }).join(",")
+      )
+    ].join("\n");
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute("href", url);
+    link.setAttribute("download", `products_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = "hidden";
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast.success(`Exported ${filteredProducts.length} products to CSV`);
+  };
+
   return (
     <MainLayout user={user} onLogout={handleLogout}>
       {/* Header Section with Gradient Background */}
@@ -462,13 +557,22 @@ export default function ProductsPage() {
                   ` (filtered from ${products.length})`}
               </p>
             </div>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="flex items-center space-x-2 px-4 py-2 bg-white text-slate-800 rounded-lg hover:bg-slate-100 transition-colors shadow-md"
-            >
-              <Plus className="h-5 w-5" />
-              <span>Add Product</span>
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={downloadProductsCSV}
+                className="flex items-center space-x-2 px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors shadow-md"
+              >
+                <FileDown className="h-5 w-5" />
+                <span>Export CSV</span>
+              </button>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="flex items-center space-x-2 px-4 py-2 bg-white text-slate-800 rounded-lg hover:bg-slate-100 transition-colors shadow-md"
+              >
+                <Plus className="h-5 w-5" />
+                <span>Add Product</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -763,7 +867,12 @@ export default function ProductsPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-slate-800 rounded-lg shadow-xl max-w-2xl w-full my-8 border border-slate-700">
             <div className="flex justify-between items-center px-6 py-4 border-b border-slate-700">
-              <h2 className="text-xl font-bold text-slate-100">Add New Product</h2>
+              <div>
+                <h2 className="text-xl font-bold text-slate-100">Add New Product</h2>
+                <p className="text-sm text-slate-400 mt-1">
+                  SKU will be auto-generated: {generateNextSKU()}
+                </p>
+              </div>
               <button
                 onClick={() => {
                   setShowAddModal(false);
@@ -841,24 +950,6 @@ export default function ProductsPage() {
                       <Plus className="h-4 w-4" />
                     </button>
                   </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1">
-                    SKU *
-                  </label>
-                  <input
-                    type="text"
-                    value={newProduct.sku}
-                    onChange={(e) =>
-                      setNewProduct({
-                        ...newProduct,
-                        sku: e.target.value.toUpperCase(),
-                      })
-                    }
-                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent uppercase"
-                    placeholder="SKU"
-                  />
                 </div>
 
                 <div>

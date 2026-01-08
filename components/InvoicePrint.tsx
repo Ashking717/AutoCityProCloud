@@ -1,3 +1,4 @@
+// InvoicePrint.tsx
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -6,6 +7,7 @@ interface InvoiceItem {
   name: string;
   quantity: number;
   unitPrice: number;
+  discount?: number;
   total: number;
 }
 
@@ -16,6 +18,7 @@ interface InvoiceData {
   dueDate?: string;
   items: InvoiceItem[];
   subtotal: number;
+  totalDiscount?: number;
   totalTax: number;
   grandTotal: number;
 }
@@ -246,6 +249,12 @@ export default function InvoicePrint({
                 <span>Subtotal</span>
                 <span>{currency} {invoice.subtotal.toFixed(2)}</span>
               </div>
+              {invoice.totalDiscount && invoice.totalDiscount > 0 && (
+                <div className="flex justify-between py-2">
+                  <span>Discount</span>
+                  <span>- {currency} {invoice.totalDiscount.toFixed(2)}</span>
+                </div>
+              )}
               {taxRate > 0 && (
                 <div className="flex justify-between py-2">
                   <span>Tax ({taxRate}%)</span>

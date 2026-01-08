@@ -53,10 +53,10 @@ const OutletSchema = new Schema<IOutlet>(
     contact: {
       phone: { type: String, required: true },
       email: { type: String, required: true },
-      manager: { type: String, required: true },
+      manager: { type: String,  },
     },
     taxInfo: {
-      taxId: { type: String, required: true },
+      taxId: { type: String, },
       gstNumber: String,
     },
     settings: {

@@ -24,6 +24,11 @@ import {
   Keyboard,
   X,
   HelpCircle,
+  Home,
+  Building,
+  Activity as ActivityIcon,
+  Menu,
+  User,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import Image from "next/image";
@@ -31,6 +36,7 @@ import Image from "next/image";
 interface SidebarProps {
   user: any;
   onLogout: () => void;
+  className?: string;
 }
 
 export default function Sidebar({ user, onLogout }: SidebarProps) {
@@ -40,6 +46,8 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
     new Set()
   );
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   const toggleSection = (sectionTitle: string) => {
     setCollapsedSections((prev) => {
@@ -62,18 +70,21 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           icon: LayoutDashboard,
           href: "/autocityPro/dashboard",
           badge: null,
+          mobile: true,
         },
         {
           name: "New Sale",
           icon: Sparkles,
           href: "/autocityPro/sales/new",
           badge: null,
+          mobile: false,
         },
         {
           name: "Sales",
           icon: ShoppingCart,
           href: "/autocityPro/sales",
           badge: null,
+          mobile: true,
         },
       ],
     },
@@ -85,12 +96,14 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           icon: Package,
           href: "/autocityPro/products",
           badge: null,
+          mobile: false,
         },
         {
           name: "Stock",
           icon: TrendingUp,
           href: "/autocityPro/stock",
           badge: null,
+          mobile: true,
         },
       ],
     },
@@ -102,12 +115,14 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           icon: Users,
           href: "/autocityPro/customers",
           badge: null,
+          mobile: false,
         },
         {
           name: "Portal",
           icon: Truck,
           href: "/autocityPro/portal",
           badge: null,
+          mobile: true,
         },
       ],
     },
@@ -119,18 +134,21 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           icon: Receipt,
           href: "/autocityPro/vouchers",
           badge: null,
+          mobile: false,
         },
         {
           name: "Accounts",
           icon: BookOpen,
           href: "/autocityPro/accounts",
           badge: null,
+          mobile: false,
         },
         {
           name: "Ledgers",
           icon: DollarSign,
           href: "/autocityPro/ledgers",
           badge: null,
+          mobile: false,
         },
       ],
     },
@@ -142,6 +160,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           icon: BarChart3,
           href: "/autocityPro/reports",
           badge: null,
+          mobile: true,
         },
       ],
     },
@@ -153,12 +172,14 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           icon: Lock,
           href: "/autocityPro/closings",
           badge: null,
+          mobile: false,
         },
         {
           name: "Settings",
           icon: Settings,
           href: "/autocityPro/settings",
           badge: null,
+          mobile: false,
         },
       ],
     },
@@ -170,25 +191,74 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
       items: [
         {
           name: "Outlets",
-          icon: LayoutDashboard,
+          icon: Building,
           href: "/autocityPro/settings/outlets",
           badge: null,
+          mobile: false,
         },
         {
           name: "Users",
           icon: Users,
           href: "/autocityPro/settings/users",
           badge: null,
+          mobile: false,
         },
         {
           name: "Activity Logs",
-          icon: Activity,
+          icon: ActivityIcon,
           href: "/autocityPro/settings/logs",
           badge: null,
+          mobile: false,
         },
       ],
     });
   }
+
+  // Mobile navigation items - 6 items: Dashboard, Portal, Stock, Sales, Reports, Profile + Logout
+  const mobileNavItems = [
+    {
+      name: "Dashboard",
+      icon: LayoutDashboard,
+      href: "/autocityPro/dashboard",
+    },
+    {
+      name: "Portal",
+      icon: Truck,
+      href: "/autocityPro/portal",
+    },
+    {
+      name: "Stock",
+      icon: TrendingUp,
+      href: "/autocityPro/stock",
+    },
+    {
+      name: "Sales",
+      icon: ShoppingCart,
+      href: "/autocityPro/sales",
+    },
+    {
+      name: "Reports",
+      icon: BarChart3,
+      href: "/autocityPro/reports",
+    },
+    {
+      name: "Profile",
+      icon: User,
+      href: "/autocityPro/profile",
+    },
+  ];
+
+  // Check if mobile on mount and resize
+  useEffect(() => {
+    const checkIfMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkIfMobile();
+    window.addEventListener('resize', checkIfMobile);
+    
+    return () => window.removeEventListener('resize', checkIfMobile);
+  }, []);
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -278,37 +348,36 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
 
   return (
     <>
-      <div className="w-64 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 text-white h-screen fixed left-0 top-0 overflow-y-auto flex flex-col z-40 border-r border-slate-800/50 shadow-2xl">
+      {/* Desktop Sidebar - Hidden on mobile */}
+      <div className={`hidden md:flex w-64 bg-[#050505] text-white h-screen fixed left-0 top-0 overflow-y-auto flex-col z-40 border-r border-white/5 shadow-2xl`}>
         {/* Header with Logo */}
-        <div className="p-6 bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-700 border-b border-indigo-500/20 shadow-lg">
+        <div className="p-6 bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5">
           <div className="flex items-center space-x-3 mb-4">
-            <div className="relative w-10 h-10 flex items-center justify-center bg-white/10 backdrop-blur-sm rounded-xl shadow-lg ring-2 ring-white/20">
+            <div className="relative w-14 h-14 flex items-center justify-center bg-gray-100/90 backdrop-blur-sm rounded-xl shadow-lg ring-2 ring-[#E84545]/20">
               <Image
-                src="/logo.png"
+                src="/icon-192.png"
                 alt="AutoCity Pro Logo"
-                width={32}
-                height={32}
+                width={60}
+                height={60}
                 className="rounded-lg"
                 priority
               />
             </div>
             <div>
               <h2 className="text-xl font-bold text-white tracking-tight">
-                AutoCity Pro
+                AutoCity 
               </h2>
-              <p className="text-xs text-indigo-100/70 font-medium">
-                Business Management
-              </p>
+              
             </div>
           </div>
 
           <button
             onClick={() => setShowHelp(true)}
-            className="w-full flex items-center justify-center space-x-2 text-xs text-white/90 hover:text-white transition-all bg-white/10 hover:bg-white/20 backdrop-blur-sm px-3 py-2 rounded-lg border border-white/20 hover:border-white/30 shadow-sm hover:shadow-md group"
+            className="w-full flex items-center justify-center space-x-2 text-xs text-white/90 hover:text-white transition-all bg-[#E84545]/10 hover:bg-[#E84545]/20 backdrop-blur-sm px-3 py-2 rounded-lg border border-[#E84545]/20 hover:border-[#E84545]/30 shadow-sm hover:shadow-md group"
           >
             <Keyboard className="h-3.5 w-3.5 group-hover:scale-110 transition-transform" />
             <span className="font-medium">Keyboard Shortcuts</span>
-            <kbd className="ml-auto px-1.5 py-0.5 bg-white/20 rounded text-xs font-mono border border-white/30">
+            <kbd className="ml-auto px-1.5 py-0.5 bg-[#E84545]/20 rounded text-xs font-mono border border-[#E84545]/30">
               ?
             </kbd>
           </button>
@@ -316,31 +385,31 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
 
         {/* User Profile */}
         {user && (
-          <div className="p-4 border-b border-slate-800/50 bg-slate-800/30 backdrop-blur-sm">
+          <div className="p-4 border-b border-white/5 bg-[#0A0A0A]">
             <button
               onClick={() => router.push("/autocityPro/profile")}
-              className="w-full flex items-center space-x-3 text-left rounded-xl p-3 hover:bg-slate-800/50 transition-all duration-200 group"
+              className="w-full flex items-center space-x-3 text-left rounded-xl p-3 hover:bg-white/5 transition-all duration-200 group"
             >
               <div className="relative">
-                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg ring-2 ring-slate-800 group-hover:ring-indigo-500/50 transition-all">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#E84545] via-[#cc3c3c] to-[#E84545] flex items-center justify-center shadow-lg ring-2 ring-slate-800 group-hover:ring-[#E84545]/50 transition-all">
                   <span className="text-sm font-bold text-white">
                     {user.firstName?.[0]}
                     {user.lastName?.[0]}
                   </span>
                 </div>
-                <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-slate-900 shadow-sm"></div>
+                <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-[#050505] shadow-sm"></div>
               </div>
 
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate text-white group-hover:text-indigo-300 transition-colors">
+                <p className="text-sm font-semibold truncate text-white group-hover:text-[#E84545] transition-colors">
                   {user.firstName} {user.lastName}
                 </p>
-                <p className="text-xs text-slate-400 truncate font-medium">
+                <p className="text-xs text-gray-400 truncate font-medium">
                   {user.role}
                 </p>
               </div>
 
-              <ChevronRight className="h-4 w-4 text-slate-500 group-hover:text-indigo-400 group-hover:translate-x-0.5 transition-all" />
+              <ChevronRight className="h-4 w-4 text-gray-600 group-hover:text-[#E84545] group-hover:translate-x-0.5 transition-all" />
             </button>
           </div>
         )}
@@ -353,10 +422,10 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
               <div key={idx} className="mb-3">
                 <button
                   onClick={() => toggleSection(section.title)}
-                  className="w-full flex items-center justify-between px-3 py-2 mb-1 text-xs font-bold text-slate-400 uppercase tracking-wider hover:text-slate-300 transition-colors group rounded-lg hover:bg-slate-800/30"
+                  className="w-full flex items-center justify-between px-3 py-2 mb-1 text-xs font-bold text-gray-400 uppercase tracking-wider hover:text-gray-300 transition-colors group rounded-lg hover:bg-white/5"
                 >
                   <span className="flex items-center space-x-2">
-                    <div className="w-1 h-1 rounded-full bg-indigo-500/50 group-hover:bg-indigo-400 transition-colors"></div>
+                    <div className="w-1 h-1 rounded-full bg-[#E84545] group-hover:bg-[#E84545] transition-colors"></div>
                     <span>{section.title}</span>
                   </span>
                   {isCollapsed ? (
@@ -382,20 +451,20 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
                         onClick={() => router.push(item.href)}
                         className={`w-full flex items-center justify-between px-3 py-2.5 text-sm transition-all duration-200 rounded-lg group relative overflow-hidden ${
                           isActive
-                            ? "bg-gradient-to-r from-indigo-600/20 to-purple-600/20 text-white shadow-lg shadow-indigo-500/10 ring-1 ring-indigo-500/30"
-                            : "text-slate-300 hover:bg-slate-800/50 hover:text-white"
+                            ? "bg-gradient-to-r from-[#E84545]/20 via-[#cc3c3c]/20 to-[#E84545]/20 text-white shadow-lg shadow-[#E84545]/10 ring-1 ring-[#E84545]/30"
+                            : "text-gray-300 hover:bg-white/5 hover:text-white"
                         }`}
                       >
                         {isActive && (
-                          <div className="absolute left-0 top-0 w-1 h-full bg-gradient-to-b from-indigo-500 to-purple-500 rounded-r-full"></div>
+                          <div className="absolute left-0 top-0 w-1 h-full bg-gradient-to-b from-[#E84545] to-[#cc3c3c] rounded-r-full"></div>
                         )}
 
                         <div className="flex items-center space-x-3 relative z-10">
                           <item.icon
                             className={`h-5 w-5 flex-shrink-0 transition-all duration-200 ${
                               isActive
-                                ? "text-indigo-400 scale-110"
-                                : "text-slate-400 group-hover:text-indigo-400 group-hover:scale-110"
+                                ? "text-[#E84545] scale-110"
+                                : "text-gray-400 group-hover:text-[#E84545] group-hover:scale-110"
                             }`}
                           />
                           <span
@@ -408,13 +477,13 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
                         </div>
 
                         {item.badge && (
-                          <span className="px-2 py-0.5 text-xs font-bold bg-indigo-500/20 text-indigo-300 rounded-full border border-indigo-500/30">
+                          <span className="px-2 py-0.5 text-xs font-bold bg-[#E84545]/20 text-[#E84545] rounded-full border border-[#E84545]/30">
                             {item.badge}
                           </span>
                         )}
 
                         {!isActive && (
-                          <ChevronRight className="h-4 w-4 text-slate-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                          <ChevronRight className="h-4 w-4 text-gray-600 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
                         )}
                       </button>
                     );
@@ -426,140 +495,60 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
         </nav>
 
         {/* Logout */}
-        <div className="p-4 border-t border-slate-800/50 bg-slate-800/30 backdrop-blur-sm">
+        <div className="p-4 border-t border-white/5 bg-[#0A0A0A]">
           <button
             onClick={onLogout}
-            className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-slate-300 hover:text-white rounded-xl transition-all duration-200 group hover:bg-gradient-to-r hover:from-red-600/10 hover:to-rose-600/10 hover:ring-1 hover:ring-red-500/30"
+            className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-gray-300 hover:text-white rounded-xl transition-all duration-200 group hover:bg-gradient-to-r hover:from-[#E84545]/10 hover:to-[#cc3c3c]/10 hover:ring-1 hover:ring-[#E84545]/30"
           >
-            <LogOut className="h-5 w-5 text-slate-400 group-hover:text-red-400 transition-colors" />
+            <LogOut className="h-5 w-5 text-gray-400 group-hover:text-[#E84545] transition-colors" />
             <span className="font-medium">Logout</span>
-            <kbd className="ml-auto px-2 py-1 bg-slate-800 rounded text-xs font-mono border border-slate-700 text-slate-400 group-hover:border-red-500/30 group-hover:text-red-400 transition-all">
+            <kbd className="ml-auto px-2 py-1 bg-[#050505] rounded text-xs font-mono border border-gray-800 text-gray-400 group-hover:border-[#E84545]/30 group-hover:text-[#E84545] transition-all">
               Ctrl+Q
             </kbd>
           </button>
         </div>
       </div>
 
-      {/* Keyboard Help Modal */}
-      {showHelp && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 rounded-2xl shadow-2xl max-w-5xl w-full max-h-[85vh] overflow-hidden border border-slate-800/50 ring-1 ring-white/5">
-            {/* Header */}
-            <div className="flex justify-between items-center px-8 py-6 border-b border-slate-800/50 bg-gradient-to-br from-indigo-600/10 to-purple-600/10">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 shadow-lg">
-                  <Keyboard className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-white">
-                    Keyboard Shortcuts
-                  </h2>
-                  <p className="text-sm text-slate-400 mt-1">
-                    Navigate faster with keyboard shortcuts
-                  </p>
-                </div>
-              </div>
+      {/* Mobile Bottom Navigation Bar - 6 essential items + Logout */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[#050505] border-t border-white/5 shadow-2xl z-50">
+        <div className="flex justify-around items-center h-16 px-1">
+          {/* Main navigation items */}
+          {mobileNavItems.map((item) => {
+            const isActive = pathname === item.href;
+            return (
               <button
-                onClick={() => setShowHelp(false)}
-                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all duration-200 group"
+                key={item.href}
+                onClick={() => router.push(item.href)}
+                className={`flex flex-col items-center justify-center flex-1 h-full relative ${
+                  isActive ? 'text-[#E84545]' : 'text-gray-400'
+                }`}
               >
-                <X className="h-6 w-6 group-hover:rotate-90 transition-transform duration-200" />
+                {isActive && (
+                  <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] rounded-b-full"></div>
+                )}
+                <item.icon className="h-5 w-5 mb-1" />
+                <span className="text-[10px] font-medium truncate max-w-[60px]">
+                  {item.name}
+                </span>
               </button>
-            </div>
-
-            {/* Content */}
-            <div className="p-8 overflow-y-auto max-h-[calc(85vh-140px)] custom-scrollbar">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Navigation Shortcuts */}
-                <div className="space-y-6">
-                  <ShortcutSection
-                    title="Navigation"
-                    icon={<LayoutDashboard className="h-5 w-5" />}
-                    shortcuts={[
-                      { keys: ["Ctrl", "1"], description: "Dashboard" },
-                      { keys: ["Ctrl", "2"], description: "New Sale" },
-                      { keys: ["Ctrl", "3"], description: "Sales" },
-                      { keys: ["Ctrl", "4"], description: "Products" },
-                      { keys: ["Ctrl", "5"], description: "Categories" },
-                      { keys: ["Ctrl", "6"], description: "Stock" },
-                      { keys: ["Ctrl", "7"], description: "Customers" },
-                      { keys: ["Ctrl", "8"], description: "Suppliers" },
-                    ]}
-                  />
-
-                  <ShortcutSection
-                    title="Accounting"
-                    icon={<DollarSign className="h-5 w-5" />}
-                    shortcuts={[
-                      { keys: ["Ctrl", "9"], description: "Vouchers" },
-                      { keys: ["Ctrl", "A"], description: "Accounts" },
-                      { keys: ["Ctrl", "L"], description: "Ledgers" },
-                    ]}
-                  />
-                </div>
-
-                {/* Reports & System */}
-                <div className="space-y-6">
-                  <ShortcutSection
-                    title="Reports"
-                    icon={<BarChart3 className="h-5 w-5" />}
-                    shortcuts={[
-                      {
-                        keys: ["Ctrl", "Shift", "S"],
-                        description: "Sales Report",
-                      },
-                      {
-                        keys: ["Ctrl", "Shift", "B"],
-                        description: "Balance Sheet",
-                      },
-                      {
-                        keys: ["Ctrl", "Shift", "T"],
-                        description: "Stock Report",
-                      },
-                      {
-                        keys: ["Ctrl", "Shift", "D"],
-                        description: "Daybook",
-                      },
-                      {
-                        keys: ["Ctrl", "Shift", "F"],
-                        description: "Cash Flow",
-                      },
-                    ]}
-                  />
-
-                  <ShortcutSection
-                    title="System"
-                    icon={<Settings className="h-5 w-5" />}
-                    shortcuts={[
-                      { keys: ["Ctrl", "M"], description: "Month Closing" },
-                      { keys: ["Ctrl", ","], description: "Settings" },
-                      { keys: ["Ctrl", "Q"], description: "Logout" },
-                      { keys: ["Alt", "H"], description: "Home (Dashboard)" },
-                      { keys: ["Alt", "N"], description: "New Sale" },
-                      { keys: ["?"], description: "Show/Hide Help" },
-                      { keys: ["ESC"], description: "Close Help" },
-                    ]}
-                  />
-                </div>
-              </div>
-
-              {/* Key Legend */}
-              <div className="mt-8 p-6 bg-slate-800/30 rounded-xl border border-slate-700/50">
-                <h4 className="text-sm font-bold text-slate-300 mb-4 flex items-center space-x-2">
-                  <HelpCircle className="h-4 w-4" />
-                  <span>Key Symbols Guide</span>
-                </h4>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <KeySymbol symbol="Ctrl" description="Control / Command" />
-                  <KeySymbol symbol="Shift" description="Shift" />
-                  <KeySymbol symbol="Alt" description="Alt / Option" />
-                  <KeySymbol symbol="+" description="Press together" />
-                </div>
-              </div>
-            </div>
-          </div>
+            );
+          })}
+          
+          {/* Logout Button - Placed after Profile */}
+          <button
+            onClick={onLogout}
+            className="flex flex-col items-center justify-center flex-1 h-full relative text-gray-400 hover:text-red-400"
+          >
+            <LogOut className="h-5 w-5 mb-1" />
+            <span className="text-[10px] font-medium truncate max-w-[60px]">
+              Logout
+            </span>
+          </button>
         </div>
-      )}
+      </div>
+
+      {/* Add padding for mobile bottom bar */}
+      <div className="md:hidden h-16"></div>
 
       {/* Custom Scrollbar Styles */}
       <style jsx global>{`
@@ -567,91 +556,17 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           width: 6px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(15, 23, 42, 0.3);
+          background: rgba(10, 10, 10, 0.3);
           border-radius: 10px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(99, 102, 241, 0.3);
+          background: rgba(232, 69, 69, 0.3);
           border-radius: 10px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(99, 102, 241, 0.5);
+          background: rgba(232, 69, 69, 0.5);
         }
       `}</style>
     </>
-  );
-}
-
-// Helper Components
-interface ShortcutSectionProps {
-  title: string;
-  icon: React.ReactNode;
-  shortcuts: Array<{ keys: string[]; description: string }>;
-}
-
-function ShortcutSection({ title, icon, shortcuts }: ShortcutSectionProps) {
-  return (
-    <div className="bg-slate-800/20 rounded-xl p-5 border border-slate-700/30">
-      <h3 className="text-base font-bold text-white mb-4 flex items-center space-x-3 pb-3 border-b border-slate-700/50">
-        <div className="p-2 rounded-lg bg-gradient-to-br from-indigo-500/20 to-purple-500/20 text-indigo-400">
-          {icon}
-        </div>
-        <span>{title}</span>
-      </h3>
-      <div className="space-y-2">
-        {shortcuts.map((shortcut, idx) => (
-          <ShortcutRow
-            key={idx}
-            keys={shortcut.keys}
-            description={shortcut.description}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ShortcutRow({
-  keys,
-  description,
-}: {
-  keys: string[];
-  description: string;
-}) {
-  return (
-    <div className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-slate-700/30 transition-all duration-150 group">
-      <span className="text-sm text-slate-300 group-hover:text-white transition-colors">
-        {description}
-      </span>
-      <div className="flex items-center space-x-1">
-        {keys.map((key, index) => (
-          <span key={index} className="flex items-center">
-            <kbd className="px-2.5 py-1.5 bg-slate-900 rounded-lg border border-slate-700 text-xs font-mono font-semibold text-slate-300 shadow-sm group-hover:border-indigo-500/30 group-hover:text-indigo-300 transition-all">
-              {key}
-            </kbd>
-            {index < keys.length - 1 && (
-              <span className="text-slate-500 mx-1 text-xs font-bold">+</span>
-            )}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function KeySymbol({
-  symbol,
-  description,
-}: {
-  symbol: string;
-  description: string;
-}) {
-  return (
-    <div className="flex flex-col items-center space-y-2 p-3 rounded-lg bg-slate-900/50 border border-slate-700/30">
-      <kbd className="px-3 py-2 bg-slate-900 rounded-lg border border-slate-700 text-sm font-mono font-bold text-slate-300 shadow-sm">
-        {symbol}
-      </kbd>
-      <span className="text-xs text-slate-400 text-center">{description}</span>
-    </div>
   );
 }

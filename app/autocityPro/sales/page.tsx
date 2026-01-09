@@ -22,7 +22,9 @@ import {
   X,
   ArrowLeftRight,
   CreditCard,
-  Undo, // Added for returns
+  Undo,
+  Zap,
+  AlertCircle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
@@ -57,15 +59,22 @@ export default function SalesPage() {
     pages: 1,
   });
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  
+  // Mobile states
+  const [isMobile, setIsMobile] = useState(false);
+  const [showDynamicIsland, setShowDynamicIsland] = useState(true);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
-  // New state for return modal
+  // Return modal states
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [selectedSaleForReturn, setSelectedSaleForReturn] = useState<any>(null);
   const [returnItems, setReturnItems] = useState<any[]>([]);
   const [returnReason, setReturnReason] = useState("");
   const [processingReturn, setProcessingReturn] = useState(false);
+  
+  // Details modal states
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-const [selectedSaleDetails, setSelectedSaleDetails] = useState<any>(null);
+  const [selectedSaleDetails, setSelectedSaleDetails] = useState<any>(null);
 
   // Date range presets
   const datePresets = [
@@ -85,13 +94,24 @@ const [selectedSaleDetails, setSelectedSaleDetails] = useState<any>(null);
     { label: "Pending", value: "DRAFT" },
     { label: "Cancelled", value: "CANCELLED" },
     { label: "Refunded", value: "REFUNDED" },
-    { label: "Returned", value: "RETURNED" }, // Added returned status
+    { label: "Returned", value: "RETURNED" },
   ];
+
+  // Mobile detection
+  useEffect(() => {
+    const checkIfMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkIfMobile();
+    window.addEventListener('resize', checkIfMobile);
+    return () => window.removeEventListener('resize', checkIfMobile);
+  }, []);
 
   useEffect(() => {
     fetchUser();
     fetchSales();
   }, [dateRange, pagination.page, statusFilter]);
+  // PART 2: All Functions and Handlers
 
   const fetchUser = async () => {
     try {
@@ -190,9 +210,7 @@ const [selectedSaleDetails, setSelectedSaleDetails] = useState<any>(null);
   };
 
   const handleCancelSale = async (sale: any) => {
-    if (
-      !confirm(`Are you sure you want to cancel sale ${sale.invoiceNumber}?`)
-    ) {
+    if (!confirm(`Are you sure you want to cancel sale ${sale.invoiceNumber}?`)) {
       return;
     }
 
@@ -215,70 +233,63 @@ const [selectedSaleDetails, setSelectedSaleDetails] = useState<any>(null);
     }
   };
 
-  // Updated return sale handler - now opens modal instead of navigating
-const handleReturnSale = (sale: any) => {
-  // Check if sale is eligible for return
-  if (sale.status !== 'COMPLETED') {
-    toast.error('Only completed sales can be returned');
-    return;
-  }
-  
-  // Check if sale already has returns
-  const totalReturned = sale.returns?.reduce((sum: number, ret: any) => sum + ret.totalAmount, 0) || 0;
-  if (totalReturned >= sale.grandTotal) {
-    toast.error('This sale has already been fully returned');
-    return;
-  }
-  
-  setSelectedSaleForReturn(sale);
-  
-  // Initialize return items from sale items, EXCLUDING labor items
-  const initialReturnItems = sale.items
-    .filter((item: any) => {
-      // Multiple ways to identify labor items
-      const isLabor = 
-        item.isLabor || 
-        item.sku === 'LABOR' || 
-        item.name?.includes('Labor') ||
-        item.name?.includes('labor') ||
-        false;
-      return !isLabor;
-    })
-    .map((item: any) => {
-      const alreadyReturned = item.returnedQuantity || 0;
-      const availableForReturn = Math.max(0, item.quantity - alreadyReturned);
-      
-      return {
-        _id: item._id,
-        productId: item.productId,
-        productName: item.name,
-        sku: item.sku,
-        quantity: item.quantity,
-        returnedQuantity: alreadyReturned,
-        availableForReturn: availableForReturn,
-        unitPrice: item.unitPrice,
-        maxReturnQuantity: availableForReturn,
-        returnQuantity: 0,
-        returnReason: '',
-        originalItem: item,
-        isLabor: item.isLabor // Keep track of labor status
-      };
-    })
-    .filter((item: any) => item.availableForReturn > 0);
-  
-  console.log('Initial return items (filtered):', initialReturnItems); // Debug
-  
-  // Check if there are any items that can be returned
-  if (initialReturnItems.length === 0) {
-    toast.error('No items available for return in this sale');
-    return;
-  }
-  
-  setReturnItems(initialReturnItems);
-  setReturnReason('');
-  setShowReturnModal(true);
-  setShowActions(null);
-};
+  const handleReturnSale = (sale: any) => {
+    if (sale.status !== 'COMPLETED') {
+      toast.error('Only completed sales can be returned');
+      return;
+    }
+    
+    const totalReturned = sale.returns?.reduce((sum: number, ret: any) => sum + ret.totalAmount, 0) || 0;
+    if (totalReturned >= sale.grandTotal) {
+      toast.error('This sale has already been fully returned');
+      return;
+    }
+    
+    setSelectedSaleForReturn(sale);
+    
+    const initialReturnItems = sale.items
+      .filter((item: any) => {
+        const isLabor = 
+          item.isLabor || 
+          item.sku === 'LABOR' || 
+          item.name?.includes('Labor') ||
+          item.name?.includes('labor') ||
+          false;
+        return !isLabor;
+      })
+      .map((item: any) => {
+        const alreadyReturned = item.returnedQuantity || 0;
+        const availableForReturn = Math.max(0, item.quantity - alreadyReturned);
+        
+        return {
+          _id: item._id,
+          productId: item.productId,
+          productName: item.name,
+          sku: item.sku,
+          quantity: item.quantity,
+          returnedQuantity: alreadyReturned,
+          availableForReturn: availableForReturn,
+          unitPrice: item.unitPrice,
+          maxReturnQuantity: availableForReturn,
+          returnQuantity: 0,
+          returnReason: '',
+          originalItem: item,
+          isLabor: item.isLabor
+        };
+      })
+      .filter((item: any) => item.availableForReturn > 0);
+    
+    if (initialReturnItems.length === 0) {
+      toast.error('No items available for return in this sale');
+      return;
+    }
+    
+    setReturnItems(initialReturnItems);
+    setReturnReason('');
+    setShowReturnModal(true);
+    setShowActions(null);
+  };
+
   const handleReturnQuantityChange = (itemId: string, quantity: number) => {
     setReturnItems((prev) =>
       prev.map((item) => {
@@ -296,80 +307,77 @@ const handleReturnSale = (sale: any) => {
       })
     );
   };
-const processReturn = async () => {
-  if (!selectedSaleForReturn) return;
 
-  // Filter out labor items and items with zero quantity
-  const itemsToReturn = returnItems
-    .filter(item => {
-      // Multiple ways to identify labor items
-      const isLabor = 
-        item.originalItem?.isLabor || 
-        item.isLabor || 
-        item.sku === 'LABOR' || 
-        item.productName?.includes('Labor') ||
-        item.productName?.includes('labor') ||
-        false;
-      
-      return !isLabor && item.returnQuantity > 0;
-    })
-    .map(item => ({
-      productId: item.productId?.toString(),
-      productName: item.productName,
-      sku: item.sku,
-      quantity: item.returnQuantity,
-      unitPrice: item.unitPrice,
-      totalAmount: item.returnQuantity * item.unitPrice,
-      reason: item.returnReason || ''
-    }));
-  
-  console.log('Filtered items to return:', itemsToReturn); // Debug log
-  
-  if (itemsToReturn.length === 0) {
-    toast.error('Please select items to return');
-    return;
-  }
+  const processReturn = async () => {
+    if (!selectedSaleForReturn) return;
 
-  const totalReturnAmount = itemsToReturn.reduce((sum, item) => sum + item.totalAmount, 0);
-
-  const returnData = {
-    saleId: selectedSaleForReturn._id,
-    invoiceNumber: selectedSaleForReturn.invoiceNumber,
-    reason: returnReason,
-    items: itemsToReturn,
-    totalAmount: totalReturnAmount
-  };
-
-  setProcessingReturn(true);
-
-  try {
-    const res = await fetch('/api/sales/return', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(returnData)
-    });
-
-    const data = await res.json();
+    const itemsToReturn = returnItems
+      .filter(item => {
+        const isLabor = 
+          item.originalItem?.isLabor || 
+          item.isLabor || 
+          item.sku === 'LABOR' || 
+          item.productName?.includes('Labor') ||
+          item.productName?.includes('labor') ||
+          false;
+        
+        return !isLabor && item.returnQuantity > 0;
+      })
+      .map(item => ({
+        productId: item.productId?.toString(),
+        productName: item.productName,
+        sku: item.sku,
+        quantity: item.returnQuantity,
+        unitPrice: item.unitPrice,
+        totalAmount: item.returnQuantity * item.unitPrice,
+        reason: item.returnReason || ''
+      }));
     
-    if (!res.ok) {
-      throw new Error(data.error || 'Failed to process return');
+    if (itemsToReturn.length === 0) {
+      toast.error('Please select items to return');
+      return;
     }
 
-    toast.success(`Return processed successfully. Return #${data.data?.returnNumber}`);
-    setShowReturnModal(false);
-    setSelectedSaleForReturn(null);
-    setReturnItems([]);
-    fetchSales();
-    
-  } catch (error: any) {
-    toast.error(error.message || 'Failed to process return');
-  } finally {
-    setProcessingReturn(false);
-  }
-};
+    const totalReturnAmount = itemsToReturn.reduce((sum, item) => sum + item.totalAmount, 0);
 
-const handleRefundSale = async (sale: any) => {
+    const returnData = {
+      saleId: selectedSaleForReturn._id,
+      invoiceNumber: selectedSaleForReturn.invoiceNumber,
+      reason: returnReason,
+      items: itemsToReturn,
+      totalAmount: totalReturnAmount
+    };
+
+    setProcessingReturn(true);
+
+    try {
+      const res = await fetch('/api/sales/return', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(returnData)
+      });
+
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to process return');
+      }
+
+      toast.success(`Return processed successfully. Return #${data.data?.returnNumber}`);
+      setShowReturnModal(false);
+      setSelectedSaleForReturn(null);
+      setReturnItems([]);
+      fetchSales();
+      
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to process return');
+    } finally {
+      setProcessingReturn(false);
+    }
+  };
+
+  const handleRefundSale = async (sale: any) => {
     if (!confirm(`Process refund for sale ${sale.invoiceNumber}?`)) {
       return;
     }
@@ -422,10 +430,10 @@ const handleRefundSale = async (sale: any) => {
   };
 
   const handleViewDetails = (sale: any) => {
-  setSelectedSaleDetails(sale);
-  setShowDetailsModal(true);
-  setShowActions(null);
-};
+    setSelectedSaleDetails(sale);
+    setShowDetailsModal(true);
+    setShowActions(null);
+  };
 
   const handleExportSales = async () => {
     try {
@@ -456,15 +464,31 @@ const handleRefundSale = async (sale: any) => {
     }
   };
 
-  // Mock data for selected sale
-  const [selectedSale, setSelectedSale] = useState<any>(null);
-
   const filteredSales = sales.filter(
     (s) =>
       s.invoiceNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       s.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       s.customerId?.phone?.includes(searchTerm)
   );
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-QA", {
+      style: "currency",
+      currency: "QAR",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const formatCompactCurrency = (amount: number) => {
+    if (amount >= 1000000) {
+      return `QR${(amount / 1000000).toFixed(1)}M`;
+    }
+    if (amount >= 10000) {
+      return `QR${(amount / 1000).toFixed(1)}K`;
+    }
+    return formatCurrency(amount);
+  };
 
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, string> = {
@@ -518,21 +542,93 @@ const handleRefundSale = async (sale: any) => {
     (sum, sale) => sum + (sale.balanceDue || 0),
     0
   );
+  // PART 3: Main Return Statement - Complete UI
 
   return (
     <MainLayout user={user} onLogout={handleLogout}>
-      {/* Header - Updated to match sidebar */}
-      <div className="ml-0 pl-4 pr-8 py-0 bg-slate-900 min-h-screen">
-        {/* Header matching sidebar gradient */}
-        <div className="mb-6 py-2  bg-gradient-to-r from-indigo-600 to-purple-600 border border-purple-500/30 shadow-lg overflow-hidden">
-          <div className="p-6">
+      <div className="min-h-screen bg-[#050505]">
+        {/* Dynamic Island - Mobile Only */}
+        {isMobile && showDynamicIsland && (
+          <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-2 px-4 pointer-events-none">
+            <div className="bg-black rounded-[28px] px-6 py-3 shadow-2xl border border-white/10 backdrop-blur-xl pointer-events-auto animate-in slide-in-from-top duration-500">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Zap className="h-3 w-3 text-[#E84545]" />
+                  <span className="text-white text-xs font-semibold">{formatCompactCurrency(totalSalesAmount)}</span>
+                </div>
+                <div className="h-3 w-px bg-white/20"></div>
+                <div className="flex items-center gap-1.5">
+                  <DollarSign className="h-3 w-3 text-green-400" />
+                  <span className="text-white text-xs font-medium">{filteredSales.length}</span>
+                </div>
+                {totalBalance > 0 && (
+                  <>
+                    <div className="h-3 w-px bg-white/20"></div>
+                    <div className="flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3 text-orange-500" />
+                      <span className="text-orange-400 text-xs font-medium">{formatCompactCurrency(totalBalance)}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Mobile Header - Compact */}
+        <div className="md:hidden fixed top-16 left-0 right-0 z-40 bg-gradient-to-br from-[#0A0A0A] via-[#050505] to-[#0A0A0A] border-b border-white/5 backdrop-blur-xl">
+          <div className="px-4 py-3">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => router.back()}
+                  className="p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <div>
+                  <h1 className="text-xl font-bold text-white">Sales</h1>
+                  <p className="text-xs text-white/60">{filteredSales.length} transactions</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleExportSales}
+                  className="p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
+                >
+                  <Download className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setShowMobileMenu(true)}
+                  className="p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-white/70" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search invoice, customer..."
+                className="w-full pl-10 pr-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/70 text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop Header */}
+        <div className="hidden md:block py-6 bg-gradient-to-r from-indigo-600 to-purple-600 border border-purple-500/30 shadow-lg">
+          <div className="px-8">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <h1 className="text-3xl font-bold text-white">Sales</h1>
                 <div className="flex items-center gap-2 mt-2">
                   <p className="text-purple-200 text-sm">
-                    {filteredSales.length} sales • QAR{" "}
-                    {totalSalesAmount.toFixed(2)} total
+                    {filteredSales.length} sales • QAR {totalSalesAmount.toFixed(2)} total
                   </p>
                   <span className="text-xs text-purple-300 bg-purple-700/30 px-2 py-1 rounded-full">
                     {statusFilter === "all" ? "All Status" : statusFilter}
@@ -543,7 +639,6 @@ const handleRefundSale = async (sale: any) => {
                 <button
                   onClick={handleExportSales}
                   className="flex items-center space-x-2 px-4 py-2.5 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-lg hover:bg-white/20 transition-all group"
-                  title="Export sales"
                 >
                   <Download className="h-4 w-4 group-hover:scale-110 transition-transform" />
                   <span className="hidden sm:inline">Export</span>
@@ -560,333 +655,387 @@ const handleRefundSale = async (sale: any) => {
           </div>
         </div>
 
-        {/* Summary Cards - Made more compact */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-          <div className="bg-gradient-to-r from-green-900/30 to-emerald-900/10 border border-green-800/30 rounded-lg p-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-slate-400">Total Sales</p>
-                <p className="text-lg font-bold text-white mt-0.5">
-                  QAR {totalSalesAmount.toFixed(2)}
-                </p>
+        <div className="px-4 md:px-8 pt-[180px] md:pt-6 pb-6">
+          {/* Summary Cards - Mobile Optimized */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mb-6">
+            <div className="bg-gradient-to-r from-green-900/30 to-emerald-900/10 border border-green-800/30 rounded-2xl p-4 active:scale-[0.98] transition-all">
+              <div className="flex items-center justify-between mb-2">
+                <div className="p-2 bg-green-500/10 rounded-xl">
+                  <DollarSign className="h-4 w-4 md:h-5 md:w-5 text-green-400" />
+                </div>
               </div>
-              <DollarSign className="h-6 w-6 text-green-400" />
+              <p className="text-xs text-slate-400 mb-1">Total Sales</p>
+              <p className="text-xl md:text-2xl font-bold text-white">{formatCompactCurrency(totalSalesAmount)}</p>
+            </div>
+
+            <div className="bg-gradient-to-r from-blue-900/30 to-cyan-900/10 border border-blue-800/30 rounded-2xl p-4 active:scale-[0.98] transition-all">
+              <div className="flex items-center justify-between mb-2">
+                <div className="p-2 bg-blue-500/10 rounded-xl">
+                  <CreditCard className="h-4 w-4 md:h-5 md:w-5 text-blue-400" />
+                </div>
+              </div>
+              <p className="text-xs text-slate-400 mb-1">Total Paid</p>
+              <p className="text-xl md:text-2xl font-bold text-white">{formatCompactCurrency(totalPaidAmount)}</p>
+            </div>
+
+            <div className="bg-gradient-to-r from-rose-900/30 to-pink-900/10 border border-rose-800/30 rounded-2xl p-4 active:scale-[0.98] transition-all col-span-2 md:col-span-1">
+              <div className="flex items-center justify-between mb-2">
+                <div className="p-2 bg-rose-500/10 rounded-xl">
+                  <RefreshCw className="h-4 w-4 md:h-5 md:w-5 text-rose-400" />
+                </div>
+              </div>
+              <p className="text-xs text-slate-400 mb-1">Pending Balance</p>
+              <p className="text-xl md:text-2xl font-bold text-white">{formatCompactCurrency(totalBalance)}</p>
             </div>
           </div>
 
-          <div className="bg-gradient-to-r from-blue-900/30 to-cyan-900/10 border border-blue-800/30 rounded-lg p-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-slate-400">Total Paid</p>
-                <p className="text-lg font-bold text-white mt-0.5">
-                  QAR {totalPaidAmount.toFixed(2)}
-                </p>
+          {/* Filters - Desktop */}
+          <div className="hidden md:block bg-slate-800 border border-slate-700 rounded-lg shadow p-3 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search invoice, customer..."
+                  className="w-full pl-8 pr-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded focus:ring-2 focus:ring-purple-600 focus:border-transparent text-white placeholder-slate-400"
+                />
               </div>
-              <CreditCard className="h-6 w-6 text-blue-400" />
-            </div>
-          </div>
 
-          <div className="bg-gradient-to-r from-rose-900/30 to-pink-900/10 border border-rose-800/30 rounded-lg p-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-slate-400">Pending Balance</p>
-                <p className="text-lg font-bold text-white mt-0.5">
-                  QAR {totalBalance.toFixed(2)}
-                </p>
+              <div className="relative">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded focus:ring-2 focus:ring-purple-600 focus:border-transparent text-white appearance-none"
+                >
+                  {statusOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute right-2 top-2.5 pointer-events-none">
+                  <Filter className="h-4 w-4 text-slate-400" />
+                </div>
               </div>
-              <RefreshCw className="h-6 w-6 text-rose-400" />
-            </div>
-          </div>
-        </div>
 
-        {/* Filters - Made more compact */}
-        <div className="bg-slate-800 border border-slate-700 rounded-lg shadow p-3 mb-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-400" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search invoice, customer..."
-                className="w-full pl-8 pr-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded focus:ring-2 focus:ring-purple-600 focus:border-transparent text-white placeholder-slate-400"
-              />
-            </div>
+              <div className="relative">
+                <button
+                  onClick={() => setShowDateFilter(!showDateFilter)}
+                  className="w-full flex items-center justify-between px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded hover:bg-slate-800 transition-colors text-white"
+                >
+                  <span className="truncate">
+                    {format(parseISO(dateRange.startDate), "MMM d")} - {format(parseISO(dateRange.endDate), "MMM d")}
+                  </span>
+                  <Calendar className="h-4 w-4 text-slate-400 flex-shrink-0 ml-2" />
+                </button>
 
-            {/* Status Filter */}
-            <div className="relative">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded focus:ring-2 focus:ring-purple-600 focus:border-transparent text-white appearance-none"
-              >
-                {statusOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute right-2 top-2.5 pointer-events-none">
-                <Filter className="h-4 w-4 text-slate-400" />
-              </div>
-            </div>
-
-            {/* Date Filter */}
-            <div className="relative">
-              <button
-                onClick={() => setShowDateFilter(!showDateFilter)}
-                className="w-full flex items-center justify-between px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded hover:bg-slate-800 transition-colors text-white"
-              >
-                <span className="truncate">
-                  {format(parseISO(dateRange.startDate), "MMM d")} -{" "}
-                  {format(parseISO(dateRange.endDate), "MMM d")}
-                </span>
-                <Calendar className="h-4 w-4 text-slate-400 flex-shrink-0 ml-2" />
-              </button>
-
-              {showDateFilter && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-10">
-                  <div className="p-3">
-                    <div className="flex justify-between items-center mb-2">
-                      <h3 className="text-xs font-semibold text-white">
-                        Date Range
-                      </h3>
-                      <button
-                        onClick={() => setShowDateFilter(false)}
-                        className="text-slate-400 hover:text-white"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-1 mb-3">
-                      {datePresets.map((preset) => (
+                {showDateFilter && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-10">
+                    <div className="p-3">
+                      <div className="flex justify-between items-center mb-2">
+                        <h3 className="text-xs font-semibold text-white">Date Range</h3>
                         <button
-                          key={preset.value}
-                          onClick={() => handleDatePreset(preset.value)}
-                          className="px-2 py-1.5 text-xs text-slate-300 hover:bg-slate-700 rounded transition-colors text-left"
+                          onClick={() => setShowDateFilter(false)}
+                          className="text-slate-400 hover:text-white"
                         >
-                          {preset.label}
+                          <X className="h-3 w-3" />
                         </button>
-                      ))}
-                    </div>
-
-                    <div className="space-y-2">
-                      <div>
-                        <label className="block text-xs text-slate-400 mb-1">
-                          From
-                        </label>
-                        <input
-                          type="date"
-                          value={dateRange.startDate}
-                          onChange={(e) =>
-                            setDateRange((prev) => ({
-                              ...prev,
-                              startDate: e.target.value,
-                            }))
-                          }
-                          className="w-full px-2 py-1.5 text-xs bg-slate-900 border border-slate-700 rounded text-white"
-                        />
                       </div>
-                      <div>
-                        <label className="block text-xs text-slate-400 mb-1">
-                          To
-                        </label>
-                        <input
-                          type="date"
-                          value={dateRange.endDate}
-                          onChange={(e) =>
-                            setDateRange((prev) => ({
-                              ...prev,
-                              endDate: e.target.value,
-                            }))
-                          }
-                          className="w-full px-2 py-1.5 text-xs bg-slate-900 border border-slate-700 rounded text-white"
-                        />
+
+                      <div className="grid grid-cols-2 gap-1 mb-3">
+                        {datePresets.map((preset) => (
+                          <button
+                            key={preset.value}
+                            onClick={() => handleDatePreset(preset.value)}
+                            className="px-2 py-1.5 text-xs text-slate-300 hover:bg-slate-700 rounded transition-colors text-left"
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="space-y-2">
+                        <div>
+                          <label className="block text-xs text-slate-400 mb-1">From</label>
+                          <input
+                            type="date"
+                            value={dateRange.startDate}
+                            onChange={(e) =>
+                              setDateRange((prev) => ({ ...prev, startDate: e.target.value }))
+                            }
+                            className="w-full px-2 py-1.5 text-xs bg-slate-900 border border-slate-700 rounded text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-slate-400 mb-1">To</label>
+                          <input
+                            type="date"
+                            value={dateRange.endDate}
+                            onChange={(e) =>
+                              setDateRange((prev) => ({ ...prev, endDate: e.target.value }))
+                            }
+                            className="w-full px-2 py-1.5 text-xs bg-slate-900 border border-slate-700 rounded text-white"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Sales Table - Made more compact */}
-        <div className="bg-slate-800 border border-slate-700 rounded-lg shadow overflow-hidden">
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-            </div>
-          ) : filteredSales.length === 0 ? (
-            <div className="text-center py-8">
-              <DollarSign className="h-12 w-12 mx-auto mb-3 text-slate-600" />
-              <p className="text-slate-400">No sales found</p>
-              <p className="text-slate-500 text-sm mt-1">
-                Create your first sale to get started
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-slate-700 text-sm">
-                  <thead className="bg-slate-900">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                        Invoice
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                        Date
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                        Customer
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                        Items
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                        Total
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                        Paid
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                        Balance
-                      </th>
-                      <th className="px-4 py-3 text-center text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                        Payment
-                      </th>
-                      <th className="px-4 py-3 text-center text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-4 py-3 text-center text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-700">
-                    {filteredSales.map((sale) => (
-                      <tr
-                        key={sale._id}
-                        className="bg-slate-800 hover:bg-slate-700/50 transition-colors"
-                      >
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <span className="text-sm font-medium text-purple-400">
-                            {sale.invoiceNumber}
-                          </span>
+          {/* Sales Content */}
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl shadow-xl overflow-hidden">
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-600"></div>
+              </div>
+            ) : filteredSales.length === 0 ? (
+              <div className="text-center py-12">
+                <DollarSign className="h-16 w-16 mx-auto mb-4 text-slate-600" />
+                <p className="text-slate-400 text-lg font-medium">No sales found</p>
+                <p className="text-slate-500 text-sm mt-2">Create your first sale to get started</p>
+              </div>
+            ) : (
+              <>
+                {/* Mobile Card View */}
+                <div className="md:hidden space-y-3 p-4">
+                  {filteredSales.map((sale) => (
+                    <div
+                      key={sale._id}
+                      className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-xl p-4 hover:border-purple-500/30 transition-all active:scale-[0.98]"
+                    >
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-purple-400 mb-1">{sale.invoiceNumber}</p>
+                          <p className="text-xs text-slate-300 truncate">{sale.customerName}</p>
+                          <p className="text-xs text-slate-500 mt-1">
+                            {format(parseISO(sale.saleDate), "MMM d, h:mm a")}
+                          </p>
                           {sale.returnStatus && (
-                            <span className="text-xs text-orange-400 ml-1">
-                              (
-                              {sale.returnStatus === "PARTIAL_RETURN"
-                                ? "Partial Return"
-                                : "Returned"}
-                              )
+                            <span className="inline-block text-xs text-orange-400 mt-1">
+                              ({sale.returnStatus === "PARTIAL_RETURN" ? "Partial Return" : "Returned"})
                             </span>
                           )}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="flex flex-col">
-                            <span className="text-sm text-slate-300">
-                              {format(parseISO(sale.saleDate), "MMM d")}
-                            </span>
-                            <span className="text-xs text-slate-500">
-                              {format(parseISO(sale.saleDate), "h:mm a")}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="flex flex-col max-w-[120px]">
-                            <span className="text-sm text-slate-300 truncate">
-                              {sale.customerName}
-                            </span>
-                            {sale.customerId?.phone && (
-                              <span className="text-xs text-slate-500 truncate">
-                                {sale.customerId.phone}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-right">
-                          <span className="text-sm text-slate-300">
-                            {sale.items?.length || 0}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-right">
-                          <span className="text-sm font-semibold text-white">
-                            QAR {sale.grandTotal?.toFixed(2)}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-right">
-                          <span className="text-sm text-green-400">
-                            QAR {sale.amountPaid?.toFixed(2)}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-right">
-                          <span
-                            className={`text-sm font-semibold ${
-                              sale.balanceDue > 0
-                                ? "text-red-400"
-                                : "text-green-400"
-                            }`}
-                          >
-                            QAR {sale.balanceDue?.toFixed(2)}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-center">
-                          {getPaymentMethodBadge(sale.paymentMethod)}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-center">
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
                           {getStatusBadge(sale.status)}
-                          {sale.returnStatus && (
-                            <div className="text-xs text-orange-400 mt-1">
-                              {sale.returnStatus === "PARTIAL_RETURN"
-                                ? "Partial Return"
-                                : "Fully Returned"}
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-center relative">
+                          {getPaymentMethodBadge(sale.paymentMethod)}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-3 py-3 border-t border-b border-slate-700/50 mb-3">
+                        <div>
+                          <span className="text-[10px] text-slate-500 uppercase block mb-1">Total</span>
+                          <p className="text-sm font-bold text-white truncate">
+                            {formatCompactCurrency(sale.grandTotal)}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-500 uppercase block mb-1">Paid</span>
+                          <p className="text-sm font-semibold text-green-400 truncate">
+                            {formatCompactCurrency(sale.amountPaid)}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-500 uppercase block mb-1">Balance</span>
+                          <p className={`text-sm font-semibold truncate ${
+                            sale.balanceDue > 0 ? "text-red-400" : "text-green-400"
+                          }`}>
+                            {formatCompactCurrency(sale.balanceDue)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => setShowActions(showActions === sale._id ? null : sale._id)}
+                        className="w-full py-2 text-xs text-slate-400 hover:text-white transition-colors flex items-center justify-center gap-2 active:scale-95"
+                      >
+                        <span>{showActions === sale._id ? "Hide" : "Show"} Actions</span>
+                        <MoreVertical className="h-4 w-4" />
+                      </button>
+
+                      {showActions === sale._id && (
+                        <div className="mt-3 pt-3 border-t border-slate-700/50 space-y-2">
                           <button
-                            onClick={() =>
-                              setShowActions(
-                                showActions === sale._id ? null : sale._id
-                              )
-                            }
-                            className="inline-flex items-center text-slate-400 hover:text-white transition-colors"
+                            onClick={() => handleViewDetails(sale)}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-300 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors active:scale-95"
                           >
-                            <MoreVertical className="h-4 w-4" />
+                            <Eye className="h-3 w-3" />
+                            <span>View Details</span>
                           </button>
 
-                          {showActions === sale._id && (
-                            <div className="absolute right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-10 min-w-[180px]">
-                              <div className="py-1">
-                                <button
-                                  onClick={() => {
-                                    handleViewDetails(sale);
-                                    setShowActions(null);
-                                  }}
-                                  className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-700 transition-colors"
-                                >
-                                  <Eye className="h-3 w-3" />
-                                  <span>View Details</span>
-                                </button>
+                          {sale.status === "DRAFT" && (
+                            <button
+                              onClick={() => handleEditSale(sale)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-blue-400 bg-blue-900/20 rounded-lg hover:bg-blue-900/30 transition-colors active:scale-95"
+                            >
+                              <Edit className="h-3 w-3" />
+                              <span>Edit Sale</span>
+                            </button>
+                          )}
 
-                                {sale.status === "DRAFT" && (
+                          {sale.status === "COMPLETED" && !sale.returnStatus && (
+                            <button
+                              onClick={() => handleReturnSale(sale)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-yellow-400 bg-yellow-900/20 rounded-lg hover:bg-yellow-900/30 transition-colors active:scale-95"
+                            >
+                              <Undo className="h-3 w-3" />
+                              <span>Return Items</span>
+                            </button>
+                          )}
+
+                          {sale.status === "COMPLETED" && sale.returnStatus === "PARTIAL_RETURN" && (
+                            <button
+                              onClick={() => handleReturnSale(sale)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-yellow-400 bg-yellow-900/20 rounded-lg hover:bg-yellow-900/30 transition-colors active:scale-95"
+                            >
+                              <Undo className="h-3 w-3" />
+                              <span>Return More Items</span>
+                            </button>
+                          )}
+
+                          {sale.status === "COMPLETED" && sale.balanceDue < 0 && (
+                            <button
+                              onClick={() => handleRefundSale(sale)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-purple-400 bg-purple-900/20 rounded-lg hover:bg-purple-900/30 transition-colors active:scale-95"
+                            >
+                              <CreditCard className="h-3 w-3" />
+                              <span>Process Refund</span>
+                            </button>
+                          )}
+
+                          {sale.status !== "CANCELLED" && sale.status !== "REFUNDED" && !sale.returnStatus && (
+                            <button
+                              onClick={() => handleCancelSale(sale)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-orange-400 bg-orange-900/20 rounded-lg hover:bg-orange-900/30 transition-colors active:scale-95"
+                            >
+                              <X className="h-3 w-3" />
+                              <span>Cancel Sale</span>
+                            </button>
+                          )}
+
+                          {sale.status === "DRAFT" && (
+                            <button
+                              onClick={() => handleDeleteSale(sale)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400 bg-red-900/20 rounded-lg hover:bg-red-900/30 transition-colors active:scale-95"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                              <span>Delete Draft</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop Table - Hidden on Mobile */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="min-w-full divide-y divide-slate-700 text-sm">
+                    <thead className="bg-slate-900">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Invoice</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Date</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Customer</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-slate-300 uppercase tracking-wider">Items</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-slate-300 uppercase tracking-wider">Total</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-slate-300 uppercase tracking-wider">Paid</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-slate-300 uppercase tracking-wider">Balance</th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-slate-300 uppercase tracking-wider">Payment</th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-slate-300 uppercase tracking-wider">Status</th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-slate-300 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-700">
+                      {filteredSales.map((sale) => (
+                        <tr key={sale._id} className="bg-slate-800 hover:bg-slate-700/50 transition-colors">
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className="text-sm font-medium text-purple-400">{sale.invoiceNumber}</span>
+                            {sale.returnStatus && (
+                              <span className="text-xs text-orange-400 ml-1">
+                                ({sale.returnStatus === "PARTIAL_RETURN" ? "Partial Return" : "Returned"})
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <div className="flex flex-col">
+                              <span className="text-sm text-slate-300">{format(parseISO(sale.saleDate), "MMM d")}</span>
+                              <span className="text-xs text-slate-500">{format(parseISO(sale.saleDate), "h:mm a")}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <div className="flex flex-col max-w-[120px]">
+                              <span className="text-sm text-slate-300 truncate">{sale.customerName}</span>
+                              {sale.customerId?.phone && (
+                                <span className="text-xs text-slate-500 truncate">{sale.customerId.phone}</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-right">
+                            <span className="text-sm text-slate-300">{sale.items?.length || 0}</span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-right">
+                            <span className="text-sm font-semibold text-white">QAR {sale.grandTotal?.toFixed(2)}</span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-right">
+                            <span className="text-sm text-green-400">QAR {sale.amountPaid?.toFixed(2)}</span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-right">
+                            <span className={`text-sm font-semibold ${sale.balanceDue > 0 ? "text-red-400" : "text-green-400"}`}>
+                              QAR {sale.balanceDue?.toFixed(2)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-center">
+                            {getPaymentMethodBadge(sale.paymentMethod)}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-center">
+                            {getStatusBadge(sale.status)}
+                            {sale.returnStatus && (
+                              <div className="text-xs text-orange-400 mt-1">
+                                {sale.returnStatus === "PARTIAL_RETURN" ? "Partial Return" : "Fully Returned"}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-center relative">
+                            <button
+                              onClick={() => setShowActions(showActions === sale._id ? null : sale._id)}
+                              className="inline-flex items-center text-slate-400 hover:text-white transition-colors"
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </button>
+
+                            {showActions === sale._id && (
+                              <div className="absolute right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-10 min-w-[180px]">
+                                <div className="py-1">
                                   <button
                                     onClick={() => {
-                                      handleEditSale(sale);
+                                      handleViewDetails(sale);
                                       setShowActions(null);
                                     }}
-                                    className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-blue-400 hover:bg-slate-700 transition-colors"
+                                    className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-700 transition-colors"
                                   >
-                                    <Edit className="h-3 w-3" />
-                                    <span>Edit Sale</span>
+                                    <Eye className="h-3 w-3" />
+                                    <span>View Details</span>
                                   </button>
-                                )}
 
-                                {sale.status === "COMPLETED" &&
-                                  !sale.returnStatus && (
+                                  {sale.status === "DRAFT" && (
+                                    <button
+                                      onClick={() => {
+                                        handleEditSale(sale);
+                                        setShowActions(null);
+                                      }}
+                                      className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-blue-400 hover:bg-slate-700 transition-colors"
+                                    >
+                                      <Edit className="h-3 w-3" />
+                                      <span>Edit Sale</span>
+                                    </button>
+                                  )}
+
+                                  {sale.status === "COMPLETED" && !sale.returnStatus && (
                                     <button
                                       onClick={() => {
                                         handleReturnSale(sale);
@@ -899,8 +1048,7 @@ const handleRefundSale = async (sale: any) => {
                                     </button>
                                   )}
 
-                                {sale.status === "COMPLETED" &&
-                                  sale.returnStatus === "PARTIAL_RETURN" && (
+                                  {sale.status === "COMPLETED" && sale.returnStatus === "PARTIAL_RETURN" && (
                                     <button
                                       onClick={() => {
                                         handleReturnSale(sale);
@@ -913,8 +1061,7 @@ const handleRefundSale = async (sale: any) => {
                                     </button>
                                   )}
 
-                                {sale.status === "COMPLETED" &&
-                                  sale.balanceDue < 0 && (
+                                  {sale.status === "COMPLETED" && sale.balanceDue < 0 && (
                                     <button
                                       onClick={() => {
                                         handleRefundSale(sale);
@@ -927,9 +1074,7 @@ const handleRefundSale = async (sale: any) => {
                                     </button>
                                   )}
 
-                                {sale.status !== "CANCELLED" &&
-                                  sale.status !== "REFUNDED" &&
-                                  !sale.returnStatus && (
+                                  {sale.status !== "CANCELLED" && sale.status !== "REFUNDED" && !sale.returnStatus && (
                                     <button
                                       onClick={() => {
                                         handleCancelSale(sale);
@@ -942,56 +1087,45 @@ const handleRefundSale = async (sale: any) => {
                                     </button>
                                   )}
 
-                                {sale.status === "DRAFT" && (
-                                  <button
-                                    onClick={() => {
-                                      handleDeleteSale(sale);
-                                      setShowActions(null);
-                                    }}
-                                    className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-red-400 hover:bg-slate-700 transition-colors"
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                    <span>Delete Draft</span>
-                                  </button>
-                                )}
+                                  {sale.status === "DRAFT" && (
+                                    <button
+                                      onClick={() => {
+                                        handleDeleteSale(sale);
+                                        setShowActions(null);
+                                      }}
+                                      className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-red-400 hover:bg-slate-700 transition-colors"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                      <span>Delete Draft</span>
+                                    </button>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
 
-              {/* Pagination - Made more compact */}
-              {pagination.pages > 1 && (
-                <div className="flex items-center justify-between px-4 py-3 border-t border-slate-700">
-                  <div className="text-xs text-slate-400">
-                    Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
-                    {Math.min(
-                      pagination.page * pagination.limit,
-                      pagination.total
-                    )}{" "}
-                    of {pagination.total} sales
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <button
-                      onClick={() =>
-                        setPagination((prev) => ({
-                          ...prev,
-                          page: prev.page - 1,
-                        }))
-                      }
-                      disabled={pagination.page === 1}
-                      className="px-2 py-1 rounded border border-slate-700 text-slate-400 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <ChevronLeft className="h-3 w-3" />
-                    </button>
+                {/* Pagination */}
+                {pagination.pages > 1 && (
+                  <div className="flex items-center justify-between px-4 py-3 border-t border-slate-700">
+                    <div className="text-xs text-slate-400">
+                      Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
+                      {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} sales
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <button
+                        onClick={() => setPagination((prev) => ({ ...prev, page: prev.page - 1 }))}
+                        disabled={pagination.page === 1}
+                        className="px-2 py-1 rounded border border-slate-700 text-slate-400 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronLeft className="h-3 w-3" />
+                      </button>
 
-                    {Array.from(
-                      { length: Math.min(5, pagination.pages) },
-                      (_, i) => {
+                      {Array.from({ length: Math.min(5, pagination.pages) }, (_, i) => {
                         let pageNum;
                         if (pagination.pages <= 5) {
                           pageNum = i + 1;
@@ -1006,12 +1140,7 @@ const handleRefundSale = async (sale: any) => {
                         return (
                           <button
                             key={pageNum}
-                            onClick={() =>
-                              setPagination((prev) => ({
-                                ...prev,
-                                page: pageNum,
-                              }))
-                            }
+                            onClick={() => setPagination((prev) => ({ ...prev, page: pageNum }))}
                             className={`px-2 py-1 rounded border transition-colors text-xs ${
                               pagination.page === pageNum
                                 ? "bg-purple-600 border-purple-600 text-white"
@@ -1021,30 +1150,28 @@ const handleRefundSale = async (sale: any) => {
                             {pageNum}
                           </button>
                         );
-                      }
-                    )}
+                      })}
 
-                    <button
-                      onClick={() =>
-                        setPagination((prev) => ({
-                          ...prev,
-                          page: prev.page + 1,
-                        }))
-                      }
-                      disabled={pagination.page === pagination.pages}
-                      className="px-2 py-1 rounded border border-slate-700 text-slate-400 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <ChevronRight className="h-3 w-3" />
-                    </button>
+                      <button
+                        onClick={() => setPagination((prev) => ({ ...prev, page: prev.page + 1 }))}
+                        disabled={pagination.page === pagination.pages}
+                        className="px-2 py-1 rounded border border-slate-700 text-slate-400 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronRight className="h-3 w-3" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
-            </>
-          )}
+                )}
+              </>
+            )}
+          </div>
         </div>
+
+        {/* Mobile Safe Area Bottom Padding */}
+        <div className="md:hidden h-6"></div>
       </div>
 
-      {/* Return Modal */}
+ {/* Return Modal */}
       {showReturnModal && selectedSaleForReturn && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-slate-800 border border-slate-700 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
@@ -1590,8 +1717,8 @@ const handleRefundSale = async (sale: any) => {
             </div>
           </div>
         </div>
-      )}
+      )}      {/* They work perfectly as-is from your original file */}
+
     </MainLayout>
-    
   );
 }

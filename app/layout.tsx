@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { Toaster } from 'react-hot-toast';
+import { Toaster } from "react-hot-toast";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -10,8 +10,19 @@ export const metadata: Metadata = {
     default: "AutoCity Qatar – Automotive Parts, Accessories & Services",
     template: "%s | AutoCity Qatar",
   },
+
   description:
     "AutoCity Qatar provides premium automotive parts, accessories, and professional services for all vehicle needs across Qatar.",
+
+  manifest: "/manifest.json",
+
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/icons/apple-touch-icon.png",
+  },
 
   openGraph: {
     title: "AutoCity Qatar – Automotive Parts, Accessories & Services",
@@ -41,9 +52,9 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en">
       <body className={inter.className}>

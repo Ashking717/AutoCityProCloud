@@ -15,6 +15,7 @@ import {
   X,
   Star,
   Percent,
+  Sparkles,
 } from "lucide-react";
 import {
   carMakesModels,
@@ -85,7 +86,7 @@ interface CartItem {
   costPrice: number;
   sellingPrice: number;
   discount: number;
-  discountType: "percentage" | "fixed"; // NEW: Track discount type per item
+  discountType: "percentage" | "fixed";
   taxRate: number;
   subtotal: number;
   total: number;
@@ -152,7 +153,6 @@ export default function NewSalePage() {
     fetchCustomers();
   }, []);
 
-  // NEW: Auto-update payment amount when cart changes
   useEffect(() => {
     const totals = calculateTotals();
     if (payments.length === 1 && cart.length > 0) {
@@ -373,7 +373,6 @@ export default function NewSalePage() {
         if (item.productId === productId) {
           const updated = { ...item, [field]: value };
 
-          // Calculate discount amount based on type
           let discountAmount = 0;
           if (updated.discountType === "percentage") {
             discountAmount = (updated.sellingPrice * updated.quantity * updated.discount) / 100;
@@ -462,7 +461,6 @@ export default function NewSalePage() {
     const totals = calculateTotals();
 
     const saleItems = cart.map((item) => {
-      // Calculate discount amount and percentage for API
       let discountAmount = 0;
       let discountPercentage = 0;
 
@@ -484,9 +482,9 @@ export default function NewSalePage() {
           unit: item.unit || "pcs",
           unitPrice: item.sellingPrice,
           taxRate: item.taxRate,
-          discount: discountPercentage, // Send as percentage
-          discountAmount: discountAmount, // Send amount too
-          discountType: item.discountType, // Send type
+          discount: discountPercentage,
+          discountAmount: discountAmount,
+          discountType: item.discountType,
           isLabor: true,
         };
       }
@@ -499,9 +497,9 @@ export default function NewSalePage() {
         unit: item.unit || "pcs",
         unitPrice: item.sellingPrice,
         taxRate: item.taxRate,
-        discount: discountPercentage, // Send as percentage
-        discountAmount: discountAmount, // Send amount too
-        discountType: item.discountType, // Send type
+        discount: discountPercentage,
+        discountAmount: discountAmount,
+        discountType: item.discountType,
         isLabor: false,
       };
     });
@@ -601,24 +599,27 @@ export default function NewSalePage() {
 
   return (
     <MainLayout user={user} onLogout={handleLogout}>
-      {/* Header with Gradient */}
-      <div className="py-2 bg-gradient-to-r from-indigo-600 to-purple-600 border border-purple-500/30 shadow-lg overflow-hidden relative">
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSIjOUM5MkFDIiBmaWxsLW9wYWNpdHk9IjAuMDUiIGZpbGwtcnVsZT0iZXZlbm9kZCI+PGNpcmNsZSBjeD0iMyIgY3k9IjMiIHI9IjMiLz48Y2lyY2xlIGN4PSIxMyIgY3k9IjEzIiByPSIzIi8+PC9nPjwvc3ZnPg==')] opacity-10"></div>
+      {/* Header with Red Gradient */}
+      <div className="py-5 bg-gradient-to-r from-red-900 via-[#541515] to-[#4d0b0b] border border-[#E84545]/30 shadow-lg overflow-hidden relative">
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSIjRjg0NTQ1IiBmaWxsLW9wYWNpdHk9IjAuMSIgZmlsbC1ydWxlPSJldmVub2RkIj48Y2lyY2xlIGN4PSIzIiBjeT0iMyIgcj0iMyIvPjxjaXJjbGUgY3g9IjEzIiBjeT0iMTMiIHI9IjMiLz48L2c+PC9zdmc+')] opacity-20"></div>
 
         <div className="p-6 relative z-10">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold text-white mb-2">New Sale</h1>
-              <p className="text-indigo-100">Create a new sales transaction</p>
+              <h1 className="text-3xl font-bold text-white mb-2 flex items-center">
+                <Sparkles className="h-7 w-7 mr-3 text-white" />
+                New Sale
+              </h1>
+              <p className="text-white/90">Create a new sales transaction</p>
             </div>
             <div className="flex items-center space-x-4">
-              <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2">
+              <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2 border border-white/10">
                 <p className="text-white text-sm">Cart Items</p>
                 <p className="text-white font-bold text-xl text-center">
                   {cart.length}
                 </p>
               </div>
-              <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2">
+              <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2 border border-white/10">
                 <p className="text-white text-sm">Total</p>
                 <p className="text-white font-bold text-xl text-center">
                   QAR {totals.total.toFixed(2)}
@@ -629,15 +630,15 @@ export default function NewSalePage() {
         </div>
       </div>
 
-      <div className="p-6 bg-slate-900 min-h-screen">
+      <div className="p-6 bg-[#050505] min-h-screen">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Product Search & Cart */}
           <div className="lg:col-span-2 space-y-6">
             {/* Frequent Products */}
             {!searchTerm && frequentProducts.length > 0 && (
-              <div className="bg-slate-800 rounded-lg shadow-lg border border-slate-700 p-6">
+              <div className="bg-[#0A0A0A] rounded-lg shadow-lg border border-white/5 p-6">
                 <h2 className="text-lg font-semibold mb-4 flex items-center text-white">
-                  <Star className="h-5 w-5 mr-2 text-yellow-400" />
+                  <Star className="h-5 w-5 mr-2 text-[#E84545]" />
                   Frequent Products
                 </h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -645,30 +646,30 @@ export default function NewSalePage() {
                     <div
                       key={product._id}
                       onClick={() => addToCart(product)}
-                      className="p-4 bg-slate-700/50 border border-slate-600 rounded-lg hover:border-purple-500 hover:shadow-purple-900/20 hover:shadow-md cursor-pointer transition-all duration-200 hover:scale-[1.02]"
+                      className="p-4 bg-[#111111] border border-white/5 rounded-lg hover:border-[#E84545]/50 hover:shadow-[#E84545]/20 hover:shadow-md cursor-pointer transition-all duration-200 hover:scale-[1.02] group"
                     >
                       <div className="flex justify-between items-start">
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-sm text-white truncate">
+                          <h3 className="font-semibold text-sm text-white truncate group-hover:text-[#E84545] transition-colors">
                             {product.name}
                           </h3>
-                          <p className="text-xs text-slate-400 truncate">
+                          <p className="text-xs text-gray-400 truncate">
                             {product.sku}
                           </p>
                           {product.isVehicle && (
                             <div className="flex items-center mt-1">
-                              <Car className="h-3 w-3 text-purple-400 mr-1" />
-                              <span className="text-xs text-purple-300 truncate">
+                              <Car className="h-3 w-3 text-[#E84545] mr-1" />
+                              <span className="text-xs text-[#E84545] truncate">
                                 {product.carMake}
                               </span>
                             </div>
                           )}
                         </div>
                         <div className="text-right ml-2">
-                          <p className="font-bold text-sm text-purple-300">
+                          <p className="font-bold text-sm text-[#E84545]">
                             QAR {product.sellingPrice}
                           </p>
-                          <p className="text-xs text-slate-400">
+                          <p className="text-xs text-gray-400">
                             Stock: {product.currentStock}
                           </p>
                         </div>
@@ -680,21 +681,21 @@ export default function NewSalePage() {
             )}
 
             {/* Search */}
-            <div className="bg-slate-800 rounded-lg shadow-lg border border-slate-700 p-6">
+            <div className="bg-[#0A0A0A] rounded-lg shadow-lg border border-white/5 p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
+                  <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                   <input
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     placeholder="Search by name, SKU, barcode, or VIN..."
-                    className="w-full pl-10 pr-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white placeholder-slate-400"
+                    className="w-full pl-10 pr-4 py-3 bg-[#111111] border border-white/5 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white placeholder-gray-400"
                   />
                 </div>
                 <button
                   onClick={() => setShowAddLabor(true)}
-                  className="flex items-center space-x-2 px-4 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-lg hover:from-emerald-600 hover:to-teal-700 whitespace-nowrap transition-all shadow-lg hover:shadow-emerald-900/30"
+                  className="flex items-center space-x-2 px-4 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-lg hover:from-[#cc3c3c] hover:to-[#E84545] whitespace-nowrap transition-all shadow-lg hover:shadow-[#E84545]/30"
                 >
                   <Wrench className="h-5 w-5" />
                   <span>Add Labor</span>
@@ -704,8 +705,8 @@ export default function NewSalePage() {
               {searchTerm && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
                   {filteredProducts.length === 0 ? (
-                    <div className="col-span-2 text-center py-8 text-slate-400">
-                      <Search className="h-12 w-12 mx-auto mb-3 text-slate-500" />
+                    <div className="col-span-2 text-center py-8 text-gray-400">
+                      <Search className="h-12 w-12 mx-auto mb-3 text-gray-600" />
                       No products found
                     </div>
                   ) : (
@@ -713,30 +714,30 @@ export default function NewSalePage() {
                       <div
                         key={product._id}
                         onClick={() => addToCart(product)}
-                        className="p-4 bg-slate-700/30 border border-slate-600 rounded-lg hover:border-purple-500 hover:shadow-purple-900/20 hover:shadow-md cursor-pointer transition-all"
+                        className="p-4 bg-[#111111] border border-white/5 rounded-lg hover:border-[#E84545]/50 hover:shadow-[#E84545]/20 hover:shadow-md cursor-pointer transition-all group"
                       >
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
-                            <h3 className="font-semibold text-white">
+                            <h3 className="font-semibold text-white group-hover:text-[#E84545] transition-colors">
                               {product.name}
                             </h3>
-                            <p className="text-sm text-slate-400">
+                            <p className="text-sm text-gray-400">
                               SKU: {product.sku}
                             </p>
                             {product.isVehicle && (
                               <div className="flex items-center mt-1">
-                                <Car className="h-4 w-4 text-purple-400 mr-1" />
-                                <span className="text-xs text-purple-300">
+                                <Car className="h-4 w-4 text-[#E84545] mr-1" />
+                                <span className="text-xs text-[#E84545]">
                                   {product.carMake} {product.carModel}
                                 </span>
                               </div>
                             )}
                           </div>
                           <div className="text-right">
-                            <p className="font-bold text-purple-300">
+                            <p className="font-bold text-[#E84545]">
                               QAR {product.sellingPrice}
                             </p>
-                            <p className="text-xs text-slate-400">
+                            <p className="text-xs text-gray-400">
                               Stock: {product.currentStock}
                             </p>
                           </div>
@@ -749,16 +750,16 @@ export default function NewSalePage() {
             </div>
 
             {/* Cart */}
-            <div className="bg-slate-800 rounded-lg shadow-lg border border-slate-700 p-6">
+            <div className="bg-[#0A0A0A] rounded-lg shadow-lg border border-white/5 p-6">
               <h2 className="text-xl font-bold mb-4 flex items-center text-white">
-                <ShoppingCart className="h-5 w-5 mr-2 text-purple-400" />
+                <ShoppingCart className="h-5 w-5 mr-2 text-[#E84545]" />
                 Cart ({cart.length} items)
               </h2>
 
               <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
                 {cart.length === 0 ? (
-                  <div className="text-center py-8 text-slate-400">
-                    <ShoppingCart className="h-12 w-12 mx-auto mb-3 text-slate-600" />
+                  <div className="text-center py-8 text-gray-400">
+                    <ShoppingCart className="h-12 w-12 mx-auto mb-3 text-gray-600" />
                     <p>Your cart is empty</p>
                     <p className="text-sm mt-2">Add products from above</p>
                   </div>
@@ -766,29 +767,29 @@ export default function NewSalePage() {
                   cart.map((item, index) => (
                     <div
                       key={index}
-                      className="border border-slate-600 rounded-lg p-4 bg-slate-700/30"
+                      className="border border-white/5 rounded-lg p-4 bg-[#111111] group"
                     >
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <h3 className="font-semibold flex items-center text-white">
                             {item.isLabor && (
-                              <Wrench className="h-4 w-4 mr-2 text-emerald-400" />
+                              <Wrench className="h-4 w-4 mr-2 text-[#E84545]" />
                             )}
                             {item.productName}
                           </h3>
                           {item.isVehicle && (
-                            <p className="text-sm text-slate-300">
+                            <p className="text-sm text-gray-300">
                               {item.carMake} {item.carModel} {item.year} -{" "}
                               {item.color}
                             </p>
                           )}
-                          <p className="text-xs text-slate-400 mt-1">
+                          <p className="text-xs text-gray-400 mt-1">
                             SKU: {item.sku}
                           </p>
                         </div>
                         <button
                           onClick={() => removeFromCart(index)}
-                          className="text-red-400 hover:text-red-300 transition-colors"
+                          className="text-[#E84545] hover:text-[#cc3c3c] transition-colors"
                         >
                           <Trash2 className="h-5 w-5" />
                         </button>
@@ -809,7 +810,7 @@ export default function NewSalePage() {
                               }
                               placeholder="Qty"
                               min="1"
-                              className="px-3 py-2 bg-slate-600 border border-slate-500 rounded text-sm text-white focus:ring-1 focus:ring-purple-500 focus:border-transparent"
+                              className="px-3 py-2 bg-[#111111] border border-white/5 rounded text-sm text-white focus:ring-1 focus:ring-[#E84545] focus:border-transparent"
                             />
                             <input
                               type="number"
@@ -823,7 +824,7 @@ export default function NewSalePage() {
                               }
                               placeholder="Price"
                               min="0"
-                              className="px-3 py-2 bg-slate-600 border border-slate-500 rounded text-sm text-white focus:ring-1 focus:ring-purple-500 focus:border-transparent"
+                              className="px-3 py-2 bg-[#111111] border border-white/5 rounded text-sm text-white focus:ring-1 focus:ring-[#E84545] focus:border-transparent"
                             />
                             <input
                               type="number"
@@ -837,14 +838,14 @@ export default function NewSalePage() {
                               }
                               placeholder={item.discountType === "percentage" ? "%" : "QAR"}
                               min="0"
-                              className="px-3 py-2 bg-slate-600 border border-slate-500 rounded text-sm text-white focus:ring-1 focus:ring-purple-500 focus:border-transparent"
+                              className="px-3 py-2 bg-[#111111] border border-white/5 rounded text-sm text-white focus:ring-1 focus:ring-[#E84545] focus:border-transparent"
                             />
                             <button
                               onClick={() => {
                                 const newType = item.discountType === "percentage" ? "fixed" : "percentage";
                                 updateCartItem(item.productId!, "discountType", newType);
                               }}
-                              className="px-2 py-2 bg-slate-500 border border-slate-400 rounded text-xs text-white hover:bg-slate-400 transition-colors flex items-center justify-center"
+                              className="px-2 py-2 bg-[#111111] border border-white/5 rounded text-xs text-white hover:bg-[#E84545]/10 transition-colors flex items-center justify-center"
                               title={`Switch to ${item.discountType === "percentage" ? "Fixed" : "Percentage"}`}
                             >
                               {item.discountType === "percentage" ? (
@@ -855,7 +856,7 @@ export default function NewSalePage() {
                             </button>
                           </div>
                           {item.discount > 0 && (
-                            <div className="mt-2 text-xs text-emerald-400">
+                            <div className="mt-2 text-xs text-[#E84545]">
                               Discount: {item.discountType === "percentage" 
                                 ? `${item.discount}% (QAR ${((item.sellingPrice * item.quantity * item.discount) / 100).toFixed(2)})`
                                 : `QAR ${item.discount.toFixed(2)} (${((item.discount / (item.sellingPrice * item.quantity)) * 100).toFixed(1)}%)`
@@ -866,9 +867,9 @@ export default function NewSalePage() {
                       )}
 
                       <div className="mt-3 flex justify-between items-center text-sm">
-                        <div className="text-slate-300">
+                        <div className="text-gray-300">
                           {item.discount > 0 && (
-                            <span className="line-through text-slate-500 mr-2">
+                            <span className="line-through text-gray-500 mr-2">
                               QAR{" "}
                               {(item.sellingPrice * item.quantity).toFixed(2)}
                             </span>
@@ -889,7 +890,7 @@ export default function NewSalePage() {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Customer */}
-            <div className="bg-slate-800 rounded-lg shadow-lg border border-slate-700 p-6">
+            <div className="bg-[#0A0A0A] rounded-lg shadow-lg border border-white/5 p-6">
               <h2 className="text-lg font-bold mb-4 text-white">Customer</h2>
               <div className="mb-3">
                 <select
@@ -899,16 +900,16 @@ export default function NewSalePage() {
                       customers.find((c) => c._id === e.target.value)
                     )
                   }
-                  className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white"
+                  className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white"
                 >
-                  <option value="" className="bg-slate-800">
+                  <option value="" className="bg-[#0A0A0A]">
                     Select Customer
                   </option>
                   {customers.map((customer) => (
                     <option
                       key={customer._id}
                       value={customer._id}
-                      className="bg-slate-800"
+                      className="bg-[#0A0A0A]"
                     >
                       {customer.name} - {customer.phone}
                       {customer.vehicleRegistrationNumber &&
@@ -917,15 +918,15 @@ export default function NewSalePage() {
                   ))}
                 </select>
                 {selectedCustomer && (
-                  <div className="mt-3 p-3 bg-slate-700/30 rounded-lg border border-slate-600">
+                  <div className="mt-3 p-3 bg-[#111111] rounded-lg border border-white/5">
                     <p className="text-white font-medium">
                       {selectedCustomer.name}
                     </p>
-                    <p className="text-sm text-slate-400">
+                    <p className="text-sm text-gray-400">
                       {selectedCustomer.phone}
                     </p>
                     {selectedCustomer.vehicleRegistrationNumber && (
-                      <p className="text-xs text-slate-400 mt-1">
+                      <p className="text-xs text-gray-400 mt-1">
                         Vehicle: {selectedCustomer.vehicleRegistrationNumber}
                       </p>
                     )}
@@ -934,7 +935,7 @@ export default function NewSalePage() {
               </div>
               <button
                 onClick={() => setShowAddCustomer(true)}
-                className="w-full flex items-center justify-center space-x-2 px-3 py-3 border-2 border-dashed border-purple-500/50 text-purple-300 rounded-lg hover:border-purple-400 hover:bg-purple-900/20 transition-colors"
+                className="w-full flex items-center justify-center space-x-2 px-3 py-3 border-2 border-dashed border-[#E84545]/50 text-[#E84545] rounded-lg hover:border-[#E84545] hover:bg-[#E84545]/10 transition-colors"
               >
                 <Plus className="h-4 w-4" />
                 <span>Quick Add Customer</span>
@@ -942,7 +943,7 @@ export default function NewSalePage() {
             </div>
 
             {/* Overall Discount */}
-            <div className="bg-slate-800 rounded-lg shadow-lg border border-slate-700 p-6">
+            <div className="bg-[#0A0A0A] rounded-lg shadow-lg border border-white/5 p-6">
               <h2 className="text-lg font-bold mb-4 text-white">
                 Overall Discount
               </h2>
@@ -955,29 +956,29 @@ export default function NewSalePage() {
                   }
                   placeholder="0"
                   min="0"
-                  className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:ring-1 focus:ring-purple-500 focus:border-transparent"
+                  className="flex-1 px-3 py-2 bg-[#111111] border border-white/5 rounded-lg text-white focus:ring-1 focus:ring-[#E84545] focus:border-transparent"
                 />
                 <select
                   value={overallDiscountType}
                   onChange={(e) =>
                     setOverallDiscountType(e.target.value as any)
                   }
-                  className="px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:ring-1 focus:ring-purple-500 focus:border-transparent"
+                  className="px-3 py-2 bg-[#111111] border border-white/5 rounded-lg text-white focus:ring-1 focus:ring-[#E84545] focus:border-transparent"
                 >
-                  <option value="percentage" className="bg-slate-800">
+                  <option value="percentage" className="bg-[#0A0A0A]">
                     %
                   </option>
-                  <option value="fixed" className="bg-slate-800">
+                  <option value="fixed" className="bg-[#0A0A0A]">
                     QAR
                   </option>
                 </select>
               </div>
               {overallDiscount > 0 && (
-                <div className="p-3 bg-gradient-to-r from-purple-900/30 to-indigo-900/30 rounded-lg border border-purple-500/30">
-                  <p className="text-sm text-emerald-400 font-medium">
+                <div className="p-3 bg-gradient-to-r from-[#E84545]/10 to-[#cc3c3c]/10 rounded-lg border border-[#E84545]/30">
+                  <p className="text-sm text-[#E84545] font-medium">
                     Discount: QAR {totals.overallDiscountAmount.toFixed(2)}
                   </p>
-                  <p className="text-xs text-slate-400 mt-1">
+                  <p className="text-xs text-gray-400 mt-1">
                     {overallDiscountType === "percentage"
                       ? `${overallDiscount}% off subtotal`
                       : `Fixed discount of QAR ${overallDiscount}`}
@@ -987,31 +988,31 @@ export default function NewSalePage() {
             </div>
 
             {/* Payment */}
-            <div className="bg-slate-800 rounded-lg shadow-lg border border-slate-700 p-6">
+            <div className="bg-[#0A0A0A] rounded-lg shadow-lg border border-white/5 p-6">
               <h2 className="text-lg font-bold mb-4 text-white">Payment</h2>
 
               {payments.map((payment, index) => (
                 <div
                   key={index}
-                  className="mb-4 p-3 bg-slate-700/30 rounded-lg border border-slate-600"
+                  className="mb-4 p-3 bg-[#111111] rounded-lg border border-white/5"
                 >
                   <select
                     value={payment.method}
                     onChange={(e) =>
                       updatePayment(index, "method", e.target.value)
                     }
-                    className="w-full px-3 py-2 mb-2 bg-slate-700 border border-slate-600 rounded text-sm text-white focus:ring-1 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-3 py-2 mb-2 bg-[#111111] border border-white/5 rounded text-sm text-white focus:ring-1 focus:ring-[#E84545] focus:border-transparent"
                   >
-                    <option value="cash" className="bg-slate-800">
+                    <option value="cash" className="bg-[#0A0A0A]">
                       Cash
                     </option>
-                    <option value="card" className="bg-slate-800">
+                    <option value="card" className="bg-[#0A0A0A]">
                       Card
                     </option>
-                    <option value="bank_transfer" className="bg-slate-800">
+                    <option value="bank_transfer" className="bg-[#0A0A0A]">
                       Bank Transfer
                     </option>
-                    <option value="cheque" className="bg-slate-800">
+                    <option value="cheque" className="bg-[#0A0A0A]">
                       Cheque
                     </option>
                   </select>
@@ -1026,7 +1027,7 @@ export default function NewSalePage() {
                       )
                     }
                     placeholder="Amount"
-                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-sm text-white focus:ring-1 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded text-sm text-white focus:ring-1 focus:ring-[#E84545] focus:border-transparent"
                   />
                   {payment.reference && (
                     <input
@@ -1036,7 +1037,7 @@ export default function NewSalePage() {
                         updatePayment(index, "reference", e.target.value)
                       }
                       placeholder="Reference"
-                      className="w-full px-3 py-2 mt-2 bg-slate-700 border border-slate-600 rounded text-sm text-white focus:ring-1 focus:ring-purple-500 focus:border-transparent"
+                      className="w-full px-3 py-2 mt-2 bg-[#111111] border border-white/5 rounded text-sm text-white focus:ring-1 focus:ring-[#E84545] focus:border-transparent"
                     />
                   )}
                 </div>
@@ -1046,7 +1047,7 @@ export default function NewSalePage() {
                 onClick={() =>
                   setPayments([...payments, { method: "cash", amount: 0 }])
                 }
-                className="w-full flex items-center justify-center space-x-2 px-3 py-2 border border-dashed border-slate-600 text-slate-400 rounded-lg hover:border-purple-500 hover:text-purple-300 transition-colors"
+                className="w-full flex items-center justify-center space-x-2 px-3 py-2 border border-dashed border-white/10 text-gray-400 rounded-lg hover:border-[#E84545] hover:text-[#E84545] transition-colors"
               >
                 <Plus className="h-4 w-4" />
                 <span>Add Payment Method</span>
@@ -1054,58 +1055,58 @@ export default function NewSalePage() {
             </div>
 
             {/* Summary */}
-            <div className="bg-slate-800 rounded-lg shadow-lg border border-slate-700 p-6">
+            <div className="bg-[#0A0A0A] rounded-lg shadow-lg border border-white/5 p-6">
               <h2 className="text-lg font-bold mb-4 text-white">Summary</h2>
 
               <div className="space-y-3 text-sm">
-                <div className="flex justify-between py-2 border-b border-slate-700">
-                  <span className="text-slate-400">Subtotal:</span>
+                <div className="flex justify-between py-2 border-b border-white/5">
+                  <span className="text-gray-400">Subtotal:</span>
                   <span className="text-white">
                     QAR {totals.subtotal.toFixed(2)}
                   </span>
                 </div>
                 {totals.totalDiscount > 0 && (
-                  <div className="flex justify-between py-2 border-b border-slate-700">
-                    <span className="text-slate-400">Item Discount:</span>
-                    <span className="text-emerald-400">
+                  <div className="flex justify-between py-2 border-b border-white/5">
+                    <span className="text-gray-400">Item Discount:</span>
+                    <span className="text-[#E84545]">
                       -QAR {totals.totalDiscount.toFixed(2)}
                     </span>
                   </div>
                 )}
                 {totals.overallDiscountAmount > 0 && (
-                  <div className="flex justify-between py-2 border-b border-slate-700">
-                    <span className="text-slate-400">Overall Discount:</span>
-                    <span className="text-emerald-400">
+                  <div className="flex justify-between py-2 border-b border-white/5">
+                    <span className="text-gray-400">Overall Discount:</span>
+                    <span className="text-[#E84545]">
                       -QAR {totals.overallDiscountAmount.toFixed(2)}
                     </span>
                   </div>
                 )}
-                <div className="flex justify-between py-2 border-b border-slate-700">
-                  <span className="text-slate-400">Tax:</span>
+                <div className="flex justify-between py-2 border-b border-white/5">
+                  <span className="text-gray-400">Tax:</span>
                   <span className="text-white">
                     QAR {totals.totalTax.toFixed(2)}
                   </span>
                 </div>
-                <div className="flex justify-between py-3 border-t border-slate-600 font-bold text-lg">
+                <div className="flex justify-between py-3 border-t border-white/10 font-bold text-lg">
                   <span className="text-white">Total:</span>
                   <span className="text-white">
                     QAR {totals.total.toFixed(2)}
                   </span>
                 </div>
 
-                <div className="flex justify-between py-2 border-t border-slate-600 pt-4">
-                  <span className="text-slate-400">Paid:</span>
+                <div className="flex justify-between py-2 border-t border-white/10 pt-4">
+                  <span className="text-gray-400">Paid:</span>
                   <span className="text-white">
                     QAR {totals.totalPaid.toFixed(2)}
                   </span>
                 </div>
                 <div className="flex justify-between py-2 font-semibold">
-                  <span className="text-slate-300">Balance:</span>
+                  <span className="text-gray-300">Balance:</span>
                   <span
                     className={
                       totals.total - totals.totalPaid > 0
-                        ? "text-red-400"
-                        : "text-emerald-400"
+                        ? "text-[#E84545]"
+                        : "text-[#E84545]"
                     }
                   >
                     QAR {(totals.total - totals.totalPaid).toFixed(2)}
@@ -1116,7 +1117,7 @@ export default function NewSalePage() {
               <button
                 onClick={handleSubmit}
                 disabled={loading || cart.length === 0 || !selectedCustomer}
-                className="w-full mt-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-purple-900/30"
+                className="w-full mt-6 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-lg font-semibold hover:from-[#cc3c3c] hover:to-[#E84545] disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-[#E84545]/30"
               >
                 {loading ? (
                   <span className="flex items-center justify-center">
@@ -1153,14 +1154,14 @@ export default function NewSalePage() {
       {/* Add Customer Modal with Vehicle Info */}
       {showAddCustomer && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-slate-800 rounded-lg shadow-2xl max-w-2xl w-full my-8 border border-slate-700">
-            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-700 bg-gradient-to-r from-slate-800 to-slate-900">
+          <div className="bg-[#0A0A0A] rounded-lg shadow-2xl max-w-2xl w-full my-8 border border-white/5">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-white/5 bg-gradient-to-r from-[#0A0A0A] to-[#111111]">
               <h2 className="text-xl font-bold text-white">
                 Quick Add Customer
               </h2>
               <button
                 onClick={() => setShowAddCustomer(false)}
-                className="text-slate-400 hover:text-white transition-colors"
+                className="text-gray-400 hover:text-white transition-colors"
               >
                 <X className="h-6 w-6" />
               </button>
@@ -1177,7 +1178,7 @@ export default function NewSalePage() {
                     onChange={(e) =>
                       setNewCustomer({ ...newCustomer, name: e.target.value })
                     }
-                    className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white placeholder-slate-400"
+                    className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white placeholder-gray-400"
                     placeholder="Customer name"
                   />
                 </div>
@@ -1191,7 +1192,7 @@ export default function NewSalePage() {
                     onChange={(e) =>
                       setNewCustomer({ ...newCustomer, phone: e.target.value })
                     }
-                    className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white placeholder-slate-400"
+                    className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white placeholder-gray-400"
                     placeholder="Phone number"
                   />
                 </div>
@@ -1205,7 +1206,7 @@ export default function NewSalePage() {
                     onChange={(e) =>
                       setNewCustomer({ ...newCustomer, email: e.target.value })
                     }
-                    className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white placeholder-slate-400"
+                    className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white placeholder-gray-400"
                     placeholder="email@example.com"
                   />
                 </div>
@@ -1222,16 +1223,16 @@ export default function NewSalePage() {
                       })
                     }
                     rows={2}
-                    className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white placeholder-slate-400"
+                    className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white placeholder-gray-400"
                     placeholder="Customer address"
                   />
                 </div>
               </div>
 
               {/* Vehicle Information */}
-              <div className="border-t border-slate-700 pt-6">
+              <div className="border-t border-white/5 pt-6">
                 <h3 className="text-sm font-semibold mb-3 flex items-center text-white">
-                  <Car className="h-4 w-4 mr-2 text-purple-400" />
+                  <Car className="h-4 w-4 mr-2 text-[#E84545]" />
                   Vehicle Information (Optional)
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
@@ -1249,7 +1250,7 @@ export default function NewSalePage() {
                             e.target.value.toUpperCase(),
                         })
                       }
-                      className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white placeholder-slate-400 uppercase"
+                      className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white placeholder-gray-400 uppercase"
                       placeholder="ABC-1234"
                     />
                   </div>
@@ -1266,16 +1267,16 @@ export default function NewSalePage() {
                           vehicleModel: "",
                         })
                       }
-                      className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white"
+                      className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white"
                     >
-                      <option value="" className="bg-slate-800">
+                      <option value="" className="bg-[#0A0A0A]">
                         Select Make
                       </option>
                       {availableCarMakes.map((make) => (
                         <option
                           key={make}
                           value={make}
-                          className="bg-slate-800"
+                          className="bg-[#0A0A0A]"
                         >
                           {make}
                         </option>
@@ -1294,10 +1295,10 @@ export default function NewSalePage() {
                           vehicleModel: e.target.value,
                         })
                       }
-                      className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white disabled:opacity-50 disabled:cursor-not-allowed"
                       disabled={!newCustomer.vehicleMake}
                     >
-                      <option value="" className="bg-slate-800">
+                      <option value="" className="bg-[#0A0A0A]">
                         Select Model
                       </option>
                       {isValidCarMake(newCustomer.vehicleMake) &&
@@ -1305,7 +1306,7 @@ export default function NewSalePage() {
                           <option
                             key={model}
                             value={model}
-                            className="bg-slate-800"
+                            className="bg-[#0A0A0A]"
                           >
                             {model}
                           </option>
@@ -1324,16 +1325,16 @@ export default function NewSalePage() {
                           vehicleYear: e.target.value,
                         })
                       }
-                      className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white"
+                      className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white"
                     >
-                      <option value="" className="bg-slate-800">
+                      <option value="" className="bg-[#0A0A0A]">
                         Select Year
                       </option>
                       {carYears.map((year) => (
                         <option
                           key={year}
                           value={year}
-                          className="bg-slate-800"
+                          className="bg-[#0A0A0A]"
                         >
                           {year}
                         </option>
@@ -1352,16 +1353,16 @@ export default function NewSalePage() {
                           vehicleColor: e.target.value,
                         })
                       }
-                      className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white"
+                      className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white"
                     >
-                      <option value="" className="bg-slate-800">
+                      <option value="" className="bg-[#0A0A0A]">
                         Select Color
                       </option>
                       {carColors.map((color) => (
                         <option
                           key={color}
                           value={color}
-                          className="bg-slate-800"
+                          className="bg-[#0A0A0A]"
                         >
                           {color}
                         </option>
@@ -1381,23 +1382,23 @@ export default function NewSalePage() {
                           vehicleVIN: e.target.value.toUpperCase(),
                         })
                       }
-                      className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white placeholder-slate-400 uppercase"
+                      className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white placeholder-gray-400 uppercase"
                       placeholder="Vehicle Identification Number"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-3 pt-6 border-t border-slate-700">
+              <div className="flex justify-end space-x-3 pt-6 border-t border-white/5">
                 <button
                   onClick={() => setShowAddCustomer(false)}
-                  className="px-4 py-2 border border-slate-600 text-slate-300 rounded-lg hover:bg-slate-700 transition-colors"
+                  className="px-4 py-2 border border-white/5 text-gray-300 rounded-lg hover:bg-[#111111] transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleAddCustomer}
-                  className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all"
+                  className="px-4 py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-lg hover:from-[#cc3c3c] hover:to-[#E84545] transition-all"
                 >
                   Add Customer
                 </button>
@@ -1410,15 +1411,15 @@ export default function NewSalePage() {
       {/* Add Labor Modal */}
       {showAddLabor && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 rounded-lg shadow-2xl max-w-md w-full border border-slate-700">
-            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-700 bg-gradient-to-r from-slate-800 to-slate-900">
+          <div className="bg-[#0A0A0A] rounded-lg shadow-2xl max-w-md w-full border border-white/5">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-white/5 bg-gradient-to-r from-[#0A0A0A] to-[#111111]">
               <h2 className="text-xl font-bold flex items-center text-white">
-                <Wrench className="h-5 w-5 mr-2 text-emerald-400" />
+                <Wrench className="h-5 w-5 mr-2 text-[#E84545]" />
                 Add Labor Charge
               </h2>
               <button
                 onClick={() => setShowAddLabor(false)}
-                className="text-slate-400 hover:text-white transition-colors"
+                className="text-gray-400 hover:text-white transition-colors"
               >
                 <X className="h-6 w-6" />
               </button>
@@ -1438,7 +1439,7 @@ export default function NewSalePage() {
                     })
                   }
                   placeholder="e.g., Engine repair, Oil change"
-                  className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-white placeholder-slate-400"
+                  className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white placeholder-gray-400"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -1457,7 +1458,7 @@ export default function NewSalePage() {
                     }
                     min="0.5"
                     step="0.5"
-                    className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-white"
+                    className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white"
                   />
                 </div>
                 <div>
@@ -1474,7 +1475,7 @@ export default function NewSalePage() {
                       })
                     }
                     min="0"
-                    className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-white"
+                    className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white"
                   />
                 </div>
               </div>
@@ -1492,11 +1493,11 @@ export default function NewSalePage() {
                     })
                   }
                   min="0"
-                  className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-white"
+                  className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white"
                 />
               </div>
-              <div className="bg-slate-700/30 p-4 rounded-lg border border-slate-600">
-                <p className="text-sm text-slate-300">
+              <div className="bg-[#111111] p-4 rounded-lg border border-white/5">
+                <p className="text-sm text-gray-300">
                   Total:{" "}
                   <span className="font-bold text-white">
                     QAR{" "}
@@ -1507,7 +1508,7 @@ export default function NewSalePage() {
                     ).toFixed(2)}
                   </span>
                 </p>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-xs text-gray-400 mt-1">
                   Base: {laborCharge.hours} × {laborCharge.rate} = QAR{" "}
                   {laborCharge.hours * laborCharge.rate}
                   {laborCharge.taxRate > 0 && (
@@ -1518,13 +1519,13 @@ export default function NewSalePage() {
               <div className="flex justify-end space-x-3 pt-4">
                 <button
                   onClick={() => setShowAddLabor(false)}
-                  className="px-4 py-2 border border-slate-600 text-slate-300 rounded-lg hover:bg-slate-700 transition-colors"
+                  className="px-4 py-2 border border-white/5 text-gray-300 rounded-lg hover:bg-[#111111] transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleAddLabor}
-                  className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-lg hover:from-emerald-600 hover:to-teal-700 transition-all"
+                  className="px-4 py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-lg hover:from-[#cc3c3c] hover:to-[#E84545] transition-all"
                 >
                   Add Labor
                 </button>
@@ -1539,7 +1540,7 @@ export default function NewSalePage() {
   <>
     <InvoicePrint
       invoice={invoiceData}
-      outletId={user.outletId} // Direct string, not ._id
+      outletId={user.outletId}
       customerId={invoiceCustomer._id}
       onClose={() => {
         setShowInvoice(false);
@@ -1548,8 +1549,6 @@ export default function NewSalePage() {
     />
   </>
 )}
-
-
 
  </MainLayout>
   );

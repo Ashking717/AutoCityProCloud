@@ -299,7 +299,7 @@ export async function POST(request: NextRequest) {
       reason,
       items: returnDetails,
       totalAmount,
-      voucherId,
+      ...(voucherId ? { voucherId } : {}),
       processedBy: new mongoose.Types.ObjectId(user.userId),
       processedByName: user.email
     });

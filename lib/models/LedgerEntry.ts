@@ -12,6 +12,19 @@ import mongoose, { Schema, Document } from 'mongoose';
  * 5. Corrections done via reversal entries only
  */
 
+// Reference types - keep in sync with Voucher.ts
+export enum ReferenceType {
+  OPENING_BALANCE = 'OPENING_BALANCE',
+  SALE = 'SALE',
+  PURCHASE = 'PURCHASE',
+  PAYMENT = 'PAYMENT',
+  RECEIPT = 'RECEIPT',
+  ADJUSTMENT = 'ADJUSTMENT',
+  REVERSAL = 'REVERSAL',
+  MANUAL = 'MANUAL',
+  TRANSFER = 'TRANSFER',
+}
+
 export interface ILedgerEntry extends Document {
   // Link to voucher header (for grouping only)
   voucherId: mongoose.Types.ObjectId;
@@ -32,7 +45,7 @@ export interface ILedgerEntry extends Document {
   narration: string;
   
   // Reference to source document
-  referenceType?: 'SALE' | 'PURCHASE' | 'PAYMENT' | 'RECEIPT' | 'ADJUSTMENT' | 'REVERSAL';
+  referenceType?: ReferenceType;
   referenceId?: mongoose.Types.ObjectId;
   referenceNumber?: string;
   
@@ -109,7 +122,8 @@ const LedgerEntrySchema = new Schema<ILedgerEntry>(
     
     referenceType: {
       type: String,
-      enum: ['SALE', 'PURCHASE', 'PAYMENT', 'RECEIPT', 'ADJUSTMENT', 'REVERSAL'],
+      enum: Object.values(ReferenceType),
+      index: true,
     },
     referenceId: {
       type: Schema.Types.ObjectId,
@@ -183,7 +197,11 @@ LedgerEntrySchema.pre('save', function(next) {
   next();
 });
 
-const LedgerEntry = mongoose.models.LedgerEntry || 
-  mongoose.model<ILedgerEntry>('LedgerEntry', LedgerEntrySchema);
+// Delete cached model to force re-registration with updated enum
+if (mongoose.models.LedgerEntry) {
+  delete mongoose.models.LedgerEntry;
+}
+
+const LedgerEntry = mongoose.model<ILedgerEntry>('LedgerEntry', LedgerEntrySchema);
 
 export default LedgerEntry;

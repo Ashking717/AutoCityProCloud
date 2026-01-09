@@ -6,6 +6,7 @@ import LedgerEntry from "../models/LedgerEntry";
 import InventoryMovement, { MovementType } from "../models/InventoryMovement";
 import Outlet from "../models/Outlet";
 import { Product } from "../models";
+import { applyVoucherBalances } from "./balanceEngine";
 
 /* ───────────────── TYPES ───────────────── */
 
@@ -13,7 +14,7 @@ export interface SystemAccounts {
   cashAccount: mongoose.Types.ObjectId;
   bankAccount: mongoose.Types.ObjectId;
   arAccount: mongoose.Types.ObjectId;
-  apAccount?: mongoose.Types.ObjectId; // Added: Accounts Payable
+  apAccount?: mongoose.Types.ObjectId;
   inventoryAccount: mongoose.Types.ObjectId;
   salesRevenueAccount: mongoose.Types.ObjectId;
   serviceRevenueAccount?: mongoose.Types.ObjectId;
@@ -27,17 +28,15 @@ export interface SystemAccounts {
 export async function getSystemAccounts(
   outletId: mongoose.Types.ObjectId
 ): Promise<SystemAccounts> {
-
-  const accounts = await Account.find({
+  const accounts = (await Account.find({
     outletId,
     isSystem: true,
     isActive: true,
-  }).lean() as any[];
+  }).lean()) as any[];
 
   const map: Record<string, mongoose.Types.ObjectId> = {};
 
   for (const acc of accounts) {
-    // Your database uses 'subType' field, not 'accountSubType'
     const raw = acc.subType || acc.accountSubType;
     if (!raw) continue;
 
@@ -51,7 +50,6 @@ export async function getSystemAccounts(
       key = "cogs";
     }
 
-    // Normalize other account types
     if (key === "accounts payable" || key === "accountspayable") {
       key = "accounts_payable";
     }
@@ -78,7 +76,7 @@ export async function getSystemAccounts(
     cashAccount: map.cash,
     bankAccount: map.bank,
     arAccount: map.accounts_receivable,
-    apAccount: map.accounts_payable, // Optional for now
+    apAccount: map.accounts_payable,
     inventoryAccount: map.inventory,
     salesRevenueAccount: map.sales_revenue,
     serviceRevenueAccount: map.service_revenue,
@@ -94,55 +92,66 @@ export async function generateVoucherNumber(
   voucherType: "receipt" | "journal" | "payment",
   outletId: mongoose.Types.ObjectId
 ): Promise<string> {
-
   const year = new Date().getFullYear();
   const month = String(new Date().getMonth() + 1).padStart(2, "0");
 
-  const prefix = voucherType === "receipt" ? "RE" : voucherType === "payment" ? "PY" : "JO";
+  const prefix =
+    voucherType === "receipt" ? "RE" : voucherType === "payment" ? "PY" : "JO";
   const yearMonth = `${year}${month}`;
 
-  // Find the highest existing voucher number for this type, outlet, and period
   const latestVoucherDoc = await Voucher.findOne({
     outletId,
     voucherType,
-    voucherNumber: { $regex: `^${prefix}-${yearMonth}-` }
+    voucherNumber: { $regex: `^${prefix}-${yearMonth}-` },
   })
     .sort({ voucherNumber: -1 })
-    .select('voucherNumber')
+    .select("voucherNumber")
     .lean();
 
-  // Type assertion to handle lean() return type
   const latestVoucher = latestVoucherDoc as any;
 
   let nextNumber = 1;
 
   if (latestVoucher && latestVoucher.voucherNumber) {
-    // Extract the sequence number from the last voucher
     const match = latestVoucher.voucherNumber.match(/-(\d{5})$/);
     if (match) {
       nextNumber = parseInt(match[1], 10) + 1;
     }
   }
 
-  // Generate voucher number with retry logic for race conditions
   const maxRetries = 5;
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     const voucherNumber = `${prefix}-${yearMonth}-${String(nextNumber).padStart(5, "0")}`;
 
-    // Check if this number already exists
     const exists = await Voucher.exists({ voucherNumber });
-    
+
     if (!exists) {
       return voucherNumber;
     }
 
-    // If exists, increment and try again
     nextNumber++;
   }
 
-  // Fallback: use timestamp-based unique number
   const timestamp = Date.now().toString().slice(-5);
   return `${prefix}-${yearMonth}-${timestamp}`;
+}
+
+/* ───────────────── HELPER: FETCH ACCOUNT DETAILS ───────────────── */
+
+async function getAccountDetails(accountId: mongoose.Types.ObjectId) {
+  const account = (await Account.findById(accountId).lean()) as any;
+  if (!account) {
+    throw new Error(`Account not found: ${accountId}`);
+  }
+
+  const accountNumber = account.code || account.accountNumber || "N/A";
+  const accountName = account.name || account.accountName || "Unknown Account";
+
+  return {
+    accountId: account._id as mongoose.Types.ObjectId,
+    accountNumber,
+    accountName,
+  };
 }
 
 /* ───────────────── SALE POSTING ───────────────── */
@@ -151,28 +160,10 @@ export async function postSaleToLedger(
   sale: any,
   userId: mongoose.Types.ObjectId
 ) {
-
   const outlet = await Outlet.findById(sale.outletId).lean();
   if (!outlet) throw new Error("Outlet not found");
 
   const sys = await getSystemAccounts(sale.outletId);
-
-  /* ───────── HELPER: Fetch Account Details ───────── */
-  const getAccountDetails = async (accountId: mongoose.Types.ObjectId) => {
-    const account = await Account.findById(accountId).lean() as any;
-    if (!account) {
-      throw new Error(`Account not found: ${accountId}`);
-    }
-    
-    const accountNumber = account.code || account.accountNumber || "N/A";
-    const accountName = account.name || account.accountName || "Unknown Account";
-    
-    return {
-      accountId: account._id as mongoose.Types.ObjectId,
-      accountNumber,
-      accountName,
-    };
-  };
 
   /* ───────── RECEIPT VOUCHER ───────── */
 
@@ -244,7 +235,9 @@ export async function postSaleToLedger(
   // Credit Service Revenue for labor
   if (laborRevenue > 0) {
     if (!sys.serviceRevenueAccount) {
-      throw new Error("Service Revenue account not configured. Please add SERVICE_REVENUE system account.");
+      throw new Error(
+        "Service Revenue account not configured. Please add SERVICE_REVENUE system account."
+      );
     }
     const serviceDetails = await getAccountDetails(sys.serviceRevenueAccount);
     receiptEntries.push({
@@ -271,6 +264,9 @@ export async function postSaleToLedger(
     createdBy: userId,
   });
 
+  // ✅ Apply balance changes
+  await applyVoucherBalances(receiptVoucher);
+
   /* ───────── LEDGER ENTRIES ───────── */
 
   const ledgerDocs = receiptEntries.map((e) => ({
@@ -294,9 +290,7 @@ export async function postSaleToLedger(
 
   /* ───────── COGS ───────── */
 
-  const items = sale.items.filter(
-    (i: any) => !i.isLabor && i.costPrice > 0
-  );
+  const items = sale.items.filter((i: any) => !i.isLabor && i.costPrice > 0);
 
   if (!items.length) {
     return { voucherId: receiptVoucher._id, cogsVoucherId: null };
@@ -332,6 +326,29 @@ export async function postSaleToLedger(
     createdBy: userId,
   });
 
+  // ✅ Apply balance changes for COGS voucher
+  await applyVoucherBalances(cogsVoucher);
+
+  // Create COGS ledger entries
+  const cogsLedgerDocs = cogsEntries.map((e) => ({
+    voucherId: cogsVoucher._id,
+    voucherNumber: cogsVoucher.voucherNumber,
+    voucherType: "journal",
+    accountId: e.accountId,
+    accountNumber: e.accountNumber,
+    accountName: e.accountName,
+    debit: e.debit,
+    credit: e.credit,
+    narration: cogsVoucher.narration,
+    date: sale.saleDate,
+    referenceType: "SALE",
+    referenceId: sale._id,
+    outletId: sale.outletId,
+    createdBy: userId,
+  }));
+
+  await LedgerEntry.insertMany(cogsLedgerDocs);
+
   return {
     voucherId: receiptVoucher._id,
     cogsVoucherId: cogsVoucher._id,
@@ -344,28 +361,10 @@ export async function postPurchaseToLedger(
   purchase: any,
   userId: mongoose.Types.ObjectId
 ) {
-
   const outlet = await Outlet.findById(purchase.outletId).lean();
   if (!outlet) throw new Error("Outlet not found");
 
   const sys = await getSystemAccounts(purchase.outletId);
-
-  /* ───────── HELPER: Fetch Account Details ───────── */
-  const getAccountDetails = async (accountId: mongoose.Types.ObjectId) => {
-    const account = await Account.findById(accountId).lean() as any;
-    if (!account) {
-      throw new Error(`Account not found: ${accountId}`);
-    }
-    
-    const accountNumber = account.code || account.accountNumber || "N/A";
-    const accountName = account.name || account.accountName || "Unknown Account";
-    
-    return {
-      accountId: account._id as mongoose.Types.ObjectId,
-      accountNumber,
-      accountName,
-    };
-  };
 
   /* ───────── PAYMENT VOUCHER ───────── */
 
@@ -388,15 +387,19 @@ export async function postPurchaseToLedger(
   // Credit: Cash/Bank/Accounts Payable (decrease asset or increase liability)
   let paymentAccountId = sys.cashAccount;
 
-  if (purchase.paymentMethod === "BANK_TRANSFER" || purchase.paymentMethod === "CARD") {
+  if (
+    purchase.paymentMethod === "BANK_TRANSFER" ||
+    purchase.paymentMethod === "CARD"
+  ) {
     paymentAccountId = sys.bankAccount;
   }
 
   if (purchase.paymentMethod === "CREDIT") {
-    // Use Accounts Payable if available, otherwise use AR as fallback
     const apAccountId = sys.apAccount || sys.arAccount;
     if (!sys.apAccount) {
-      console.warn('Warning: Accounts Payable system account not configured. Using AR as fallback.');
+      console.warn(
+        "Warning: Accounts Payable system account not configured. Using AR as fallback."
+      );
     }
     const apDetails = await getAccountDetails(apAccountId);
     paymentEntries.push({
@@ -442,6 +445,9 @@ export async function postPurchaseToLedger(
     createdBy: userId,
   });
 
+  // ✅ Apply balance changes
+  await applyVoucherBalances(paymentVoucher);
+
   /* ───────── LEDGER ENTRIES ───────── */
 
   const ledgerDocs = paymentEntries.map((e) => ({
@@ -486,23 +492,6 @@ export async function postExpenseToLedger(
 
     const sys = await getSystemAccounts(expense.outletId);
 
-    /* ───────── HELPER: Fetch Account Details ───────── */
-    const getAccountDetails = async (accountId: mongoose.Types.ObjectId) => {
-      const account = await Account.findById(accountId).lean() as any;
-      if (!account) {
-        throw new Error(`Account not found: ${accountId}`);
-      }
-
-      const accountNumber = account.code || account.accountNumber || "N/A";
-      const accountName = account.name || account.accountName || "Unknown Account";
-
-      return {
-        accountId: account._id as mongoose.Types.ObjectId,
-        accountNumber,
-        accountName,
-      };
-    };
-
     /* ───────── BUILD PAYMENT VOUCHER ENTRIES ───────── */
 
     const paymentEntries: Array<{
@@ -516,7 +505,7 @@ export async function postExpenseToLedger(
     // DEBIT: Expense Account(s) - one entry per item
     for (const item of expense.items) {
       const expenseAccountDetails = await getAccountDetails(item.accountId);
-      
+
       paymentEntries.push({
         ...expenseAccountDetails,
         debit: Number(item.amount),
@@ -544,13 +533,17 @@ export async function postExpenseToLedger(
     let paymentAccountId: mongoose.Types.ObjectId;
 
     // Determine payment account based on payment method
-    if (expense.paymentMethod === 'CREDIT') {
-      // Use Accounts Payable if available, fallback to AR
+    if (expense.paymentMethod === "CREDIT") {
       paymentAccountId = sys.apAccount || sys.arAccount;
       if (!sys.apAccount) {
-        console.warn('Warning: Using AR account for AP. Please configure AP system account.');
+        console.warn(
+          "Warning: Using AR account for AP. Please configure AP system account."
+        );
       }
-    } else if (expense.paymentMethod === 'BANK_TRANSFER' || expense.paymentMethod === 'CARD') {
+    } else if (
+      expense.paymentMethod === "BANK_TRANSFER" ||
+      expense.paymentMethod === "CARD"
+    ) {
       paymentAccountId = sys.bankAccount;
     } else {
       paymentAccountId = sys.cashAccount;
@@ -562,8 +555,7 @@ export async function postExpenseToLedger(
     }
 
     // Credit the payment account(s)
-    if (expense.paymentMethod === 'CREDIT') {
-      // Full amount to payable
+    if (expense.paymentMethod === "CREDIT") {
       const payableDetails = await getAccountDetails(paymentAccountId);
       paymentEntries.push({
         ...payableDetails,
@@ -571,7 +563,6 @@ export async function postExpenseToLedger(
         credit: expense.grandTotal,
       });
     } else {
-      // Paid amount
       if (expense.amountPaid > 0) {
         const paymentDetails = await getAccountDetails(paymentAccountId);
         paymentEntries.push({
@@ -581,7 +572,6 @@ export async function postExpenseToLedger(
         });
       }
 
-      // Balance due (if partially paid)
       if (expense.balanceDue > 0) {
         const apAccountId = sys.apAccount || sys.arAccount;
         const apDetails = await getAccountDetails(apAccountId);
@@ -605,7 +595,10 @@ export async function postExpenseToLedger(
 
     /* ───────── CREATE PAYMENT VOUCHER ───────── */
 
-    const voucherNumber = await generateVoucherNumber("payment", expense.outletId);
+    const voucherNumber = await generateVoucherNumber(
+      "payment",
+      expense.outletId
+    );
 
     const narration = expense.vendorName
       ? `Expense payment to ${expense.vendorName} - ${expense.expenseNumber}`
@@ -621,12 +614,15 @@ export async function postExpenseToLedger(
         totalDebit: expense.grandTotal,
         totalCredit: expense.grandTotal,
         status: "posted",
-        referenceType: "PAYMENT", // Valid enum value
+        referenceType: "PAYMENT",
         referenceId: expense._id,
         outletId: expense.outletId,
         createdBy: userId,
       },
     ]);
+
+    // ✅ Apply balance changes
+    await applyVoucherBalances(paymentVoucher[0]);
 
     /* ───────── CREATE LEDGER ENTRIES ───────── */
 
@@ -641,9 +637,9 @@ export async function postExpenseToLedger(
       credit: e.credit,
       narration: paymentVoucher[0].narration,
       date: expense.expenseDate,
-      referenceType: "PAYMENT", // Valid enum value
+      referenceType: "PAYMENT",
       referenceId: expense._id,
-      referenceNumber: expense.expenseNumber, // Added reference number
+      referenceNumber: expense.expenseNumber,
       isReversal: false,
       outletId: expense.outletId,
       createdBy: userId,
@@ -660,7 +656,7 @@ export async function postExpenseToLedger(
       ledgerEntriesCount: ledgerDocs.length,
     };
   } catch (error) {
-    console.error('Error posting expense to ledger:', error);
+    console.error("Error posting expense to ledger:", error);
     throw error;
   }
 }
@@ -676,16 +672,15 @@ export async function reverseExpenseVoucher(
 ) {
   try {
     if (!expense.voucherId) {
-      throw new Error('Expense has no voucher to reverse');
+      throw new Error("Expense has no voucher to reverse");
     }
 
     // Get original voucher
     const originalVoucherDoc = await Voucher.findById(expense.voucherId).lean();
     if (!originalVoucherDoc) {
-      throw new Error('Original voucher not found');
+      throw new Error("Original voucher not found");
     }
 
-    // Type assertion to handle the lean() return type
     const originalVoucher = originalVoucherDoc as any;
 
     // Create reversed entries (swap debit and credit)
@@ -698,7 +693,10 @@ export async function reverseExpenseVoucher(
     }));
 
     // Generate new voucher number
-    const voucherNumber = await generateVoucherNumber("payment", expense.outletId);
+    const voucherNumber = await generateVoucherNumber(
+      "payment",
+      expense.outletId
+    );
 
     // Create reversal voucher
     const reversalVoucher = await Voucher.create([
@@ -711,12 +709,15 @@ export async function reverseExpenseVoucher(
         totalDebit: originalVoucher.totalCredit,
         totalCredit: originalVoucher.totalDebit,
         status: "posted",
-        referenceType: "REVERSAL", // Valid enum value for reversals
+        referenceType: "REVERSAL",
         referenceId: expense._id,
         outletId: expense.outletId,
         createdBy: userId,
       },
     ]);
+
+    // ✅ Apply balance changes for reversal
+    await applyVoucherBalances(reversalVoucher[0]);
 
     // Create reversed ledger entries
     const ledgerDocs = reversedEntries.map((e: any) => ({
@@ -730,31 +731,30 @@ export async function reverseExpenseVoucher(
       credit: e.credit,
       narration: reversalVoucher[0].narration,
       date: new Date(),
-      referenceType: "REVERSAL", // Valid enum value for reversals
+      referenceType: "REVERSAL",
       referenceId: expense._id,
       referenceNumber: (expense as any).expenseNumber,
-      isReversal: true, // Mark as reversal entry
-      reversalReason: reason, // Track why it was reversed
+      isReversal: true,
+      reversalReason: reason,
       outletId: expense.outletId,
       createdBy: userId,
     }));
 
     await LedgerEntry.insertMany(ledgerDocs);
 
-    console.log(`✓ Reversal voucher created: ${reversalVoucher[0].voucherNumber}`);
+    console.log(
+      `✓ Reversal voucher created: ${reversalVoucher[0].voucherNumber}`
+    );
 
     return {
       reversalVoucherId: reversalVoucher[0]._id,
       reversalVoucherNumber: reversalVoucher[0].voucherNumber,
     };
   } catch (error) {
-    console.error('Error reversing expense voucher:', error);
+    console.error("Error reversing expense voucher:", error);
     throw error;
   }
 }
-
-
-// Add this to your existing accountingService.ts file
 
 /* ═══════════════════════════════════════════════════════════
    INVENTORY ADJUSTMENT POSTING
@@ -779,58 +779,41 @@ export async function postInventoryAdjustmentToLedger(
 
     const sys = await getSystemAccounts(adjustment.outletId);
 
-    /* ───────── HELPER: Fetch Account Details ───────── */
-    const getAccountDetails = async (accountId: mongoose.Types.ObjectId) => {
-      const account = await Account.findById(accountId).lean() as any;
-      if (!account) {
-        throw new Error(`Account not found: ${accountId}`);
-      }
-
-      const accountNumber = account.code || account.accountNumber || "N/A";
-      const accountName = account.name || account.accountName || "Unknown Account";
-
-      return {
-        accountId: account._id as mongoose.Types.ObjectId,
-        accountNumber,
-        accountName,
-      };
-    };
-
     /* ───────── CALCULATE ADJUSTMENT VALUE ───────── */
-    
+
     const quantity = Number(adjustment.quantity) || 0;
     const costPrice = Number(adjustment.costPrice) || 0;
     const totalValue = quantity * costPrice;
 
     if (totalValue <= 0) {
-      console.warn('⚠️ Inventory adjustment has zero value, skipping ledger entry');
+      console.warn(
+        "⚠️ Inventory adjustment has zero value, skipping ledger entry"
+      );
       return { voucherId: null, voucherNumber: null };
     }
 
     /* ───────── GET INVENTORY ADJUSTMENT ACCOUNT ───────── */
-    
-    // Use the Owner Equity account (EQ-001) for inventory adjustments
-    // This is where the inventory value will be credited to
-    
+
     let adjustmentAccountId = null;
-    
-    // Look for Owner Equity account (EQ-001)
-    const equityAccount = await Account.findOne({
+
+    const equityAccount = (await Account.findOne({
       outletId: adjustment.outletId,
       $or: [
-        { code: 'EQ-001' },
-        { subType: 'OWNER_EQUITY' },
+        { code: "EQ-001" },
+        { subType: "OWNER_EQUITY" },
         { name: { $regex: /owner.*equity|capital/i } },
       ],
       isActive: true,
-    }).lean() as any;
+    }).lean()) as any;
 
     if (equityAccount) {
       adjustmentAccountId = equityAccount._id;
-      console.log(`✓ Using account: ${equityAccount.code} - ${equityAccount.name}`);
+      console.log(
+        `✓ Using account: ${equityAccount.code} - ${equityAccount.name}`
+      );
     } else {
       throw new Error(
-        'Owner Equity account (EQ-001) not found. Please ensure the Owner Equity system account exists.'
+        "Owner Equity account (EQ-001) not found. Please ensure the Owner Equity system account exists."
       );
     }
 
@@ -847,19 +830,16 @@ export async function postInventoryAdjustmentToLedger(
       credit: number;
     }> = [];
 
-    // Determine if it's an increase or decrease
     const isIncrease = quantity > 0;
 
     if (isIncrease) {
       // INCREASE: Add to inventory
-      // DR: Inventory (Asset)
       journalEntries.push({
         ...inventoryDetails,
         debit: totalValue,
         credit: 0,
       });
 
-      // CR: Inventory Adjustments / Owner's Equity
       journalEntries.push({
         ...adjustmentDetails,
         debit: 0,
@@ -867,14 +847,12 @@ export async function postInventoryAdjustmentToLedger(
       });
     } else {
       // DECREASE: Remove from inventory
-      // DR: Inventory Adjustments (or COGS)
       journalEntries.push({
         ...adjustmentDetails,
         debit: Math.abs(totalValue),
         credit: 0,
       });
 
-      // CR: Inventory (Asset)
       journalEntries.push({
         ...inventoryDetails,
         debit: 0,
@@ -884,12 +862,15 @@ export async function postInventoryAdjustmentToLedger(
 
     /* ───────── CREATE JOURNAL VOUCHER ───────── */
 
-    const voucherNumber = await generateVoucherNumber("journal", adjustment.outletId);
+    const voucherNumber = await generateVoucherNumber(
+      "journal",
+      adjustment.outletId
+    );
 
-    const adjustmentType = adjustment.adjustmentType || 'ADJUSTMENT';
-    const reason = adjustment.reason || 'Inventory adjustment';
-    
-    const narration = adjustment.productName 
+    const adjustmentType = adjustment.adjustmentType || "ADJUSTMENT";
+    const reason = adjustment.reason || "Inventory adjustment";
+
+    const narration = adjustment.productName
       ? `${adjustmentType}: ${adjustment.productName} (${adjustment.sku}) - ${reason}`
       : `${adjustmentType} - ${reason}`;
 
@@ -909,6 +890,9 @@ export async function postInventoryAdjustmentToLedger(
         createdBy: userId,
       },
     ]);
+
+    // ✅ Apply balance changes
+    await applyVoucherBalances(journalVoucher[0]);
 
     /* ───────── CREATE LEDGER ENTRIES ───────── */
 
@@ -933,8 +917,12 @@ export async function postInventoryAdjustmentToLedger(
 
     await LedgerEntry.insertMany(ledgerDocs);
 
-    console.log(`✓ Inventory adjustment voucher created: ${journalVoucher[0].voucherNumber}`);
-    console.log(`✓ ${isIncrease ? 'Increased' : 'Decreased'} inventory by QAR ${totalValue.toFixed(2)}`);
+    console.log(
+      `✓ Inventory adjustment voucher created: ${journalVoucher[0].voucherNumber}`
+    );
+    console.log(
+      `✓ ${isIncrease ? "Increased" : "Decreased"} inventory by QAR ${totalValue.toFixed(2)}`
+    );
 
     return {
       voucherId: journalVoucher[0]._id,
@@ -942,13 +930,10 @@ export async function postInventoryAdjustmentToLedger(
       ledgerEntriesCount: ledgerDocs.length,
     };
   } catch (error) {
-    console.error('Error posting inventory adjustment to ledger:', error);
+    console.error("Error posting inventory adjustment to ledger:", error);
     throw error;
   }
 }
-
-
-// ADD THIS TO: lib/services/accountingService.ts
 
 /* ═══════════════════════════════════════════════════════════
    RETURN POSTING TO LEDGER
@@ -968,73 +953,57 @@ export async function postReturnToLedger(
   userId: mongoose.Types.ObjectId
 ) {
   try {
-    console.log('\n📝 Posting return to ledger...');
-    
+    console.log("\n📝 Posting return to ledger...");
+
     const outlet = await Outlet.findById(returnData.outletId).lean();
-    if (!outlet) throw new Error('Outlet not found');
+    if (!outlet) throw new Error("Outlet not found");
 
     const sys = await getSystemAccounts(returnData.outletId);
 
-    /* ───────── HELPER: Fetch Account Details ───────── */
-    const getAccountDetails = async (accountId: mongoose.Types.ObjectId) => {
-      const account = await Account.findById(accountId).lean() as any;
-      if (!account) {
-        throw new Error(`Account not found: ${accountId}`);
-      }
-
-      const accountNumber = account.code || account.accountNumber || 'N/A';
-      const accountName = account.name || account.accountName || 'Unknown Account';
-
-      return {
-        accountId: account._id as mongoose.Types.ObjectId,
-        accountNumber,
-        accountName,
-      };
-    };
-
     /* ───────── CALCULATE RETURN VALUES ───────── */
-    
+
     const returnAmount = Number(returnData.totalAmount);
-    
+
     // Calculate COGS value for returned items
     let cogsValue = 0;
-    
+
     for (const item of returnData.items) {
-      if (!item.productId) continue; // Skip labor items
-      
-      // Get product cost price
-      const product = await Product.findById(item.productId).lean() as any;
+      if (!item.productId) continue;
+
+      const product = (await Product.findById(item.productId).lean()) as any;
       if (product) {
         const costPrice = product.costPrice || 0;
         cogsValue += costPrice * item.quantity;
       }
     }
-    
+
     console.log(`  Return Amount: QAR ${returnAmount.toFixed(2)}`);
     console.log(`  COGS Value: QAR ${cogsValue.toFixed(2)}`);
 
     /* ───────── GET SALES RETURNS ACCOUNT ───────── */
-    
-    // Look for Sales Returns account (contra-revenue)
+
     let salesReturnsAccountId = null;
-    
-    const salesReturnsAccount = await Account.findOne({
+
+    const salesReturnsAccount = (await Account.findOne({
       outletId: returnData.outletId,
       $or: [
-        { code: 'REV-002' },
+        { code: "REV-002" },
         { name: { $regex: /sales.*return|return.*sale/i } },
-        { subType: 'SALES_RETURNS' },
+        { subType: "SALES_RETURNS" },
       ],
       isActive: true,
-    }).lean() as any;
-    
+    }).lean()) as any;
+
     if (salesReturnsAccount) {
       salesReturnsAccountId = salesReturnsAccount._id;
-      console.log(`  ✓ Using Sales Returns account: ${salesReturnsAccount.code}`);
+      console.log(
+        `  ✓ Using Sales Returns account: ${salesReturnsAccount.code}`
+      );
     } else {
-      // Use Sales Revenue account (will reduce revenue)
       salesReturnsAccountId = sys.salesRevenueAccount;
-      console.log(`  ⚠️ Sales Returns account not found, using Sales Revenue`);
+      console.log(
+        `  ⚠️ Sales Returns account not found, using Sales Revenue`
+      );
     }
 
     /* ───────── BUILD JOURNAL ENTRIES ───────── */
@@ -1067,18 +1036,18 @@ export async function postReturnToLedger(
 
     // Entry 3: CR Cash/Bank/AR (refund or reduce receivable)
     let refundAccountId: mongoose.Types.ObjectId;
-    
-    if (returnData.paymentMethod === 'CREDIT') {
-      // Credit sale - reduce accounts receivable
+
+    if (returnData.paymentMethod === "CREDIT") {
       refundAccountId = sys.arAccount;
-    } else if (returnData.paymentMethod === 'BANK_TRANSFER' || returnData.paymentMethod === 'CARD') {
-      // Bank refund
+    } else if (
+      returnData.paymentMethod === "BANK_TRANSFER" ||
+      returnData.paymentMethod === "CARD"
+    ) {
       refundAccountId = sys.bankAccount;
     } else {
-      // Cash refund
       refundAccountId = sys.cashAccount;
     }
-    
+
     const refundDetails = await getAccountDetails(refundAccountId);
     journalEntries.push({
       ...refundDetails,
@@ -1106,25 +1075,30 @@ export async function postReturnToLedger(
       );
     }
 
-    console.log(`  ✓ Journal entries balanced: DR=${totalDebit.toFixed(2)}, CR=${totalCredit.toFixed(2)}`);
+    console.log(
+      `  ✓ Journal entries balanced: DR=${totalDebit.toFixed(2)}, CR=${totalCredit.toFixed(2)}`
+    );
 
     /* ───────── CREATE JOURNAL VOUCHER ───────── */
 
-    const voucherNumber = await generateVoucherNumber('journal', returnData.outletId);
+    const voucherNumber = await generateVoucherNumber(
+      "journal",
+      returnData.outletId
+    );
 
     const narration = `Return ${returnData.returnNumber} for ${returnData.invoiceNumber} - ${returnData.customerName}`;
 
     const journalVoucher = await Voucher.create([
       {
         voucherNumber,
-        voucherType: 'journal',
+        voucherType: "journal",
         date: returnData.returnDate || new Date(),
         narration,
         entries: journalEntries,
         totalDebit: totalDebit,
         totalCredit: totalCredit,
-        status: 'posted',
-        referenceType: 'ADJUSTMENT', // Using ADJUSTMENT as it's a valid enum value
+        status: "posted",
+        referenceType: "ADJUSTMENT",
         referenceId: returnData._id || returnData.saleId,
         outletId: returnData.outletId,
         createdBy: userId,
@@ -1133,12 +1107,15 @@ export async function postReturnToLedger(
 
     console.log(`  ✓ Created voucher: ${journalVoucher[0].voucherNumber}`);
 
+    // ✅ Apply balance changes
+    await applyVoucherBalances(journalVoucher[0]);
+
     /* ───────── CREATE LEDGER ENTRIES ───────── */
 
     const ledgerDocs = journalEntries.map((e) => ({
       voucherId: journalVoucher[0]._id,
       voucherNumber: journalVoucher[0].voucherNumber,
-      voucherType: 'journal',
+      voucherType: "journal",
       accountId: e.accountId,
       accountNumber: e.accountNumber,
       accountName: e.accountName,
@@ -1146,7 +1123,7 @@ export async function postReturnToLedger(
       credit: e.credit,
       narration: journalVoucher[0].narration,
       date: returnData.returnDate || new Date(),
-      referenceType: 'ADJUSTMENT',
+      referenceType: "ADJUSTMENT",
       referenceId: returnData._id || returnData.saleId,
       referenceNumber: returnData.returnNumber,
       isReversal: false,
@@ -1167,12 +1144,260 @@ export async function postReturnToLedger(
       totalCredit,
     };
   } catch (error) {
-    console.error('Error posting return to ledger:', error);
+    console.error("Error posting return to ledger:", error);
     throw error;
   }
 }
 
-// ADD TO EXPORTS at bottom of file:
+/* ═══════════════════════════════════════════════════════════
+   REVERSE SALE VOUCHER - for sale cancellations
+   ═══════════════════════════════════════════════════════════ */
+
+export async function reverseSaleVoucher(
+  sale: any,
+  userId: mongoose.Types.ObjectId,
+  reason: string
+) {
+  try {
+    const reversalResults: any[] = [];
+
+    // Reverse receipt voucher if exists
+    if (sale.voucherId) {
+      const originalVoucherDoc = await Voucher.findById(sale.voucherId).lean();
+      if (originalVoucherDoc) {
+        const originalVoucher = originalVoucherDoc as any;
+
+        const reversedEntries = originalVoucher.entries.map((e: any) => ({
+          accountId: e.accountId,
+          accountNumber: e.accountNumber,
+          accountName: e.accountName,
+          debit: e.credit,
+          credit: e.debit,
+        }));
+
+        const voucherNumber = await generateVoucherNumber(
+          "receipt",
+          sale.outletId
+        );
+
+        const reversalVoucher = await Voucher.create([
+          {
+            voucherNumber,
+            voucherType: "receipt",
+            date: new Date(),
+            narration: `REVERSAL: ${originalVoucher.narration} - ${reason}`,
+            entries: reversedEntries,
+            totalDebit: originalVoucher.totalCredit,
+            totalCredit: originalVoucher.totalDebit,
+            status: "posted",
+            referenceType: "REVERSAL",
+            referenceId: sale._id,
+            outletId: sale.outletId,
+            createdBy: userId,
+          },
+        ]);
+
+        await applyVoucherBalances(reversalVoucher[0]);
+
+        const ledgerDocs = reversedEntries.map((e: any) => ({
+          voucherId: reversalVoucher[0]._id,
+          voucherNumber: reversalVoucher[0].voucherNumber,
+          voucherType: "receipt",
+          accountId: e.accountId,
+          accountNumber: e.accountNumber,
+          accountName: e.accountName,
+          debit: e.debit,
+          credit: e.credit,
+          narration: reversalVoucher[0].narration,
+          date: new Date(),
+          referenceType: "REVERSAL",
+          referenceId: sale._id,
+          referenceNumber: sale.invoiceNumber,
+          isReversal: true,
+          reversalReason: reason,
+          outletId: sale.outletId,
+          createdBy: userId,
+        }));
+
+        await LedgerEntry.insertMany(ledgerDocs);
+
+        reversalResults.push({
+          type: "receipt",
+          reversalVoucherId: reversalVoucher[0]._id,
+          reversalVoucherNumber: reversalVoucher[0].voucherNumber,
+        });
+      }
+    }
+
+    // Reverse COGS voucher if exists
+    if (sale.cogsVoucherId) {
+      const cogsVoucherDoc = await Voucher.findById(sale.cogsVoucherId).lean();
+      if (cogsVoucherDoc) {
+        const cogsVoucher = cogsVoucherDoc as any;
+
+        const reversedCogsEntries = cogsVoucher.entries.map((e: any) => ({
+          accountId: e.accountId,
+          accountNumber: e.accountNumber,
+          accountName: e.accountName,
+          debit: e.credit,
+          credit: e.debit,
+        }));
+
+        const cogsReversalNumber = await generateVoucherNumber(
+          "journal",
+          sale.outletId
+        );
+
+        const cogsReversalVoucher = await Voucher.create([
+          {
+            voucherNumber: cogsReversalNumber,
+            voucherType: "journal",
+            date: new Date(),
+            narration: `REVERSAL: ${cogsVoucher.narration} - ${reason}`,
+            entries: reversedCogsEntries,
+            totalDebit: cogsVoucher.totalCredit,
+            totalCredit: cogsVoucher.totalDebit,
+            status: "posted",
+            referenceType: "REVERSAL",
+            referenceId: sale._id,
+            outletId: sale.outletId,
+            createdBy: userId,
+          },
+        ]);
+
+        await applyVoucherBalances(cogsReversalVoucher[0]);
+
+        const cogsLedgerDocs = reversedCogsEntries.map((e: any) => ({
+          voucherId: cogsReversalVoucher[0]._id,
+          voucherNumber: cogsReversalVoucher[0].voucherNumber,
+          voucherType: "journal",
+          accountId: e.accountId,
+          accountNumber: e.accountNumber,
+          accountName: e.accountName,
+          debit: e.debit,
+          credit: e.credit,
+          narration: cogsReversalVoucher[0].narration,
+          date: new Date(),
+          referenceType: "REVERSAL",
+          referenceId: sale._id,
+          referenceNumber: sale.invoiceNumber,
+          isReversal: true,
+          reversalReason: reason,
+          outletId: sale.outletId,
+          createdBy: userId,
+        }));
+
+        await LedgerEntry.insertMany(cogsLedgerDocs);
+
+        reversalResults.push({
+          type: "cogs",
+          reversalVoucherId: cogsReversalVoucher[0]._id,
+          reversalVoucherNumber: cogsReversalVoucher[0].voucherNumber,
+        });
+      }
+    }
+
+    console.log(`✓ Sale vouchers reversed: ${reversalResults.length} vouchers`);
+
+    return { reversals: reversalResults };
+  } catch (error) {
+    console.error("Error reversing sale voucher:", error);
+    throw error;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   REVERSE PURCHASE VOUCHER - for purchase cancellations
+   ═══════════════════════════════════════════════════════════ */
+
+export async function reversePurchaseVoucher(
+  purchase: any,
+  userId: mongoose.Types.ObjectId,
+  reason: string
+) {
+  try {
+    if (!purchase.voucherId) {
+      throw new Error("Purchase has no voucher to reverse");
+    }
+
+    const originalVoucherDoc = await Voucher.findById(
+      purchase.voucherId
+    ).lean();
+    if (!originalVoucherDoc) {
+      throw new Error("Original voucher not found");
+    }
+
+    const originalVoucher = originalVoucherDoc as any;
+
+    const reversedEntries = originalVoucher.entries.map((e: any) => ({
+      accountId: e.accountId,
+      accountNumber: e.accountNumber,
+      accountName: e.accountName,
+      debit: e.credit,
+      credit: e.debit,
+    }));
+
+    const voucherNumber = await generateVoucherNumber(
+      "payment",
+      purchase.outletId
+    );
+
+    const reversalVoucher = await Voucher.create([
+      {
+        voucherNumber,
+        voucherType: "payment",
+        date: new Date(),
+        narration: `REVERSAL: ${originalVoucher.narration} - ${reason}`,
+        entries: reversedEntries,
+        totalDebit: originalVoucher.totalCredit,
+        totalCredit: originalVoucher.totalDebit,
+        status: "posted",
+        referenceType: "REVERSAL",
+        referenceId: purchase._id,
+        outletId: purchase.outletId,
+        createdBy: userId,
+      },
+    ]);
+
+    await applyVoucherBalances(reversalVoucher[0]);
+
+    const ledgerDocs = reversedEntries.map((e: any) => ({
+      voucherId: reversalVoucher[0]._id,
+      voucherNumber: reversalVoucher[0].voucherNumber,
+      voucherType: "payment",
+      accountId: e.accountId,
+      accountNumber: e.accountNumber,
+      accountName: e.accountName,
+      debit: e.debit,
+      credit: e.credit,
+      narration: reversalVoucher[0].narration,
+      date: new Date(),
+      referenceType: "REVERSAL",
+      referenceId: purchase._id,
+      referenceNumber: purchase.purchaseNumber,
+      isReversal: true,
+      reversalReason: reason,
+      outletId: purchase.outletId,
+      createdBy: userId,
+    }));
+
+    await LedgerEntry.insertMany(ledgerDocs);
+
+    console.log(
+      `✓ Purchase reversal voucher created: ${reversalVoucher[0].voucherNumber}`
+    );
+
+    return {
+      reversalVoucherId: reversalVoucher[0]._id,
+      reversalVoucherNumber: reversalVoucher[0].voucherNumber,
+    };
+  } catch (error) {
+    console.error("Error reversing purchase voucher:", error);
+    throw error;
+  }
+}
+
+// Export all functions
 export default {
   getSystemAccounts,
   generateVoucherNumber,
@@ -1181,5 +1406,7 @@ export default {
   postExpenseToLedger,
   reverseExpenseVoucher,
   postInventoryAdjustmentToLedger,
-  postReturnToLedger, // ← ADD THIS
+  postReturnToLedger,
+  reverseSaleVoucher,
+  reversePurchaseVoucher,
 };

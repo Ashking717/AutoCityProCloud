@@ -1,9 +1,10 @@
+// app/autocityPro/accounts/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
-import { Wallet, Search, Plus, Edit2, Trash2, X, Eye, Calculator } from 'lucide-react';
+import { Wallet, Search, Plus, Edit2, Trash2, X, Eye, Calculator, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function AccountsPage() {
@@ -12,8 +13,10 @@ export default function AccountsPage() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState<string>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingAccount, setEditingAccount] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
 
   const [formData, setFormData] = useState({
     accountCode: '',
@@ -40,10 +43,12 @@ export default function AccountsPage() {
       { value: 'accounts_receivable', label: 'Accounts Receivable' },
       { value: 'inventory', label: 'Inventory' },
       { value: 'fixed_asset', label: 'Fixed Asset' },
+      { value: 'vat_receivable', label: 'VAT Receivable' },
     ],
     liability: [
       { value: 'accounts_payable', label: 'Accounts Payable' },
       { value: 'loan', label: 'Loan' },
+      { value: 'vat_payable', label: 'VAT Payable' },
     ],
     equity: [
       { value: 'owner_equity', label: 'Owner Equity' },
@@ -52,6 +57,7 @@ export default function AccountsPage() {
     revenue: [
       { value: 'sales_revenue', label: 'Sales Revenue' },
       { value: 'service_revenue', label: 'Service Revenue' },
+      { value: 'sales_returns', label: 'Sales Returns' },
     ],
     expense: [
       { value: 'cogs', label: 'Cost of Goods Sold' },
@@ -78,6 +84,7 @@ export default function AccountsPage() {
   };
 
   const fetchAccounts = async () => {
+    setLoading(true);
     try {
       const res = await fetch('/api/accounts', { credentials: 'include' });
       if (res.ok) {
@@ -92,8 +99,21 @@ export default function AccountsPage() {
     }
   };
 
+  const resetForm = () => {
+    setFormData({
+      accountCode: '',
+      accountName: '',
+      accountType: 'asset',
+      accountSubType: '',
+      accountGroup: '',
+      openingBalance: 0,
+      description: '',
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSaving(true);
 
     try {
       const url = editingAccount ? `/api/accounts/${editingAccount._id}` : '/api/accounts';
@@ -110,15 +130,7 @@ export default function AccountsPage() {
         toast.success(editingAccount ? 'Account updated!' : 'Account created!');
         setShowAddModal(false);
         setEditingAccount(null);
-        setFormData({
-          accountCode: '',
-          accountName: '',
-          accountType: 'asset',
-          accountSubType: '',
-          accountGroup: '',
-          openingBalance: 0,
-          description: '',
-        });
+        resetForm();
         fetchAccounts();
       } else {
         const error = await res.json();
@@ -126,18 +138,20 @@ export default function AccountsPage() {
       }
     } catch (error) {
       toast.error('Failed to save account');
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleEdit = (account: any) => {
     setEditingAccount(account);
     setFormData({
-      accountCode: account.accountNumber,
-      accountName: account.accountName,
-      accountType: account.accountType,
-      accountSubType: account.accountSubType || '',
-      accountGroup: account.accountGroup,
-      openingBalance: account.openingBalance,
+      accountCode: account.code || account.accountNumber || '',
+      accountName: account.name || account.accountName || '',
+      accountType: account.type || account.accountType || 'asset',
+      accountSubType: account.subType || account.accountSubType || '',
+      accountGroup: account.accountGroup || '',
+      openingBalance: account.openingBalance || 0,
       description: account.description || '',
     });
     setShowAddModal(true);
@@ -156,7 +170,8 @@ export default function AccountsPage() {
         toast.success('Account deleted!');
         fetchAccounts();
       } else {
-        toast.error('Failed to delete account');
+        const error = await res.json();
+        toast.error(error.error || 'Failed to delete account');
       }
     } catch (error) {
       toast.error('Failed to delete account');
@@ -168,10 +183,26 @@ export default function AccountsPage() {
     window.location.href = '/autocityPro/login';
   };
 
-  const filteredAccounts = accounts.filter(acc =>
-    acc.accountName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    acc.accountNumber?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredAccounts = accounts.filter(acc => {
+    const matchesSearch = 
+      (acc.name || acc.accountName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (acc.code || acc.accountNumber || '').toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesType = filterType === 'all' || (acc.type || acc.accountType) === filterType;
+    
+    return matchesSearch && matchesType;
+  });
+
+  // Group accounts by type for summary
+  const accountSummary = accounts.reduce((acc, account) => {
+    const type = account.type || account.accountType;
+    if (!acc[type]) {
+      acc[type] = { count: 0, balance: 0 };
+    }
+    acc[type].count++;
+    acc[type].balance += account.currentBalance || 0;
+    return acc;
+  }, {} as Record<string, { count: number; balance: number }>);
 
   return (
     <MainLayout user={user} onLogout={handleLogout}>
@@ -186,6 +217,13 @@ export default function AccountsPage() {
           </div>
           <div className="flex space-x-3">
             <button
+              onClick={fetchAccounts}
+              className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+              title="Refresh"
+            >
+              <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+            <button
               onClick={() => router.push('/autocityPro/accounts/opening-balance')}
               className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
@@ -195,15 +233,7 @@ export default function AccountsPage() {
             <button
               onClick={() => {
                 setEditingAccount(null);
-                setFormData({
-                  accountCode: '',
-                  accountName: '',
-                  accountType: 'asset',
-                  accountSubType: '',
-                  accountGroup: '',
-                  openingBalance: 0,
-                  description: '',
-                });
+                resetForm();
                 setShowAddModal(true);
               }}
               className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
@@ -214,17 +244,54 @@ export default function AccountsPage() {
           </div>
         </div>
 
+        {/* Summary Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+          {['asset', 'liability', 'equity', 'revenue', 'expense'].map((type) => (
+            <div
+              key={type}
+              className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                filterType === type ? 'ring-2 ring-purple-500' : ''
+              } ${
+                type === 'asset' ? 'bg-green-50 border-green-200' :
+                type === 'liability' ? 'bg-red-50 border-red-200' :
+                type === 'equity' ? 'bg-purple-50 border-purple-200' :
+                type === 'revenue' ? 'bg-blue-50 border-blue-200' :
+                'bg-orange-50 border-orange-200'
+              }`}
+              onClick={() => setFilterType(filterType === type ? 'all' : type)}
+            >
+              <p className="text-xs font-medium uppercase text-gray-600">{type}</p>
+              <p className="text-lg font-bold mt-1">
+                {accountSummary[type]?.count || 0} accounts
+              </p>
+              <p className="text-sm text-gray-600">
+                QAR {(accountSummary[type]?.balance || 0).toFixed(2)}
+              </p>
+            </div>
+          ))}
+        </div>
+
         {/* Search */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search accounts..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
-            />
+          <div className="flex gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search accounts..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+              />
+            </div>
+            {filterType !== 'all' && (
+              <button
+                onClick={() => setFilterType('all')}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
+              >
+                Clear Filter
+              </button>
+            )}
           </div>
         </div>
 
@@ -247,6 +314,7 @@ export default function AccountsPage() {
               {loading ? (
                 <tr>
                   <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
+                    <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-2 text-purple-600" />
                     Loading accounts...
                   </td>
                 </tr>
@@ -258,65 +326,81 @@ export default function AccountsPage() {
                   </td>
                 </tr>
               ) : (
-                filteredAccounts.map((account) => (
-                  <tr key={account._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">{account.accountNumber}</td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      {account.accountName}
-                      {account.isSystem && (
-                        <span className="ml-2 px-2 py-0.5 text-xs bg-gray-200 text-gray-600 rounded">System</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                        account.accountType === 'asset' ? 'bg-green-100 text-green-800' :
-                        account.accountType === 'liability' ? 'bg-red-100 text-red-800' :
-                        account.accountType === 'equity' ? 'bg-purple-100 text-purple-800' :
-                        account.accountType === 'revenue' ? 'bg-blue-100 text-blue-800' :
-                        'bg-orange-100 text-orange-800'
-                      }`}>
-                        {account.accountType}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {accountSubTypes[account.accountType]?.find(st => st.value === account.accountSubType)?.label || account.accountSubType || '-'}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{account.accountGroup}</td>
-                    <td className="px-6 py-4 text-sm text-right">QAR {account.openingBalance?.toFixed(2) || '0.00'}</td>
-                    <td className="px-6 py-4 text-sm text-right font-semibold">
-                      <span className={account.currentBalance >= 0 ? 'text-green-600' : 'text-red-600'}>
-                        QAR {account.currentBalance?.toFixed(2) || '0.00'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right text-sm font-medium">
-                      <div className="flex justify-end space-x-2">
-                        <button
-                          onClick={() => router.push(`/autocityPro/accounts/${account._id}`)}
-                          className="text-purple-600 hover:text-purple-900"
-                          title="View Details"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleEdit(account)}
-                          className="text-blue-600 hover:text-blue-900"
-                          title="Edit"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </button>
-                        {!account.isSystem && (
-                          <button
-                            onClick={() => handleDelete(account._id)}
-                            className="text-red-600 hover:text-red-900"
-                            title="Delete"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                filteredAccounts.map((account) => {
+                  const accountType = account.type || account.accountType;
+                  const accountSubType = account.subType || account.accountSubType;
+                  const accountCode = account.code || account.accountNumber;
+                  const accountName = account.name || account.accountName;
+                  
+                  return (
+                    <tr key={account._id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                        {accountCode}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        {accountName}
+                        {account.isSystem && (
+                          <span className="ml-2 px-2 py-0.5 text-xs bg-gray-200 text-gray-600 rounded">
+                            System
+                          </span>
                         )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                          accountType === 'asset' ? 'bg-green-100 text-green-800' :
+                          accountType === 'liability' ? 'bg-red-100 text-red-800' :
+                          accountType === 'equity' ? 'bg-purple-100 text-purple-800' :
+                          accountType === 'revenue' ? 'bg-blue-100 text-blue-800' :
+                          'bg-orange-100 text-orange-800'
+                        }`}>
+                          {accountType}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {accountSubTypes[accountType]?.find(st => st.value === accountSubType)?.label || 
+                         accountSubType || '-'}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {account.accountGroup || '-'}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-right">
+                        QAR {(account.openingBalance || 0).toFixed(2)}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-right font-semibold">
+                        <span className={(account.currentBalance || 0) >= 0 ? 'text-green-600' : 'text-red-600'}>
+                          QAR {(account.currentBalance || 0).toFixed(2)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right text-sm font-medium">
+                        <div className="flex justify-end space-x-2">
+                          <button
+                            onClick={() => router.push(`/autocityPro/accounts/${account._id}`)}
+                            className="text-purple-600 hover:text-purple-900"
+                            title="View Details"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleEdit(account)}
+                            className="text-blue-600 hover:text-blue-900"
+                            title="Edit"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </button>
+                          {!account.isSystem && (
+                            <button
+                              onClick={() => handleDelete(account._id)}
+                              className="text-red-600 hover:text-red-900"
+                              title="Delete"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -328,9 +412,15 @@ export default function AccountsPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center px-6 py-4 border-b">
-              <h2 className="text-xl font-bold">{editingAccount ? 'Edit Account' : 'Add Account'}</h2>
+              <h2 className="text-xl font-bold">
+                {editingAccount ? 'Edit Account' : 'Add Account'}
+              </h2>
               <button 
-                onClick={() => setShowAddModal(false)}
+                onClick={() => {
+                  setShowAddModal(false);
+                  setEditingAccount(null);
+                  resetForm();
+                }}
                 className="text-gray-500 hover:text-gray-700"
               >
                 <X className="h-6 w-6" />
@@ -348,7 +438,7 @@ export default function AccountsPage() {
                     required
                     disabled={editingAccount?.isSystem}
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent disabled:bg-gray-100"
-                    placeholder="e.g., 1001"
+                    placeholder="e.g., AST-001"
                   />
                 </div>
 
@@ -424,7 +514,9 @@ export default function AccountsPage() {
                 <label className="block text-sm font-medium mb-1">
                   Opening Balance
                   {editingAccount && (
-                    <span className="text-xs text-gray-500 ml-2">(Updates will create a journal entry)</span>
+                    <span className="text-xs text-gray-500 ml-2">
+                      (Updates will create a journal entry)
+                    </span>
                   )}
                 </label>
                 <input
@@ -451,16 +543,21 @@ export default function AccountsPage() {
               <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setEditingAccount(null);
+                    resetForm();
+                  }}
                   className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                  disabled={saving}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
                 >
-                  {editingAccount ? 'Update' : 'Create'} Account
+                  {saving ? 'Saving...' : editingAccount ? 'Update' : 'Create'} Account
                 </button>
               </div>
             </form>

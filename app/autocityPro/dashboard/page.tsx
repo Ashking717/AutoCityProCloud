@@ -323,9 +323,9 @@ export default function DashboardPage() {
 
   if (loading && !refreshing) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-950">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-slate-700 border-t-purple-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-slate-700 border-t-indigo-600 mx-auto"></div>
           <p className="mt-4 text-slate-300 text-lg font-medium">Loading dashboard...</p>
           <p className="text-slate-500 text-sm mt-2">Calculating real-time metrics</p>
         </div>
@@ -335,14 +335,14 @@ export default function DashboardPage() {
 
   if (error && !dashboardData) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-950">
-        <div className="text-center max-w-md p-8 bg-slate-800/50 rounded-2xl border border-slate-700">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950">
+        <div className="text-center max-w-md p-8 bg-slate-800/50 rounded-2xl border border-slate-700/50 shadow-2xl">
           <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-white mb-2">Unable to Load Dashboard</h2>
           <p className="text-slate-400 mb-6">{error}</p>
           <button
             onClick={() => fetchDashboardData()}
-            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-medium hover:opacity-90 transition-all duration-200"
+            className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-lg"
           >
             Try Again
           </button>
@@ -416,12 +416,12 @@ export default function DashboardPage() {
       {
         label: 'Sales',
         data: salesTrend.data,
-        borderColor: 'rgb(168, 85, 247)',
-        backgroundColor: 'rgba(168, 85, 247, 0.1)',
+        borderColor: 'rgb(99, 102, 241)',
+        backgroundColor: 'rgba(99, 102, 241, 0.1)',
         fill: true,
         tension: 0.4,
         borderWidth: 2,
-        pointBackgroundColor: 'rgb(168, 85, 247)',
+        pointBackgroundColor: 'rgb(99, 102, 241)',
         pointBorderColor: '#fff',
         pointBorderWidth: 2,
         pointRadius: 4,
@@ -450,18 +450,18 @@ export default function DashboardPage() {
       label: 'Revenue',
       data: topProducts.map(p => p.revenue),
       backgroundColor: [
-        'rgba(168, 85, 247, 0.8)',
-        'rgba(147, 51, 234, 0.8)',
-        'rgba(126, 34, 206, 0.8)',
-        'rgba(107, 33, 168, 0.8)',
-        'rgba(88, 28, 135, 0.8)',
+        'rgba(99, 102, 241, 0.8)',
+        'rgba(79, 70, 229, 0.8)',
+        'rgba(67, 56, 202, 0.8)',
+        'rgba(55, 48, 163, 0.8)',
+        'rgba(49, 46, 129, 0.8)',
       ],
       borderColor: [
-        'rgb(168, 85, 247)',
-        'rgb(147, 51, 234)',
-        'rgb(126, 34, 206)',
-        'rgb(107, 33, 168)',
-        'rgb(88, 28, 135)',
+        'rgb(99, 102, 241)',
+        'rgb(79, 70, 229)',
+        'rgb(67, 56, 202)',
+        'rgb(55, 48, 163)',
+        'rgb(49, 46, 129)',
       ],
       borderWidth: 1,
       borderRadius: 6,
@@ -493,7 +493,7 @@ export default function DashboardPage() {
       title: 'Total Profit',
       value: formatCurrency(stats.totalProfit),
       icon: Activity,
-      gradient: 'from-purple-500 to-indigo-500',
+      gradient: 'from-indigo-500 to-purple-500',
       change: `${formatPercentage(percentageChanges.profitChange)} • ${stats.profitMargin.toFixed(1)}% margin`,
       changePositive: percentageChanges.profitChange >= 0,
       description: getChangeDescription(percentageChanges.profitChange, 'profit'),
@@ -520,33 +520,22 @@ export default function DashboardPage() {
       description: getChangeDescription(percentageChanges.customerChange, 'customers'),
       showTrendIcon: true,
     },
-    // {
-    //   title: 'Pending Payments',
-    //   value: formatCurrency(stats.pendingPayments),
-    //   icon: CreditCard,
-    //   gradient: 'from-rose-500 to-pink-500',
-    //   change: `${stats.pendingCount} outstanding invoices`,
-    //   changePositive: false,
-    //   description: 'Total unpaid amount',
-    //   alert: stats.pendingPayments > 0,
-    //   showTrendIcon: false,
-    // },
   ];
 
   return (
     <MainLayout user={user} onLogout={handleLogout}>
-      <div className="min-h-screen bg-slate-800">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950">
         {/* Header */}
-  <div className="ml-1  mb-6 py-9  bg-gradient-to-r from-indigo-600 to-purple-600 border border-purple-500/30 shadow-lg overflow-hidden fixed-inset-top-0">
+        <div className="mb-6 p-6 bg-gradient-to-br from-indigo-600/10 to-purple-600/10 border-b border-slate-800/50 backdrop-blur-sm">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h1 className="ml-2 text-2xl font-bold text-white">Dashboard</h1>
-              <div className="flex items-center gap-2 mt-1">
-                <p className="ml-2 text-slate-300">
-                  Welcome back, <span className="text-slate-300 font-medium">{user?.lastName}!</span>
+              <h1 className="text-3xl font-bold text-white tracking-tight">Dashboard</h1>
+              <div className="flex items-center gap-2 mt-2">
+                <p className="text-slate-300">
+                  Welcome back, <span className="text-indigo-300 font-semibold">{user?.firstName}!</span>
                 </p>
                 {lastUpdated && (
-                  <span className="text-xs text-gray-300">
+                  <span className="text-xs text-slate-400">
                     • Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 )}
@@ -555,15 +544,15 @@ export default function DashboardPage() {
             
             <div className="flex items-center gap-3">
               {/* Period Selector */}
-              <div className="flex items-center gap-2 bg-slate-800/50 border border-slate-700 rounded-lg p-1">
+              <div className="flex items-center gap-1 bg-slate-800/50 border border-slate-700/50 rounded-xl p-1 backdrop-blur-sm">
                 {periodOptions.map((option) => (
                   <button
                     key={option.value}
                     onClick={() => handlePeriodChange(option.value)}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
                       period === option.value
-                        ? 'bg-slate-700 text-white'
-                        : 'text-slate-400 hover:text-slate-300 hover:bg-slate-800'
+                        ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/20'
+                        : 'text-slate-400 hover:text-slate-300 hover:bg-slate-800/50'
                     }`}
                   >
                     {option.label}
@@ -575,7 +564,7 @@ export default function DashboardPage() {
               <button
                 onClick={handleRefresh}
                 disabled={refreshing}
-                className="p-2 bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-3 bg-slate-800/50 border border-slate-700/50 rounded-xl hover:bg-slate-800 hover:border-slate-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm shadow-lg"
                 title="Refresh data"
               >
                 <RefreshCw className={`h-5 w-5 text-slate-400 ${refreshing ? 'animate-spin' : ''}`} />
@@ -585,13 +574,13 @@ export default function DashboardPage() {
           
           {/* Error Banner */}
           {error && (
-            <div className="mt-6 p-4 bg-red-900/20 border border-red-800 rounded-lg flex items-start gap-3">
+            <div className="mt-6 p-4 bg-red-900/20 border border-red-800/50 rounded-xl flex items-start gap-3 backdrop-blur-sm">
               <AlertCircle className="h-5 w-5 text-red-400 mt-0.5 flex-shrink-0" />
               <div className="flex-1">
                 <p className="text-red-300 text-sm">{error}</p>
                 <button
                   onClick={handleRefresh}
-                  className="text-red-400 hover:text-red-300 text-sm font-medium mt-1"
+                  className="text-red-400 hover:text-red-300 text-sm font-medium mt-1 transition-colors"
                 >
                   Try refreshing
                 </button>
@@ -601,7 +590,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Stats Grid */}
-        <div className="px-8 pb-8">
+        <div className="px-6 pb-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
             {statCards.map((stat, index) => {
               const isPositive = stat.changePositive;
@@ -610,14 +599,15 @@ export default function DashboardPage() {
               return (
                 <div 
                   key={index} 
-                  className="group bg-slate-800/30 border border-slate-700/50 rounded-xl shadow-lg p-5 hover:border-slate-600 hover:bg-slate-800/50 transition-all duration-300"
+                  className="group bg-slate-800/30 border border-slate-700/50 rounded-xl shadow-lg p-5 hover:border-slate-600/50 hover:bg-slate-800/50 transition-all duration-300 backdrop-blur-sm hover:shadow-xl hover:shadow-indigo-500/5"
                 >
                   <div className="flex items-center justify-between mb-4">
-                    <div className={`bg-gradient-to-r ${stat.gradient} p-2.5 rounded-lg shadow-lg`}>
+                    <div className={`bg-gradient-to-r ${stat.gradient} p-3 rounded-xl shadow-lg ring-2 ring-slate-800/50`}>
                       <stat.icon className="h-5 w-5 text-white" />
                     </div>
-                    <span className={`text-xs font-medium text-gray-400 px-2 py-1 rounded-full flex items-center gap-1 
-                    `}>
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 ${
+                      isPositive ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'
+                    }`}>
                       {stat.showTrendIcon && (
                         isPositive 
                           ? <ArrowUpRight className="h-3 w-3" />
@@ -627,19 +617,19 @@ export default function DashboardPage() {
                     </span>
                   </div>
                   
-                  <h3 className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">
+                  <h3 className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">
                     {stat.title}
                   </h3>
-                  <p className="text-2xl font-bold text-white mb-1">
+                  <p className="text-2xl font-bold text-white mb-2">
                     {stat.value}
                   </p>
                   
-                  <div className="flex items-center justify-between mt-4">
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-700/50">
                     <p className="text-xs text-slate-500 truncate">
                       {stat.description}
                     </p>
                     {stat.alert && (
-                      <div className="animate-pulse h-2 w-2 rounded-full bg-red-500"></div>
+                      <div className="animate-pulse h-2 w-2 rounded-full bg-red-500 shadow-lg shadow-red-500/50"></div>
                     )}
                   </div>
                 </div>
@@ -648,19 +638,22 @@ export default function DashboardPage() {
           </div>
 
           {/* Performance Summary */}
-          <div className="mb-8 p-6 bg-slate-800/30 border border-slate-700/50 rounded-xl">
-            <h2 className="text-lg font-bold text-white mb-4">Performance Summary</h2>
+          <div className="mb-8 p-6 bg-slate-800/30 border border-slate-700/50 rounded-xl backdrop-blur-sm shadow-lg">
+            <h2 className="text-lg font-bold text-white mb-6 flex items-center">
+              <Activity className="h-5 w-5 mr-2 text-indigo-400" />
+              Performance Summary
+            </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-slate-800/50 p-4 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-slate-400">Sales Growth</span>
-                  <span className={`text-sm font-medium ${percentageChanges.salesChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              <div className="bg-slate-800/50 p-5 rounded-xl border border-slate-700/50">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-slate-300">Sales Growth</span>
+                  <span className={`text-sm font-bold ${percentageChanges.salesChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                     {formatPercentage(percentageChanges.salesChange)}
                   </span>
                 </div>
-                <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                <div className="h-2.5 bg-slate-700/50 rounded-full overflow-hidden">
                   <div 
-                    className={`h-full ${percentageChanges.salesChange >= 0 ? 'bg-green-500' : 'bg-red-500'}`}
+                    className={`h-full rounded-full transition-all duration-500 ${percentageChanges.salesChange >= 0 ? 'bg-gradient-to-r from-green-500 to-emerald-500' : 'bg-gradient-to-r from-red-500 to-rose-500'}`}
                     style={{ 
                       width: `${Math.min(Math.abs(percentageChanges.salesChange), 100)}%` 
                     }}
@@ -671,16 +664,16 @@ export default function DashboardPage() {
                 </p>
               </div>
               
-              <div className="bg-slate-800/50 p-4 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-slate-400">Profit Margin</span>
-                  <span className={`text-sm font-medium ${stats.profitMargin > 20 ? 'text-green-400' : stats.profitMargin > 10 ? 'text-yellow-400' : 'text-red-400'}`}>
+              <div className="bg-slate-800/50 p-5 rounded-xl border border-slate-700/50">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-slate-300">Profit Margin</span>
+                  <span className={`text-sm font-bold ${stats.profitMargin > 20 ? 'text-green-400' : stats.profitMargin > 10 ? 'text-yellow-400' : 'text-red-400'}`}>
                     {stats.profitMargin.toFixed(1)}%
                   </span>
                 </div>
-                <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                <div className="h-2.5 bg-slate-700/50 rounded-full overflow-hidden">
                   <div 
-                    className={`h-full ${stats.profitMargin > 20 ? 'bg-green-500' : stats.profitMargin > 10 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                    className={`h-full rounded-full transition-all duration-500 ${stats.profitMargin > 20 ? 'bg-gradient-to-r from-green-500 to-emerald-500' : stats.profitMargin > 10 ? 'bg-gradient-to-r from-yellow-500 to-amber-500' : 'bg-gradient-to-r from-red-500 to-rose-500'}`}
                     style={{ 
                       width: `${Math.min(stats.profitMargin, 100)}%` 
                     }}
@@ -691,16 +684,16 @@ export default function DashboardPage() {
                 </p>
               </div>
               
-              <div className="bg-slate-800/50 p-4 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-slate-400">Avg Order Value</span>
-                  <span className="text-sm font-medium text-slate-300">
+              <div className="bg-slate-800/50 p-5 rounded-xl border border-slate-700/50">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-slate-300">Avg Order Value</span>
+                  <span className="text-sm font-bold text-indigo-300">
                     {formatCurrency(stats.averageOrderValue)}
                   </span>
                 </div>
-                <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                <div className="h-2.5 bg-slate-700/50 rounded-full overflow-hidden">
                   <div 
-                    className="h-full bg-blue-500"
+                    className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-500"
                     style={{ 
                       width: `${Math.min(stats.averageOrderValue / 5000 * 100, 100)}%` 
                     }}
@@ -716,10 +709,13 @@ export default function DashboardPage() {
           {/* Charts Section */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             {/* Sales & Profit Trend */}
-            <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl shadow-lg p-6">
+            <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl shadow-lg p-6 backdrop-blur-sm">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="text-lg font-bold text-white">Sales & Profit Trend</h2>
+                  <h2 className="text-lg font-bold text-white flex items-center">
+                    <TrendingUp className="h-5 w-5 mr-2 text-indigo-400" />
+                    Sales & Profit Trend
+                  </h2>
                   <p className="text-sm text-slate-400 mt-1">
                     {period === 'today' ? 'Hourly performance' : 
                      period === 'week' ? 'Last 7 days performance' :
@@ -745,33 +741,35 @@ export default function DashboardPage() {
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center">
                     <AlertTriangle className="h-12 w-12 text-slate-600 mb-4" />
-                    <p className="text-slate-400">No sales data available</p>
-                    <p className="text-slate-500 text-sm">Sales will appear here</p>
+                    <p className="text-slate-400 font-medium">No sales data available</p>
+                    <p className="text-slate-500 text-sm mt-1">Sales will appear here</p>
                   </div>
                 )}
               </div>
               {salesTrend.data.length > 0 && (
-                <div className="flex items-center justify-between mt-4 text-sm text-slate-400">
-                  <span>
-                    Total: {formatCurrency(salesTrend.data.reduce((a, b) => a + b, 0))}
+                <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-700/50 text-sm">
+                  <span className="text-slate-400">
+                    Total: <span className="text-white font-semibold">{formatCurrency(salesTrend.data.reduce((a, b) => a + b, 0))}</span>
                   </span>
-                  <span className={`text-xs ${percentageChanges.salesChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  <span className={`text-xs font-semibold ${percentageChanges.salesChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                     {formatPercentage(percentageChanges.salesChange)} vs previous {period}
                   </span>
                 </div>
               )}
             </div>
 
-{/* Top Products */}
-            <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl shadow-lg p-6">
+            {/* Top Products */}
+            <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl shadow-lg p-6 backdrop-blur-sm">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="text-lg font-bold text-white">Top Products</h2>
+                  <h2 className="text-lg font-bold text-white flex items-center">
+                    <Package className="h-5 w-5 mr-2 text-indigo-400" />
+                    Top Products
+                  </h2>
                   <p className="text-sm text-slate-400 mt-1">
                     Best selling products by revenue
                   </p>
                 </div>
-                <Package className="h-5 w-5 text-slate-500" />
               </div>
               {topProducts.length > 0 ? (
                 <>
@@ -789,21 +787,21 @@ export default function DashboardPage() {
                       }} 
                     />
                   </div>
-                  <div className="mt-4 space-y-3">
+                  <div className="mt-6 space-y-3">
                     {topProducts.map((product, index) => (
-                      <div key={product.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
+                      <div key={product.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-xl border border-slate-700/50 hover:border-indigo-500/30 transition-all">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-center text-white text-sm font-bold">
+                          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-white text-sm font-bold shadow-lg">
                             {index + 1}
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-white">{product.name}</p>
+                            <p className="text-sm font-semibold text-white">{product.name}</p>
                             <p className="text-xs text-slate-400">{product.quantity} units sold</p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-bold text-white">{formatCurrency(product.revenue)}</p>
-                          <p className="text-xs text-slate-400">Revenue</p>
+                          <p className="text-sm font-bold text-indigo-300">{formatCurrency(product.revenue)}</p>
+                          <p className="text-xs text-slate-500">Revenue</p>
                         </div>
                       </div>
                     ))}
@@ -820,42 +818,45 @@ export default function DashboardPage() {
               )}
             </div>
           </div>
+
           {/* Recent Activity & Quick Actions */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Recent Activity */}
-            <div className="lg:col-span-2 bg-slate-800/30 border border-slate-700/50 rounded-xl shadow-lg p-6">
+            <div className="lg:col-span-2 bg-slate-800/30 border border-slate-700/50 rounded-xl shadow-lg p-6 backdrop-blur-sm">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="text-lg font-bold text-white">Recent Activity</h2>
+                  <h2 className="text-lg font-bold text-white flex items-center">
+                    <Activity className="h-5 w-5 mr-2 text-indigo-400" />
+                    Recent Activity
+                  </h2>
                   <p className="text-sm text-slate-400 mt-1">
                     Latest actions in your system
                   </p>
                 </div>
-                <Activity className="h-5 w-5 text-slate-500" />
               </div>
               
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {recentActivity.length > 0 ? (
                   recentActivity.map((activity) => (
                     <div 
                       key={activity.id} 
-                      className="flex items-start gap-4 p-4 bg-slate-800/30 rounded-xl hover:bg-slate-800/50 transition-all group"
+                      className="flex items-start gap-4 p-4 bg-slate-800/30 rounded-xl hover:bg-slate-800/50 transition-all group border border-slate-700/30 hover:border-slate-600/50"
                     >
                       <div className="pt-1">
                         {getActivityIcon(activity.type)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-slate-200 group-hover:text-white transition-colors">
+                        <p className="text-sm text-slate-200 group-hover:text-white transition-colors font-medium">
                           {activity.description}
                         </p>
                         <div className="flex items-center gap-2 mt-2">
-                          <span className="text-xs px-2 py-1 rounded-full bg-slate-800 text-slate-400">
+                          <span className="text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 border border-slate-700/50">
                             {activity.type}
                           </span>
                           <span className="text-xs text-slate-500">
                             by {activity.user}
                           </span>
-                          <span className="text-xs text-slate-500">•</span>
+                          <span className="text-xs text-slate-600">•</span>
                           <span className="text-xs text-slate-500">
                             {activity.timestamp}
                           </span>
@@ -876,7 +877,7 @@ export default function DashboardPage() {
                 <div className="mt-6 pt-6 border-t border-slate-800">
                   <button
                     onClick={() => router.push('/activities')}
-                    className="text-sm text-purple-400 hover:text-purple-300 font-medium flex items-center gap-2"
+                    className="text-sm text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-2 transition-colors"
                   >
                     View all activities
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -888,13 +889,13 @@ export default function DashboardPage() {
             </div>
 
             {/* Quick Actions */}
-            <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl shadow-lg p-6">
+            <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl shadow-lg p-6 backdrop-blur-sm">
               <h2 className="text-lg font-bold text-white mb-6">Quick Actions</h2>
               
               <div className="space-y-3">
                 <button
                   onClick={() => router.push('/sales/new')}
-                  className="w-full p-4 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl text-white font-medium hover:opacity-90 transition-all flex items-center justify-between"
+                  className="w-full p-4 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl text-white font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all flex items-center justify-between shadow-lg hover:shadow-indigo-500/20"
                 >
                   <span>New Sale</span>
                   <ShoppingCart className="h-5 w-5" />
@@ -902,7 +903,7 @@ export default function DashboardPage() {
                 
                 <button
                   onClick={() => router.push('/inventory')}
-                  className="w-full p-4 bg-slate-800/50 border border-slate-700 rounded-xl text-slate-300 font-medium hover:bg-slate-800 hover:border-slate-600 transition-all flex items-center justify-between"
+                  className="w-full p-4 bg-slate-800/50 border border-slate-700/50 rounded-xl text-slate-300 font-semibold hover:bg-slate-800 hover:border-slate-600 transition-all flex items-center justify-between"
                 >
                   <span>Manage Inventory</span>
                   <Package className="h-5 w-5" />
@@ -910,7 +911,7 @@ export default function DashboardPage() {
                 
                 <button
                   onClick={() => router.push('/customers')}
-                  className="w-full p-4 bg-slate-800/50 border border-slate-700 rounded-xl text-slate-300 font-medium hover:bg-slate-800 hover:border-slate-600 transition-all flex items-center justify-between"
+                  className="w-full p-4 bg-slate-800/50 border border-slate-700/50 rounded-xl text-slate-300 font-semibold hover:bg-slate-800 hover:border-slate-600 transition-all flex items-center justify-between"
                 >
                   <span>View Customers</span>
                   <Users className="h-5 w-5" />
@@ -918,7 +919,7 @@ export default function DashboardPage() {
                 
                 <button
                   onClick={() => router.push('/reports')}
-                  className="w-full p-4 bg-slate-800/50 border border-slate-700 rounded-xl text-slate-300 font-medium hover:bg-slate-800 hover:border-slate-600 transition-all flex items-center justify-between"
+                  className="w-full p-4 bg-slate-800/50 border border-slate-700/50 rounded-xl text-slate-300 font-semibold hover:bg-slate-800 hover:border-slate-600 transition-all flex items-center justify-between"
                 >
                   <span>Generate Reports</span>
                   <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -929,25 +930,25 @@ export default function DashboardPage() {
               
               {/* Period Summary */}
               <div className="mt-8 pt-6 border-t border-slate-800">
-                <h3 className="text-sm font-semibold text-slate-400 mb-3">Period Summary</h3>
+                <h3 className="text-sm font-semibold text-slate-400 mb-4">Period Summary</h3>
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg">
                     <span className="text-sm text-slate-400">Total Orders</span>
-                    <span className="text-sm font-medium text-white">{stats.totalOrders}</span>
+                    <span className="text-sm font-bold text-white">{stats.totalOrders}</span>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg">
                     <span className="text-sm text-slate-400">Avg Order Value</span>
-                    <span className="text-sm font-medium text-white">{formatCurrency(stats.averageOrderValue)}</span>
+                    <span className="text-sm font-bold text-white">{formatCurrency(stats.averageOrderValue)}</span>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg">
                     <span className="text-sm text-slate-400">Profit Margin</span>
-                    <span className={`text-sm font-medium ${stats.profitMargin > 20 ? 'text-green-400' : stats.profitMargin > 10 ? 'text-yellow-400' : 'text-red-400'}`}>
+                    <span className={`text-sm font-bold ${stats.profitMargin > 20 ? 'text-green-400' : stats.profitMargin > 10 ? 'text-yellow-400' : 'text-red-400'}`}>
                       {stats.profitMargin.toFixed(1)}%
                     </span>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg">
                     <span className="text-sm text-slate-400">Low Stock Items</span>
-                    <span className={`text-sm font-medium ${stats.lowStockItems === 0 ? 'text-green-400' : 'text-orange-400'}`}>
+                    <span className={`text-sm font-bold ${stats.lowStockItems === 0 ? 'text-green-400' : 'text-orange-400'}`}>
                       {stats.lowStockItems}
                     </span>
                   </div>

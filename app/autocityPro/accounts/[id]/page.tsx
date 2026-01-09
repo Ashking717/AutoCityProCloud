@@ -1,9 +1,13 @@
+// File: app/autocityPro/accounts/[id]/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
-import { Wallet, ArrowLeft, Edit2, Trash2, Save, X, TrendingUp, TrendingDown } from 'lucide-react';
+import { 
+  Wallet, ArrowLeft, Edit2, Trash2, Save, X, 
+  TrendingUp, TrendingDown, RefreshCw, FileText 
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function AccountDetailPage() {
@@ -14,20 +18,62 @@ export default function AccountDetailPage() {
   const [user, setUser] = useState<any>(null);
   const [account, setAccount] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
   
   const [formData, setFormData] = useState({
     accountCode: '',
     accountName: '',
     accountType: 'asset' as 'asset' | 'liability' | 'equity' | 'revenue' | 'expense',
+    accountSubType: '',
     accountGroup: '',
     openingBalance: 0,
     description: '',
   });
+
+  const accountGroups: Record<string, string[]> = {
+    asset: ['Current Assets', 'Fixed Assets', 'Cash & Bank', 'Investments'],
+    liability: ['Current Liabilities', 'Long-term Liabilities', 'Loans'],
+    equity: ['Owner Equity', 'Retained Earnings'],
+    revenue: ['Sales Revenue', 'Service Revenue', 'Other Income'],
+    expense: ['Operating Expenses', 'Administrative Expenses', 'Financial Expenses'],
+  };
+
+  const accountSubTypes: Record<string, { value: string; label: string }[]> = {
+    asset: [
+      { value: 'cash', label: 'Cash' },
+      { value: 'bank', label: 'Bank' },
+      { value: 'accounts_receivable', label: 'Accounts Receivable' },
+      { value: 'inventory', label: 'Inventory' },
+      { value: 'fixed_asset', label: 'Fixed Asset' },
+      { value: 'vat_receivable', label: 'VAT Receivable' },
+    ],
+    liability: [
+      { value: 'accounts_payable', label: 'Accounts Payable' },
+      { value: 'loan', label: 'Loan' },
+      { value: 'vat_payable', label: 'VAT Payable' },
+    ],
+    equity: [
+      { value: 'owner_equity', label: 'Owner Equity' },
+      { value: 'retained_earnings', label: 'Retained Earnings' },
+    ],
+    revenue: [
+      { value: 'sales_revenue', label: 'Sales Revenue' },
+      { value: 'service_revenue', label: 'Service Revenue' },
+      { value: 'sales_returns', label: 'Sales Returns' },
+    ],
+    expense: [
+      { value: 'cogs', label: 'Cost of Goods Sold' },
+      { value: 'operating_expense', label: 'Operating Expense' },
+      { value: 'administrative_expense', label: 'Administrative Expense' },
+    ],
+  };
   
   useEffect(() => {
     fetchUser();
     fetchAccount();
+    fetchRecentTransactions();
   }, [accountId]);
   
   const fetchUser = async () => {
@@ -43,18 +89,23 @@ export default function AccountDetailPage() {
   };
   
   const fetchAccount = async () => {
+    setLoading(true);
     try {
       const res = await fetch(`/api/accounts/${accountId}`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
-        setAccount(data.account);
+        const acc = data.account;
+        setAccount(acc);
+        
+        // Handle both old and new field names
         setFormData({
-          accountCode: data.account.accountNumber,
-          accountName: data.account.accountName,
-          accountType: data.account.accountType,
-          accountGroup: data.account.accountGroup,
-          openingBalance: data.account.openingBalance,
-          description: data.account.description || '',
+          accountCode: acc.code || acc.accountNumber || '',
+          accountName: acc.name || acc.accountName || '',
+          accountType: acc.type || acc.accountType || 'asset',
+          accountSubType: acc.subType || acc.accountSubType || '',
+          accountGroup: acc.accountGroup || '',
+          openingBalance: acc.openingBalance || 0,
+          description: acc.description || '',
         });
       } else {
         toast.error('Account not found');
@@ -67,8 +118,23 @@ export default function AccountDetailPage() {
       setLoading(false);
     }
   };
+
+  const fetchRecentTransactions = async () => {
+    try {
+      const res = await fetch(`/api/ledger-entries?accountId=${accountId}&limit=5`, { 
+        credentials: 'include' 
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setRecentTransactions(data.entries || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch recent transactions');
+    }
+  };
   
   const handleUpdate = async () => {
+    setSaving(true);
     try {
       const res = await fetch(`/api/accounts/${accountId}`, {
         method: 'PUT',
@@ -87,6 +153,8 @@ export default function AccountDetailPage() {
       }
     } catch (error) {
       toast.error('Failed to update account');
+    } finally {
+      setSaving(false);
     }
   };
   
@@ -112,18 +180,26 @@ export default function AccountDetailPage() {
       toast.error('Failed to delete account');
     }
   };
+
+  const cancelEdit = () => {
+    setIsEditing(false);
+    // Reset form to current account values
+    if (account) {
+      setFormData({
+        accountCode: account.code || account.accountNumber || '',
+        accountName: account.name || account.accountName || '',
+        accountType: account.type || account.accountType || 'asset',
+        accountSubType: account.subType || account.accountSubType || '',
+        accountGroup: account.accountGroup || '',
+        openingBalance: account.openingBalance || 0,
+        description: account.description || '',
+      });
+    }
+  };
   
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     window.location.href = '/autocityPro/login';
-  };
-  
-  const accountGroups = {
-    asset: ['Current Assets', 'Fixed Assets', 'Cash & Bank', 'Investments'],
-    liability: ['Current Liabilities', 'Long-term Liabilities', 'Loans'],
-    equity: ['Owner Equity', 'Retained Earnings'],
-    revenue: ['Sales Revenue', 'Service Revenue', 'Other Income'],
-    expense: ['Operating Expenses', 'Administrative Expenses', 'Financial Expenses'],
   };
   
   if (loading) {
@@ -131,7 +207,7 @@ export default function AccountDetailPage() {
       <MainLayout user={user} onLogout={handleLogout}>
         <div className="p-8 flex items-center justify-center min-h-screen">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-purple-600 mx-auto mb-4"></div>
+            <RefreshCw className="h-16 w-16 animate-spin text-purple-600 mx-auto mb-4" />
             <p className="text-gray-600">Loading account...</p>
           </div>
         </div>
@@ -157,8 +233,13 @@ export default function AccountDetailPage() {
       </MainLayout>
     );
   }
-  
-  const balanceChange = account.currentBalance - account.openingBalance;
+
+  // Handle both old and new field names for display
+  const accountType = account.type || account.accountType;
+  const accountSubType = account.subType || account.accountSubType;
+  const accountCode = account.code || account.accountNumber;
+  const accountName = account.name || account.accountName;
+  const balanceChange = (account.currentBalance || 0) - (account.openingBalance || 0);
   
   return (
     <MainLayout user={user} onLogout={handleLogout}>
@@ -175,9 +256,9 @@ export default function AccountDetailPage() {
             <Wallet className="h-8 w-8 text-purple-600" />
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
-                {isEditing ? 'Edit Account' : account.accountName}
+                {isEditing ? 'Edit Account' : accountName}
               </h1>
-              <p className="text-gray-600 mt-1">{account.accountNumber}</p>
+              <p className="text-gray-600 mt-1">{accountCode}</p>
             </div>
           </div>
           
@@ -189,37 +270,31 @@ export default function AccountDetailPage() {
               >
                 View Ledger
               </button>
-              <button
-                onClick={() => setIsEditing(true)}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center space-x-2"
-              >
-                <Edit2 className="h-4 w-4" />
-                <span>Edit</span>
-              </button>
-              <button
-                onClick={handleDelete}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center space-x-2"
-              >
-                <Trash2 className="h-4 w-4" />
-                <span>Delete</span>
-              </button>
+              {!account.isSystem && (
+                <>
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center space-x-2"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                    <span>Edit</span>
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center space-x-2"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span>Delete</span>
+                  </button>
+                </>
+              )}
             </div>
           )}
           
           {isEditing && (
             <div className="flex space-x-2">
               <button
-                onClick={() => {
-                  setIsEditing(false);
-                  setFormData({
-                    accountCode: account.accountNumber,
-                    accountName: account.accountName,
-                    accountType: account.accountType,
-                    accountGroup: account.accountGroup,
-                    openingBalance: account.openingBalance,
-                    description: account.description || '',
-                  });
-                }}
+                onClick={cancelEdit}
                 className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center space-x-2"
               >
                 <X className="h-4 w-4" />
@@ -227,10 +302,11 @@ export default function AccountDetailPage() {
               </button>
               <button
                 onClick={handleUpdate}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center space-x-2"
+                disabled={saving}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center space-x-2 disabled:opacity-50"
               >
                 <Save className="h-4 w-4" />
-                <span>Save Changes</span>
+                <span>{saving ? 'Saving...' : 'Save Changes'}</span>
               </button>
             </div>
           )}
@@ -251,7 +327,7 @@ export default function AccountDetailPage() {
                         value={formData.accountCode}
                         onChange={(e) => setFormData({ ...formData, accountCode: e.target.value })}
                         required
-                        className="w-full px-3 py-2 border rounded-lg"
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-600"
                       />
                     </div>
                     
@@ -262,24 +338,45 @@ export default function AccountDetailPage() {
                         value={formData.accountName}
                         onChange={(e) => setFormData({ ...formData, accountName: e.target.value })}
                         required
-                        className="w-full px-3 py-2 border rounded-lg"
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-600"
                       />
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium mb-1">Account Type *</label>
                       <select
                         value={formData.accountType}
-                        onChange={(e) => setFormData({ ...formData, accountType: e.target.value as any, accountGroup: '' })}
-                        className="w-full px-3 py-2 border rounded-lg"
+                        onChange={(e) => setFormData({ 
+                          ...formData, 
+                          accountType: e.target.value as any, 
+                          accountSubType: '',
+                          accountGroup: '' 
+                        })}
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-600"
                       >
                         <option value="asset">Asset</option>
                         <option value="liability">Liability</option>
                         <option value="equity">Equity</option>
                         <option value="revenue">Revenue</option>
                         <option value="expense">Expense</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Sub Type</label>
+                      <select
+                        value={formData.accountSubType}
+                        onChange={(e) => setFormData({ ...formData, accountSubType: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-600"
+                      >
+                        <option value="">Select Sub Type</option>
+                        {(accountSubTypes[formData.accountType] || []).map(st => (
+                          <option key={st.value} value={st.value}>
+                            {st.label}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     
@@ -289,10 +386,10 @@ export default function AccountDetailPage() {
                         value={formData.accountGroup}
                         onChange={(e) => setFormData({ ...formData, accountGroup: e.target.value })}
                         required
-                        className="w-full px-3 py-2 border rounded-lg"
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-600"
                       >
                         <option value="">Select Group</option>
-                        {accountGroups[formData.accountType].map(group => (
+                        {(accountGroups[formData.accountType] || []).map(group => (
                           <option key={group} value={group}>{group}</option>
                         ))}
                       </select>
@@ -306,7 +403,7 @@ export default function AccountDetailPage() {
                       value={formData.openingBalance}
                       onChange={(e) => setFormData({ ...formData, openingBalance: parseFloat(e.target.value) || 0 })}
                       step="0.01"
-                      className="w-full px-3 py-2 border rounded-lg"
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-600"
                     />
                   </div>
                   
@@ -316,7 +413,7 @@ export default function AccountDetailPage() {
                       value={formData.description}
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                       rows={4}
-                      className="w-full px-3 py-2 border rounded-lg"
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-600"
                       placeholder="Optional description"
                     />
                   </div>
@@ -329,25 +426,38 @@ export default function AccountDetailPage() {
                   <div className="grid grid-cols-2 gap-6">
                     <div>
                       <label className="text-sm text-gray-600">Account Number</label>
-                      <p className="text-lg font-semibold text-gray-900">{account.accountNumber}</p>
+                      <p className="text-lg font-semibold text-gray-900">{accountCode}</p>
                     </div>
                     <div>
                       <label className="text-sm text-gray-600">Account Type</label>
-                      <span className={`inline-block px-3 py-1 text-sm font-semibold rounded-full ${
-                        account.accountType === 'asset' ? 'bg-green-100 text-green-800' :
-                        account.accountType === 'liability' ? 'bg-red-100 text-red-800' :
-                        account.accountType === 'equity' ? 'bg-purple-100 text-purple-800' :
-                        account.accountType === 'revenue' ? 'bg-blue-100 text-blue-800' :
-                        'bg-orange-100 text-orange-800'
-                      }`}>
-                        {account.accountType}
-                      </span>
+                      <div className="mt-1">
+                        <span className={`inline-block px-3 py-1 text-sm font-semibold rounded-full ${
+                          accountType === 'asset' ? 'bg-green-100 text-green-800' :
+                          accountType === 'liability' ? 'bg-red-100 text-red-800' :
+                          accountType === 'equity' ? 'bg-purple-100 text-purple-800' :
+                          accountType === 'revenue' ? 'bg-blue-100 text-blue-800' :
+                          'bg-orange-100 text-orange-800'
+                        }`}>
+                          {accountType}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  
-                  <div>
-                    <label className="text-sm text-gray-600">Account Group</label>
-                    <p className="text-lg font-semibold text-gray-900">{account.accountGroup}</p>
+
+                  <div className="grid grid-cols-2 gap-6">
+                    <div>
+                      <label className="text-sm text-gray-600">Sub Type</label>
+                      <p className="text-lg font-semibold text-gray-900">
+                        {accountSubTypes[accountType]?.find(st => st.value === accountSubType)?.label || 
+                         accountSubType || '-'}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-600">Account Group</label>
+                      <p className="text-lg font-semibold text-gray-900">
+                        {account.accountGroup || '-'}
+                      </p>
+                    </div>
                   </div>
                   
                   {account.description && (
@@ -356,13 +466,67 @@ export default function AccountDetailPage() {
                       <p className="text-gray-900">{account.description}</p>
                     </div>
                   )}
+
+                  {account.isSystem && (
+                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <p className="text-sm text-yellow-800">
+                        <strong>System Account:</strong> This account is managed by the system and cannot be deleted.
+                      </p>
+                    </div>
+                  )}
                   
                   <div className="pt-4 border-t">
                     <label className="text-sm text-gray-600">Created</label>
                     <p className="text-gray-900">
-                      {new Date(account.createdAt).toLocaleDateString()} at {new Date(account.createdAt).toLocaleTimeString()}
+                      {new Date(account.createdAt).toLocaleDateString()} at{' '}
+                      {new Date(account.createdAt).toLocaleTimeString()}
                     </p>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Recent Transactions */}
+            {!isEditing && recentTransactions.length > 0 && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold">Recent Transactions</h2>
+                  <button
+                    onClick={() => router.push(`/autocityPro/ledgers?account=${accountId}`)}
+                    className="text-sm text-purple-600 hover:text-purple-800"
+                  >
+                    View All →
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {recentTransactions.map((entry) => (
+                    <div 
+                      key={entry._id} 
+                      className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <FileText className="h-5 w-5 text-gray-400" />
+                        <div>
+                          <p className="font-medium text-gray-900">{entry.narration}</p>
+                          <p className="text-sm text-gray-500">
+                            {new Date(entry.date).toLocaleDateString()} • {entry.voucherNumber}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        {entry.debit > 0 && (
+                          <p className="font-semibold text-green-600">
+                            DR: QAR {entry.debit.toFixed(2)}
+                          </p>
+                        )}
+                        {entry.credit > 0 && (
+                          <p className="font-semibold text-red-600">
+                            CR: QAR {entry.credit.toFixed(2)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -376,14 +540,16 @@ export default function AccountDetailPage() {
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <label className="text-sm text-gray-600">Opening Balance</label>
                   <p className="text-2xl font-bold text-gray-900">
-                    QAR {account.openingBalance?.toFixed(2) || '0.00'}
+                    QAR {(account.openingBalance || 0).toFixed(2)}
                   </p>
                 </div>
                 
                 <div className="p-4 bg-blue-50 rounded-lg">
                   <label className="text-sm text-blue-600">Current Balance</label>
-                  <p className={`text-3xl font-bold ${account.currentBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    QAR {account.currentBalance?.toFixed(2) || '0.00'}
+                  <p className={`text-3xl font-bold ${
+                    (account.currentBalance || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    QAR {(account.currentBalance || 0).toFixed(2)}
                   </p>
                 </div>
                 
@@ -398,7 +564,9 @@ export default function AccountDetailPage() {
                       )
                     )}
                   </div>
-                  <p className={`text-xl font-bold ${balanceChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <p className={`text-xl font-bold ${
+                    balanceChange >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
                     {balanceChange >= 0 ? '+' : ''}QAR {balanceChange.toFixed(2)}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
@@ -428,6 +596,12 @@ export default function AccountDetailPage() {
                   className="w-full px-4 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 text-left"
                 >
                   View in Balance Sheet
+                </button>
+                <button
+                  onClick={() => router.push('/autocityPro/reports/trial-balance')}
+                  className="w-full px-4 py-2 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 text-left"
+                >
+                  View Trial Balance
                 </button>
               </div>
             </div>

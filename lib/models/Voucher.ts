@@ -9,17 +9,20 @@ export enum VoucherType {
 }
 
 export enum ReferenceType {
+  OPENING_BALANCE = 'OPENING_BALANCE',
   SALE = 'SALE',
   PURCHASE = 'PURCHASE',
   PAYMENT = 'PAYMENT',
   RECEIPT = 'RECEIPT',
   ADJUSTMENT = 'ADJUSTMENT',
   REVERSAL = 'REVERSAL',
+  MANUAL = 'MANUAL',
+  TRANSFER = 'TRANSFER',
 }
 
 export interface IVoucherEntry {
   accountId: mongoose.Types.ObjectId;
-  accountNumber?: string; // Added for consistency with ledger entries
+  accountNumber?: string;
   accountName: string;
   debit: number;
   credit: number;
@@ -35,116 +38,82 @@ export interface IVoucher extends Document {
   totalDebit: number;
   totalCredit: number;
   status: 'draft' | 'posted' | 'approved' | 'cancelled';
-  
-  // Reference to source transaction - CRITICAL FOR CLOSINGS
   referenceType?: ReferenceType;
   referenceId?: mongoose.Types.ObjectId;
   referenceNumber?: string;
-  
-  attachments?: string[];
   outletId: mongoose.Types.ObjectId;
   createdBy: mongoose.Types.ObjectId;
   approvedBy?: mongoose.Types.ObjectId;
   approvedAt?: Date;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 const VoucherEntrySchema = new Schema(
   {
     accountId: { type: Schema.Types.ObjectId, ref: 'Account', required: true },
-    accountNumber: { type: String }, // Added
+    accountNumber: String,
     accountName: { type: String, required: true },
-    debit: { type: Number, default: 0, min: 0 },
-    credit: { type: Number, default: 0, min: 0 },
-    narration: { type: String },
+    debit: { type: Number, default: 0 },
+    credit: { type: Number, default: 0 },
+    narration: String,
   },
   { _id: false }
 );
 
 const VoucherSchema = new Schema<IVoucher>(
   {
-    voucherNumber: {
-      type: String,
-      required: true,
-      unique: true,
-      uppercase: true,
-      index: true,
-    },
-    voucherType: {
-      type: String,
-      required: true,
-      enum: Object.values(VoucherType),
-      index: true,
-    },
-    date: { 
-      type: Date, 
-      required: true,
-      index: true,
-    },
-    narration: { type: String, required: true },
-    entries: { type: [VoucherEntrySchema], required: true },
-    totalDebit: { type: Number, required: true, min: 0 },
-    totalCredit: { type: Number, required: true, min: 0 },
+    voucherNumber: { type: String, unique: true, index: true },
+    voucherType: { type: String, enum: Object.values(VoucherType), index: true },
+    date: { type: Date, index: true },
+    narration: String,
+    entries: [VoucherEntrySchema],
+    totalDebit: Number,
+    totalCredit: Number,
     status: {
       type: String,
-      default: 'draft',
       enum: ['draft', 'posted', 'approved', 'cancelled'],
+      default: 'draft',
       index: true,
     },
-    
-    // Reference fields - CRITICAL for tracking source transactions
     referenceType: {
       type: String,
       enum: Object.values(ReferenceType),
       index: true,
     },
-    referenceId: {
-      type: Schema.Types.ObjectId,
-      index: true,
-    },
-    referenceNumber: {
-      type: String,
-    },
-    
-    attachments: [String],
-    outletId: { 
-      type: Schema.Types.ObjectId, 
-      ref: 'Outlet', 
-      required: true,
-      index: true,
-    },
+    referenceId: { type: Schema.Types.ObjectId, index: true },
+    referenceNumber: String,
+    outletId: { type: Schema.Types.ObjectId, ref: 'Outlet', required: true, index: true },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     approvedBy: { type: Schema.Types.ObjectId, ref: 'User' },
-    approvedAt: { type: Date },
+    approvedAt: Date,
   },
   { timestamps: true }
 );
 
-// Indexes for efficient querying
-VoucherSchema.index({ outletId: 1, date: -1 });
+// Compound indexes for common queries
 VoucherSchema.index({ outletId: 1, voucherType: 1, date: -1 });
 VoucherSchema.index({ outletId: 1, status: 1 });
-VoucherSchema.index({ outletId: 1, referenceType: 1, date: -1 }); // NEW - Critical for closings
-VoucherSchema.index({ referenceType: 1, referenceId: 1 }); // NEW - For lookups
+VoucherSchema.index({ outletId: 1, referenceType: 1, referenceId: 1 });
 
-// Validation: Ensure debits equal credits
-VoucherSchema.pre('save', function(next) {
-  const debitTotal = this.entries.reduce((sum, e) => sum + e.debit, 0);
-  const creditTotal = this.entries.reduce((sum, e) => sum + e.credit, 0);
-  
-  if (Math.abs(debitTotal - creditTotal) > 0.01) {
-    return next(new Error(`Voucher entries must balance. Debits: ${debitTotal}, Credits: ${creditTotal}`));
+// Pre-save validation: ensure voucher is balanced
+VoucherSchema.pre('save', function (next) {
+  const dr = this.entries.reduce((s, e) => s + (e.debit || 0), 0);
+  const cr = this.entries.reduce((s, e) => s + (e.credit || 0), 0);
+
+  if (Math.abs(dr - cr) > 0.01) {
+    return next(new Error(`Voucher not balanced: DR=${dr.toFixed(2)}, CR=${cr.toFixed(2)}`));
   }
-  
-  this.totalDebit = debitTotal;
-  this.totalCredit = creditTotal;
-  
+
+  this.totalDebit = dr;
+  this.totalCredit = cr;
   next();
 });
 
-const Voucher =
-  mongoose.models.Voucher ||
-  mongoose.model<IVoucher>('Voucher', VoucherSchema);
+// ⚠️ IMPORTANT: Delete cached model to force re-registration with updated enum
+// This is needed because Mongoose caches models and won't pick up enum changes
+if (mongoose.models.Voucher) {
+  delete mongoose.models.Voucher;
+}
+
+const Voucher = mongoose.model<IVoucher>('Voucher', VoucherSchema);
 
 export default Voucher;

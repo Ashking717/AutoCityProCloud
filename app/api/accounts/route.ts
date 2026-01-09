@@ -56,9 +56,11 @@ export async function GET(request: NextRequest) {
         
         // For assets and expenses: debit increases, credit decreases
         // For liabilities, equity, and revenue: credit increases, debit decreases
-        const accountType = (acc.type || acc.accountType || '').toUpperCase();
+        // ✅ FIX: Convert to lowercase for comparison
+        const accountType = (acc.type || acc.accountType || '').toLowerCase();
         let currentBalance = acc.openingBalance || 0;
 
+        // ✅ FIX: Compare with lowercase values
         if (accountType === 'asset' || accountType === 'expense') {
           currentBalance += (totalDebits - totalCredits);
         } else {
@@ -117,12 +119,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Account number already exists' }, { status: 400 });
     }
 
+    // ✅ Store type in lowercase for consistency
+    const normalizedType = accountType.toLowerCase();
+    const normalizedSubType = accountSubType ? accountSubType.toLowerCase() : undefined;
+
     // Create account using the DB schema field names
     const account = await Account.create({
       code: accountCode,
       name: accountName,
-      type: accountType.toUpperCase(),
-      subType: accountSubType ? accountSubType.toUpperCase() : undefined,
+      type: normalizedType,
+      subType: normalizedSubType,
       accountGroup,
       openingBalance: openingBalance || 0,
       currentBalance: openingBalance || 0,
@@ -133,8 +139,8 @@ export async function POST(request: NextRequest) {
     });
 
     // Fetch user for activity log
-    const userDoc = await User.findById(user.userId).lean();
-    const username = userDoc?.username || userDoc?.username || user.username || user.email || "Unknown User";
+    const userDoc = await User.findById(user.userId).lean() as any;
+    const username = userDoc?.username || user.email || "Unknown User";
 
     await ActivityLog.create({
       userId: user.userId,

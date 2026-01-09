@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     title: "AutoCity Qatar – Automotive Parts, Accessories & Services",
     description:
       "Premium automotive parts, accessories, and expert automotive services in Qatar.",
-    url: "https://autocityqatar.com",
+    url: "https://autocityqatar.com/autocitypro/login",
     siteName: "AutoCity Qatar",
     type: "website",
     images: [

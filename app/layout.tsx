@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     title: "AutoCity Qatar – Automotive Parts, Accessories & Services",
     description:
       "Premium automotive parts, accessories, and expert services in Qatar.",
-    images: ["https://autocityqatar.com/logo.png"],
+    images: ["https://autocityqatar.com/logo_og.png"],
   },
 };
 

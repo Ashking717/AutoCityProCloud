@@ -9,7 +9,7 @@ import { Lock, User, Mail, Eye, EyeOff, ArrowLeft, Globe } from 'lucide-react';
 // Content translations
 const content = {
   en: {
-    title: 'AutoCity Pro',
+    title: 'AutoCity ',
     subtitle: 'Internal Operations Portal',
     signIn: 'Sign In',
     signInDesc: 'Access your staff dashboard',

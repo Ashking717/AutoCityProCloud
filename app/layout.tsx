@@ -7,14 +7,21 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: {
-    default: "AutoCity Qatar – Automotive Parts, Accessories & Services",
-    template: "%s | AutoCity Qatar",
+    default: "AutoCity Pro",
+    template: "%s | AutoCity Pro",
   },
 
   description:
-    "AutoCity Qatar provides premium automotive parts, accessories, and professional services for all vehicle needs across Qatar.",
+    "AutoCity Pro dashboard for managing sales, inventory, and reports.",
 
   manifest: "/manifest.json",
+
+  // 🔥 THIS IS WHAT YOU WERE MISSING
+  appleWebApp: {
+    capable: true,
+    title: "AutoCity Pro",
+    statusBarStyle: "black-translucent",
+  },
 
   icons: {
     icon: [
@@ -25,27 +32,27 @@ export const metadata: Metadata = {
   },
 
   openGraph: {
-    title: "AutoCity Qatar – Automotive Parts, Accessories & Services",
+    title: "AutoCity Pro",
     description:
-      "Premium automotive parts, accessories, and expert automotive services in Qatar.",
+      "AutoCity Pro dashboard for managing business operations.",
     url: "https://autocityqatar.com/autocitypro/login",
-    siteName: "AutoCity Qatar",
+    siteName: "AutoCity Pro",
     type: "website",
     images: [
       {
         url: "https://autocityqatar.com/logo.png",
         width: 1200,
         height: 630,
-        alt: "AutoCity Qatar Logo",
+        alt: "AutoCity Pro Logo",
       },
     ],
   },
 
   twitter: {
     card: "summary_large_image",
-    title: "AutoCity Qatar – Automotive Parts, Accessories & Services",
+    title: "AutoCity Pro",
     description:
-      "Premium automotive parts, accessories, and expert services in Qatar.",
+      "AutoCity Pro dashboard for sales, stock, and reporting.",
     images: ["https://autocityqatar.com/logo_og.png"],
   },
 };

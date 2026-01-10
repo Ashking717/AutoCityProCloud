@@ -587,7 +587,7 @@ export default function ProductsPage() {
         </div>
 
         {/* Desktop Header */}
-        <div className="hidden md:block py-6 bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-xl">
+        <div className="hidden md:block py-12 bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-xl">
           <div className="px-8">
             <div className="flex justify-between items-center">
               <div>

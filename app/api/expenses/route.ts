@@ -304,11 +304,15 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/* ═══════════════════════════════════════════════════════════
-   GET EXPENSES
-   - List expenses with filters
-   - Pagination support
-   ═══════════════════════════════════════════════════════════ */
+// ═══════════════════════════════════════════════════════════
+// ENHANCED GET METHOD FOR /api/expenses
+// ═══════════════════════════════════════════════════════════
+// 
+// INSTRUCTIONS: Replace your existing GET method in app/api/expenses/route.ts
+// with this enhanced version that adds sort, order, and limit parameters
+//
+// Your existing POST and PATCH methods remain unchanged!
+// ═══════════════════════════════════════════════════════════
 
 export async function GET(request: NextRequest) {
   try {
@@ -323,21 +327,27 @@ export async function GET(request: NextRequest) {
     const user = verifyToken(token);
     const outletId = new mongoose.Types.ObjectId(user.outletId || '');
 
-    // ───────────────── QUERY PARAMS ─────────────────
+    // ───────────────── QUERY PARAMS (ENHANCED) ─────────────────
     const { searchParams } = new URL(request.url);
+    
+    // NEW: Sort and pagination parameters
+    const sort = searchParams.get('sort') || 'expenseDate';
+    const order = searchParams.get('order') || 'desc';
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const page = parseInt(searchParams.get('page') || '1');
+    
+    // Existing parameters
     const category = searchParams.get('category');
     const status = searchParams.get('status');
     const vendorName = searchParams.get('vendorName');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
 
     // ───────────────── BUILD QUERY ─────────────────
     const query: any = { outletId };
 
-    if (category) query.category = category;
-    if (status) query.status = status;
+    if (category && category !== 'all') query.category = category;
+    if (status && status !== 'all') query.status = status.toUpperCase();
     if (vendorName) query.vendorName = { $regex: vendorName, $options: 'i' };
 
     if (startDate && endDate) {
@@ -350,10 +360,15 @@ export async function GET(request: NextRequest) {
     // ───────────────── PAGINATION ─────────────────
     const skip = (page - 1) * limit;
 
+    // NEW: Build sort object
+    const sortOrder = order === 'desc' ? -1 : 1;
+    const sortObj: any = {};
+    sortObj[sort] = sortOrder;
+
     // ───────────────── EXECUTE QUERY ─────────────────
     const [expenses, total] = await Promise.all([
       Expense.find(query)
-        .sort({ expenseDate: -1, createdAt: -1 })
+        .sort(sortObj)  // Enhanced: Use dynamic sorting
         .skip(skip)
         .limit(limit)
         .populate('createdBy', 'name email username')
@@ -363,8 +378,18 @@ export async function GET(request: NextRequest) {
       Expense.countDocuments(query),
     ]);
 
+    // ───────────────── FORMAT FOR FRONTEND ─────────────────
+    // NEW: Add alternative field names for frontend compatibility
+    const formattedExpenses = expenses.map((expense: any) => ({
+      ...expense,
+      // Add alternative field names
+      expense_category: expense.category,
+      created_at: new Date(expense.createdAt).toISOString().split('T')[0],
+      date: new Date(expense.expenseDate || expense.createdAt).toISOString().split('T')[0],
+    }));
+
     return NextResponse.json({
-      expenses,
+      expenses: formattedExpenses,
       pagination: {
         page,
         limit,
@@ -380,7 +405,6 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
 /* ═══════════════════════════════════════════════════════════
    UPDATE EXPENSE STATUS
    - Approve, Pay, Cancel actions

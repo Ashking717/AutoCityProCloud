@@ -12,6 +12,7 @@ export enum ReferenceType {
   OPENING_BALANCE = 'OPENING_BALANCE',
   SALE = 'SALE',
   PURCHASE = 'PURCHASE',
+  PURCHASE_PAYMENT = 'PURCHASE_PAYMENT',  // ← ADDED THIS LINE
   PAYMENT = 'PAYMENT',
   RECEIPT = 'RECEIPT',
   ADJUSTMENT = 'ADJUSTMENT',
@@ -45,6 +46,7 @@ export interface IVoucher extends Document {
   createdBy: mongoose.Types.ObjectId;
   approvedBy?: mongoose.Types.ObjectId;
   approvedAt?: Date;
+  metadata?: any; // Add metadata field for storing payment details
 }
 
 const VoucherEntrySchema = new Schema(
@@ -81,6 +83,7 @@ const VoucherSchema = new Schema<IVoucher>(
     },
     referenceId: { type: Schema.Types.ObjectId, index: true },
     referenceNumber: String,
+    metadata: { type: Schema.Types.Mixed }, // Added metadata field
     outletId: { type: Schema.Types.ObjectId, ref: 'Outlet', required: true, index: true },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     approvedBy: { type: Schema.Types.ObjectId, ref: 'User' },
@@ -98,11 +101,11 @@ VoucherSchema.index({ outletId: 1, referenceType: 1, referenceId: 1 });
 VoucherSchema.pre('save', function (next) {
   const dr = this.entries.reduce((s, e) => s + (e.debit || 0), 0);
   const cr = this.entries.reduce((s, e) => s + (e.credit || 0), 0);
-
+  
   if (Math.abs(dr - cr) > 0.01) {
     return next(new Error(`Voucher not balanced: DR=${dr.toFixed(2)}, CR=${cr.toFixed(2)}`));
   }
-
+  
   this.totalDebit = dr;
   this.totalCredit = cr;
   next();

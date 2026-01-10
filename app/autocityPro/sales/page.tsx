@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
+import InvoicePrint from '@/components/InvoicePrint';
 import {
   Plus,
   Search,
@@ -25,6 +26,16 @@ import {
   Undo,
   Zap,
   AlertCircle,
+  ShoppingCart,
+  TrendingUp,
+  Printer,
+  Sparkles,
+  Home,
+  Package,
+  BarChart3,
+  LogOut,
+  ChevronDown,
+  ChevronRight as ChevronRightIcon,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
@@ -76,6 +87,12 @@ export default function SalesPage() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedSaleDetails, setSelectedSaleDetails] = useState<any>(null);
 
+  // Invoice printing states
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [selectedSaleForInvoice, setSelectedSaleForInvoice] = useState<any>(null);
+  const [invoiceData, setInvoiceData] = useState<any>(null);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
+
   // Date range presets
   const datePresets = [
     { label: "Today", value: "today" },
@@ -111,7 +128,6 @@ export default function SalesPage() {
     fetchUser();
     fetchSales();
   }, [dateRange, pagination.page, statusFilter]);
-  // PART 2: All Functions and Handlers
 
   const fetchUser = async () => {
     try {
@@ -156,6 +172,104 @@ export default function SalesPage() {
     }
   };
 
+const handlePrintInvoice = async (sale: any) => {
+  try {
+    setInvoiceLoading(true);
+    
+    const res = await fetch(`/api/sales/${sale._id}`, {
+      credentials: "include",
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const saleData = data.sale;
+      
+      // Format data for InvoicePrint component
+      const invoiceData = {
+        invoiceNumber: saleData.invoiceNumber,
+        saleDate: saleData.saleDate,
+        poNumber: saleData.poNumber || "",
+        dueDate: saleData.dueDate || "",
+        items: saleData.items?.map((item: any) => ({
+          name: item.name,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          discount: item.discountAmount || 0,
+          total: item.total || (item.unitPrice * item.quantity),
+        })) || [],
+        subtotal: saleData.subtotal || 0,
+        totalDiscount: saleData.totalDiscount || 0,
+        totalTax: saleData.totalTax || 0,
+        grandTotal: saleData.grandTotal || 0,
+      };
+
+      // DEBUG: Log the data to see what we're getting
+      console.log("Sale data for invoice:", {
+        saleId: sale._id,
+        customerId: saleData.customerId,
+        customerIdType: typeof saleData.customerId,
+        customerData: saleData.customer,
+        outletId: user?.outletId,
+        user: user
+      });
+
+      // Extract customer ID properly
+      let customerId;
+      if (typeof saleData.customerId === 'object' && saleData.customerId !== null) {
+        // If customerId is an object, get the _id from it
+        customerId = saleData.customerId._id || saleData.customerId.id;
+      } else if (saleData.customer && typeof saleData.customer === 'object') {
+        // If there's a customer object, get the _id from it
+        customerId = saleData.customer._id;
+      } else {
+        // Otherwise use it as is
+        customerId = saleData.customerId;
+      }
+
+      // Get outlet ID - check if user has outletId or if it's in saleData
+      let outletId = user?.outletId || saleData.outletId;
+      
+      // If outletId is an object, extract the string
+      if (typeof outletId === 'object' && outletId !== null) {
+        outletId = outletId._id || outletId.id;
+      }
+
+      // Validate required data
+      if (!customerId) {
+        toast.error("Customer information not available");
+        console.error("No customer ID found:", saleData);
+        return;
+      }
+
+      if (!outletId) {
+        toast.error("Outlet information not available");
+        console.error("No outlet ID found:", { user, saleData });
+        return;
+      }
+
+      console.log("Final IDs for invoice:", { customerId, outletId });
+
+      setInvoiceData(invoiceData);
+      setSelectedSaleForInvoice({
+        ...saleData,
+        outletId: outletId,
+        customerId: customerId
+      });
+      setShowInvoiceModal(true);
+      setShowActions(null);
+      
+      toast.success("Invoice loaded for printing");
+    } else {
+      const errorData = await res.json();
+      toast.error(errorData.error || "Failed to load invoice data");
+    }
+  } catch (error) {
+    console.error("Error loading invoice:", error);
+    toast.error("Failed to load invoice");
+  } finally {
+    setInvoiceLoading(false);
+  }
+};
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     window.location.href = "/autocityPro/login";
@@ -493,8 +607,8 @@ export default function SalesPage() {
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, string> = {
       COMPLETED: "bg-green-600/20 text-green-400 border-green-600/30",
-      DRAFT: "bg-slate-600/20 text-slate-400 border-slate-600/30",
-      CANCELLED: "bg-red-600/20 text-red-400 border-red-600/30",
+      DRAFT: "bg-[#333333]/50 text-gray-400 border-white/10",
+      CANCELLED: "bg-[#E84545]/20 text-[#E84545] border-[#E84545]/30",
       REFUNDED: "bg-yellow-600/20 text-yellow-400 border-yellow-600/30",
       RETURNED: "bg-orange-600/20 text-orange-400 border-orange-600/30",
       PARTIAL_RETURN: "bg-blue-600/20 text-blue-400 border-blue-600/30",
@@ -542,7 +656,6 @@ export default function SalesPage() {
     (sum, sale) => sum + (sale.balanceDue || 0),
     0
   );
-  // PART 3: Main Return Statement - Complete UI
 
   return (
     <MainLayout user={user} onLogout={handleLogout}>
@@ -550,23 +663,23 @@ export default function SalesPage() {
         {/* Dynamic Island - Mobile Only */}
         {isMobile && showDynamicIsland && (
           <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-2 px-4 pointer-events-none">
-            <div className="bg-black rounded-[28px] px-6 py-3 shadow-2xl border border-white/10 backdrop-blur-xl pointer-events-auto animate-in slide-in-from-top duration-500">
+            <div className="bg-[#0A0A0A] rounded-[28px] px-6 py-3 shadow-2xl border border-white/5 backdrop-blur-xl pointer-events-auto animate-in slide-in-from-top duration-500">
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
                   <Zap className="h-3 w-3 text-[#E84545]" />
                   <span className="text-white text-xs font-semibold">{formatCompactCurrency(totalSalesAmount)}</span>
                 </div>
-                <div className="h-3 w-px bg-white/20"></div>
+                <div className="h-3 w-px bg-white/10"></div>
                 <div className="flex items-center gap-1.5">
-                  <DollarSign className="h-3 w-3 text-green-400" />
+                  <ShoppingCart className="h-3 w-3 text-green-400" />
                   <span className="text-white text-xs font-medium">{filteredSales.length}</span>
                 </div>
                 {totalBalance > 0 && (
                   <>
-                    <div className="h-3 w-px bg-white/20"></div>
+                    <div className="h-3 w-px bg-white/10"></div>
                     <div className="flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3 text-orange-500" />
-                      <span className="text-orange-400 text-xs font-medium">{formatCompactCurrency(totalBalance)}</span>
+                      <AlertCircle className="h-3 w-3 text-[#E84545]" />
+                      <span className="text-[#E84545] text-xs font-medium">{formatCompactCurrency(totalBalance)}</span>
                     </div>
                   </>
                 )}
@@ -614,23 +727,23 @@ export default function SalesPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search invoice, customer..."
-                className="w-full pl-10 pr-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/70 text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 bg-[#111111] backdrop-blur-sm border border-white/10 rounded-xl text-white placeholder-white/70 text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
               />
             </div>
           </div>
         </div>
 
         {/* Desktop Header */}
-        <div className="hidden md:block py-6 bg-gradient-to-r from-indigo-600 to-purple-600 border border-purple-500/30 shadow-lg">
+    <div className="hidden md:block py-4 md:py-11 bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-lg overflow-hidden relative">
           <div className="px-8">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <h1 className="text-3xl font-bold text-white">Sales</h1>
                 <div className="flex items-center gap-2 mt-2">
-                  <p className="text-purple-200 text-sm">
+                  <p className="text-white/90 text-sm">
                     {filteredSales.length} sales • QAR {totalSalesAmount.toFixed(2)} total
                   </p>
-                  <span className="text-xs text-purple-300 bg-purple-700/30 px-2 py-1 rounded-full">
+                  <span className="text-xs text-white/90 bg-[#E84545]/30 px-2 py-1 rounded-full">
                     {statusFilter === "all" ? "All Status" : statusFilter}
                   </span>
                 </div>
@@ -645,7 +758,7 @@ export default function SalesPage() {
                 </button>
                 <button
                   onClick={() => router.push("/autocityPro/sales/new")}
-                  className="flex items-center space-x-2 px-5 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-all shadow-lg group font-medium"
+                  className="flex items-center space-x-2 px-5 py-2.5 bg-white text-[#E84545] rounded-lg hover:bg-white/90 transition-all shadow-lg group font-medium"
                 >
                   <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform" />
                   <span>New Sale</span>
@@ -655,51 +768,52 @@ export default function SalesPage() {
           </div>
         </div>
 
-        <div className="px-4 md:px-8 pt-[180px] md:pt-6 pb-6">
-          {/* Summary Cards - Mobile Optimized */}
+        <div className="px-4 md:px-8 pt-[140px] md:pt-6 pb-6">
+          {/* Summary Cards */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mb-6">
-            <div className="bg-gradient-to-r from-green-900/30 to-emerald-900/10 border border-green-800/30 rounded-2xl p-4 active:scale-[0.98] transition-all">
+            <div className="bg-gradient-to-r from-[#111111] to-[#0A0A0A] border border-white/5 rounded-2xl p-4 active:scale-[0.98] transition-all hover:border-[#E84545]/30 group cursor-pointer">
               <div className="flex items-center justify-between mb-2">
-                <div className="p-2 bg-green-500/10 rounded-xl">
-                  <DollarSign className="h-4 w-4 md:h-5 md:w-5 text-green-400" />
+                <div className="p-2 bg-[#E84545]/10 rounded-xl group-hover:bg-[#E84545]/20 transition-colors">
+                  <DollarSign className="h-4 w-4 md:h-5 md:w-5 text-[#E84545]" />
                 </div>
+                <TrendingUp className="h-4 w-4 text-green-400" />
               </div>
-              <p className="text-xs text-slate-400 mb-1">Total Sales</p>
+              <p className="text-xs text-gray-400 mb-1">Total Sales</p>
               <p className="text-xl md:text-2xl font-bold text-white">{formatCompactCurrency(totalSalesAmount)}</p>
             </div>
 
-            <div className="bg-gradient-to-r from-blue-900/30 to-cyan-900/10 border border-blue-800/30 rounded-2xl p-4 active:scale-[0.98] transition-all">
+            <div className="bg-gradient-to-r from-[#111111] to-[#0A0A0A] border border-white/5 rounded-2xl p-4 active:scale-[0.98] transition-all hover:border-green-500/30 group cursor-pointer">
               <div className="flex items-center justify-between mb-2">
-                <div className="p-2 bg-blue-500/10 rounded-xl">
-                  <CreditCard className="h-4 w-4 md:h-5 md:w-5 text-blue-400" />
+                <div className="p-2 bg-green-500/10 rounded-xl group-hover:bg-green-500/20 transition-colors">
+                  <CreditCard className="h-4 w-4 md:h-5 md:w-5 text-green-400" />
                 </div>
               </div>
-              <p className="text-xs text-slate-400 mb-1">Total Paid</p>
+              <p className="text-xs text-gray-400 mb-1">Total Paid</p>
               <p className="text-xl md:text-2xl font-bold text-white">{formatCompactCurrency(totalPaidAmount)}</p>
             </div>
 
-            <div className="bg-gradient-to-r from-rose-900/30 to-pink-900/10 border border-rose-800/30 rounded-2xl p-4 active:scale-[0.98] transition-all col-span-2 md:col-span-1">
+            <div className="bg-gradient-to-r from-[#111111] to-[#0A0A0A] border border-white/5 rounded-2xl p-4 active:scale-[0.98] transition-all hover:border-[#E84545]/30 group cursor-pointer col-span-2 md:col-span-1">
               <div className="flex items-center justify-between mb-2">
-                <div className="p-2 bg-rose-500/10 rounded-xl">
-                  <RefreshCw className="h-4 w-4 md:h-5 md:w-5 text-rose-400" />
+                <div className="p-2 bg-[#E84545]/10 rounded-xl group-hover:bg-[#E84545]/20 transition-colors">
+                  <RefreshCw className="h-4 w-4 md:h-5 md:w-5 text-[#E84545]" />
                 </div>
               </div>
-              <p className="text-xs text-slate-400 mb-1">Pending Balance</p>
+              <p className="text-xs text-gray-400 mb-1">Pending Balance</p>
               <p className="text-xl md:text-2xl font-bold text-white">{formatCompactCurrency(totalBalance)}</p>
             </div>
           </div>
 
           {/* Filters - Desktop */}
-          <div className="hidden md:block bg-slate-800 border border-slate-700 rounded-lg shadow p-3 mb-4">
+          <div className="hidden md:block bg-[#0A0A0A] border border-white/5 rounded-lg shadow p-3 mb-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-400" />
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search invoice, customer..."
-                  className="w-full pl-8 pr-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded focus:ring-2 focus:ring-purple-600 focus:border-transparent text-white placeholder-slate-400"
+                  className="w-full pl-8 pr-3 py-2 text-sm bg-[#111111] border border-white/5 rounded focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white placeholder-gray-400"
                 />
               </div>
 
@@ -707,7 +821,7 @@ export default function SalesPage() {
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded focus:ring-2 focus:ring-purple-600 focus:border-transparent text-white appearance-none"
+                  className="w-full px-3 py-2 text-sm bg-[#111111] border border-white/5 rounded focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white appearance-none"
                 >
                   {statusOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -716,29 +830,29 @@ export default function SalesPage() {
                   ))}
                 </select>
                 <div className="absolute right-2 top-2.5 pointer-events-none">
-                  <Filter className="h-4 w-4 text-slate-400" />
+                  <Filter className="h-4 w-4 text-gray-400" />
                 </div>
               </div>
 
               <div className="relative">
                 <button
                   onClick={() => setShowDateFilter(!showDateFilter)}
-                  className="w-full flex items-center justify-between px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded hover:bg-slate-800 transition-colors text-white"
+                  className="w-full flex items-center justify-between px-3 py-2 text-sm bg-[#111111] border border-white/5 rounded hover:bg-[#0A0A0A] transition-colors text-white"
                 >
                   <span className="truncate">
                     {format(parseISO(dateRange.startDate), "MMM d")} - {format(parseISO(dateRange.endDate), "MMM d")}
                   </span>
-                  <Calendar className="h-4 w-4 text-slate-400 flex-shrink-0 ml-2" />
+                  <Calendar className="h-4 w-4 text-gray-400 flex-shrink-0 ml-2" />
                 </button>
 
                 {showDateFilter && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-10">
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-[#0A0A0A] border border-white/5 rounded-lg shadow-xl z-10">
                     <div className="p-3">
                       <div className="flex justify-between items-center mb-2">
                         <h3 className="text-xs font-semibold text-white">Date Range</h3>
                         <button
                           onClick={() => setShowDateFilter(false)}
-                          className="text-slate-400 hover:text-white"
+                          className="text-gray-400 hover:text-white"
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -749,7 +863,7 @@ export default function SalesPage() {
                           <button
                             key={preset.value}
                             onClick={() => handleDatePreset(preset.value)}
-                            className="px-2 py-1.5 text-xs text-slate-300 hover:bg-slate-700 rounded transition-colors text-left"
+                            className="px-2 py-1.5 text-xs text-gray-300 hover:bg-[#111111] rounded transition-colors text-left hover:text-[#E84545]"
                           >
                             {preset.label}
                           </button>
@@ -758,25 +872,25 @@ export default function SalesPage() {
 
                       <div className="space-y-2">
                         <div>
-                          <label className="block text-xs text-slate-400 mb-1">From</label>
+                          <label className="block text-xs text-gray-400 mb-1">From</label>
                           <input
                             type="date"
                             value={dateRange.startDate}
                             onChange={(e) =>
                               setDateRange((prev) => ({ ...prev, startDate: e.target.value }))
                             }
-                            className="w-full px-2 py-1.5 text-xs bg-slate-900 border border-slate-700 rounded text-white"
+                            className="w-full px-2 py-1.5 text-xs bg-[#111111] border border-white/5 rounded text-white"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-slate-400 mb-1">To</label>
+                          <label className="block text-xs text-gray-400 mb-1">To</label>
                           <input
                             type="date"
                             value={dateRange.endDate}
                             onChange={(e) =>
                               setDateRange((prev) => ({ ...prev, endDate: e.target.value }))
                             }
-                            className="w-full px-2 py-1.5 text-xs bg-slate-900 border border-slate-700 rounded text-white"
+                            className="w-full px-2 py-1.5 text-xs bg-[#111111] border border-white/5 rounded text-white"
                           />
                         </div>
                       </div>
@@ -788,195 +902,66 @@ export default function SalesPage() {
           </div>
 
           {/* Sales Content */}
-          <div className="bg-slate-800 border border-slate-700 rounded-2xl shadow-xl overflow-hidden">
+          <div className="bg-[#0A0A0A] border border-white/5 rounded-2xl shadow-xl">
+
             {loading ? (
               <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-600"></div>
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#E84545]"></div>
               </div>
             ) : filteredSales.length === 0 ? (
               <div className="text-center py-12">
-                <DollarSign className="h-16 w-16 mx-auto mb-4 text-slate-600" />
-                <p className="text-slate-400 text-lg font-medium">No sales found</p>
-                <p className="text-slate-500 text-sm mt-2">Create your first sale to get started</p>
+                <ShoppingCart className="h-16 w-16 mx-auto mb-4 text-gray-600" />
+                <p className="text-gray-400 text-lg font-medium">No sales found</p>
+                <p className="text-gray-500 text-sm mt-2">Create your first sale to get started</p>
               </div>
             ) : (
               <>
-                {/* Mobile Card View */}
-                <div className="md:hidden space-y-3 p-4">
-                  {filteredSales.map((sale) => (
-                    <div
-                      key={sale._id}
-                      className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-xl p-4 hover:border-purple-500/30 transition-all active:scale-[0.98]"
-                    >
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-purple-400 mb-1">{sale.invoiceNumber}</p>
-                          <p className="text-xs text-slate-300 truncate">{sale.customerName}</p>
-                          <p className="text-xs text-slate-500 mt-1">
-                            {format(parseISO(sale.saleDate), "MMM d, h:mm a")}
-                          </p>
-                          {sale.returnStatus && (
-                            <span className="inline-block text-xs text-orange-400 mt-1">
-                              ({sale.returnStatus === "PARTIAL_RETURN" ? "Partial Return" : "Returned"})
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex flex-col items-end gap-2">
-                          {getStatusBadge(sale.status)}
-                          {getPaymentMethodBadge(sale.paymentMethod)}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-3 py-3 border-t border-b border-slate-700/50 mb-3">
-                        <div>
-                          <span className="text-[10px] text-slate-500 uppercase block mb-1">Total</span>
-                          <p className="text-sm font-bold text-white truncate">
-                            {formatCompactCurrency(sale.grandTotal)}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-slate-500 uppercase block mb-1">Paid</span>
-                          <p className="text-sm font-semibold text-green-400 truncate">
-                            {formatCompactCurrency(sale.amountPaid)}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-slate-500 uppercase block mb-1">Balance</span>
-                          <p className={`text-sm font-semibold truncate ${
-                            sale.balanceDue > 0 ? "text-red-400" : "text-green-400"
-                          }`}>
-                            {formatCompactCurrency(sale.balanceDue)}
-                          </p>
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => setShowActions(showActions === sale._id ? null : sale._id)}
-                        className="w-full py-2 text-xs text-slate-400 hover:text-white transition-colors flex items-center justify-center gap-2 active:scale-95"
-                      >
-                        <span>{showActions === sale._id ? "Hide" : "Show"} Actions</span>
-                        <MoreVertical className="h-4 w-4" />
-                      </button>
-
-                      {showActions === sale._id && (
-                        <div className="mt-3 pt-3 border-t border-slate-700/50 space-y-2">
-                          <button
-                            onClick={() => handleViewDetails(sale)}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-300 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors active:scale-95"
-                          >
-                            <Eye className="h-3 w-3" />
-                            <span>View Details</span>
-                          </button>
-
-                          {sale.status === "DRAFT" && (
-                            <button
-                              onClick={() => handleEditSale(sale)}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-blue-400 bg-blue-900/20 rounded-lg hover:bg-blue-900/30 transition-colors active:scale-95"
-                            >
-                              <Edit className="h-3 w-3" />
-                              <span>Edit Sale</span>
-                            </button>
-                          )}
-
-                          {sale.status === "COMPLETED" && !sale.returnStatus && (
-                            <button
-                              onClick={() => handleReturnSale(sale)}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-yellow-400 bg-yellow-900/20 rounded-lg hover:bg-yellow-900/30 transition-colors active:scale-95"
-                            >
-                              <Undo className="h-3 w-3" />
-                              <span>Return Items</span>
-                            </button>
-                          )}
-
-                          {sale.status === "COMPLETED" && sale.returnStatus === "PARTIAL_RETURN" && (
-                            <button
-                              onClick={() => handleReturnSale(sale)}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-yellow-400 bg-yellow-900/20 rounded-lg hover:bg-yellow-900/30 transition-colors active:scale-95"
-                            >
-                              <Undo className="h-3 w-3" />
-                              <span>Return More Items</span>
-                            </button>
-                          )}
-
-                          {sale.status === "COMPLETED" && sale.balanceDue < 0 && (
-                            <button
-                              onClick={() => handleRefundSale(sale)}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-purple-400 bg-purple-900/20 rounded-lg hover:bg-purple-900/30 transition-colors active:scale-95"
-                            >
-                              <CreditCard className="h-3 w-3" />
-                              <span>Process Refund</span>
-                            </button>
-                          )}
-
-                          {sale.status !== "CANCELLED" && sale.status !== "REFUNDED" && !sale.returnStatus && (
-                            <button
-                              onClick={() => handleCancelSale(sale)}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-orange-400 bg-orange-900/20 rounded-lg hover:bg-orange-900/30 transition-colors active:scale-95"
-                            >
-                              <X className="h-3 w-3" />
-                              <span>Cancel Sale</span>
-                            </button>
-                          )}
-
-                          {sale.status === "DRAFT" && (
-                            <button
-                              onClick={() => handleDeleteSale(sale)}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400 bg-red-900/20 rounded-lg hover:bg-red-900/30 transition-colors active:scale-95"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                              <span>Delete Draft</span>
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Desktop Table - Hidden on Mobile */}
+                {/* Desktop Table */}
                 <div className="hidden md:block overflow-x-auto">
-                  <table className="min-w-full divide-y divide-slate-700 text-sm">
-                    <thead className="bg-slate-900">
+                  <table className="min-w-full divide-y divide-white/5 text-sm">
+                    <thead className="bg-[#111111]">
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Invoice</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Date</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Customer</th>
-                        <th className="px-4 py-3 text-right text-xs font-semibold text-slate-300 uppercase tracking-wider">Items</th>
-                        <th className="px-4 py-3 text-right text-xs font-semibold text-slate-300 uppercase tracking-wider">Total</th>
-                        <th className="px-4 py-3 text-right text-xs font-semibold text-slate-300 uppercase tracking-wider">Paid</th>
-                        <th className="px-4 py-3 text-right text-xs font-semibold text-slate-300 uppercase tracking-wider">Balance</th>
-                        <th className="px-4 py-3 text-center text-xs font-semibold text-slate-300 uppercase tracking-wider">Payment</th>
-                        <th className="px-4 py-3 text-center text-xs font-semibold text-slate-300 uppercase tracking-wider">Status</th>
-                        <th className="px-4 py-3 text-center text-xs font-semibold text-slate-300 uppercase tracking-wider">Actions</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">Invoice</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">Date</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">Customer</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-300 uppercase tracking-wider">Items</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-300 uppercase tracking-wider">Total</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-300 uppercase tracking-wider">Paid</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-300 uppercase tracking-wider">Balance</th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-gray-300 uppercase tracking-wider">Payment</th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-gray-300 uppercase tracking-wider">Status</th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-gray-300 uppercase tracking-wider">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-700">
+                    <tbody className="divide-y divide-white/5">
                       {filteredSales.map((sale) => (
-                        <tr key={sale._id} className="bg-slate-800 hover:bg-slate-700/50 transition-colors">
+                        <tr key={sale._id} className="bg-[#0A0A0A] hover:bg-white/5 transition-colors">
                           <td className="px-4 py-3 whitespace-nowrap">
-                            <span className="text-sm font-medium text-purple-400">{sale.invoiceNumber}</span>
+                            <span className="text-sm font-medium text-[#E84545] hover:text-[#cc3c3c] transition-colors cursor-pointer" onClick={() => handleViewDetails(sale)}>
+                              {sale.invoiceNumber}
+                            </span>
                             {sale.returnStatus && (
-                              <span className="text-xs text-orange-400 ml-1">
+                              <span className="text-xs text-[#E84545] ml-1">
                                 ({sale.returnStatus === "PARTIAL_RETURN" ? "Partial Return" : "Returned"})
                               </span>
                             )}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <div className="flex flex-col">
-                              <span className="text-sm text-slate-300">{format(parseISO(sale.saleDate), "MMM d")}</span>
-                              <span className="text-xs text-slate-500">{format(parseISO(sale.saleDate), "h:mm a")}</span>
+                              <span className="text-sm text-gray-300">{format(parseISO(sale.saleDate), "MMM d")}</span>
+                              <span className="text-xs text-gray-500">{format(parseISO(sale.saleDate), "h:mm a")}</span>
                             </div>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <div className="flex flex-col max-w-[120px]">
-                              <span className="text-sm text-slate-300 truncate">{sale.customerName}</span>
+                              <span className="text-sm text-gray-300 truncate">{sale.customerName}</span>
                               {sale.customerId?.phone && (
-                                <span className="text-xs text-slate-500 truncate">{sale.customerId.phone}</span>
+                                <span className="text-xs text-gray-500 truncate">{sale.customerId.phone}</span>
                               )}
                             </div>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-right">
-                            <span className="text-sm text-slate-300">{sale.items?.length || 0}</span>
+                            <span className="text-sm text-gray-300">{sale.items?.length || 0}</span>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-right">
                             <span className="text-sm font-semibold text-white">QAR {sale.grandTotal?.toFixed(2)}</span>
@@ -985,7 +970,7 @@ export default function SalesPage() {
                             <span className="text-sm text-green-400">QAR {sale.amountPaid?.toFixed(2)}</span>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-right">
-                            <span className={`text-sm font-semibold ${sale.balanceDue > 0 ? "text-red-400" : "text-green-400"}`}>
+                            <span className={`text-sm font-semibold ${sale.balanceDue > 0 ? "text-[#E84545]" : "text-green-400"}`}>
                               QAR {sale.balanceDue?.toFixed(2)}
                             </span>
                           </td>
@@ -995,32 +980,48 @@ export default function SalesPage() {
                           <td className="px-4 py-3 whitespace-nowrap text-center">
                             {getStatusBadge(sale.status)}
                             {sale.returnStatus && (
-                              <div className="text-xs text-orange-400 mt-1">
+                              <div className="text-xs text-[#E84545] mt-1">
                                 {sale.returnStatus === "PARTIAL_RETURN" ? "Partial Return" : "Fully Returned"}
                               </div>
                             )}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-center relative">
                             <button
-                              onClick={() => setShowActions(showActions === sale._id ? null : sale._id)}
-                              className="inline-flex items-center text-slate-400 hover:text-white transition-colors"
+                              onClick={() =>
+                                setShowActions(showActions === sale._id ? null : sale._id)
+                              }
+                              className="relative z-30 inline-flex items-center pointer-events-auto text-gray-400 hover:text-white transition-colors"
                             >
                               <MoreVertical className="h-4 w-4" />
                             </button>
 
                             {showActions === sale._id && (
-                              <div className="absolute right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-10 min-w-[180px]">
+                              <div className="absolute right-0 top-full mt-1 bg-[#0A0A0A] border border-white/5 rounded-lg shadow-xl z-10 min-w-[180px]">
                                 <div className="py-1">
                                   <button
                                     onClick={() => {
                                       handleViewDetails(sale);
                                       setShowActions(null);
                                     }}
-                                    className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-700 transition-colors"
+                                    className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-gray-300 hover:bg-white/5 transition-colors"
                                   >
                                     <Eye className="h-3 w-3" />
                                     <span>View Details</span>
                                   </button>
+
+                                  {/* Print Invoice Button */}
+                                  {sale.status === "COMPLETED" && (
+                                    <button
+                                      onClick={() => {
+                                        handlePrintInvoice(sale);
+                                        setShowActions(null);
+                                      }}
+                                      className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-blue-400 hover:bg-white/5 transition-colors"
+                                    >
+                                      <Printer className="h-3 w-3" />
+                                      <span>Print Invoice</span>
+                                    </button>
+                                  )}
 
                                   {sale.status === "DRAFT" && (
                                     <button
@@ -1028,7 +1029,7 @@ export default function SalesPage() {
                                         handleEditSale(sale);
                                         setShowActions(null);
                                       }}
-                                      className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-blue-400 hover:bg-slate-700 transition-colors"
+                                      className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-blue-400 hover:bg-white/5 transition-colors"
                                     >
                                       <Edit className="h-3 w-3" />
                                       <span>Edit Sale</span>
@@ -1041,7 +1042,7 @@ export default function SalesPage() {
                                         handleReturnSale(sale);
                                         setShowActions(null);
                                       }}
-                                      className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-yellow-400 hover:bg-slate-700 transition-colors"
+                                      className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-yellow-400 hover:bg-white/5 transition-colors"
                                     >
                                       <Undo className="h-3 w-3" />
                                       <span>Return Items</span>
@@ -1054,7 +1055,7 @@ export default function SalesPage() {
                                         handleReturnSale(sale);
                                         setShowActions(null);
                                       }}
-                                      className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-yellow-400 hover:bg-slate-700 transition-colors"
+                                      className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-yellow-400 hover:bg-white/5 transition-colors"
                                     >
                                       <Undo className="h-3 w-3" />
                                       <span>Return More Items</span>
@@ -1067,7 +1068,7 @@ export default function SalesPage() {
                                         handleRefundSale(sale);
                                         setShowActions(null);
                                       }}
-                                      className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-purple-400 hover:bg-slate-700 transition-colors"
+                                      className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-purple-400 hover:bg-white/5 transition-colors"
                                     >
                                       <CreditCard className="h-3 w-3" />
                                       <span>Process Refund</span>
@@ -1080,7 +1081,7 @@ export default function SalesPage() {
                                         handleCancelSale(sale);
                                         setShowActions(null);
                                       }}
-                                      className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-orange-400 hover:bg-slate-700 transition-colors"
+                                      className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-[#E84545] hover:bg-white/5 transition-colors"
                                     >
                                       <X className="h-3 w-3" />
                                       <span>Cancel Sale</span>
@@ -1093,7 +1094,7 @@ export default function SalesPage() {
                                         handleDeleteSale(sale);
                                         setShowActions(null);
                                       }}
-                                      className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-red-400 hover:bg-slate-700 transition-colors"
+                                      className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-[#E84545] hover:bg-white/5 transition-colors"
                                     >
                                       <Trash2 className="h-3 w-3" />
                                       <span>Delete Draft</span>
@@ -1109,10 +1110,155 @@ export default function SalesPage() {
                   </table>
                 </div>
 
+                {/* Mobile Card View */}
+                <div className="md:hidden space-y-3 p-4">
+                  {filteredSales.map((sale) => (
+                    <div
+                      key={sale._id}
+                      className="bg-gradient-to-br from-[#111111] to-[#0A0A0A] border border-white/5 rounded-xl p-4 hover:border-[#E84545]/30 transition-all active:scale-[0.98] group"
+                    >
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-[#E84545] mb-1 group-hover:text-[#E84545] transition-colors">
+                            {sale.invoiceNumber}
+                          </p>
+                          <p className="text-xs text-gray-300 truncate">{sale.customerName}</p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {format(parseISO(sale.saleDate), "MMM d, h:mm a")}
+                          </p>
+                          {sale.returnStatus && (
+                            <span className="inline-block text-xs text-[#E84545] mt-1">
+                              ({sale.returnStatus === "PARTIAL_RETURN" ? "Partial Return" : "Returned"})
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          {getStatusBadge(sale.status)}
+                          {getPaymentMethodBadge(sale.paymentMethod)}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-3 py-3 border-t border-b border-white/10 mb-3">
+                        <div>
+                          <span className="text-[10px] text-gray-500 uppercase block mb-1">Total</span>
+                          <p className="text-sm font-bold text-white truncate">
+                            {formatCompactCurrency(sale.grandTotal)}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-gray-500 uppercase block mb-1">Paid</span>
+                          <p className="text-sm font-semibold text-green-400 truncate">
+                            {formatCompactCurrency(sale.amountPaid)}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-gray-500 uppercase block mb-1">Balance</span>
+                          <p className={`text-sm font-semibold truncate ${
+                            sale.balanceDue > 0 ? "text-[#E84545]" : "text-green-400"
+                          }`}>
+                            {formatCompactCurrency(sale.balanceDue)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => setShowActions(showActions === sale._id ? null : sale._id)}
+                        className="w-full py-2 text-xs text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-2 active:scale-95"
+                      >
+                        <span>{showActions === sale._id ? "Hide" : "Show"} Actions</span>
+                        <MoreVertical className="h-4 w-4" />
+                      </button>
+
+                      {showActions === sale._id && (
+                        <div className="mt-3 pt-3 border-t border-white/10 space-y-2">
+                          <button
+                            onClick={() => handleViewDetails(sale)}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-300 bg-white/5 rounded-lg hover:bg-white/10 transition-colors active:scale-95"
+                          >
+                            <Eye className="h-3 w-3" />
+                            <span>View Details</span>
+                          </button>
+
+                          {/* Print Invoice Button for Mobile */}
+                          {sale.status === "COMPLETED" && (
+                            <button
+                              onClick={() => handlePrintInvoice(sale)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-blue-400 bg-blue-500/10 rounded-lg hover:bg-blue-500/20 transition-colors active:scale-95"
+                            >
+                              <Printer className="h-3 w-3" />
+                              <span>Print Invoice</span>
+                            </button>
+                          )}
+
+                          {sale.status === "DRAFT" && (
+                            <button
+                              onClick={() => handleEditSale(sale)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-blue-400 bg-blue-500/10 rounded-lg hover:bg-blue-500/20 transition-colors active:scale-95"
+                            >
+                              <Edit className="h-3 w-3" />
+                              <span>Edit Sale</span>
+                            </button>
+                          )}
+
+                          {sale.status === "COMPLETED" && !sale.returnStatus && (
+                            <button
+                              onClick={() => handleReturnSale(sale)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-yellow-400 bg-yellow-500/10 rounded-lg hover:bg-yellow-500/20 transition-colors active:scale-95"
+                            >
+                              <Undo className="h-3 w-3" />
+                              <span>Return Items</span>
+                            </button>
+                          )}
+
+                          {sale.status === "COMPLETED" && sale.returnStatus === "PARTIAL_RETURN" && (
+                            <button
+                              onClick={() => handleReturnSale(sale)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-yellow-400 bg-yellow-500/10 rounded-lg hover:bg-yellow-500/20 transition-colors active:scale-95"
+                            >
+                              <Undo className="h-3 w-3" />
+                              <span>Return More Items</span>
+                            </button>
+                          )}
+
+                          {sale.status === "COMPLETED" && sale.balanceDue < 0 && (
+                            <button
+                              onClick={() => handleRefundSale(sale)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-purple-400 bg-purple-500/10 rounded-lg hover:bg-purple-500/20 transition-colors active:scale-95"
+                            >
+                              <CreditCard className="h-3 w-3" />
+                              <span>Process Refund</span>
+                            </button>
+                          )}
+
+                          {sale.status !== "CANCELLED" && sale.status !== "REFUNDED" && !sale.returnStatus && (
+                            <button
+                              onClick={() => handleCancelSale(sale)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#E84545] bg-[#E84545]/10 rounded-lg hover:bg-[#E84545]/20 transition-colors active:scale-95"
+                            >
+                              <X className="h-3 w-3" />
+                              <span>Cancel Sale</span>
+                            </button>
+                          )}
+
+                          {sale.status === "DRAFT" && (
+                            <button
+                              onClick={() => handleDeleteSale(sale)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#E84545] bg-[#E84545]/10 rounded-lg hover:bg-[#E84545]/20 transition-colors active:scale-95"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                              <span>Delete Draft</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
                 {/* Pagination */}
                 {pagination.pages > 1 && (
-                  <div className="flex items-center justify-between px-4 py-3 border-t border-slate-700">
-                    <div className="text-xs text-slate-400">
+                  <div className="flex items-center justify-between px-4 py-3 border-t border-white/5">
+                    <div className="text-xs text-gray-400">
                       Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
                       {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} sales
                     </div>
@@ -1120,7 +1266,7 @@ export default function SalesPage() {
                       <button
                         onClick={() => setPagination((prev) => ({ ...prev, page: prev.page - 1 }))}
                         disabled={pagination.page === 1}
-                        className="px-2 py-1 rounded border border-slate-700 text-slate-400 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="px-2 py-1 rounded border border-white/5 text-gray-400 hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         <ChevronLeft className="h-3 w-3" />
                       </button>
@@ -1143,8 +1289,8 @@ export default function SalesPage() {
                             onClick={() => setPagination((prev) => ({ ...prev, page: pageNum }))}
                             className={`px-2 py-1 rounded border transition-colors text-xs ${
                               pagination.page === pageNum
-                                ? "bg-purple-600 border-purple-600 text-white"
-                                : "border-slate-700 text-slate-400 hover:bg-slate-700"
+                                ? "bg-[#E84545] border-[#E84545] text-white"
+                                : "border-white/5 text-gray-400 hover:bg-white/5"
                             }`}
                           >
                             {pageNum}
@@ -1155,7 +1301,7 @@ export default function SalesPage() {
                       <button
                         onClick={() => setPagination((prev) => ({ ...prev, page: prev.page + 1 }))}
                         disabled={pagination.page === pagination.pages}
-                        className="px-2 py-1 rounded border border-slate-700 text-slate-400 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="px-2 py-1 rounded border border-white/5 text-gray-400 hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         <ChevronRight className="h-3 w-3" />
                       </button>
@@ -1171,25 +1317,49 @@ export default function SalesPage() {
         <div className="md:hidden h-6"></div>
       </div>
 
- {/* Return Modal */}
+{/* Invoice Print Modal */}
+{showInvoiceModal && invoiceData && selectedSaleForInvoice && (
+  <InvoicePrint
+    invoice={invoiceData}
+    outletId={selectedSaleForInvoice.outletId}
+    customerId={selectedSaleForInvoice.customerId}
+    onClose={() => {
+      setShowInvoiceModal(false);
+      setSelectedSaleForInvoice(null);
+      setInvoiceData(null);
+    }}
+  />
+)}
+      {/* Invoice Loading Overlay */}
+      {invoiceLoading && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[100]">
+          <div className="bg-[#0A0A0A] border border-white/5 rounded-xl p-6 shadow-2xl">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-white/10 border-t-[#E84545] mx-auto mb-4"></div>
+            <p className="text-white font-medium">Preparing invoice...</p>
+            <p className="text-gray-400 text-sm mt-2">Loading invoice data for printing</p>
+          </div>
+        </div>
+      )}
+
+      {/* Return Modal */}
       {showReturnModal && selectedSaleForReturn && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 border border-slate-700 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
-            <div className="p-6 border-b border-slate-700">
+          <div className="bg-[#0A0A0A] border border-white/5 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+            <div className="p-6 border-b border-white/5 bg-gradient-to-r from-[#0A0A0A] to-[#111111]">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-xl font-bold text-white flex items-center gap-2">
                     <Undo className="h-5 w-5 text-yellow-400" />
                     Process Return
                   </h2>
-                  <p className="text-slate-400 text-sm mt-1">
+                  <p className="text-gray-400 text-sm mt-1">
                     Sale #{selectedSaleForReturn.invoiceNumber} •{" "}
                     {selectedSaleForReturn.customerName}
                   </p>
                 </div>
                 <button
                   onClick={() => setShowReturnModal(false)}
-                  className="text-slate-400 hover:text-white"
+                  className="text-gray-400 hover:text-white"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -1199,14 +1369,14 @@ export default function SalesPage() {
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
               {/* Return Summary */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4">
-                  <p className="text-sm text-slate-400">Original Amount</p>
+                <div className="bg-[#111111] border border-white/5 rounded-lg p-4">
+                  <p className="text-sm text-gray-400">Original Amount</p>
                   <p className="text-lg font-bold text-white">
                     QAR {selectedSaleForReturn.grandTotal?.toFixed(2)}
                   </p>
                 </div>
-                <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4">
-                  <p className="text-sm text-slate-400">Items to Return</p>
+                <div className="bg-[#111111] border border-white/5 rounded-lg p-4">
+                  <p className="text-sm text-gray-400">Items to Return</p>
                   <p className="text-lg font-bold text-yellow-400">
                     {
                       returnItems.filter((item) => item.returnQuantity > 0)
@@ -1214,8 +1384,8 @@ export default function SalesPage() {
                     }
                   </p>
                 </div>
-                <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4">
-                  <p className="text-sm text-slate-400">Return Amount</p>
+                <div className="bg-[#111111] border border-white/5 rounded-lg p-4">
+                  <p className="text-sm text-gray-400">Return Amount</p>
                   <p className="text-lg font-bold text-green-400">
                     QAR{" "}
                     {returnItems
@@ -1231,14 +1401,14 @@ export default function SalesPage() {
 
               {/* Return Reason */}
               <div className="mb-6">
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="block text-sm font-medium text-gray-300 mb-2">
                   Return Reason
                 </label>
                 <textarea
                   value={returnReason}
                   onChange={(e) => setReturnReason(e.target.value)}
                   placeholder="Enter reason for return..."
-                  className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent text-white placeholder-slate-500 resize-none"
+                  className="w-full px-4 py-3 bg-[#111111] border border-white/5 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent text-white placeholder-gray-500 resize-none"
                   rows={3}
                 />
               </div>
@@ -1252,17 +1422,17 @@ export default function SalesPage() {
                   {returnItems.map((item) => (
                     <div
                       key={item._id || item.sku}
-                      className="bg-slate-900/50 border border-slate-700 rounded-lg p-4"
+                      className="bg-[#111111] border border-white/5 rounded-lg p-4"
                     >
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex-1">
                           <h4 className="font-medium text-white">
                             {item.productName}
                           </h4>
-                          <p className="text-sm text-slate-400">
+                          <p className="text-sm text-gray-400">
                             SKU: {item.sku}
                           </p>
-                          <p className="text-sm text-slate-400">
+                          <p className="text-sm text-gray-400">
                             QAR {item.unitPrice?.toFixed(2)} × {item.quantity} =
                             QAR {(item.unitPrice * item.quantity).toFixed(2)}
                           </p>
@@ -1274,7 +1444,7 @@ export default function SalesPage() {
                           )}
                         </div>
                         <div className="text-right">
-                          <span className="text-sm text-slate-400">
+                          <span className="text-sm text-gray-400">
                             Available to return:
                           </span>
                           <p className="text-lg font-semibold text-white">
@@ -1285,7 +1455,7 @@ export default function SalesPage() {
 
                       <div className="flex items-center justify-between">
                         <div>
-                          <label className="text-sm text-slate-300 mr-3">
+                          <label className="text-sm text-gray-300 mr-3">
                             Return Quantity:
                           </label>
                           <div className="flex items-center space-x-2">
@@ -1297,7 +1467,7 @@ export default function SalesPage() {
                                 )
                               }
                               disabled={item.returnQuantity <= 0}
-                              className="w-8 h-8 flex items-center justify-center bg-slate-800 border border-slate-700 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700"
+                              className="w-8 h-8 flex items-center justify-center bg-[#0A0A0A] border border-white/5 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/5"
                             >
                               <span className="text-white">-</span>
                             </button>
@@ -1312,7 +1482,7 @@ export default function SalesPage() {
                                   parseInt(e.target.value) || 0
                                 )
                               }
-                              className="w-16 text-center bg-slate-900 border border-slate-700 rounded py-1 text-white"
+                              className="w-16 text-center bg-[#0A0A0A] border border-white/5 rounded py-1 text-white"
                             />
                             <button
                               onClick={() =>
@@ -1324,7 +1494,7 @@ export default function SalesPage() {
                               disabled={
                                 item.returnQuantity >= item.maxReturnQuantity
                               }
-                              className="w-8 h-8 flex items-center justify-center bg-slate-800 border border-slate-700 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700"
+                              className="w-8 h-8 flex items-center justify-center bg-[#0A0A0A] border border-white/5 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/5"
                             >
                               <span className="text-white">+</span>
                             </button>
@@ -1333,7 +1503,7 @@ export default function SalesPage() {
 
                         {item.returnQuantity > 0 && (
                           <div className="text-right">
-                            <p className="text-sm text-slate-400">
+                            <p className="text-sm text-gray-400">
                               Return Amount:
                             </p>
                             <p className="text-lg font-bold text-green-400">
@@ -1347,8 +1517,8 @@ export default function SalesPage() {
                       </div>
 
                       {item.returnQuantity > 0 && (
-                        <div className="mt-3 pt-3 border-t border-slate-700">
-                          <label className="block text-sm text-slate-300 mb-1">
+                        <div className="mt-3 pt-3 border-t border-white/5">
+                          <label className="block text-sm text-gray-300 mb-1">
                             Item Return Reason (Optional)
                           </label>
                           <input
@@ -1365,7 +1535,7 @@ export default function SalesPage() {
                               );
                             }}
                             placeholder="Why is this item being returned?"
-                            className="w-full px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded focus:ring-2 focus:ring-yellow-500 focus:border-transparent text-white placeholder-slate-500"
+                            className="w-full px-3 py-2 text-sm bg-[#0A0A0A] border border-white/5 rounded focus:ring-2 focus:ring-yellow-500 focus:border-transparent text-white placeholder-gray-500"
                           />
                         </div>
                       )}
@@ -1375,10 +1545,10 @@ export default function SalesPage() {
               </div>
             </div>
 
-            <div className="p-6 border-t border-slate-700 bg-slate-900/50">
+            <div className="p-6 border-t border-white/5 bg-[#111111]">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-slate-400">Total Return Amount</p>
+                  <p className="text-sm text-gray-400">Total Return Amount</p>
                   <p className="text-2xl font-bold text-green-400">
                     QAR{" "}
                     {returnItems
@@ -1393,7 +1563,7 @@ export default function SalesPage() {
                 <div className="flex items-center space-x-3">
                   <button
                     onClick={() => setShowReturnModal(false)}
-                    className="px-6 py-3 border border-slate-600 text-slate-300 rounded-lg hover:bg-slate-700 transition-colors"
+                    className="px-6 py-3 border border-white/5 text-gray-300 rounded-lg hover:bg-white/5 transition-colors"
                     disabled={processingReturn}
                   >
                     Cancel
@@ -1425,24 +1595,25 @@ export default function SalesPage() {
           </div>
         </div>
       )}
-            {/* View Details Modal */}
+
+      {/* View Details Modal */}
       {showDetailsModal && selectedSaleDetails && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 border border-slate-700 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
-            <div className="p-6 border-b border-slate-700">
+          <div className="bg-[#0A0A0A] border border-white/5 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+            <div className="p-6 border-b border-white/5 bg-gradient-to-r from-[#0A0A0A] to-[#111111]">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-xl font-bold text-white flex items-center gap-2">
                     <Eye className="h-5 w-5 text-blue-400" />
                     Sale Details - {selectedSaleDetails.invoiceNumber}
                   </h2>
-                  <p className="text-slate-400 text-sm mt-1">
+                  <p className="text-gray-400 text-sm mt-1">
                     {format(parseISO(selectedSaleDetails.saleDate), "MMMM d, yyyy 'at' h:mm a")}
                   </p>
                 </div>
                 <button
                   onClick={() => setShowDetailsModal(false)}
-                  className="text-slate-400 hover:text-white"
+                  className="text-gray-400 hover:text-white"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -1452,46 +1623,46 @@ export default function SalesPage() {
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
               {/* Sale Summary */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4">
+                <div className="bg-[#111111] border border-white/5 rounded-lg p-4">
                   <h3 className="text-lg font-semibold text-white mb-3">Customer Information</h3>
                   <div className="space-y-2">
                     <div>
-                      <p className="text-sm text-slate-400">Customer Name</p>
+                      <p className="text-sm text-gray-400">Customer Name</p>
                       <p className="text-white font-medium">{selectedSaleDetails.customerName}</p>
                     </div>
                     {selectedSaleDetails.customerId?.phone && (
                       <div>
-                        <p className="text-sm text-slate-400">Phone</p>
+                        <p className="text-sm text-gray-400">Phone</p>
                         <p className="text-white">{selectedSaleDetails.customerId.phone}</p>
                       </div>
                     )}
                     {selectedSaleDetails.customerId?.email && (
                       <div>
-                        <p className="text-sm text-slate-400">Email</p>
+                        <p className="text-sm text-gray-400">Email</p>
                         <p className="text-white">{selectedSaleDetails.customerId.email}</p>
                       </div>
                     )}
                   </div>
                 </div>
 
-                <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4">
+                <div className="bg-[#111111] border border-white/5 rounded-lg p-4">
                   <h3 className="text-lg font-semibold text-white mb-3">Sale Summary</h3>
                   <div className="space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Status:</span>
+                      <span className="text-gray-400">Status:</span>
                       <span>{getStatusBadge(selectedSaleDetails.status)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Payment Method:</span>
+                      <span className="text-gray-400">Payment Method:</span>
                       <span>{getPaymentMethodBadge(selectedSaleDetails.paymentMethod)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Sale Date:</span>
+                      <span className="text-gray-400">Sale Date:</span>
                       <span className="text-white">{format(parseISO(selectedSaleDetails.saleDate), "MMM d, yyyy")}</span>
                     </div>
                     {selectedSaleDetails.createdBy?.email && (
                       <div className="flex justify-between">
-                        <span className="text-slate-400">Created By:</span>
+                        <span className="text-gray-400">Created By:</span>
                         <span className="text-white">{selectedSaleDetails.createdBy.email}</span>
                       </div>
                     )}
@@ -1502,51 +1673,51 @@ export default function SalesPage() {
               {/* Items Table */}
               <div className="mb-8">
                 <h3 className="text-lg font-semibold text-white mb-4">Items</h3>
-                <div className="bg-slate-900/50 border border-slate-700 rounded-lg overflow-hidden">
-                  <table className="min-w-full divide-y divide-slate-700">
-                    <thead className="bg-slate-800">
+                <div className="bg-[#111111] border border-white/5 rounded-lg overflow-hidden">
+                  <table className="min-w-full divide-y divide-white/5">
+                    <thead className="bg-[#0A0A0A]">
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Item</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">SKU</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Quantity</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Unit Price</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Tax</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Total</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">Returned</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase">Item</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase">SKU</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase">Quantity</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase">Unit Price</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase">Tax</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase">Total</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase">Returned</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-700">
+                    <tbody className="divide-y divide-white/5">
                       {selectedSaleDetails.items?.map((item: any, index: number) => (
-                        <tr key={index} className="hover:bg-slate-800/50 transition-colors">
+                        <tr key={index} className="hover:bg-white/5 transition-colors">
                           <td className="px-4 py-3">
                             <div>
                               <p className="text-white font-medium">{item.name}</p>
                               {item.isLabor && (
-                                <span className="text-xs text-yellow-400 bg-yellow-900/30 px-2 py-0.5 rounded">Labor</span>
+                                <span className="text-xs text-yellow-400 bg-yellow-500/10 px-2 py-0.5 rounded">Labor</span>
                               )}
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-slate-300">{item.sku}</td>
-                          <td className="px-4 py-3 text-slate-300">
+                          <td className="px-4 py-3 text-gray-300">{item.sku}</td>
+                          <td className="px-4 py-3 text-gray-300">
                             {item.quantity} {item.unit}
                             {item.returnedQuantity > 0 && (
-                              <div className="text-xs text-orange-400">
+                              <div className="text-xs text-[#E84545]">
                                 (Returned: {item.returnedQuantity})
                               </div>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-slate-300">QAR {item.unitPrice.toFixed(2)}</td>
-                          <td className="px-4 py-3 text-slate-300">
+                          <td className="px-4 py-3 text-gray-300">QAR {item.unitPrice.toFixed(2)}</td>
+                          <td className="px-4 py-3 text-gray-300">
                             {item.taxRate}% (QAR {item.taxAmount.toFixed(2)})
                           </td>
                           <td className="px-4 py-3 text-white font-medium">QAR {item.total.toFixed(2)}</td>
                           <td className="px-4 py-3">
                             {item.returnedQuantity > 0 ? (
-                              <span className="text-xs text-red-400 bg-red-900/30 px-2 py-1 rounded">
+                              <span className="text-xs text-[#E84545] bg-[#E84545]/10 px-2 py-1 rounded">
                                 {item.returnedQuantity} returned
                               </span>
                             ) : (
-                              <span className="text-xs text-slate-500">-</span>
+                              <span className="text-xs text-gray-500">-</span>
                             )}
                           </td>
                         </tr>
@@ -1560,49 +1731,49 @@ export default function SalesPage() {
               <div className="mb-8">
                 <h3 className="text-lg font-semibold text-white mb-4">Financial Summary</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4">
+                  <div className="bg-[#111111] border border-white/5 rounded-lg p-4">
                     <div className="space-y-3">
                       <div className="flex justify-between">
-                        <span className="text-slate-400">Subtotal:</span>
+                        <span className="text-gray-400">Subtotal:</span>
                         <span className="text-white">QAR {selectedSaleDetails.subtotal.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-400">Tax:</span>
+                        <span className="text-gray-400">Tax:</span>
                         <span className="text-white">QAR {selectedSaleDetails.totalTax.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-400">Discount:</span>
+                        <span className="text-gray-400">Discount:</span>
                         <span className="text-white">QAR {selectedSaleDetails.totalDiscount.toFixed(2)}</span>
                       </div>
-                      <div className="flex justify-between border-t border-slate-700 pt-3">
-                        <span className="text-slate-300 font-semibold">Grand Total:</span>
+                      <div className="flex justify-between border-t border-white/5 pt-3">
+                        <span className="text-gray-300 font-semibold">Grand Total:</span>
                         <span className="text-white font-bold text-lg">QAR {selectedSaleDetails.grandTotal.toFixed(2)}</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4">
+                  <div className="bg-[#111111] border border-white/5 rounded-lg p-4">
                     <div className="space-y-3">
                       <div className="flex justify-between">
-                        <span className="text-slate-400">Amount Paid:</span>
+                        <span className="text-gray-400">Amount Paid:</span>
                         <span className="text-green-400 font-medium">QAR {selectedSaleDetails.amountPaid.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-400">Balance Due:</span>
+                        <span className="text-gray-400">Balance Due:</span>
                         <span className={`font-medium ${
-                          selectedSaleDetails.balanceDue > 0 ? 'text-red-400' : 
-                          selectedSaleDetails.balanceDue < 0 ? 'text-green-400' : 'text-slate-400'
+                          selectedSaleDetails.balanceDue > 0 ? 'text-[#E84545]' : 
+                          selectedSaleDetails.balanceDue < 0 ? 'text-green-400' : 'text-gray-400'
                         }`}>
                           QAR {selectedSaleDetails.balanceDue.toFixed(2)}
                           {selectedSaleDetails.balanceDue < 0 && (
-                            <span className="text-xs ml-1">(Customer Credit)</span>
+                            <span className="text-xs ml-1 text-gray-400">(Customer Credit)</span>
                           )}
                         </span>
                       </div>
                       {selectedSaleDetails.returns && selectedSaleDetails.returns.length > 0 && (
-                        <div className="flex justify-between border-t border-slate-700 pt-3">
-                          <span className="text-slate-400">Total Returns:</span>
-                          <span className="text-orange-400 font-medium">
+                        <div className="flex justify-between border-t border-white/5 pt-3">
+                          <span className="text-gray-400">Total Returns:</span>
+                          <span className="text-[#E84545] font-medium">
                             QAR {selectedSaleDetails.returns.reduce((sum: number, ret: any) => sum + ret.totalAmount, 0).toFixed(2)}
                           </span>
                         </div>
@@ -1618,42 +1789,42 @@ export default function SalesPage() {
                   <h3 className="text-lg font-semibold text-white mb-4">Return History</h3>
                   <div className="space-y-4">
                     {selectedSaleDetails.returns.map((ret: any, index: number) => (
-                      <div key={index} className="bg-slate-900/50 border border-slate-700 rounded-lg p-4">
+                      <div key={index} className="bg-[#111111] border border-white/5 rounded-lg p-4">
                         <div className="flex justify-between items-start mb-3">
                           <div>
                             <h4 className="text-white font-medium">Return #{ret.returnNumber}</h4>
-                            <p className="text-slate-400 text-sm">
+                            <p className="text-gray-400 text-sm">
                               {format(parseISO(ret.returnDate), "MMM d, yyyy 'at' h:mm a")}
                             </p>
                             {ret.reason && (
-                              <p className="text-slate-300 text-sm mt-1">Reason: {ret.reason}</p>
+                              <p className="text-gray-300 text-sm mt-1">Reason: {ret.reason}</p>
                             )}
                           </div>
                           <div className="text-right">
-                            <span className="text-lg font-bold text-orange-400">
+                            <span className="text-lg font-bold text-[#E84545]">
                               QAR {ret.totalAmount.toFixed(2)}
                             </span>
-                            <p className="text-slate-400 text-sm">
+                            <p className="text-gray-400 text-sm">
                               Processed by: {ret.processedByName}
                             </p>
                           </div>
                         </div>
                         
-                        <div className="border-t border-slate-700 pt-3">
-                          <h5 className="text-slate-300 text-sm font-medium mb-2">Returned Items:</h5>
+                        <div className="border-t border-white/5 pt-3">
+                          <h5 className="text-gray-300 text-sm font-medium mb-2">Returned Items:</h5>
                           <div className="space-y-2">
                             {ret.items.map((item: any, itemIndex: number) => (
                               <div key={itemIndex} className="flex justify-between text-sm">
                                 <div>
-                                  <span className="text-slate-300">{item.productName}</span>
-                                  <span className="text-slate-500 text-xs ml-2">({item.sku})</span>
+                                  <span className="text-gray-300">{item.productName}</span>
+                                  <span className="text-gray-500 text-xs ml-2">({item.sku})</span>
                                   {item.reason && (
-                                    <div className="text-slate-400 text-xs">Reason: {item.reason}</div>
+                                    <div className="text-gray-400 text-xs">Reason: {item.reason}</div>
                                   )}
                                 </div>
                                 <div className="text-right">
-                                  <div className="text-slate-300">{item.quantity} × QAR {item.unitPrice.toFixed(2)}</div>
-                                  <div className="text-orange-400">QAR {item.totalAmount.toFixed(2)}</div>
+                                  <div className="text-gray-300">{item.quantity} × QAR {item.unitPrice.toFixed(2)}</div>
+                                  <div className="text-[#E84545]">QAR {item.totalAmount.toFixed(2)}</div>
                                 </div>
                               </div>
                             ))}
@@ -1669,22 +1840,22 @@ export default function SalesPage() {
               {selectedSaleDetails.notes && (
                 <div>
                   <h3 className="text-lg font-semibold text-white mb-4">Notes</h3>
-                  <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4">
-                    <p className="text-slate-300 whitespace-pre-wrap">{selectedSaleDetails.notes}</p>
+                  <div className="bg-[#111111] border border-white/5 rounded-lg p-4">
+                    <p className="text-gray-300 whitespace-pre-wrap">{selectedSaleDetails.notes}</p>
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="p-6 border-t border-slate-700 bg-slate-900/50">
+            <div className="p-6 border-t border-white/5 bg-[#111111]">
               <div className="flex justify-between items-center">
-                <div className="text-sm text-slate-400">
+                <div className="text-sm text-gray-400">
                   Sale ID: {selectedSaleDetails._id}
                 </div>
                 <div className="flex items-center space-x-3">
                   <button
                     onClick={() => setShowDetailsModal(false)}
-                    className="px-6 py-3 border border-slate-600 text-slate-300 rounded-lg hover:bg-slate-700 transition-colors"
+                    className="px-6 py-3 border border-white/5 text-gray-300 rounded-lg hover:bg-white/5 transition-colors"
                   >
                     Close
                   </button>
@@ -1712,13 +1883,25 @@ export default function SalesPage() {
                       <span>Edit Sale</span>
                     </button>
                   )}
+                  {/* Print Invoice Button in Details Modal */}
+                  {selectedSaleDetails.status === "COMPLETED" && (
+                    <button
+                      onClick={() => {
+                        setShowDetailsModal(false);
+                        handlePrintInvoice(selectedSaleDetails);
+                      }}
+                      className="px-6 py-3 bg-[#E84545] text-white rounded-lg hover:bg-[#cc3c3c] transition-colors flex items-center space-x-2"
+                    >
+                      <Printer className="h-4 w-4" />
+                      <span>Print Invoice</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
           </div>
         </div>
-      )}      {/* They work perfectly as-is from your original file */}
-
+      )}
     </MainLayout>
   );
 }

@@ -827,28 +827,28 @@ export default function DashboardPage() {
               <h2 className="text-sm md:text-lg font-bold text-white mb-4">Quick Actions</h2>
               <div className="space-y-2 md:space-y-3">
                 <button
-                  onClick={() => router.push('/sales/new')}
+                  onClick={() => router.push('/autocityPro/sales/new')}
                   className="w-full p-3 md:p-4 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] rounded-xl text-white font-semibold hover:from-[#d63d3d] hover:to-[#b53535] transition-all flex items-center justify-between shadow-lg active:scale-[0.98]"
                 >
                   <span className="text-sm">New Sale</span>
                   <ShoppingCart className="h-4 w-4 md:h-5 md:w-5" />
                 </button>
                 <button
-                  onClick={() => router.push('/inventory')}
+                  onClick={() => router.push('/autocityPro/stock')}
                   className="w-full p-3 bg-[#0A0A0A]/50 border border-white/5 rounded-xl text-gray-300 font-semibold hover:bg-white/5 hover:border-[#E84545]/20 transition-all flex items-center justify-between active:scale-[0.98]"
                 >
                   <span className="text-sm">Inventory</span>
                   <Package className="h-4 w-4" />
                 </button>
                 <button
-                  onClick={() => router.push('/customers')}
+                  onClick={() => router.push('autocityPro/customers')}
                   className="w-full p-3 bg-[#0A0A0A]/50 border border-white/5 rounded-xl text-gray-300 font-semibold hover:bg-white/5 hover:border-[#E84545]/20 transition-all flex items-center justify-between active:scale-[0.98]"
                 >
                   <span className="text-sm">Customers</span>
                   <Users className="h-4 w-4" />
                 </button>
                 <button
-                  onClick={() => router.push('/reports')}
+                  onClick={() => router.push('/autocityPro/reports')}
                   className="w-full p-3 bg-[#0A0A0A]/50 border border-white/5 rounded-xl text-gray-300 font-semibold hover:bg-white/5 hover:border-[#E84545]/20 transition-all flex items-center justify-between active:scale-[0.98]"
                 >
                   <span className="text-sm">Reports</span>

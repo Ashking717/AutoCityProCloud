@@ -3,7 +3,19 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
-import { Download, Printer, TrendingUp, Loader2, ChevronLeft } from 'lucide-react';
+import { 
+  Download, 
+  Printer, 
+  TrendingUp, 
+  Loader2, 
+  ChevronLeft,
+  MoreVertical,
+  X,
+  TrendingDown,
+  DollarSign,
+  Zap,
+  AlertCircle
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 
 // Types for the API response
@@ -34,6 +46,9 @@ export default function ProfitLossPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [showDynamicIsland, setShowDynamicIsland] = useState(true);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [dateRange, setDateRange] = useState({
     fromDate: new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0],
     toDate: new Date().toISOString().split('T')[0],
@@ -43,6 +58,13 @@ export default function ProfitLossPage() {
   useEffect(() => {
     fetchUser();
     fetchReport();
+
+    const checkIfMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkIfMobile();
+    window.addEventListener('resize', checkIfMobile);
+    return () => window.removeEventListener('resize', checkIfMobile);
   }, []);
   
   const fetchUser = async () => {
@@ -90,7 +112,6 @@ export default function ProfitLossPage() {
     
     try {
       if (format === 'excel') {
-        // Server-side Excel generation
         toast.loading('Generating Excel file...');
         
         const params = new URLSearchParams({ 
@@ -142,13 +163,21 @@ export default function ProfitLossPage() {
       maximumFractionDigits: 2,
     }).format(amount);
   };
+
+  const formatCompactCurrency = (amount: number) => {
+    if (amount >= 1000000) return `QR${(amount / 1000000).toFixed(1)}M`;
+    if (amount >= 10000) return `QR${(amount / 1000).toFixed(1)}K`;
+    return formatCurrency(amount);
+  };
   
   const renderCategoryItems = (items: { [key: string]: number }, isExpense: boolean = false) => {
     return Object.entries(items).map(([name, value]) => (
       <div key={name} className="flex justify-between hover:bg-slate-700/50 p-2 rounded transition-colors">
-        <span className="text-slate-300 capitalize">{name.replace(/([A-Z])/g, ' $1').trim()}</span>
-        <span className={`font-semibold ${isExpense ? 'text-red-400' : 'text-green-400'}`}>
-          {formatCurrency(isExpense ? -Math.abs(value) : Math.abs(value))}
+        <span className="text-slate-300 capitalize text-xs md:text-sm truncate pr-2">
+          {name.replace(/([A-Z])/g, ' $1').trim()}
+        </span>
+        <span className={`font-semibold text-xs md:text-sm flex-shrink-0 ${isExpense ? 'text-red-400' : 'text-green-400'}`}>
+          {isMobile ? formatCompactCurrency(isExpense ? -Math.abs(value) : Math.abs(value)) : formatCurrency(isExpense ? -Math.abs(value) : Math.abs(value))}
         </span>
       </div>
     ));
@@ -162,9 +191,11 @@ export default function ProfitLossPage() {
   if (loading && !reportData) {
     return (
       <MainLayout user={user} onLogout={handleLogout}>
-        <div className="flex items-center justify-center h-screen bg-slate-900">
-          <Loader2 className="h-8 w-8 animate-spin text-green-400" />
-          <span className="ml-2 text-slate-300">Generating profit & loss statement...</span>
+        <div className="flex items-center justify-center h-screen bg-[#050505]">
+          <div className="text-center">
+            <Loader2 className="h-12 w-12 animate-spin text-[#E84545] mx-auto mb-4" />
+            <span className="text-slate-300">Generating profit & loss statement...</span>
+          </div>
         </div>
       </MainLayout>
     );
@@ -176,10 +207,93 @@ export default function ProfitLossPage() {
 
   return (
     <MainLayout user={user} onLogout={handleLogout}>
-      <div className="min-h-screen bg-slate-900">
-        {/* Header with gradient */}
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 border-b border-pink-500/30 shadow-lg">
-          <div className="px-8 py-6">
+      <div className="min-h-screen bg-[#050505]">
+        {/* Dynamic Island - Mobile Only */}
+        {isMobile && showDynamicIsland && reportData && (
+          <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-2 px-4 pointer-events-none">
+            <div className="bg-black rounded-[28px] px-6 py-3 shadow-2xl border border-white/10 backdrop-blur-xl pointer-events-auto animate-in slide-in-from-top duration-500">
+              <div className="flex items-center gap-3">
+                {reportData.netProfit >= 0 ? (
+                  <>
+                    <TrendingUp className="h-3 w-3 text-green-500" />
+                    <span className="text-white text-xs font-semibold">Profit</span>
+                  </>
+                ) : (
+                  <>
+                    <TrendingDown className="h-3 w-3 text-red-500" />
+                    <span className="text-white text-xs font-semibold">Loss</span>
+                  </>
+                )}
+                <div className="h-3 w-px bg-white/20"></div>
+                <div className="flex items-center gap-1">
+                  <DollarSign className="h-3 w-3 text-[#E84545]" />
+                  <span className={`text-xs font-medium ${reportData.netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {formatCompactCurrency(Math.abs(reportData.netProfit))}
+                  </span>
+                </div>
+                <div className="h-3 w-px bg-white/20"></div>
+                <span className="text-white text-xs">{netProfitMargin}%</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Mobile Header */}
+        <div className="md:hidden fixed top-16 left-0 right-0 z-40 bg-gradient-to-br from-[#0A0A0A] via-[#050505] to-[#0A0A0A] border-b border-white/5 backdrop-blur-xl">
+          <div className="px-4 py-3">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => router.back()}
+                  className="p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <div>
+                  <h1 className="text-xl font-bold text-white">P&L Statement</h1>
+                  <p className="text-xs text-white/60">Income statement</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowMobileMenu(true)}
+                className="p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="date"
+                value={dateRange.fromDate}
+                onChange={(e) => setDateRange({ ...dateRange, fromDate: e.target.value })}
+                className="px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white text-xs focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+              />
+              <input
+                type="date"
+                value={dateRange.toDate}
+                onChange={(e) => setDateRange({ ...dateRange, toDate: e.target.value })}
+                className="px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white text-xs focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+              />
+            </div>
+            
+            <button
+              onClick={fetchReport}
+              disabled={loading}
+              className="w-full mt-2 px-4 py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl font-medium disabled:opacity-50 text-sm flex items-center justify-center gap-2 active:scale-95 transition-all"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <TrendingUp className="h-4 w-4" />}
+              <span>Generate</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Desktop Header */}
+        <div className="hidden md:block py-4 md:py-12 bg-gradient-to-r from-red-900 via-[#541515] to-[#4d0b0b] border border-[#E84545]/30 shadow-lg overflow-hidden relative">
+          {/* Background Pattern */}
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSIjRjg0NTQ1IiBmaWxsLW9wYWNpdHk9IjAuMSIgZmlsbC1ydWxlPSJldmVub2RkIj48Y2lyY2xlIGN4PSIzIiBjeT0iMyIgcj0iMyIvPjxjaXJjbGUgY3g9IjEzIiBjeT0iMTMiIHI9IjMiLz48L2c+PC9zdmc+')] opacity-20"></div>
+          
+          <div className="px-8 py-2 relative z-10">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <button
@@ -196,14 +310,14 @@ export default function ProfitLossPage() {
                   </div>
                   <div>
                     <h1 className="text-2xl font-bold text-white">Profit & Loss Statement</h1>
-                    <p className="text-white/80 text-sm">Real-time income statement</p>
+                    <p className="text-white/90 text-sm">Real-time income statement</p>
                   </div>
                 </div>
               </div>
               
               <div className="flex items-center space-x-4">
                 <div className="text-right">
-                  <p className="text-white/90 text-sm">Period</p>
+                  <p className="text-white/80 text-sm">Period</p>
                   <p className="text-white font-semibold">
                     {new Date(dateRange.fromDate).toLocaleDateString('en-US', { 
                       month: 'short', 
@@ -220,9 +334,9 @@ export default function ProfitLossPage() {
           </div>
         </div>
 
-        {/* Filters Panel */}
-        <div className="px-8 py-6">
-          <div className="bg-slate-800 rounded-xl shadow-lg border border-slate-700 p-6 mb-6">
+        {/* Filters Panel - Desktop Only */}
+        <div className="hidden md:block px-8 py-6">
+          <div className="bg-black/30 rounded-xl shadow-lg border border-slate-700 p-6 mb-6">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
               <div className="lg:col-span-3">
                 <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -231,19 +345,12 @@ export default function ProfitLossPage() {
                     From Date
                   </span>
                 </label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    value={dateRange.fromDate}
-                    onChange={(e) => setDateRange({ ...dateRange, fromDate: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all text-slate-100"
-                  />
-                  <div className="absolute right-3 top-3 text-slate-400">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                </div>
+                <input
+                  type="date"
+                  value={dateRange.fromDate}
+                  onChange={(e) => setDateRange({ ...dateRange, fromDate: e.target.value })}
+                  className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-[#E84545] outline-none transition-all text-slate-100"
+                />
               </div>
               
               <div className="lg:col-span-3">
@@ -253,26 +360,19 @@ export default function ProfitLossPage() {
                     To Date
                   </span>
                 </label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    value={dateRange.toDate}
-                    onChange={(e) => setDateRange({ ...dateRange, toDate: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all text-slate-100"
-                  />
-                  <div className="absolute right-3 top-3 text-slate-400">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                </div>
+                <input
+                  type="date"
+                  value={dateRange.toDate}
+                  onChange={(e) => setDateRange({ ...dateRange, toDate: e.target.value })}
+                  className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-[#E84545] outline-none transition-all text-slate-100"
+                />
               </div>
               
               <div className="lg:col-span-3">
                 <button
                   onClick={fetchReport}
                   disabled={loading}
-                  className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 shadow-md hover:shadow-lg transition-all duration-200 font-medium"
+                  className="w-full px-4 py-3 bg-gradient-to-r from-[#8a2424] to-[#7f1a1a] text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 shadow-md transition-all duration-200 font-medium"
                 >
                   {loading ? (
                     <>
@@ -294,7 +394,7 @@ export default function ProfitLossPage() {
                   <button
                     onClick={() => handleExport('excel')}
                     disabled={!reportData || loading}
-                    className="px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-lg hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 shadow-sm hover:shadow transition-all duration-200"
+                    className="px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-lg hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 shadow-sm transition-all duration-200"
                   >
                     <Download className="h-4 w-4 text-green-400" />
                     <span className="text-slate-200">Excel</span>
@@ -302,7 +402,7 @@ export default function ProfitLossPage() {
                   <button
                     onClick={() => window.print()}
                     disabled={!reportData || loading}
-                    className="px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-lg hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-sm hover:shadow transition-all duration-200"
+                    className="px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-lg hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-sm transition-all duration-200"
                   >
                     <Printer className="h-4 w-4 text-slate-300" />
                   </button>
@@ -310,22 +410,24 @@ export default function ProfitLossPage() {
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Report Content */}
+        {/* Report Content */}
+        <div className="p-4 md:px-8 pt-[220px] md:pt-0 pb-6">
           {!reportData ? (
-            <div className="bg-slate-800 rounded-xl shadow-lg border border-slate-700 p-12 text-center">
+            <div className="bg-black/30 rounded-xl shadow-lg border border-slate-700 p-8 md:p-12 text-center">
               <div className="max-w-md mx-auto">
-                <div className="p-4 bg-slate-700 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                  <TrendingUp className="h-8 w-8 text-slate-400" />
+                <div className="p-4 bg-slate-700 rounded-full w-12 h-12 md:w-16 md:h-16 flex items-center justify-center mx-auto mb-4">
+                  <TrendingUp className="h-6 w-6 md:h-8 md:w-8 text-slate-400" />
                 </div>
-                <h3 className="text-lg font-semibold text-slate-200 mb-2">No Profit & Loss Data</h3>
-                <p className="text-slate-400 mb-6">
+                <h3 className="text-base md:text-lg font-semibold text-slate-200 mb-2">No Profit & Loss Data</h3>
+                <p className="text-sm text-slate-400 mb-6">
                   Generate a profit & loss statement to view your financial performance.
                 </p>
                 <button
                   onClick={fetchReport}
                   disabled={loading}
-                  className="px-6 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center space-x-2 font-medium"
+                  className="px-6 py-2.5 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center space-x-2 font-medium active:scale-95 transition-all"
                 >
                   <TrendingUp className="h-4 w-4" />
                   <span>Generate Report</span>
@@ -333,114 +435,114 @@ export default function ProfitLossPage() {
               </div>
             </div>
           ) : (
-            <div className="bg-slate-800 rounded-xl shadow-lg border border-slate-700 overflow-hidden">
+            <div className="bg-black/30 rounded-2xl shadow-lg border border-slate-700 overflow-hidden">
               {/* Header */}
-              <div className="px-6 py-4 bg-green-600">
+              <div className="px-4 md:px-6 py-3 md:py-4 bg-gradient-to-r from-[#701f1f] to-[#a31717]">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-xl font-bold text-white">{user?.outletName || 'AutoCity Pro'}</h2>
-                    <p className="text-sm text-white/90 mt-1">
-                      Period: {new Date(dateRange.fromDate).toLocaleDateString()} - {new Date(dateRange.toDate).toLocaleDateString()}
+                    <h2 className="text-base md:text-xl font-bold text-white">{user?.outletName || 'AutoCity Pro'}</h2>
+                    <p className="text-xs md:text-sm text-white/90 mt-1">
+                      {new Date(dateRange.fromDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(dateRange.toDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </p>
                   </div>
-                  <div className="px-3 py-1 bg-white/20 rounded-full backdrop-blur-sm">
-                    <span className="text-sm font-semibold text-white">
-                      {formatCurrency(reportData.netProfit)}
+                  <div className="px-2 md:px-3 py-1 bg-white/20 rounded-full backdrop-blur-sm">
+                    <span className="text-xs md:text-sm font-semibold text-white">
+                      {isMobile ? formatCompactCurrency(reportData.netProfit) : formatCurrency(reportData.netProfit)}
                     </span>
                   </div>
                 </div>
               </div>
               
-              <div className="p-6 space-y-8">
+              <div className="p-8 md:p-6 space-y-4 md:space-y-8">
                 {/* Revenue Section */}
-                <div className="bg-slate-700/30 rounded-xl p-5 border border-slate-600">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-bold text-slate-200 flex items-center">
-                      <span className="h-3 w-3 bg-green-500 rounded-full mr-2"></span>
+                <div className="bg-black/30 rounded-xl p-4 md:p-5 border border-slate-600 active:scale-[0.98] transition-all">
+                  <div className="flex items-center justify-between mb-3 md:mb-4">
+                    <h3 className="text-sm md:text-lg font-bold text-slate-200 flex items-center">
+                      <span className="h-2 w-2 md:h-3 md:w-3 bg-green-600 rounded-full mr-2"></span>
                       REVENUE
                     </h3>
-                    <span className="font-bold text-green-400 text-lg">
-                      {formatCurrency(reportData.revenue.total)}
+                    <span className="font-bold text-green-600 text-sm md:text-lg">
+                      {isMobile ? formatCompactCurrency(reportData.revenue.total) : formatCurrency(reportData.revenue.total)}
                     </span>
                   </div>
-                  <div className="space-y-2 pl-5">
+                  <div className="space-y-1 md:space-y-2 pl-3 md:pl-5">
                     {Object.keys(reportData.revenue.items).length > 0 ? (
                       renderCategoryItems(reportData.revenue.items, false)
                     ) : (
                       <div className="text-center py-4">
-                        <p className="text-slate-400 text-sm">No revenue items found</p>
+                        <p className="text-slate-400 text-xs md:text-sm">No revenue items found</p>
                       </div>
                     )}
                   </div>
                 </div>
                 
                 {/* Cost of Sales Section */}
-                <div className="bg-slate-700/30 rounded-xl p-5 border border-slate-600">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-bold text-slate-200 flex items-center">
-                      <span className="h-3 w-3 bg-red-500 rounded-full mr-2"></span>
+                <div className="bg-slate-700/30 rounded-xl p-4 md:p-5 border border-slate-600 active:scale-[0.98] transition-all">
+                  <div className="flex items-center justify-between mb-3 md:mb-4">
+                    <h3 className="text-sm md:text-lg font-bold text-slate-200 flex items-center">
+                      <span className="h-2 w-2 md:h-3 md:w-3 bg-red-700 rounded-full mr-2"></span>
                       COST OF SALES
                     </h3>
-                    <span className="font-bold text-red-400 text-lg">
-                      {formatCurrency(-reportData.costOfSales.total)}
+                    <span className="font-bold text-red-700 text-sm md:text-lg">
+                      {isMobile ? formatCompactCurrency(-reportData.costOfSales.total) : formatCurrency(-reportData.costOfSales.total)}
                     </span>
                   </div>
-                  <div className="space-y-2 pl-5">
+                  <div className="space-y-1 md:space-y-2 pl-3 md:pl-5">
                     {Object.keys(reportData.costOfSales.items).length > 0 ? (
                       renderCategoryItems(reportData.costOfSales.items, true)
                     ) : (
                       <div className="text-center py-4">
-                        <p className="text-slate-400 text-sm">No cost of sales items found</p>
+                        <p className="text-slate-400 text-xs md:text-sm">No cost of sales items found</p>
                       </div>
                     )}
                   </div>
                 </div>
                 
                 {/* Gross Profit */}
-                <div className="bg-gradient-to-r from-green-900/30 to-emerald-900/30 p-6 rounded-xl border border-green-800/50">
+                <div className="bg-gradient-to-r from-green-900/30 to-emerald-900/30 p-4 md:p-6 rounded-xl border border-green-800/50 active:scale-[0.98] transition-all">
                   <div className="flex justify-between items-center mb-2">
                     <div>
-                      <h3 className="text-lg font-bold text-green-300">GROSS PROFIT</h3>
-                      <p className="text-sm text-green-400">Margin: {grossProfitMargin}%</p>
+                      <h3 className="text-sm md:text-lg font-bold text-green-300">GROSS PROFIT</h3>
+                      <p className="text-xs md:text-sm text-green-400">Margin: {grossProfitMargin}%</p>
                     </div>
-                    <span className="text-2xl font-bold text-green-400">
-                      {formatCurrency(reportData.grossProfit)}
+                    <span className="text-lg md:text-2xl font-bold text-green-400">
+                      {isMobile ? formatCompactCurrency(reportData.grossProfit) : formatCurrency(reportData.grossProfit)}
                     </span>
                   </div>
                   <div className="mt-2 h-1 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full"></div>
                 </div>
                 
                 {/* Operating Expenses */}
-                <div className="bg-slate-700/30 rounded-xl p-5 border border-slate-600">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-bold text-slate-200 flex items-center">
-                      <span className="h-3 w-3 bg-orange-500 rounded-full mr-2"></span>
+                <div className="bg-slate-700/30 rounded-xl p-4 md:p-5 border border-slate-600 active:scale-[0.98] transition-all">
+                  <div className="flex items-center justify-between mb-3 md:mb-4">
+                    <h3 className="text-sm md:text-lg font-bold text-slate-200 flex items-center">
+                      <span className="h-2 w-2 md:h-3 md:w-3 bg-orange-500 rounded-full mr-2"></span>
                       OPERATING EXPENSES
                     </h3>
-                    <span className="font-bold text-red-400 text-lg">
-                      {formatCurrency(-reportData.expenses.total)}
+                    <span className="font-bold text-red-400 text-sm md:text-lg">
+                      {isMobile ? formatCompactCurrency(-reportData.expenses.total) : formatCurrency(-reportData.expenses.total)}
                     </span>
                   </div>
-                  <div className="space-y-2 pl-5">
+                  <div className="space-y-1 md:space-y-2 pl-3 md:pl-5">
                     {Object.keys(reportData.expenses.items).length > 0 ? (
                       renderCategoryItems(reportData.expenses.items, true)
                     ) : (
                       <div className="text-center py-4">
-                        <p className="text-slate-400 text-sm">No expense items found</p>
+                        <p className="text-slate-400 text-xs md:text-sm">No expense items found</p>
                       </div>
                     )}
                   </div>
                 </div>
                 
                 {/* Operating Profit */}
-                <div className="bg-gradient-to-r from-blue-900/30 to-indigo-900/30 p-6 rounded-xl border border-blue-800/50">
+                <div className="bg-gradient-to-r from-blue-900/30 to-indigo-900/30 p-4 md:p-6 rounded-xl border border-blue-800/50 active:scale-[0.98] transition-all">
                   <div className="flex justify-between items-center mb-2">
                     <div>
-                      <h3 className="text-lg font-bold text-blue-300">OPERATING PROFIT</h3>
-                      <p className="text-sm text-blue-400">Margin: {operatingProfitMargin}%</p>
+                      <h3 className="text-sm md:text-lg font-bold text-blue-300">OPERATING PROFIT</h3>
+                      <p className="text-xs md:text-sm text-blue-400">Margin: {operatingProfitMargin}%</p>
                     </div>
-                    <span className="text-2xl font-bold text-blue-400">
-                      {formatCurrency(reportData.operatingProfit)}
+                    <span className="text-lg md:text-2xl font-bold text-blue-400">
+                      {isMobile ? formatCompactCurrency(reportData.operatingProfit) : formatCurrency(reportData.operatingProfit)}
                     </span>
                   </div>
                   <div className="mt-2 h-1 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full"></div>
@@ -448,17 +550,17 @@ export default function ProfitLossPage() {
                 
                 {/* Other Income */}
                 {reportData.otherIncome.total > 0 && (
-                  <div className="bg-slate-700/30 rounded-xl p-5 border border-slate-600">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-bold text-slate-200 flex items-center">
-                        <span className="h-3 w-3 bg-teal-500 rounded-full mr-2"></span>
+                  <div className="bg-slate-700/30 rounded-xl p-4 md:p-5 border border-slate-600 active:scale-[0.98] transition-all">
+                    <div className="flex items-center justify-between mb-3 md:mb-4">
+                      <h3 className="text-sm md:text-lg font-bold text-slate-200 flex items-center">
+                        <span className="h-2 w-2 md:h-3 md:w-3 bg-teal-500 rounded-full mr-2"></span>
                         OTHER INCOME
                       </h3>
-                      <span className="font-bold text-green-400 text-lg">
-                        {formatCurrency(reportData.otherIncome.total)}
+                      <span className="font-bold text-green-400 text-sm md:text-lg">
+                        {isMobile ? formatCompactCurrency(reportData.otherIncome.total) : formatCurrency(reportData.otherIncome.total)}
                       </span>
                     </div>
-                    <div className="space-y-2 pl-5">
+                    <div className="space-y-1 md:space-y-2 pl-3 md:pl-5">
                       {renderCategoryItems(reportData.otherIncome.items, false)}
                     </div>
                   </div>
@@ -466,49 +568,45 @@ export default function ProfitLossPage() {
                 
                 {/* Other Expenses */}
                 {reportData.otherExpenses.total > 0 && (
-                  <div className="bg-slate-700/30 rounded-xl p-5 border border-slate-600">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-bold text-slate-200 flex items-center">
-                        <span className="h-3 w-3 bg-pink-500 rounded-full mr-2"></span>
+                  <div className="bg-slate-700/30 rounded-xl p-4 md:p-5 border border-slate-600 active:scale-[0.98] transition-all">
+                    <div className="flex items-center justify-between mb-3 md:mb-4">
+                      <h3 className="text-sm md:text-lg font-bold text-slate-200 flex items-center">
+                        <span className="h-2 w-2 md:h-3 md:w-3 bg-pink-500 rounded-full mr-2"></span>
                         OTHER EXPENSES
                       </h3>
-                      <span className="font-bold text-red-400 text-lg">
-                        {formatCurrency(-reportData.otherExpenses.total)}
+                      <span className="font-bold text-red-400 text-sm md:text-lg">
+                        {isMobile ? formatCompactCurrency(-reportData.otherExpenses.total) : formatCurrency(-reportData.otherExpenses.total)}
                       </span>
                     </div>
-                    <div className="space-y-2 pl-5">
+                    <div className="space-y-1 md:space-y-2 pl-3 md:pl-5">
                       {renderCategoryItems(reportData.otherExpenses.items, true)}
                     </div>
                   </div>
                 )}
                 
                 {/* Net Profit */}
-                <div className={`${reportData.netProfit >= 0 ? 'bg-gradient-to-r from-purple-900/30 to-indigo-900/30 border-purple-800/50' : 'bg-gradient-to-r from-red-900/30 to-pink-900/30 border-red-800/50'} p-6 rounded-xl border`}>
+                <div className={`${reportData.netProfit >= 0 ? 'bg-gradient-to-r from-[#E84545]/20 to-[#cc3c3c]/20 border-[#E84545]/50' : 'bg-gradient-to-r from-red-900/30 to-pink-900/30 border-red-800/50'} p-4 md:p-6 rounded-xl border active:scale-[0.98] transition-all`}>
                   <div className="flex justify-between items-center mb-2">
                     <div>
-                      <h3 className="text-lg font-bold text-slate-200">NET PROFIT</h3>
-                      <p className="text-sm text-slate-300">Net Profit Margin: {netProfitMargin}%</p>
+                      <h3 className="text-sm md:text-lg font-bold text-slate-200">NET PROFIT</h3>
+                      <p className="text-xs md:text-sm text-slate-300">Net Profit Margin: {netProfitMargin}%</p>
                     </div>
-                    <span className={`text-3xl font-bold ${reportData.netProfit >= 0 ? 'text-purple-400' : 'text-red-400'}`}>
-                      {formatCurrency(reportData.netProfit)}
+                    <span className={`text-xl md:text-3xl font-bold ${reportData.netProfit >= 0 ? 'text-[#E84545]' : 'text-red-400'}`}>
+                      {isMobile ? formatCompactCurrency(reportData.netProfit) : formatCurrency(reportData.netProfit)}
                     </span>
                   </div>
-                  <div className={`mt-2 h-1 rounded-full ${reportData.netProfit >= 0 ? 'bg-gradient-to-r from-purple-500 to-indigo-500' : 'bg-gradient-to-r from-red-500 to-pink-500'}`}></div>
+                  <div className={`mt-2 h-1 rounded-full ${reportData.netProfit >= 0 ? 'bg-gradient-to-r from-[#E84545] to-[#cc3c3c]' : 'bg-gradient-to-r from-red-500 to-pink-500'}`}></div>
                   <div className="flex items-center justify-center space-x-2 mt-4">
                     {reportData.netProfit >= 0 ? (
-                      <div className="w-6 h-6 bg-green-900/50 rounded-full flex items-center justify-center">
-                        <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                        </svg>
+                      <div className="w-5 h-5 md:w-6 md:h-6 bg-green-900/50 rounded-full flex items-center justify-center">
+                        <TrendingUp className="w-3 h-3 md:w-4 md:h-4 text-green-400" />
                       </div>
                     ) : (
-                      <div className="w-6 h-6 bg-red-900/50 rounded-full flex items-center justify-center">
-                        <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                        </svg>
+                      <div className="w-5 h-5 md:w-6 md:h-6 bg-red-900/50 rounded-full flex items-center justify-center">
+                        <TrendingDown className="w-3 h-3 md:w-4 md:h-4 text-red-400" />
                       </div>
                     )}
-                    <p className={`text-sm font-medium ${reportData.netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    <p className={`text-xs md:text-sm font-medium ${reportData.netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                       {reportData.netProfit >= 0 ? 'Profitable Period' : 'Loss Period'}
                     </p>
                   </div>
@@ -516,15 +614,59 @@ export default function ProfitLossPage() {
               </div>
               
               {/* Footer */}
-              <div className="px-6 py-4 bg-slate-900/50 border-t border-slate-700 text-center">
-                <p className="text-sm text-slate-400">
-                  Generated on: {new Date().toLocaleString()}
+              <div className="px-4 md:px-6 py-3 md:py-4 bg-slate-900/50 border-t border-slate-700 text-center">
+                <p className="text-xs md:text-sm text-slate-400">
+                  Generated: {new Date().toLocaleDateString()}
                 </p>
               </div>
             </div>
           )}
         </div>
+
+        {/* Mobile Safe Area Bottom Padding */}
+        <div className="md:hidden h-6"></div>
       </div>
+
+      {/* Mobile Action Menu */}
+      {showMobileMenu && (
+        <div className="md:hidden fixed inset-0 bg-black/80 backdrop-blur-md z-[60] animate-in fade-in duration-200">
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-b from-[#0A0A0A] to-[#050505] rounded-t-3xl border-t border-white/10 p-6 animate-in slide-in-from-bottom duration-300 shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-bold text-white">Actions</h2>
+              <button
+                onClick={() => setShowMobileMenu(false)}
+                className="p-2 rounded-xl bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  handleExport('excel');
+                  setShowMobileMenu(false);
+                }}
+                disabled={!reportData}
+                className="w-full p-4 bg-[#0A0A0A]/50 border border-white/10 rounded-2xl text-gray-300 font-semibold hover:bg-white/5 transition-all flex items-center justify-between disabled:opacity-50 active:scale-[0.98]"
+              >
+                <span>Export Excel</span>
+                <Download className="h-5 w-5" />
+              </button>
+              <button
+                onClick={() => {
+                  window.print();
+                  setShowMobileMenu(false);
+                }}
+                disabled={!reportData}
+                className="w-full p-4 bg-[#0A0A0A]/50 border border-white/10 rounded-2xl text-gray-300 font-semibold hover:bg-white/5 transition-all flex items-center justify-between disabled:opacity-50 active:scale-[0.98]"
+              >
+                <span>Print Report</span>
+                <Printer className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </MainLayout>
   );
 }

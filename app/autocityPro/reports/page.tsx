@@ -222,7 +222,7 @@ export default function ReportsPage() {
         </div>
 
         {/* Desktop Header */}
-        <div className="hidden md:block py-6 bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-xl">
+        <div className="hidden md:block py-12 bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-xl">
           <div className="px-8">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-sm border border-white/20">

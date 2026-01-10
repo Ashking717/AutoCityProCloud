@@ -1,8 +1,10 @@
+// app/api/reports/sales/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/mongodb';
 import Sale from '@/lib/models/Sale';
 import Customer from '@/lib/models/Customer';
 import User from '@/lib/models/User';
+import Product from '@/lib/models/ProductEnhanced';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth/jwt';
 
@@ -18,10 +20,13 @@ export async function GET(request: NextRequest) {
     }
     
     const user = verifyToken(token);
-    const { searchParams } = new URL(request.url);
     
+    const { searchParams } = new URL(request.url);
     const fromDate = new Date(searchParams.get('fromDate') || new Date(new Date().getFullYear(), 0, 1));
     const toDate = new Date(searchParams.get('toDate') || new Date());
+    
+    // Set toDate to end of day
+    toDate.setHours(23, 59, 59, 999);
     
     const sales = await Sale.find({
       outletId: user.outletId,
@@ -33,17 +38,53 @@ export async function GET(request: NextRequest) {
       .sort({ saleDate: -1 })
       .lean();
     
-    // Calculate summary
+    // Get all unique product IDs from sales
+    const productIds = new Set<string>();
+    sales.forEach((sale: any) => {
+      if (sale.items && Array.isArray(sale.items)) {
+        sale.items.forEach((item: any) => {
+          if (item.productId) {
+            productIds.add(item.productId.toString());
+          }
+        });
+      }
+    });
+    
+    // Fetch products to get cost prices
+    const products = await Product.find({
+      _id: { $in: Array.from(productIds) },
+      outletId: user.outletId,
+    }).select('_id name costPrice').lean();
+    
+    // Create a map of product ID to cost price
+    const productCostMap = new Map();
+    products.forEach((product: any) => {
+      productCostMap.set(product._id.toString(), product.costPrice || 0);
+    });
+    
+    // Calculate summary with actual profit
+    let totalProfit = 0;
+    
+    sales.forEach((sale: any) => {
+      if (sale.items && Array.isArray(sale.items)) {
+        sale.items.forEach((item: any) => {
+          const costPrice = item.productId 
+            ? productCostMap.get(item.productId.toString()) || 0 
+            : 0;
+          const sellingPrice = item.unitPrice || 0;
+          const quantity = item.quantity || 0;
+          
+          // Profit = (Selling Price - Cost Price) * Quantity
+          const itemProfit = (sellingPrice - costPrice) * quantity;
+          totalProfit += itemProfit;
+        });
+      }
+    });
+    
     const summary = {
       totalSales: sales.length,
       totalRevenue: sales.reduce((sum, s: any) => sum + (s.grandTotal || 0), 0),
-      totalProfit: sales.reduce((sum, s: any) => {
-        // Calculate profit from items
-        const profit = s.items.reduce((p: number, item: any) => {
-          return p + ((item.unitPrice - (item.unitPrice * 0.7)) * item.quantity); // Estimate 30% margin
-        }, 0);
-        return sum + profit;
-      }, 0),
+      totalProfit: totalProfit,
       totalDiscount: sales.reduce((sum, s: any) => sum + (s.totalDiscount || 0), 0),
       totalTax: sales.reduce((sum, s: any) => sum + (s.totalTax || 0), 0),
       averageOrderValue: 0,
@@ -53,20 +94,27 @@ export async function GET(request: NextRequest) {
       summary.averageOrderValue = summary.totalRevenue / sales.length;
     }
     
-    // Sales by product
+    // Sales by product with actual profit
     const productSales: { [key: string]: { quantity: number; revenue: number; profit: number } } = {};
     
     sales.forEach((sale: any) => {
       if (sale.items && Array.isArray(sale.items)) {
         sale.items.forEach((item: any) => {
           const productName = item.name || 'Unknown Product';
+          const costPrice = item.productId 
+            ? productCostMap.get(item.productId.toString()) || 0 
+            : 0;
+          const sellingPrice = item.unitPrice || 0;
+          const quantity = item.quantity || 0;
+          const itemProfit = (sellingPrice - costPrice) * quantity;
+          
           if (!productSales[productName]) {
             productSales[productName] = { quantity: 0, revenue: 0, profit: 0 };
           }
-          productSales[productName].quantity += item.quantity || 0;
+          
+          productSales[productName].quantity += quantity;
           productSales[productName].revenue += item.total || 0;
-          const itemProfit = (item.unitPrice - (item.unitPrice * 0.7)) * item.quantity;
-          productSales[productName].profit += itemProfit || 0;
+          productSales[productName].profit += itemProfit;
         });
       }
     });
@@ -76,9 +124,11 @@ export async function GET(request: NextRequest) {
     
     sales.forEach((sale: any) => {
       const customerName = sale.customerName || 'Walk-in Customer';
+      
       if (!customerSales[customerName]) {
         customerSales[customerName] = { count: 0, revenue: 0 };
       }
+      
       customerSales[customerName].count += 1;
       customerSales[customerName].revenue += sale.grandTotal || 0;
     });

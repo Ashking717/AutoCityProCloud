@@ -1,3 +1,4 @@
+// lib/models/Purchase.ts
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface IPurchaseItem {
@@ -24,8 +25,10 @@ export interface IPurchase extends Document {
   paymentMethod: 'CASH' | 'CARD' | 'BANK_TRANSFER' | 'CREDIT';
   amountPaid: number;
   balanceDue: number;
-  status: 'DRAFT' | 'COMPLETED' | 'CANCELLED';
+  status: 'DRAFT' | 'COMPLETED' | 'PAID' | 'CANCELLED';  // ← ADDED 'PAID'
   notes?: string;
+  voucherId?: mongoose.Types.ObjectId;  // Link to accounting voucher
+  isPostedToGL?: boolean;  // Track if posted to general ledger
   createdBy: mongoose.Types.ObjectId;
   purchaseDate: Date;
   createdAt: Date;
@@ -75,7 +78,6 @@ const PurchaseSchema = new Schema<IPurchase>(
     },
     totalTax: {
       type: Number,
-      
       min: 0,
     },
     grandTotal: {
@@ -99,12 +101,20 @@ const PurchaseSchema = new Schema<IPurchase>(
     },
     status: {
       type: String,
-      enum: ['DRAFT', 'COMPLETED', 'CANCELLED'],
+      enum: ['DRAFT', 'COMPLETED', 'PAID', 'CANCELLED'],  // ← ADDED 'PAID'
       default: 'COMPLETED',
     },
     notes: {
       type: String,
       trim: true,
+    },
+    voucherId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Voucher',
+    },
+    isPostedToGL: {
+      type: Boolean,
+      default: false,
     },
     createdBy: {
       type: Schema.Types.ObjectId,
@@ -128,6 +138,21 @@ PurchaseSchema.index({ outletId: 1, purchaseDate: -1 });
 PurchaseSchema.index({ outletId: 1, status: 1 });
 PurchaseSchema.index({ outletId: 1, supplierId: 1, purchaseDate: -1 });
 
-const Purchase: Model<IPurchase> = mongoose.models.Purchase || mongoose.model<IPurchase>('Purchase', PurchaseSchema);
+// Virtual for checking if purchase is fully paid
+PurchaseSchema.virtual('isFullyPaid').get(function() {
+  return this.balanceDue <= 0.01;
+});
+
+// Virtual for checking if purchase has outstanding balance
+PurchaseSchema.virtual('hasBalance').get(function() {
+  return this.balanceDue > 0.01;
+});
+
+// Delete cached model to ensure updates are picked up
+if (mongoose.models.Purchase) {
+  delete mongoose.models.Purchase;
+}
+
+const Purchase: Model<IPurchase> = mongoose.model<IPurchase>('Purchase', PurchaseSchema);
 
 export default Purchase;

@@ -1,4 +1,4 @@
-// InvoicePrint.tsx
+//components/ui/InvoicePrint.tsx
 'use client';
 
 import React, { useEffect, useState } from 'react';

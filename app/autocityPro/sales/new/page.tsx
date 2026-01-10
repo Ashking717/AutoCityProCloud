@@ -25,6 +25,7 @@ import {
 } from "@/lib/data/carData";
 import toast from "react-hot-toast";
 import InvoicePrint from "@/components/InvoicePrint";
+import { ChevronLeft, MoreVertical, DollarSign } from 'lucide-react';
 
 interface ICustomer {
   _id: string;
@@ -106,6 +107,9 @@ export default function NewSalePage() {
   const [products, setProducts] = useState<any[]>([]);
   const [frequentProducts, setFrequentProducts] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [isMobile, setIsMobile] = useState(false);
+const [showDynamicIsland, setShowDynamicIsland] = useState(true);
+const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
@@ -159,6 +163,14 @@ export default function NewSalePage() {
       setPayments([{ ...payments[0], amount: totals.total }]);
     }
   }, [cart, overallDiscount, overallDiscountType]);
+  useEffect(() => {
+  const checkIfMobile = () => {
+    setIsMobile(window.innerWidth < 768);
+  };
+  checkIfMobile();
+  window.addEventListener('resize', checkIfMobile);
+  return () => window.removeEventListener('resize', checkIfMobile);
+}, []);
 
   const fetchUser = async () => {
     try {
@@ -295,7 +307,11 @@ export default function NewSalePage() {
       toast.error("Labor description is required");
       return;
     }
-
+    const formatCompactCurrency = (amount: number) => {
+  if (amount >= 1000000) return `QR${(amount / 1000000).toFixed(1)}M`;
+  if (amount >= 10000) return `QR${(amount / 1000).toFixed(1)}K`;
+  return `QR${amount.toFixed(0)}`;
+};
     const amount = laborCharge.hours * laborCharge.rate;
     const laborItem: CartItem = {
       productName: `Labor: ${laborCharge.description}`,
@@ -375,15 +391,20 @@ export default function NewSalePage() {
 
           let discountAmount = 0;
           if (updated.discountType === "percentage") {
-            discountAmount = (updated.sellingPrice * updated.quantity * updated.discount) / 100;
+            discountAmount =
+              (updated.sellingPrice * updated.quantity * updated.discount) /
+              100;
           } else {
             discountAmount = updated.discount;
           }
 
-          const discountedPrice = updated.sellingPrice * updated.quantity - discountAmount;
+          const discountedPrice =
+            updated.sellingPrice * updated.quantity - discountAmount;
           updated.subtotal = discountedPrice;
           updated.total = updated.subtotal * (1 + updated.taxRate / 100);
-          updated.profit = (updated.sellingPrice - updated.costPrice) * updated.quantity - discountAmount;
+          updated.profit =
+            (updated.sellingPrice - updated.costPrice) * updated.quantity -
+            discountAmount;
 
           return updated;
         }
@@ -413,20 +434,24 @@ export default function NewSalePage() {
 
     let overallDiscountAmount = 0;
     if (overallDiscountType === "percentage") {
-      overallDiscountAmount = (subtotal - totalDiscount) * (overallDiscount / 100);
+      overallDiscountAmount =
+        (subtotal - totalDiscount) * (overallDiscount / 100);
     } else {
       overallDiscountAmount = overallDiscount;
     }
 
-    const subtotalAfterDiscount = subtotal - totalDiscount - overallDiscountAmount;
+    const subtotalAfterDiscount =
+      subtotal - totalDiscount - overallDiscountAmount;
     const totalTax = cart.reduce((sum, item) => {
       let itemDiscountAmount = 0;
       if (item.discountType === "percentage") {
-        itemDiscountAmount = (item.sellingPrice * item.quantity * item.discount) / 100;
+        itemDiscountAmount =
+          (item.sellingPrice * item.quantity * item.discount) / 100;
       } else {
         itemDiscountAmount = item.discount;
       }
-      const itemSubtotal = item.sellingPrice * item.quantity - itemDiscountAmount;
+      const itemSubtotal =
+        item.sellingPrice * item.quantity - itemDiscountAmount;
       return sum + (itemSubtotal * item.taxRate) / 100;
     }, 0);
 
@@ -466,12 +491,14 @@ export default function NewSalePage() {
 
       if (item.discountType === "percentage") {
         discountPercentage = item.discount;
-        discountAmount = (item.sellingPrice * item.quantity * item.discount) / 100;
+        discountAmount =
+          (item.sellingPrice * item.quantity * item.discount) / 100;
       } else {
         discountAmount = item.discount;
-        discountPercentage = item.sellingPrice * item.quantity > 0 
-          ? (item.discount / (item.sellingPrice * item.quantity)) * 100 
-          : 0;
+        discountPercentage =
+          item.sellingPrice * item.quantity > 0
+            ? (item.discount / (item.sellingPrice * item.quantity)) * 100
+            : 0;
       }
 
       if (item.isLabor) {
@@ -531,12 +558,14 @@ export default function NewSalePage() {
           items: cart.map((item) => {
             let discountAmount = 0;
             if (item.discountType === "percentage") {
-              discountAmount = (item.sellingPrice * item.quantity * item.discount) / 100;
+              discountAmount =
+                (item.sellingPrice * item.quantity * item.discount) / 100;
             } else {
               discountAmount = item.discount;
             }
 
-            const itemSubtotal = item.sellingPrice * item.quantity - discountAmount;
+            const itemSubtotal =
+              item.sellingPrice * item.quantity - discountAmount;
             return {
               name: item.productName,
               quantity: item.quantity,
@@ -589,6 +618,12 @@ export default function NewSalePage() {
     : [];
 
   const totals = calculateTotals();
+  // Helper function for compact currency
+const formatCompactCurrency = (amount: number) => {
+  if (amount >= 1000000) return `QR${(amount / 1000000).toFixed(1)}M`;
+  if (amount >= 10000) return `QR${(amount / 1000).toFixed(1)}K`;
+  return `QR${amount.toFixed(0)}`;
+};
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
@@ -597,39 +632,121 @@ export default function NewSalePage() {
 
   const availableCarMakes = Object.keys(carMakesModels);
 
-  return (
-    <MainLayout user={user} onLogout={handleLogout}>
-      {/* Header with Red Gradient */}
-      <div className="py-5 bg-gradient-to-r from-red-900 via-[#541515] to-[#4d0b0b] border border-[#E84545]/30 shadow-lg overflow-hidden relative">
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSIjRjg0NTQ1IiBmaWxsLW9wYWNpdHk9IjAuMSIgZmlsbC1ydWxlPSJldmVub2RkIj48Y2lyY2xlIGN4PSIzIiBjeT0iMyIgcj0iMyIvPjxjaXJjbGUgY3g9IjEzIiBjeT0iMTMiIHI9IjMiLz48L2c+PC9zdmc+')] opacity-20"></div>
-
-        <div className="p-6 relative z-10">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold text-white mb-2 flex items-center">
-                <Sparkles className="h-7 w-7 mr-3 text-white" />
-                New Sale
-              </h1>
-              <p className="text-white/90">Create a new sales transaction</p>
+return (
+  <MainLayout user={user} onLogout={handleLogout}>
+    {/* Dynamic Island - Mobile Only */}
+    {isMobile && showDynamicIsland && (
+      <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-2 px-4 pointer-events-none">
+        <div className="bg-black rounded-[28px] px-6 py-3 shadow-2xl border border-white/10 backdrop-blur-xl pointer-events-auto animate-in slide-in-from-top duration-500">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <ShoppingCart className="h-3 w-3 text-[#E84545]" />
+              <span className="text-white text-xs font-semibold">{cart.length}</span>
             </div>
-            <div className="flex items-center space-x-4">
-              <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2 border border-white/10">
-                <p className="text-white text-sm">Cart Items</p>
-                <p className="text-white font-bold text-xl text-center">
-                  {cart.length}
-                </p>
-              </div>
-              <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2 border border-white/10">
-                <p className="text-white text-sm">Total</p>
-                <p className="text-white font-bold text-xl text-center">
-                  QAR {totals.total.toFixed(2)}
-                </p>
-              </div>
+            <div className="h-3 w-px bg-white/20"></div>
+            <div className="flex items-center gap-1">
+              <DollarSign className="h-3 w-3 text-green-400" />
+              <span className="text-white text-xs font-medium">
+                {totals.total > 0 ? formatCompactCurrency(totals.total) : 'QR0'}
+              </span>
+            </div>
+            {selectedCustomer && (
+              <>
+                <div className="h-3 w-px bg-white/20"></div>
+                <User className="h-3 w-3 text-blue-400" />
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Mobile Header - Compact & Fixed */}
+    <div className="md:hidden fixed top-16 left-0 right-0 z-40 bg-gradient-to-br from-[#0A0A0A] via-[#050505] to-[#0A0A0A] border-b border-white/5 backdrop-blur-xl">
+      <div className="px-4 py-3">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.back()}
+              className="p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <div>
+              <h1 className="text-xl font-bold text-white">New Sale</h1>
+              <p className="text-xs text-white/60">
+                {cart.length} items • {formatCompactCurrency(totals.total)}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowMobileMenu(true)}
+            className="p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
+          >
+            <MoreVertical className="h-4 w-4" />
+          </button>
+        </div>
+        
+        {/* Mobile Quick Stats */}
+        {cart.length > 0 && (
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-white/5 rounded-lg px-3 py-2 border border-white/5">
+              <p className="text-[10px] text-white/60 uppercase">Cart Total</p>
+              <p className="text-sm font-bold text-white truncate">
+                {formatCompactCurrency(totals.total)}
+              </p>
+            </div>
+            <div className="bg-white/5 rounded-lg px-3 py-2 border border-white/5">
+              <p className="text-[10px] text-white/60 uppercase">Items</p>
+              <p className="text-sm font-bold text-white">{cart.length}</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+
+    {/* Desktop Header */}
+    <div className="hidden md:block py-4 md:py-8 bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-lg overflow-hidden relative">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSIjRjg0NTQ1IiBmaWxsLW9wYWNpdHk9IjAuMSIgZmlsbC1ydWxlPSJldmVub2RkIj48Y2lyY2xlIGN4PSIzIiBjeT0iMyIgcj0iMyIvPjxjaXJjbGUgY3g9IjEzIiBjeT0iMTMiIHI9IjMiLz48L2c+PC9zdmc+')] opacity-20"></div>
+      
+      <div className="px-4 md:px-6 relative z-10">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+          {/* Title Section */}
+          <div>
+            <h1 className="text-xl md:text-3xl font-bold text-white mb-1 flex items-center">
+              <Sparkles className="h-4 w-4 md:h-5 md:w-5 mr-2 text-white" />
+              New Sale
+            </h1>
+            <p className="text-sm md:text-base text-white/90">
+              Create a new sales transaction
+            </p>
+          </div>
+
+          {/* Stats Section */}
+          <div className="flex gap-3 md:gap-5">
+            {/* Cart Items */}
+            <div className="flex-1 bg-white/20 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/10 text-center">
+              <p className="text-xs md:text-sm text-white/80">Cart Items</p>
+              <p className="text-base md:text-lg font-semibold text-white">
+                {cart.length}
+              </p>
+            </div>
+
+            {/* Total */}
+            <div className="flex-1 bg-white/20 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/10 text-center">
+              <p className="text-xs md:text-sm text-white/80">Total</p>
+              <p className="text-lg md:text-xl font-bold text-white">
+                QAR {totals.total.toFixed(2)}
+              </p>
             </div>
           </div>
         </div>
       </div>
-
+    </div>
+         
+         {/* Main Content - ADD PADDING FOR MOBILE HEADER */}
+    <div className="px-4 md:px-6 pt-[180px] md:pt-6 pb-6 bg-[#050505] min-h-screen">
       <div className="p-6 bg-[#050505] min-h-screen">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Product Search & Cart */}
@@ -836,17 +953,30 @@ export default function NewSalePage() {
                                   parseFloat(e.target.value) || 0
                                 )
                               }
-                              placeholder={item.discountType === "percentage" ? "%" : "QAR"}
+                              placeholder={
+                                item.discountType === "percentage" ? "%" : "QAR"
+                              }
                               min="0"
                               className="px-3 py-2 bg-[#111111] border border-white/5 rounded text-sm text-white focus:ring-1 focus:ring-[#E84545] focus:border-transparent"
                             />
                             <button
                               onClick={() => {
-                                const newType = item.discountType === "percentage" ? "fixed" : "percentage";
-                                updateCartItem(item.productId!, "discountType", newType);
+                                const newType =
+                                  item.discountType === "percentage"
+                                    ? "fixed"
+                                    : "percentage";
+                                updateCartItem(
+                                  item.productId!,
+                                  "discountType",
+                                  newType
+                                );
                               }}
                               className="px-2 py-2 bg-[#111111] border border-white/5 rounded text-xs text-white hover:bg-[#E84545]/10 transition-colors flex items-center justify-center"
-                              title={`Switch to ${item.discountType === "percentage" ? "Fixed" : "Percentage"}`}
+                              title={`Switch to ${
+                                item.discountType === "percentage"
+                                  ? "Fixed"
+                                  : "Percentage"
+                              }`}
                             >
                               {item.discountType === "percentage" ? (
                                 <Percent className="h-4 w-4" />
@@ -857,10 +987,19 @@ export default function NewSalePage() {
                           </div>
                           {item.discount > 0 && (
                             <div className="mt-2 text-xs text-[#E84545]">
-                              Discount: {item.discountType === "percentage" 
-                                ? `${item.discount}% (QAR ${((item.sellingPrice * item.quantity * item.discount) / 100).toFixed(2)})`
-                                : `QAR ${item.discount.toFixed(2)} (${((item.discount / (item.sellingPrice * item.quantity)) * 100).toFixed(1)}%)`
-                              }
+                              Discount:{" "}
+                              {item.discountType === "percentage"
+                                ? `${item.discount}% (QAR ${(
+                                    (item.sellingPrice *
+                                      item.quantity *
+                                      item.discount) /
+                                    100
+                                  ).toFixed(2)})`
+                                : `QAR ${item.discount.toFixed(2)} (${(
+                                    (item.discount /
+                                      (item.sellingPrice * item.quantity)) *
+                                    100
+                                  ).toFixed(1)}%)`}
                             </div>
                           )}
                         </>
@@ -1151,6 +1290,60 @@ export default function NewSalePage() {
           </div>
         </div>
       </div>
+       {/* Mobile Action Menu - ADD BEFORE CLOSING </MainLayout> */}
+    {showMobileMenu && (
+      <div className="md:hidden fixed inset-0 bg-black/80 backdrop-blur-md z-[60] animate-in fade-in duration-200">
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-b from-[#0A0A0A] to-[#050505] rounded-t-3xl border-t border-white/10 p-6 animate-in slide-in-from-bottom duration-300 shadow-2xl">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-bold text-white">Quick Actions</h2>
+            <button
+              onClick={() => setShowMobileMenu(false)}
+              className="p-2 rounded-xl bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <div className="space-y-3">
+            <button
+              onClick={() => {
+                setShowAddLabor(true);
+                setShowMobileMenu(false);
+              }}
+              className="w-full p-4 bg-[#0A0A0A]/50 border border-white/10 rounded-2xl text-gray-300 font-semibold hover:bg-white/5 transition-all flex items-center justify-between active:scale-[0.98]"
+            >
+              <span>Add Labor Charge</span>
+              <Wrench className="h-5 w-5" />
+            </button>
+            <button
+              onClick={() => {
+                setShowAddCustomer(true);
+                setShowMobileMenu(false);
+              }}
+              className="w-full p-4 bg-[#0A0A0A]/50 border border-white/10 rounded-2xl text-gray-300 font-semibold hover:bg-white/5 transition-all flex items-center justify-between active:scale-[0.98]"
+            >
+              <span>Add New Customer</span>
+              <User className="h-5 w-5" />
+            </button>
+            <button
+              onClick={() => {
+                if (selectedCustomer) {
+                  toast.success(`Customer: ${selectedCustomer.name}`);
+                }
+                setShowMobileMenu(false);
+              }}
+              className="w-full p-4 bg-[#0A0A0A]/50 border border-white/10 rounded-2xl text-gray-300 font-semibold hover:bg-white/5 transition-all flex items-center justify-between active:scale-[0.98]"
+            >
+              <span>View Cart Summary</span>
+              <ShoppingCart className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Mobile Safe Area Bottom Padding */}
+    <div className="md:hidden h-6"></div>
+    </div>
       {/* Add Customer Modal with Vehicle Info */}
       {showAddCustomer && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
@@ -1534,22 +1727,21 @@ export default function NewSalePage() {
           </div>
         </div>
       )}
-
-{/* Invoice Print Modal */}
-{showInvoice && invoiceData && user?.outletId && invoiceCustomer && (
-  <>
-    <InvoicePrint
-      invoice={invoiceData}
-      outletId={user.outletId}
-      customerId={invoiceCustomer._id}
-      onClose={() => {
-        setShowInvoice(false);
-        setInvoiceCustomer(null);
-      }}
-    />
-  </>
-)}
-
- </MainLayout>
+      <div className="md:hidden h-6"></div>
+      {/* Invoice Print Modal */}
+      {showInvoice && invoiceData && user?.outletId && invoiceCustomer && (
+        <>
+          <InvoicePrint
+            invoice={invoiceData}
+            outletId={user.outletId}
+            customerId={invoiceCustomer._id}
+            onClose={() => {
+              setShowInvoice(false);
+              setInvoiceCustomer(null);
+            }}
+          />
+        </>
+      )}
+    </MainLayout>
   );
 }

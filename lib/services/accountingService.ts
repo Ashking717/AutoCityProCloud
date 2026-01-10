@@ -475,6 +475,150 @@ export async function postPurchaseToLedger(
 }
 
 /* ═══════════════════════════════════════════════════════════
+   PURCHASE PAYMENT POSTING
+   
+   Used when recording payments against purchases on credit.
+   
+   Payment Voucher Entry:
+   DR: Accounts Payable (Liability decreases - we owe less)
+   CR: Cash/Bank (Asset decreases - money paid out)
+   ═══════════════════════════════════════════════════════════ */
+
+export async function postPurchasePaymentToLedger(
+  payment: {
+    purchaseId: mongoose.Types.ObjectId;
+    purchaseNumber: string;
+    supplierName: string;
+    amount: number;
+    paymentMethod: "CASH" | "CARD" | "BANK_TRANSFER";
+    paymentDate: Date;
+    referenceNumber?: string;
+    notes?: string;
+    outletId: mongoose.Types.ObjectId;
+  },
+  userId: mongoose.Types.ObjectId
+) {
+  try {
+    console.log('\n💰 Posting purchase payment to ledger...');
+    
+    const outlet = await Outlet.findById(payment.outletId).lean();
+    if (!outlet) throw new Error("Outlet not found");
+
+    const sys = await getSystemAccounts(payment.outletId);
+
+    /* ───────── DETERMINE PAYMENT ACCOUNT ───────── */
+
+    let paymentAccountId: mongoose.Types.ObjectId;
+
+    if (payment.paymentMethod === "BANK_TRANSFER" || payment.paymentMethod === "CARD") {
+      paymentAccountId = sys.bankAccount;
+    } else {
+      paymentAccountId = sys.cashAccount;
+    }
+
+    const apAccountId = sys.apAccount || sys.arAccount;
+
+    /* ───────── GET ACCOUNT DETAILS ───────── */
+
+    const paymentDetails = await getAccountDetails(paymentAccountId);
+    const apDetails = await getAccountDetails(apAccountId);
+
+    /* ───────── BUILD PAYMENT VOUCHER ENTRIES ───────── */
+
+    const paymentEntries: Array<{
+      accountId: mongoose.Types.ObjectId;
+      accountNumber: string;
+      accountName: string;
+      debit: number;
+      credit: number;
+    }> = [
+      {
+        ...apDetails,
+        debit: payment.amount,
+        credit: 0,
+      },
+      {
+        ...paymentDetails,
+        debit: 0,
+        credit: payment.amount,
+      },
+    ];
+
+    /* ───────── CREATE PAYMENT VOUCHER ───────── */
+
+    const voucherNumber = await generateVoucherNumber("payment", payment.outletId);
+
+    const narration = payment.notes || 
+      `Payment for Purchase ${payment.purchaseNumber} - ${payment.supplierName}${
+        payment.referenceNumber ? ` (Ref: ${payment.referenceNumber})` : ""
+      }`;
+
+    const paymentVoucher = await Voucher.create([
+      {
+        voucherNumber,
+        voucherType: "payment",
+        date: payment.paymentDate,
+        narration,
+        entries: paymentEntries,
+        totalDebit: payment.amount,
+        totalCredit: payment.amount,
+        status: "posted",
+        referenceType: "PURCHASE_PAYMENT",
+        referenceId: payment.purchaseId,
+        outletId: payment.outletId,
+        createdBy: userId,
+        metadata: {
+          paymentMethod: payment.paymentMethod,
+          referenceNumber: payment.referenceNumber,
+          purchaseNumber: payment.purchaseNumber,
+          supplierName: payment.supplierName,
+        },
+      },
+    ]);
+
+    console.log(`  ✓ Payment voucher created: ${paymentVoucher[0].voucherNumber}`);
+
+    // ✅ Apply balance changes
+    await applyVoucherBalances(paymentVoucher[0]);
+
+    /* ───────── CREATE LEDGER ENTRIES ───────── */
+
+    const ledgerDocs = paymentEntries.map((e) => ({
+      voucherId: paymentVoucher[0]._id,
+      voucherNumber: paymentVoucher[0].voucherNumber,
+      voucherType: "payment",
+      accountId: e.accountId,
+      accountNumber: e.accountNumber,
+      accountName: e.accountName,
+      debit: e.debit,
+      credit: e.credit,
+      narration: paymentVoucher[0].narration,
+      date: payment.paymentDate,
+      referenceType: "PURCHASE_PAYMENT",
+      referenceId: payment.purchaseId,
+      referenceNumber: payment.purchaseNumber,
+      isReversal: false,
+      outletId: payment.outletId,
+      createdBy: userId,
+    }));
+
+    await LedgerEntry.insertMany(ledgerDocs);
+
+    console.log(`  ✓ Created ${ledgerDocs.length} ledger entries`);
+    console.log(`✓ Purchase payment posted successfully\n`);
+
+    return {
+      voucherId: paymentVoucher[0]._id,
+      voucherNumber: paymentVoucher[0].voucherNumber,
+      ledgerEntriesCount: ledgerDocs.length,
+    };
+  } catch (error) {
+    console.error("Error posting purchase payment to ledger:", error);
+    throw error;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
    EXPENSE POSTING
    
    Creates a Payment Voucher for expense transactions:
@@ -1403,6 +1547,7 @@ export default {
   generateVoucherNumber,
   postSaleToLedger,
   postPurchaseToLedger,
+  postPurchasePaymentToLedger,
   postExpenseToLedger,
   reverseExpenseVoucher,
   postInventoryAdjustmentToLedger,

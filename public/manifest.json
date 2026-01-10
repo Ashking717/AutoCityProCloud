@@ -1,7 +1,7 @@
 {
-  "name": "AutoCity Qatar",
+  "name": "AutoCity Car Accessories",
   "short_name": "AutoCity",
-  "start_url": "/",
+  "start_url": "/autocitypro/login",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#d81f26",

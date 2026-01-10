@@ -224,11 +224,10 @@ export default function PurchasesPortalPage() {
           activeSuppliers: 0,
         });
       } else {
-        toast.error("Failed to load stats");
+        console.error("Failed to load stats");
       }
     } catch (error) {
       console.error("Failed to fetch stats", error);
-      toast.error("Failed to load stats");
     }
   };
 
@@ -239,11 +238,10 @@ export default function PurchasesPortalPage() {
         const data = await res.json();
         setRecentCategories(data.categories || []);
       } else {
-        toast.error("Failed to load recent categories");
+        console.error("Failed to load recent categories");
       }
     } catch (error) {
       console.error("Failed to fetch categories", error);
-      toast.error("Failed to load recent categories");
     }
   };
 
@@ -254,26 +252,50 @@ export default function PurchasesPortalPage() {
         const data = await res.json();
         setTopSuppliers(data.suppliers || []);
       } else {
-        toast.error("Failed to load top suppliers");
+        console.error("Failed to load top suppliers");
       }
     } catch (error) {
       console.error("Failed to fetch suppliers", error);
-      toast.error("Failed to load top suppliers");
     }
   };
 
   const fetchRecentTransactions = async () => {
     try {
-      const res = await fetch("/api/transactions/recent?limit=5", { credentials: "include" });
-      if (res.ok) {
-        const data = await res.json();
-        setRecentTransactions(data.transactions || []);
-      } else {
-        toast.error("Failed to load recent transactions");
-      }
+      // Fetch recent purchases
+      const purchasesRes = await fetch("/api/purchases/portal?sort=createdAt&order=desc&limit=3", { credentials: "include" });
+      const purchases = purchasesRes.ok ? (await purchasesRes.json()).purchases || [] : [];
+
+      // Fetch recent expenses
+      const expensesRes = await fetch("/api/expenses?sort=createdAt&order=desc&limit=3", { credentials: "include" });
+      const expenses = expensesRes.ok ? (await expensesRes.json()).expenses || [] : [];
+
+      // Combine and format transactions
+      const combined = [
+        ...purchases.map((p: any) => ({
+          id: `purchase-${p.id}`,
+          type: 'purchase',
+          vendor: p.supplier_name || p.vendor || 'Unknown Supplier',
+          category: null,
+          amount: p.amount || p.total_amount || 0,
+          date: p.created_at || p.date || new Date().toISOString().split('T')[0],
+          status: p.status || 'complete'
+        })),
+        ...expenses.map((e: any) => ({
+          id: `expense-${e.id}`,
+          type: 'expense',
+          vendor: null,
+          category: e.category || e.expense_category || 'General',
+          amount: e.amount || 0,
+          date: e.created_at || e.date || new Date().toISOString().split('T')[0],
+          status: e.status || 'complete'
+        }))
+      ];
+
+      // Sort by date and limit to 5 most recent
+      combined.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setRecentTransactions(combined.slice(0, 5));
     } catch (error) {
       console.error("Failed to fetch transactions", error);
-      toast.error("Failed to load recent transactions");
     }
   };
 
@@ -433,7 +455,7 @@ export default function PurchasesPortalPage() {
         </div>
 
         {/* Desktop Header */}
-        <div className="hidden md:block py-6 bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-xl">
+        <div className="hidden md:block py-12 bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-xl">
           <div className="px-8">
             <div className="flex justify-between items-center">
               <div>

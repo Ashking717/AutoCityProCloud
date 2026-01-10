@@ -195,7 +195,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
         {
           name: "Outlets",
           icon: Building,
-          href: "/autocityPro/settings/outlets",
+          href: "/autocityPro/settings/outlets/new",
           badge: null,
           mobile: true,
         },

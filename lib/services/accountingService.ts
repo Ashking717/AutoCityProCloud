@@ -211,16 +211,19 @@ export async function postSaleToLedger(
 
   // Separate product sales and labor/service revenue
   const productItems = sale.items.filter((i: any) => !i.isLabor);
-  const laborItems = sale.items.filter((i: any) => i.isLabor);
+const laborItems = sale.items.filter((i: any) => i.isLabor);
 
-  const productRevenue = productItems.reduce(
-    (sum: number, item: any) => sum + (item.total || 0),
-    0
-  );
-  const laborRevenue = laborItems.reduce(
-    (sum: number, item: any) => sum + (item.total || 0),
-    0
-  );
+// NET amounts (after ALL discounts)
+const productRevenue = productItems.reduce(
+  (sum: number, item: any) => sum + (item.total || 0),
+  0
+);
+
+const laborRevenue = laborItems.reduce(
+  (sum: number, item: any) => sum + (item.total || 0),
+  0
+);
+
 
   // Credit Sales Revenue for products
   if (productRevenue > 0) {
@@ -228,7 +231,8 @@ export async function postSaleToLedger(
     receiptEntries.push({
       ...salesDetails,
       debit: 0,
-      credit: productRevenue,
+      credit: sale.grandTotal - laborRevenue,
+
     });
   }
 

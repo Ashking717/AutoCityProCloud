@@ -92,12 +92,7 @@ export async function POST(request: NextRequest) {
       notes,
     } = body;
 
-    if (
-      !supplierId ||
-      !supplierName ||
-      !Array.isArray(items) ||
-      items.length === 0
-    ) {
+    if (!supplierId || !supplierName || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -123,7 +118,6 @@ export async function POST(request: NextRequest) {
     // ───────────────── CALCULATIONS ─────────────────
     let subtotal = 0;
     let totalTax = 0;
-
     const purchaseItems: any[] = [];
 
     for (const item of items) {
@@ -143,14 +137,12 @@ export async function POST(request: NextRequest) {
       subtotal += itemSubtotal;
       totalTax += taxAmount;
 
-      const unit = item.unit || product.unit || "pcs";
-
       purchaseItems.push({
         productId: product._id,
         name: item.name || product.name,
         sku: item.sku || product.sku,
         quantity,
-        unit,
+        unit: item.unit || product.unit || "pcs",
         unitPrice,
         taxRate,
         taxAmount,
@@ -163,7 +155,7 @@ export async function POST(request: NextRequest) {
     const balanceDue = grandTotal - paidAmount;
 
     // ───────────────── CREATE PURCHASE ─────────────────
-    const purchaseDocs = await Purchase.create([
+    const [purchase] = await Purchase.create([
       {
         purchaseNumber,
         outletId,
@@ -184,58 +176,67 @@ export async function POST(request: NextRequest) {
       },
     ]);
 
-    const purchase = purchaseDocs[0];
     console.log(`✓ Purchase created: ${purchase.purchaseNumber}`);
 
     // ═══════════════════════════════════════════════════════════
-    // UPDATE PRODUCT COSTS WITH WEIGHTED AVERAGE
+    // COST UPDATE + INVENTORY MOVEMENTS
     // ═══════════════════════════════════════════════════════════
-    console.log('\n💰 Updating product costs with weighted average...');
-    
+
     const costUpdates: any[] = [];
-    
+
     for (const item of purchase.items) {
       try {
         const productId = new mongoose.Types.ObjectId(item.productId);
         const purchaseQty = Number(item.quantity);
         const purchasePrice = Number(item.unitPrice);
-        
-        // Update weighted average cost
+
+        // 1️⃣ Update weighted average COST only
         const result = await updateWeightedAverageCost(
           productId,
           purchaseQty,
           purchasePrice
         );
-        
         costUpdates.push(result);
-        
-        console.log(`✓ Updated ${result.productName}:`);
-        console.log(`  Old Cost: QAR ${result.oldCostPrice.toFixed(2)}`);
-        console.log(`  New Cost: QAR ${result.newCostPrice.toFixed(2)}`);
-        console.log(`  Change: ${result.priceChangePercent > 0 ? '+' : ''}${result.priceChangePercent.toFixed(2)}%`);
-        
-        // Create inventory movement
+
+        // 2️⃣ Get previous stock balance
+        const lastMovement = await InventoryMovement
+          .findOne({ productId, outletId })
+          .sort({ date: -1 });
+
+        const previousBalance = lastMovement?.balanceAfter || 0;
+        const newBalance = previousBalance + purchaseQty;
+
+        // 3️⃣ Create inventory movement (SOURCE OF TRUTH)
         await InventoryMovement.create({
           productId,
           productName: item.name,
           sku: item.sku,
+
           movementType: 'PURCHASE',
           quantity: purchaseQty,
           unitCost: purchasePrice,
-          totalCost: purchaseQty * purchasePrice,
+          totalValue: purchaseQty * purchasePrice,
+
           referenceType: 'PURCHASE',
           referenceId: purchase._id,
           referenceNumber: purchase.purchaseNumber,
+
           outletId,
+          balanceAfter: newBalance,
+          date: new Date(),
           createdBy: userId,
+          ledgerEntriesCreated: true,
         });
-        
+
+        // 4️⃣ Update cached stock on product
+        await Product.findByIdAndUpdate(productId, {
+          currentStock: newBalance,
+        });
+
       } catch (error: any) {
-        console.error(`⚠️ Failed to update cost for ${item.name}:`, error.message);
+        console.error(`⚠️ Failed processing ${item.name}:`, error.message);
       }
     }
-    
-    console.log(`\n✓ Updated ${costUpdates.length}/${purchase.items.length} product costs`);
 
     // ───────────────── ACCOUNTING ─────────────────
     let voucherId = null;
@@ -254,11 +255,7 @@ export async function POST(request: NextRequest) {
 
     // ───────────────── ACTIVITY LOG ─────────────────
     const userDoc = await User.findById(userId).lean();
-    const username =
-      userDoc?.username ||
-      user.username ||
-      user.email ||
-      "Unknown User";
+    const username = userDoc?.username || user.username || user.email || "Unknown User";
 
     await ActivityLog.create([
       {
@@ -273,15 +270,16 @@ export async function POST(request: NextRequest) {
     ]);
 
     return NextResponse.json(
-      { 
+      {
         success: true,
-        purchase, 
+        purchase,
         voucherId,
         costUpdates,
-        message: 'Purchase created successfully'
-      }, 
+        message: 'Purchase created successfully',
+      },
       { status: 201 }
     );
+
   } catch (error: any) {
     console.error("PURCHASE ERROR:", error);
     return NextResponse.json(

@@ -7,6 +7,7 @@ import { verifyToken } from '@/lib/auth/jwt';
 import Product from '@/lib/models/ProductEnhanced';
 import { postInventoryAdjustmentToLedger } from '@/lib/services/accountingService';
 import mongoose from 'mongoose';
+import InventoryMovement from '@/lib/models/InventoryMovement';
 
 // GET /api/products
 export async function GET(request: NextRequest) {
@@ -89,6 +90,7 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/products
+// POST /api/products
 export async function POST(request: NextRequest) {
   try {
     await connectDB();
@@ -115,7 +117,8 @@ export async function POST(request: NextRequest) {
       carMake,
       carModel,
       variant,
-      year,
+      yearFrom,  // CHANGED: from 'year' to 'yearFrom'
+      yearTo,    // NEW: added yearTo
       color,
       vin,
       unit,
@@ -172,7 +175,8 @@ export async function POST(request: NextRequest) {
       carMake: isVehicle ? carMake : undefined,
       carModel: isVehicle ? carModel : undefined,
       variant: isVehicle ? variant : undefined,
-      year: isVehicle && year ? parseInt(year) : undefined,
+      yearFrom: isVehicle && yearFrom ? parseInt(yearFrom) : undefined,  // CHANGED
+      yearTo: isVehicle && yearTo ? parseInt(yearTo) : undefined,        // NEW
       color: isVehicle ? color : undefined,
       vin: isVehicle ? vin : undefined,
       costPrice: cost,
@@ -190,15 +194,41 @@ export async function POST(request: NextRequest) {
       console.log(`   Type: Vehicle`);
       console.log(`   Make: ${carMake}${carModel ? ` ${carModel}` : ''}${variant ? ` ${variant}` : ''}`);
       if (color) console.log(`   Color: ${color}`);
-      if (year) console.log(`   Year: ${year}`);
+      if (yearFrom || yearTo) {  // CHANGED
+        const yearRange = yearFrom && yearTo ? `${yearFrom}-${yearTo}` : 
+                         yearFrom ? `${yearFrom}+` : 
+                         yearTo ? `Up to ${yearTo}` : '';
+        console.log(`   Year Range: ${yearRange}`);
+      }
     }
-    
+     // ───────────────── INVENTORY OPENING MOVEMENT ─────────────────
+if (stockQty > 0 && cost > 0) {
+  await InventoryMovement.create({
+    productId: product._id,
+    productName: name,
+    sku,
+
+    movementType: 'ADJUSTMENT', // opening stock
+    quantity: stockQty,
+    unitCost: cost,
+    totalValue: stockQty * cost,
+
+    referenceType: 'ADJUSTMENT',
+    referenceId: product._id,
+    referenceNumber: `OPEN-${sku}`,
+
+    outletId: user.outletId,
+    balanceAfter: stockQty,
+
+    date: new Date(),
+    notes: 'Opening stock on product creation',
+    createdBy: userId,
+    ledgerEntriesCreated: true,
+  });
+}
+
     // ═══════════════════════════════════════════════════════════
     // ACCOUNTING: Post initial inventory value to ledger
-    // 
-    // When product is created with opening stock, we need to:
-    // DR: Inventory (Asset) - Increase inventory value
-    // CR: Owner's Equity/Capital - Source of the inventory
     // ═══════════════════════════════════════════════════════════
     
     let voucherId = null;
@@ -241,22 +271,23 @@ export async function POST(request: NextRequest) {
         
       } catch (ledgerError: any) {
         console.error('⚠️ Failed to post inventory to ledger:', ledgerError.message);
-        // Don't fail the whole operation, but log the error
-        // The product is still created, just without the accounting entry
-        // You might want to flag this for manual reconciliation
       }
     } else if (stockQty > 0) {
       console.warn(`⚠️ Product has opening stock (${stockQty}) but no cost price set. Skipping ledger entry.`);
     }
     
     // Activity log
+    const yearRangeStr = yearFrom && yearTo ? `, ${yearFrom}-${yearTo}` : 
+                        yearFrom ? `, ${yearFrom}+` : 
+                        yearTo ? `, Up to ${yearTo}` : '';
+    
     await ActivityLog.create({
       userId: user.userId,
       username: user.email,
       actionType: 'create',
       module: 'products',
       description: `Created product: ${name} (${sku})${
-        isVehicle ? ` [Vehicle: ${carMake}${carModel ? ` ${carModel}` : ''}${variant ? ` ${variant}` : ''}${color ? `, ${color}` : ''}${year ? `, ${year}` : ''}]` : ''
+        isVehicle ? ` [Vehicle: ${carMake}${carModel ? ` ${carModel}` : ''}${variant ? ` ${variant}` : ''}${color ? `, ${color}` : ''}${yearRangeStr}]` : ''
       }${
         stockQty > 0 ? ` with opening stock: ${stockQty} ${unit || 'pcs'} @ QAR ${cost.toFixed(2)} = QAR ${(stockQty * cost).toFixed(2)}` : ''
       }`,

@@ -20,12 +20,12 @@ export async function updateWeightedAverageCost(
 ) {
   try {
     const product = await Product.findById(productId);
-    
+
     if (!product) {
       throw new Error(`Product not found: ${productId}`);
     }
 
-    // Current inventory value
+    // Current inventory value (cached stock is OK for cost calc)
     const currentStock = (product as any).currentStock || 0;
     const currentCostPrice = (product as any).costPrice || 0;
     const currentValue = currentStock * currentCostPrice;
@@ -33,37 +33,27 @@ export async function updateWeightedAverageCost(
     // Purchase value
     const purchaseValue = purchaseQuantity * purchaseUnitPrice;
 
-    // New stock after purchase
+    // New stock (for calculation ONLY)
     const newStock = currentStock + purchaseQuantity;
 
-    // Calculate weighted average cost
     let newAverageCost = currentCostPrice;
-    
+
     if (newStock > 0) {
       newAverageCost = (currentValue + purchaseValue) / newStock;
     }
 
     console.log('\n📊 Weighted Average Cost Calculation:');
     console.log(`   Product: ${(product as any).name} (${(product as any).sku})`);
-    console.log(`   ─────────────────────────────────────────────`);
-    console.log(`   Current Stock: ${currentStock} units`);
+    console.log(`   Current Stock (cached): ${currentStock}`);
     console.log(`   Current Cost: QAR ${currentCostPrice.toFixed(2)}`);
-    console.log(`   Current Value: QAR ${currentValue.toFixed(2)}`);
-    console.log(`   ─────────────────────────────────────────────`);
-    console.log(`   Purchase Qty: ${purchaseQuantity} units`);
+    console.log(`   Purchase Qty: ${purchaseQuantity}`);
     console.log(`   Purchase Price: QAR ${purchaseUnitPrice.toFixed(2)}`);
-    console.log(`   Purchase Value: QAR ${purchaseValue.toFixed(2)}`);
-    console.log(`   ─────────────────────────────────────────────`);
-    console.log(`   New Stock: ${newStock} units`);
     console.log(`   New Average Cost: QAR ${newAverageCost.toFixed(4)}`);
-    console.log(`   ─────────────────────────────────────────────`);
-    console.log(`   Price Change: ${currentCostPrice > 0 ? ((newAverageCost - currentCostPrice) / currentCostPrice * 100).toFixed(2) : 'N/A'}%`);
 
-    // Update product
+    // ✅ UPDATE COST ONLY
     await Product.findByIdAndUpdate(productId, {
       $set: {
         costPrice: newAverageCost,
-        currentStock: newStock,
       },
       $inc: {
         totalPurchased: purchaseQuantity,
@@ -76,14 +66,14 @@ export async function updateWeightedAverageCost(
       sku: (product as any).sku,
       oldCostPrice: currentCostPrice,
       newCostPrice: newAverageCost,
-      oldStock: currentStock,
-      newStock,
       purchaseQuantity,
       purchaseUnitPrice,
       priceChange: newAverageCost - currentCostPrice,
-      priceChangePercent: currentCostPrice > 0 ? ((newAverageCost - currentCostPrice) / currentCostPrice * 100) : 0,
+      priceChangePercent:
+        currentCostPrice > 0
+          ? ((newAverageCost - currentCostPrice) / currentCostPrice) * 100
+          : 0,
     };
-
   } catch (error) {
     console.error('Error updating weighted average cost:', error);
     throw error;

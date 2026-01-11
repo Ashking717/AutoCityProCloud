@@ -622,18 +622,32 @@ export default function NewPurchasePage() {
                   <Users className="h-5 w-5 mr-2 text-[#E84545]" />
                   Supplier
                 </h2>
-                <select
-                  value={selectedSupplier?._id || ""}
-                  onChange={(e) => setSelectedSupplier(suppliers.find((s) => s._id === e.target.value))}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-[#E84545]/50 mb-3"
-                >
-                  <option value="">Select Supplier</option>
-                  {suppliers.map((supplier) => (
-                    <option key={supplier._id} value={supplier._id}>
-                      {supplier.name} - {supplier.phone}
-                    </option>
-                  ))}
-                </select>
+                // In the supplier selection section, update the select onChange handler:
+
+<select
+  value={selectedSupplier?._id ? String(selectedSupplier._id) : ""}
+  onChange={(e) => {
+    const selectedId = e.target.value;
+
+    const supplier = suppliers.find(
+      (s) => s && s._id && String(s._id) === selectedId
+    );
+
+    setSelectedSupplier(supplier || null);
+  }}
+  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white"
+>
+  <option value="">Select Supplier</option>
+
+  {suppliers
+    .filter((s) => s && s._id)
+    .map((supplier) => (
+      <option key={String(supplier._id)} value={String(supplier._id)}>
+        {supplier.name} - {supplier.phone}
+      </option>
+    ))}
+</select>
+
 
                 {selectedSupplier && (
                   <div className="p-4 bg-white/5 rounded-xl border border-white/10 mb-3">

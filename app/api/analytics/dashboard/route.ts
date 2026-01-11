@@ -205,145 +205,170 @@ async function getDashboardStats(outletId: mongoose.Types.ObjectId, period: stri
 }
 
 // Helper function to get sales trend with profit
-async function getSalesTrend(outletId: mongoose.Types.ObjectId, period: string, now: Date) {
+async function getSalesTrend(
+  outletId: mongoose.Types.ObjectId,
+  period: string,
+  now: Date
+) {
   let labels: string[] = [];
   let data: number[] = [];
   let profits: number[] = [];
 
+  /* ───────────────── TODAY (hourly – profit skipped) ───────────────── */
   if (period === 'today') {
-    // Hourly data for today
     const hourlySales = await Sale.aggregate([
       {
         $match: {
           outletId,
           saleDate: { $gte: startOfDay(now), $lte: endOfDay(now) },
-          status: 'COMPLETED'
-        }
+          status: 'COMPLETED',
+        },
       },
       {
         $group: {
           _id: { $hour: '$saleDate' },
-          sales: { $sum: '$grandTotal' }
-        }
+          sales: { $sum: '$grandTotal' },
+        },
       },
-      { $sort: { '_id': 1 } }
+      { $sort: { _id: 1 } },
     ]);
 
-    // Create 24-hour array
-    data = Array.from({ length: 24 }, (_, hour) => {
-      const sale = hourlySales.find(s => s._id === hour);
+    labels = Array.from({ length: 24 }, (_, i) =>
+      `${i.toString().padStart(2, '0')}:00`
+    );
+
+    data = labels.map((_, hour) => {
+      const sale = hourlySales.find((s) => s._id === hour);
       return sale?.sales || 0;
     });
-    
-    labels = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`);
-    profits = Array.from({ length: 24 }, () => 0); // Profit calculation would be complex per hour
 
-  } else if (period === 'week') {
-    // Daily data for last 7 days
+    profits = Array(24).fill(0);
+  }
+
+  /* ───────────────── WEEK (daily with profit) ───────────────── */
+  else if (period === 'week') {
     const days = eachDayOfInterval({
       start: subDays(now, 6),
-      end: now
-    });
-    
-    labels = days.map(day => format(day, 'EEE'));
-    
-    const dailySales = await Sale.aggregate([
-      {
-        $match: {
-          outletId,
-          saleDate: { $gte: startOfDay(subDays(now, 6)), $lte: endOfDay(now) },
-          status: 'COMPLETED'
-        }
-      },
-      {
-        $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$saleDate' } },
-          sales: { $sum: '$grandTotal' }
-        }
-      },
-      { $sort: { '_id': 1 } }
-    ]);
-
-    data = days.map(day => {
-      const dateStr = format(day, 'yyyy-MM-dd');
-      const sale = dailySales.find(s => s._id === dateStr);
-      return sale?.sales || 0;
+      end: now,
     });
 
-    profits = days.map(() => 0); // Simplified for now
+    labels = days.map((d) => format(d, 'EEE'));
 
-  } else if (period === 'month') {
-    // Last 30 days
+    const sales = await Sale.find({
+      outletId,
+      saleDate: {
+        $gte: startOfDay(subDays(now, 6)),
+        $lte: endOfDay(now),
+      },
+      status: 'COMPLETED',
+    }).lean();
+
+    data = days.map((day) => {
+      const dateKey = format(day, 'yyyy-MM-dd');
+      return sales
+        .filter(
+          (s) => format(new Date(s.saleDate), 'yyyy-MM-dd') === dateKey
+        )
+        .reduce((sum, s) => sum + s.grandTotal, 0);
+    });
+
+    profits = days.map((day) => {
+      const dateKey = format(day, 'yyyy-MM-dd');
+      let profit = 0;
+
+      for (const sale of sales) {
+        if (format(new Date(sale.saleDate), 'yyyy-MM-dd') !== dateKey) continue;
+
+        for (const item of sale.items) {
+          if (item.isLabor) continue;
+          const cost = item.costPrice || 0;
+          profit += (item.unitPrice - cost) * item.quantity;
+        }
+      }
+
+      return profit;
+    });
+  }
+
+  /* ───────────────── MONTH (last 30 days with profit) ───────────────── */
+  else if (period === 'month') {
     const days = eachDayOfInterval({
       start: subDays(now, 29),
-      end: now
-    });
-    
-    labels = days.map(day => format(day, 'MMM d'));
-    
-    const dailySales = await Sale.aggregate([
-      {
-        $match: {
-          outletId,
-          saleDate: { $gte: startOfDay(subDays(now, 29)), $lte: endOfDay(now) },
-          status: 'COMPLETED'
-        }
-      },
-      {
-        $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$saleDate' } },
-          sales: { $sum: '$grandTotal' }
-        }
-      },
-      { $sort: { '_id': 1 } }
-    ]);
-
-    data = days.map(day => {
-      const dateStr = format(day, 'yyyy-MM-dd');
-      const sale = dailySales.find(s => s._id === dateStr);
-      return sale?.sales || 0;
+      end: now,
     });
 
-    profits = days.map(() => 0); // Simplified for now
+    labels = days.map((d) => format(d, 'MMM d'));
 
-  } else if (period === 'year') {
-    // Monthly data for last 12 months
-    labels = Array.from({ length: 12 }, (_, i) => {
-      const month = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
-      return format(month, 'MMM');
-    });
-    
-    const monthlySales = await Sale.aggregate([
-      {
-        $match: {
-          outletId,
-          saleDate: { $gte: subMonths(startOfMonth(now), 11), $lte: endOfMonth(now) },
-          status: 'COMPLETED'
-        }
+    const sales = await Sale.find({
+      outletId,
+      saleDate: {
+        $gte: startOfDay(subDays(now, 29)),
+        $lte: endOfDay(now),
       },
-      {
-        $group: {
-          _id: { $month: '$saleDate' },
-          sales: { $sum: '$grandTotal' }
-        }
-      },
-      { $sort: { '_id': 1 } }
-    ]);
+      status: 'COMPLETED',
+    }).lean();
 
-    data = Array.from({ length: 12 }, (_, i) => {
-      const month = now.getMonth() - (11 - i);
-      const adjustedMonth = month < 0 ? month + 12 : month;
-      const sale = monthlySales.find(s => s._id === (adjustedMonth + 1));
-      return sale?.sales || 0;
+    data = days.map((day) => {
+      const dateKey = format(day, 'yyyy-MM-dd');
+      return sales
+        .filter(
+          (s) => format(new Date(s.saleDate), 'yyyy-MM-dd') === dateKey
+        )
+        .reduce((sum, s) => sum + s.grandTotal, 0);
     });
 
-    profits = Array.from({ length: 12 }, () => 0); // Simplified for now
+    profits = days.map((day) => {
+      const dateKey = format(day, 'yyyy-MM-dd');
+      let profit = 0;
+
+      for (const sale of sales) {
+        if (format(new Date(sale.saleDate), 'yyyy-MM-dd') !== dateKey) continue;
+
+        for (const item of sale.items) {
+          if (item.isLabor) continue;
+          const cost = item.costPrice || 0;
+          profit += (item.unitPrice - cost) * item.quantity;
+        }
+      }
+
+      return profit;
+    });
+  }
+
+  /* ───────────────── YEAR (monthly with profit) ───────────────── */
+  else if (period === 'year') {
+    labels = Array.from({ length: 12 }, (_, i) =>
+      format(new Date(now.getFullYear(), i, 1), 'MMM')
+    );
+
+    const sales = await Sale.find({
+      outletId,
+      saleDate: {
+        $gte: new Date(now.getFullYear(), 0, 1),
+        $lte: new Date(now.getFullYear(), 11, 31, 23, 59, 59),
+      },
+      status: 'COMPLETED',
+    }).lean();
+
+    data = Array(12).fill(0);
+    profits = Array(12).fill(0);
+
+    for (const sale of sales) {
+      const month = new Date(sale.saleDate).getMonth();
+      data[month] += sale.grandTotal;
+
+      for (const item of sale.items) {
+        if (item.isLabor) continue;
+        const cost = item.costPrice || 0;
+        profits[month] += (item.unitPrice - cost) * item.quantity;
+      }
+    }
   }
 
   return {
     labels,
-    data: data.map(val => Math.round(val)),
-    profits: profits.map(val => Math.round(val))
+    data: data.map((v) => Math.round(v)),
+    profits: profits.map((v) => Math.round(v)),
   };
 }
 

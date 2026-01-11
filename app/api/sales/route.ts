@@ -12,6 +12,7 @@ import User from "@/lib/models/User";
 import { postSaleToLedger } from "@/lib/services/accountingService";
 import { verifyToken } from "@/lib/auth/jwt";
 import { connectDB } from "@/lib/db/mongodb";
+import InventoryMovement from "@/lib/models/InventoryMovement";
 
 /// GET /api/sales
 export async function GET(request: NextRequest) {
@@ -88,8 +89,8 @@ export async function POST(request: NextRequest) {
     }
 
     const user = verifyToken(token);
-
     const userId = new mongoose.Types.ObjectId(user.userId);
+
     if (!user.outletId) {
       return NextResponse.json(
         { error: "Invalid token: outletId missing" },
@@ -108,6 +109,7 @@ export async function POST(request: NextRequest) {
       paymentMethod,
       amountPaid,
       notes,
+      overallDiscountAmount = 0, // ✅ NEW
     } = body;
 
     if (
@@ -144,7 +146,6 @@ export async function POST(request: NextRequest) {
 
     for (const item of items) {
       const isLabor = item.isLabor === true;
-
       let product: any = null;
 
       if (!isLabor) {
@@ -164,50 +165,48 @@ export async function POST(request: NextRequest) {
       const unitPrice = Number(item.unitPrice) || 0;
       const costPrice = isLabor ? 0 : Number(product.costPrice || 0);
 
-      // ✅ Handle discount type (percentage or fixed amount)
+      // ── ITEM DISCOUNT ──
       const discountType = item.discountType || "percentage";
       let itemDiscount = 0;
 
       if (discountType === "percentage") {
-        // Discount is a percentage (0-100)
-        const discountRate = Number(item.discount) || 0;
-        const itemSubtotalBeforeDiscount = unitPrice * quantity;
-        itemDiscount = (itemSubtotalBeforeDiscount * discountRate) / 100;
+        const rate = Number(item.discount) || 0;
+        itemDiscount = (unitPrice * quantity * rate) / 100;
       } else {
-        // Discount is a fixed amount in QAR
-        itemDiscount = Number(item.discountAmount) || Number(item.discount) || 0;
+        itemDiscount =
+          Number(item.discountAmount) || Number(item.discount) || 0;
       }
 
-      const itemSubtotalBeforeDiscount = unitPrice * quantity;
-      const itemTotal = itemSubtotalBeforeDiscount - itemDiscount;
+      const gross = unitPrice * quantity;
+      const net = gross - itemDiscount;
 
-      // ✅ FIX: Add the item total (after discount) to subtotal
-      // We also track totalDiscount separately for reporting
-      subtotal += itemTotal;
+      subtotal += net;
       totalDiscount += itemDiscount;
-
-      // ✅ UNIT ENFORCEMENT
-      const unit = item.unit || (isLabor ? "job" : product.unit || "pcs");
 
       saleItems.push({
         productId: isLabor ? undefined : product._id,
         name: item.name || product?.name || "Labor Service",
         sku: item.sku || product?.sku || "LABOR",
         quantity,
-        unit,
+        unit: item.unit || (isLabor ? "job" : product.unit || "pcs"),
         unitPrice,
         costPrice,
-        discount: itemDiscount, // ✅ Store discount AMOUNT in QAR
-        total: itemTotal,
+        discount: itemDiscount, // amount in QAR
+        total: net,
         isLabor,
       });
     }
 
-    // ✅ FIX: grandTotal equals subtotal since subtotal is already after discount
-    // We still save totalDiscount separately for reporting purposes
-    const grandTotal = subtotal;
+    // ───────────────── OVERALL DISCOUNT (✅ FIX) ─────────────────
+    if (overallDiscountAmount > 0) {
+      subtotal -= Number(overallDiscountAmount);
+      totalDiscount += Number(overallDiscountAmount);
+    }
+
+    // ───────────────── TOTALS ─────────────────
+    const grandTotal = Number(subtotal.toFixed(2));
     const paidAmount = Number(amountPaid) || 0;
-    const balanceDue = grandTotal - paidAmount;
+    const balanceDue = Number((grandTotal - paidAmount).toFixed(2));
 
     // ───────────────── CREATE SALE ─────────────────
     const saleDocs = await Sale.create([
@@ -217,7 +216,7 @@ export async function POST(request: NextRequest) {
         customerId,
         customerName,
         items: saleItems,
-        subtotal,
+        subtotal: grandTotal,
         totalDiscount,
         totalVAT: 0,
         grandTotal,
@@ -234,14 +233,56 @@ export async function POST(request: NextRequest) {
 
     const sale = saleDocs[0];
 
-    // ───────────────── UPDATE STOCK ─────────────────
-    for (const item of saleItems) {
-      if (!item.isLabor && item.productId) {
-        await Product.findByIdAndUpdate(item.productId, {
-          $inc: { currentStock: -item.quantity },
-        });
-      }
-    }
+    // ───────────────── INVENTORY MOVEMENTS (SALE) ─────────────────
+for (const item of saleItems) {
+  if (item.isLabor || !item.productId) continue;
+
+  const productId = new mongoose.Types.ObjectId(item.productId);
+  const saleQty = Number(item.quantity);
+
+  // 1️⃣ Get last balance
+  const lastMovement = await InventoryMovement
+    .findOne({ productId, outletId })
+    .sort({ date: -1 });
+
+  const previousBalance = lastMovement?.balanceAfter || 0;
+  const newBalance = previousBalance - saleQty;
+
+  if (newBalance < 0) {
+    throw new Error(
+      `Negative stock detected for ${item.name}. Balance would be ${newBalance}`
+    );
+  }
+
+  // 2️⃣ Create inventory movement (SALE)
+  await InventoryMovement.create({
+    productId,
+    productName: item.name,
+    sku: item.sku,
+
+    movementType: "SALE",
+    quantity: -saleQty, // 🔴 OUT
+    unitCost: item.costPrice || 0,
+    totalValue: saleQty * (item.costPrice || 0),
+
+    referenceType: "SALE",
+    referenceId: sale._id,
+    referenceNumber: sale.invoiceNumber,
+
+    outletId,
+    balanceAfter: newBalance,
+
+    date: new Date(),
+    createdBy: userId,
+    ledgerEntriesCreated: true,
+  });
+
+  // 3️⃣ Update cached stock on product
+  await Product.findByIdAndUpdate(productId, {
+    currentStock: newBalance,
+  });
+}
+
 
     // ───────────────── ACCOUNTING ─────────────────
     const { voucherId, cogsVoucherId } = await postSaleToLedger(sale, userId);
@@ -251,15 +292,11 @@ export async function POST(request: NextRequest) {
     sale.isPostedToGL = true;
     await sale.save();
 
-    // ───────────────── FETCH USERNAME FOR ACTIVITY LOG ─────────────────
+    // ───────────────── ACTIVITY LOG ─────────────────
     const userDoc = await User.findById(userId).lean();
     const username =
-      userDoc?.username ||
-      user.username ||
-      user.email ||
-      "Unknown User";
+      userDoc?.username || user.username || user.email || "Unknown User";
 
-    // ───────────────── ACTIVITY LOG ─────────────────
     await ActivityLog.create([
       {
         userId,

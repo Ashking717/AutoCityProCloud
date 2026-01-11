@@ -224,6 +224,11 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, [fetchDashboardData]);
 
+  useEffect(() => {
+  fetchDashboardData();
+}, [period]);
+
+
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout', {
@@ -242,7 +247,7 @@ export default function DashboardPage() {
   const handlePeriodChange = (newPeriod: PeriodType) => {
     setPeriod(newPeriod);
     setDashboardData(null);
-    fetchDashboardData();
+    
     if (isMobile) setShowMobileFilter(false);
   };
 

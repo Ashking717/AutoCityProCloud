@@ -39,6 +39,52 @@ export async function GET(
   }
 }
 
+
+
+// DELETE /api/products/[id]
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    await connectDB();
+    
+    const cookieStore = cookies();
+    const token = cookieStore.get('auth-token')?.value;
+    
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    const user = verifyToken(token);
+    
+    const product = await Product.findOneAndUpdate(
+      { _id: params.id, outletId: user.outletId },
+      { isActive: false },
+      { new: true }
+    );
+    
+    if (!product) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
+    
+    await ActivityLog.create({
+      userId: user.userId,
+      username: user.email,
+      actionType: 'delete',
+      module: 'products',
+      description: `Deleted product: ${product.name} (${product.sku})`,
+      outletId: user.outletId,
+      timestamp: new Date(),
+    });
+    
+    return NextResponse.json({ message: 'Product deleted successfully' });
+  } catch (error: any) {
+    console.error('Error deleting product:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
 // PUT /api/products/[id]
 export async function PUT(
   request: NextRequest,
@@ -70,7 +116,7 @@ export async function PUT(
     if (body.partNumber !== undefined) updateData.partNumber = body.partNumber;
     if (body.unit) updateData.unit = body.unit;
     if (body.variant !== undefined) updateData.variant = body.variant;
-    if (body.color !== undefined) updateData.color = body.color; // Added color field
+    if (body.color !== undefined) updateData.color = body.color;
     
     // Vehicle fields
     if (body.make !== undefined) {
@@ -89,14 +135,22 @@ export async function PUT(
     }
     
     if (body.carModel !== undefined) updateData.carModel = body.carModel;
-    if (body.year !== undefined) updateData.year = body.year ? parseInt(body.year) : undefined;
+    
+    // CHANGED: Handle year range instead of single year
+    if (body.yearFrom !== undefined) {
+      updateData.yearFrom = body.yearFrom ? parseInt(body.yearFrom) : undefined;
+    }
+    if (body.yearTo !== undefined) {
+      updateData.yearTo = body.yearTo ? parseInt(body.yearTo) : undefined;
+    }
     
     // If isVehicle is false, clear vehicle-specific fields
     if (body.isVehicle === false || (!body.carMake && !body.make && body.isVehicle !== undefined)) {
       updateData.carMake = undefined;
       updateData.carModel = undefined;
       updateData.variant = undefined;
-      updateData.year = undefined;
+      updateData.yearFrom = undefined;  // CHANGED
+      updateData.yearTo = undefined;    // CHANGED
       updateData.color = undefined;
       updateData.vin = undefined;
       updateData.isVehicle = false;
@@ -171,10 +225,14 @@ export async function PUT(
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
     
-    // Create detailed activity log
+    // CHANGED: Create detailed activity log with year range
+    const yearRangeStr = product.yearFrom && product.yearTo ? `, ${product.yearFrom}-${product.yearTo}` : 
+                        product.yearFrom ? `, ${product.yearFrom}+` : 
+                        product.yearTo ? `, Up to ${product.yearTo}` : '';
+    
     const logDescription = `Updated product: ${product.name} (${product.sku})${
       product.isVehicle ? 
-      ` [Vehicle: ${product.carMake || ''}${product.carModel ? ` ${product.carModel}` : ''}${product.variant ? ` ${product.variant}` : ''}${product.color ? `, ${product.color}` : ''}${product.year ? `, ${product.year}` : ''}]` : ''
+      ` [Vehicle: ${product.carMake || ''}${product.carModel ? ` ${product.carModel}` : ''}${product.variant ? ` ${product.variant}` : ''}${product.color ? `, ${product.color}` : ''}${yearRangeStr}]` : ''
     }${
       updateData.currentStock !== undefined ? ` | Stock: ${product.currentStock}` : ''
     }${
@@ -193,12 +251,18 @@ export async function PUT(
       timestamp: new Date(),
     });
     
+    // CHANGED: Console logging with year range
     console.log(`✓ Product updated: ${product.name} (SKU: ${product.sku})`);
     if (product.isVehicle) {
       console.log(`   Type: Vehicle`);
       console.log(`   Make: ${product.carMake || ''}${product.carModel ? ` ${product.carModel}` : ''}${product.variant ? ` ${product.variant}` : ''}`);
       if (product.color) console.log(`   Color: ${product.color}`);
-      if (product.year) console.log(`   Year: ${product.year}`);
+      if (product.yearFrom || product.yearTo) {
+        const yearRange = product.yearFrom && product.yearTo ? `${product.yearFrom}-${product.yearTo}` : 
+                         product.yearFrom ? `${product.yearFrom}+` : 
+                         product.yearTo ? `Up to ${product.yearTo}` : '';
+        console.log(`   Year Range: ${yearRange}`);
+      }
     }
     
     return NextResponse.json({ 
@@ -207,50 +271,6 @@ export async function PUT(
     });
   } catch (error: any) {
     console.error('Error updating product:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
-
-// DELETE /api/products/[id]
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    await connectDB();
-    
-    const cookieStore = cookies();
-    const token = cookieStore.get('auth-token')?.value;
-    
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    const user = verifyToken(token);
-    
-    const product = await Product.findOneAndUpdate(
-      { _id: params.id, outletId: user.outletId },
-      { isActive: false },
-      { new: true }
-    );
-    
-    if (!product) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
-    }
-    
-    await ActivityLog.create({
-      userId: user.userId,
-      username: user.email,
-      actionType: 'delete',
-      module: 'products',
-      description: `Deleted product: ${product.name} (${product.sku})`,
-      outletId: user.outletId,
-      timestamp: new Date(),
-    });
-    
-    return NextResponse.json({ message: 'Product deleted successfully' });
-  } catch (error: any) {
-    console.error('Error deleting product:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

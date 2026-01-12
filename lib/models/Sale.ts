@@ -180,10 +180,17 @@ SaleSchema.index({ outletId: 1, customerId: 1, saleDate: -1 });
 SaleSchema.index({ outletId: 1, isPostedToGL: 1 });
 
 // Virtuals
-SaleSchema.virtual('totalReturnedAmount').get(function(this: ISale) {
+SaleSchema.virtual('totalReturnedAmount').get(function (this: ISale) {
   if (!this.returns || this.returns.length === 0) return 0;
-  return this.returns.reduce((sum, ret) => sum + ret.totalAmount, 0);
+
+  const total = this.returns.reduce(
+    (sum, ret) => sum + (ret.totalAmount || 0),
+    0
+  );
+
+  return Number(total.toFixed(2));
 });
+
 
 SaleSchema.virtual('netSaleAmount').get(function(this: ISale) {
   return this.grandTotal - this.totalReturnedAmount;
@@ -202,10 +209,19 @@ SaleSchema.methods.canReturn = function(this: ISale): boolean {
   return this.status === 'COMPLETED' && this.grandTotal > 0;
 };
 
-SaleSchema.methods.getRemainingReturnableAmount = function(this: ISale): number {
+SaleSchema.methods.getRemainingReturnableAmount = function (
+  this: ISale
+): number {
   if (!this.canReturn()) return 0;
-  return Math.max(0, this.grandTotal - this.totalReturnedAmount);
+
+  const remaining =
+    Number(this.grandTotal.toFixed(2)) -
+    Number(this.totalReturnedAmount.toFixed(2));
+
+  // Guard against floating-point drift
+  return remaining > 0 ? Number(remaining.toFixed(2)) : 0;
 };
+
 
 // Pre-save validation
 SaleSchema.pre('save', function(next) {

@@ -74,7 +74,7 @@ export async function GET(
     const totalCreditBefore = entriesBeforeRange.reduce((sum: number, e: any) => sum + (e.credit || 0), 0);
     
     // Calculate opening balance based on account type
-    const accountType = (accountRaw.type || accountRaw.accountType || '').toUpperCase();
+const accountType = (accountRaw.type || accountRaw.accountType || '').toLowerCase();
     let openingBalance = 0;
 
     if (accountType === 'asset' || accountType === 'expense') {

@@ -56,7 +56,7 @@ export async function GET(
     const totalDebits = entries.reduce((sum: number, entry: any) => sum + (entry.debit || 0), 0);
     const totalCredits = entries.reduce((sum: number, entry: any) => sum + (entry.credit || 0), 0);
     
-    const accountType = (accountRaw.type || accountRaw.accountType || '').toUpperCase();
+const accountType = (accountRaw.type || accountRaw.accountType || '').toLowerCase();
     let currentBalance = accountRaw.openingBalance || 0;
 
     if (accountType === 'asset' || accountType === 'expense') {

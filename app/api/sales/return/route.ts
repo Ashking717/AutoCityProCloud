@@ -1,4 +1,4 @@
-// app/api/sales/return/route.ts - COMPLETE WITH LEDGER INTEGRATION
+// app/api/sales/return/route.ts - COMPLETE & FIXED
 import { NextRequest, NextResponse } from 'next/server';
 import Sale, { ISale } from '@/lib/models/Sale';
 import Product from '@/lib/models/ProductEnhanced';
@@ -15,8 +15,6 @@ interface ReturnItemRequest {
   productName: string;
   sku: string;
   quantity: number;
-  unitPrice?: number;
-  totalAmount?: number;
   reason?: string;
 }
 
@@ -25,356 +23,280 @@ interface ReturnRequest {
   invoiceNumber: string;
   reason?: string;
   items: ReturnItemRequest[];
-  totalAmount: number;
 }
 
 export async function POST(request: NextRequest) {
   try {
     await connectDB();
-    
-    console.log('\n═══════════════════════════════════════════════════════════');
-    console.log('RETURN PROCESSING');
-    console.log('═══════════════════════════════════════════════════════════');
-    
-    const cookieStore = cookies();
-    const token = cookieStore.get('auth-token')?.value;
-    
+
+    const token = cookies().get('auth-token')?.value;
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
+
     const user = verifyToken(token);
-    const { saleId, invoiceNumber, reason, items, totalAmount }: ReturnRequest = await request.json();
-    
-    // Validate input
-    if (!saleId || !invoiceNumber || !items || items.length === 0) {
-      return NextResponse.json({ 
-        error: 'Missing required fields: saleId, invoiceNumber, items' 
-      }, { status: 400 });
+    const { saleId, invoiceNumber, reason, items }: ReturnRequest =
+      await request.json();
+
+    /* ─────────── BASIC VALIDATION ─────────── */
+
+    if (!saleId || !invoiceNumber || !items?.length) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
     }
-    
-    if (!totalAmount || totalAmount <= 0) {
-      return NextResponse.json({ 
-        error: 'Invalid total amount' 
-      }, { status: 400 });
-    }
-    
-    // Find the sale
-    const sale = await Sale.findById(saleId) as ISale;
-    
+
+    const sale = (await Sale.findById(saleId)) as ISale;
     if (!sale) {
       return NextResponse.json({ error: 'Sale not found' }, { status: 404 });
     }
-    
-    // Check if sale belongs to user's outlet
+
     if (sale.outletId.toString() !== user.outletId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
-    
-    // Store status in variable to avoid TypeScript narrowing issues
-    const saleStatus = sale.status;
-    
-    // Check if sale is already fully refunded
-    if (saleStatus === 'REFUNDED') {
-      return NextResponse.json({ 
-        error: 'This sale has already been fully refunded' 
-      }, { status: 400 });
+
+    if (sale.status !== 'COMPLETED') {
+      return NextResponse.json(
+        { error: 'Only completed sales can be returned' },
+        { status: 400 }
+      );
     }
-    
-    // Check if sale can be returned
-    if (saleStatus !== 'COMPLETED') {
-      return NextResponse.json({ 
-        error: 'Only completed sales can be returned' 
-      }, { status: 400 });
-    }
-    
-    // Check if remaining returnable amount is sufficient
-    const remainingReturnable = sale.getRemainingReturnableAmount();
-    if (totalAmount > remainingReturnable) {
-      return NextResponse.json({ 
-        error: `Return amount (QAR ${totalAmount.toFixed(2)}) exceeds remaining returnable amount (QAR ${remainingReturnable.toFixed(2)})` 
-      }, { status: 400 });
-    }
-    
-    // Validate return items - IMPORTANT: Filter out labor items
-    const validatedItems: Array<{
-      originalItem: any;
-      quantity: number;
-      reason?: string;
-      itemValue: number;
-      taxAmount: number;
-      discountAmount: number;
-      itemTotal: number;
-    }> = [];
+
+    /* ─────────── ITEM VALIDATION & CALCULATION ─────────── */
+
+    const validatedItems: any[] = [];
     let calculatedTotal = 0;
-    
+
     for (const returnItem of items) {
-      // Find the original item by productId or sku
-      const originalItem = sale.items.find((item: any) => {
-        if (returnItem.productId && item.productId) {
-          return item.productId.toString() === returnItem.productId;
-        }
-        if (returnItem.sku) {
-          return item.sku === returnItem.sku;
-        }
-        return false;
-      });
-      
+      const originalItem = sale.items.find(
+        (i: any) =>
+          (returnItem.productId &&
+            i.productId?.toString() === returnItem.productId) ||
+          i.sku === returnItem.sku
+      );
+
       if (!originalItem) {
-        return NextResponse.json({ 
-          error: `Item not found in sale: ${returnItem.productName || 'Unknown item'}` 
-        }, { status: 400 });
+        return NextResponse.json(
+          { error: `Item not found in sale: ${returnItem.productName}` },
+          { status: 400 }
+        );
       }
-      
-      // Check if item is labor (cannot be returned)
-      if (originalItem.isLabor || 
-          originalItem.sku === 'LABOR' || 
-          originalItem.name?.includes('Labor') ||
-          originalItem.name?.includes('labor')) {
-        return NextResponse.json({ 
-          error: `Labor item "${originalItem.name}" cannot be returned` 
-        }, { status: 400 });
+
+      if (originalItem.isLabor) {
+        return NextResponse.json(
+          { error: `Labor item "${originalItem.name}" cannot be returned` },
+          { status: 400 }
+        );
       }
-      
-      // Calculate available quantity for return
-      const alreadyReturnedQty = originalItem.returnedQuantity || 0;
-      const availableQty = originalItem.quantity - alreadyReturnedQty;
-      
-      if (returnItem.quantity <= 0) {
-        return NextResponse.json({ 
-          error: `Invalid quantity for "${originalItem.name}"` 
-        }, { status: 400 });
+
+      const alreadyReturned = originalItem.returnedQuantity || 0;
+      const availableQty = originalItem.quantity - alreadyReturned;
+
+      if (returnItem.quantity <= 0 || returnItem.quantity > availableQty) {
+        return NextResponse.json(
+          { error: `Invalid return quantity for ${originalItem.name}` },
+          { status: 400 }
+        );
       }
-      
-      if (returnItem.quantity > availableQty) {
-        return NextResponse.json({ 
-          error: `Cannot return ${returnItem.quantity} of "${originalItem.name}". Available: ${availableQty}` 
-        }, { status: 400 });
-      }
-      
-      // Calculate return amount (including original tax and discount proportion)
-      const itemValue = originalItem.unitPrice * returnItem.quantity;
-      const taxAmount = (itemValue * (originalItem.taxRate || 0)) / 100;
-      const discountAmount = (originalItem.discount / originalItem.quantity) * returnItem.quantity;
-      const itemTotal = itemValue + taxAmount - discountAmount;
-      
+
+      /* ✅ CORRECT ERP RETURN CALCULATION */
+
+      const grossLineTotal =
+        originalItem.unitPrice * originalItem.quantity;
+
+      const netLineTotal =
+        grossLineTotal * (sale.grandTotal / sale.subtotal);
+
+      const netUnitPrice =
+        netLineTotal / originalItem.quantity;
+
+      const itemTotal = Number(
+        (netUnitPrice * returnItem.quantity).toFixed(2)
+      );
+
       calculatedTotal += itemTotal;
-      
+
       validatedItems.push({
         originalItem,
         quantity: returnItem.quantity,
+        itemTotal,
         reason: returnItem.reason,
-        itemValue,
-        taxAmount,
-        discountAmount,
-        itemTotal
       });
     }
-    
-    // Validate total amount (allow 0.01 difference for rounding)
-    if (Math.abs(calculatedTotal - totalAmount) > 0.01) {
-      return NextResponse.json({ 
-        error: `Amount mismatch. Calculated: QAR ${calculatedTotal.toFixed(2)}, Provided: QAR ${totalAmount.toFixed(2)}` 
-      }, { status: 400 });
+
+    /* ─────────── AUTHORITATIVE RETURN TOTAL ─────────── */
+
+    const totalAmount = Number(calculatedTotal.toFixed(2));
+    const remainingReturnable = sale.getRemainingReturnableAmount();
+
+    if (totalAmount > remainingReturnable + 0.01) {
+      return NextResponse.json(
+        {
+          error: `Return amount (QAR ${totalAmount.toFixed(
+            2
+          )}) exceeds remaining returnable amount (QAR ${remainingReturnable.toFixed(
+            2
+          )})`,
+        },
+        { status: 400 }
+      );
     }
-    
-    // Generate return number
+
+    /* ─────────── RETURN NUMBER ─────────── */
+
     const today = new Date();
-    const year = today.getFullYear().toString().slice(-2);
-    const month = (today.getMonth() + 1).toString().padStart(2, '0');
-    
-    const returnCount = await Sale.countDocuments({
+    const ym =
+      today.getFullYear().toString().slice(-2) +
+      (today.getMonth() + 1).toString().padStart(2, '0');
+
+    const count = await Sale.countDocuments({
       outletId: user.outletId,
       'returns.returnDate': {
         $gte: new Date(today.getFullYear(), today.getMonth(), 1),
-        $lt: new Date(today.getFullYear(), today.getMonth() + 1, 1)
-      }
+      },
     });
-    
-    const returnNumber = `RET-${year}${month}-${(returnCount + 1).toString().padStart(5, '0')}`;
-    
-    console.log(`✓ Generated return number: ${returnNumber}`);
-    
-    // Process each return item
+
+    const returnNumber = `RET-${ym}-${String(count + 1).padStart(5, '0')}`;
+
+    /* ─────────── PROCESS RETURN ─────────── */
+
     const returnDetails: any[] = [];
-    
-    for (const validatedItem of validatedItems) {
-      const { originalItem, quantity, reason, itemTotal } = validatedItem;
-      
-      // Update sale item returned quantity
-      originalItem.returnedQuantity = (originalItem.returnedQuantity || 0) + quantity;
-      
-      // Update product stock if applicable
+
+    for (const v of validatedItems) {
+      const { originalItem, quantity, itemTotal, reason } = v;
+
+      originalItem.returnedQuantity =
+        (originalItem.returnedQuantity || 0) + quantity;
+
       if (originalItem.productId) {
-        try {
-          const product = await Product.findById(originalItem.productId);
-          if (product) {
-            product.currentStock += quantity;
-            await product.save();
-            
-            // Create inventory movement
-            await InventoryMovement.create({
-              productId: originalItem.productId,
-              productName: originalItem.name,
-              sku: originalItem.sku,
-              movementType: 'RETURN',
-              quantity: quantity,
-              unitCost: originalItem.costPrice || originalItem.unitPrice,
-              totalCost: quantity * (originalItem.costPrice || originalItem.unitPrice),
-              referenceType: 'RETURN',
-              referenceId: sale._id,
-              referenceNumber: returnNumber,
-              outletId: user.outletId,
-              createdBy: new mongoose.Types.ObjectId(user.userId),
-              notes: reason,
-            });
-            
-            console.log(`  ✓ Restored ${quantity} x ${originalItem.name}`);
-          }
-        } catch (error: any) {
-          console.error(`  ⚠️ Failed to restore inventory for ${originalItem.sku}:`, error.message);
+        const product = await Product.findById(originalItem.productId);
+        if (product) {
+          // Get last balance for this product
+          const lastMovement = await InventoryMovement
+            .findOne({ 
+              productId: originalItem.productId, 
+              outletId: user.outletId 
+            })
+            .sort({ date: -1 });
+
+          const previousBalance = lastMovement?.balanceAfter || 0;
+          const newBalance = previousBalance + quantity; // Adding back to stock
+
+          // Update product stock
+          product.currentStock = newBalance;
+          await product.save();
+
+          // Create inventory movement
+          await InventoryMovement.create({
+            productId: originalItem.productId,
+            productName: originalItem.name,
+            sku: originalItem.sku,
+            movementType: 'RETURN',
+            quantity: quantity, // Positive for returns (adding back)
+            unitCost: originalItem.costPrice || 0,
+            totalValue: quantity * (originalItem.costPrice || 0),
+            referenceType: 'RETURN',
+            referenceId: sale._id,
+            referenceNumber: returnNumber,
+            outletId: user.outletId,
+            balanceAfter: newBalance,
+            date: new Date(),
+            createdBy: new mongoose.Types.ObjectId(user.userId),
+            notes: reason,
+            ledgerEntriesCreated: true,
+          });
         }
       }
-      
-      // Add to return details
+
       returnDetails.push({
-        productId: originalItem.productId || null,
+        productId: originalItem.productId,
         productName: originalItem.name,
         sku: originalItem.sku,
-        quantity: quantity,
+        quantity,
         unitPrice: originalItem.unitPrice,
         totalAmount: itemTotal,
-        reason: reason || '',
-        returnDate: new Date()
+        reason,
+        returnDate: new Date(),
       });
     }
-    
-    // ═══════════════════════════════════════════════════════════
-    // POST TO LEDGER
-    // ═══════════════════════════════════════════════════════════
-    console.log('\n💰 Posting return to ledger...');
-    
-    const returnData = {
-      _id: new mongoose.Types.ObjectId(),
-      returnNumber,
-      returnDate: new Date(),
-      reason: reason || 'Customer return',
-      items: returnDetails,
-      totalAmount,
-      processedBy: new mongoose.Types.ObjectId(user.userId),
-      processedByName: user.email,
-      // Sale info for ledger posting
-      saleId: sale._id,
-      invoiceNumber: sale.invoiceNumber,
-      customerId: sale.customerId,
-      customerName: sale.customerName,
-      paymentMethod: sale.paymentMethod,
-      outletId: user.outletId,
-    };
-    
-    let voucherId = null;
-    
+
+    /* ─────────── LEDGER ─────────── */
+
+    let voucherId: mongoose.Types.ObjectId | undefined;
+
     try {
-      const ledgerResult = await postReturnToLedger(returnData, new mongoose.Types.ObjectId(user.userId));
-      voucherId = ledgerResult.voucherId;
-      console.log(`✓ Posted to ledger: ${ledgerResult.voucherNumber}`);
-    } catch (ledgerError: any) {
-      console.error('⚠️ Ledger posting error:', ledgerError);
-      // Continue even if ledger fails - we can re-post later
+      const ledger = await postReturnToLedger(
+        {
+          returnNumber,
+          returnDate: new Date(),
+          items: returnDetails,
+          totalAmount,
+          saleId: sale._id,
+          invoiceNumber: sale.invoiceNumber,
+          customerId: sale.customerId,
+          customerName: sale.customerName,
+          paymentMethod: sale.paymentMethod,
+          outletId: user.outletId,
+        },
+        new mongoose.Types.ObjectId(user.userId)
+      );
+      voucherId = ledger.voucherId;
+    } catch (e) {
+      console.error('Ledger posting failed', e);
     }
-    
-    // ═══════════════════════════════════════════════════════════
-    // UPDATE SALE RECORD
-    // ═══════════════════════════════════════════════════════════
-    
-    // Initialize returns array if needed
-    if (!sale.returns) {
-      sale.returns = [];
-    }
-    
-    // Add return record
+
+    /* ─────────── SAVE SALE ─────────── */
+
+    sale.returns ||= [];
     sale.returns.push({
       returnNumber,
       returnDate: new Date(),
       reason,
       items: returnDetails,
       totalAmount,
-      ...(voucherId ? { voucherId } : {}),
+      voucherId,
       processedBy: new mongoose.Types.ObjectId(user.userId),
-      processedByName: user.email
+      processedByName: user.email,
     });
-    
-    // Update sale financials
+
     sale.amountPaid = Math.max(0, sale.amountPaid - totalAmount);
-    sale.balanceDue = sale.grandTotal - sale.amountPaid;
-    
-    // Check if sale should be marked as REFUNDED
-    const totalReturned = sale.totalReturnedAmount;
-    if (Math.abs(totalReturned - sale.grandTotal) < 0.01) {
+    sale.balanceDue = Number(
+      (sale.grandTotal - sale.amountPaid).toFixed(2)
+    );
+
+    if (Math.abs(sale.totalReturnedAmount - sale.grandTotal) < 0.01) {
       sale.status = 'REFUNDED';
     }
-    
+
     await sale.save();
-    
-    console.log(`✓ Return saved to sale record`);
-    
-    // ═══════════════════════════════════════════════════════════
-    // ACTIVITY LOG
-    // ═══════════════════════════════════════════════════════════
-    
+
+    /* ─────────── ACTIVITY LOG ─────────── */
+
     await ActivityLog.create({
-      userId: user.userId,
+      userId: new mongoose.Types.ObjectId(user.userId),
       username: user.email,
       actionType: 'return',
       module: 'sales',
       description: `Processed return ${returnNumber} for sale ${invoiceNumber} - QAR ${totalAmount.toFixed(2)}`,
-      details: {
-        saleId: sale._id,
-        invoiceNumber,
-        returnNumber,
-        totalAmount,
-        reason,
-        items: returnDetails.map(item => ({
-          product: item.productName,
-          quantity: item.quantity,
-          amount: item.totalAmount
-        }))
-      },
       outletId: user.outletId,
       timestamp: new Date(),
     });
-    
-    console.log(`\n✓ Return processed successfully`);
-    console.log(`  Return Number: ${returnNumber}`);
-    console.log(`  Items: ${returnDetails.length}`);
-    console.log(`  Amount: QAR ${totalAmount.toFixed(2)}`);
-    console.log('═══════════════════════════════════════════════════════════\n');
-    
-    return NextResponse.json({ 
+
+    return NextResponse.json({
       success: true,
-      message: 'Return processed successfully',
       data: {
         returnNumber,
         totalAmount,
-        returnDetails,
         voucherId,
-        sale: {
-          _id: sale._id,
-          invoiceNumber: sale.invoiceNumber,
-          status: sale.status,
-          balanceDue: sale.balanceDue,
-          amountPaid: sale.amountPaid,
-          grandTotal: sale.grandTotal,
-          totalReturnedAmount: totalReturned,
-        }
-      }
+      },
     });
-    
   } catch (error: any) {
-    console.error('Error processing return:', error);
-    return NextResponse.json({ 
-      error: error.message || 'Failed to process return' 
-    }, { status: 500 });
+    console.error('Return processing error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to process return' },
+      { status: 500 }
+    );
   }
 }
 

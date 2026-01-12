@@ -1,4 +1,4 @@
-// app/api/sales/route.ts
+// app/api/sales/route.ts - COMPLETE FIXED VERSION
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { cookies } from "next/headers";
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
       paymentMethod,
       amountPaid,
       notes,
-      overallDiscountAmount = 0, // ✅ NEW
+      overallDiscountAmount = 0,
     } = body;
 
     if (
@@ -139,8 +139,8 @@ export async function POST(request: NextRequest) {
     ).padStart(2, "0")}-${String(count + 1).padStart(5, "0")}`;
 
     // ───────────────── CALCULATIONS ─────────────────
-    let subtotal = 0;
-    let totalDiscount = 0;
+    let itemsSubtotal = 0;  // ✅ Sum of all items (after item-level discounts)
+    let totalItemDiscount = 0;  // ✅ Sum of item-level discounts
 
     const saleItems: any[] = [];
 
@@ -180,8 +180,8 @@ export async function POST(request: NextRequest) {
       const gross = unitPrice * quantity;
       const net = gross - itemDiscount;
 
-      subtotal += net;
-      totalDiscount += itemDiscount;
+      itemsSubtotal += net;  // ✅ This is the subtotal BEFORE overall discount
+      totalItemDiscount += itemDiscount;
 
       saleItems.push({
         productId: isLabor ? undefined : product._id,
@@ -197,14 +197,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // ───────────────── OVERALL DISCOUNT (✅ FIX) ─────────────────
-    if (overallDiscountAmount > 0) {
-      subtotal -= Number(overallDiscountAmount);
-      totalDiscount += Number(overallDiscountAmount);
-    }
+    // ───────────────── OVERALL DISCOUNT ─────────────────
+    const overallDiscount = Number(overallDiscountAmount) || 0;
+    const totalDiscount = totalItemDiscount + overallDiscount;
 
     // ───────────────── TOTALS ─────────────────
-    const grandTotal = Number(subtotal.toFixed(2));
+    const subtotal = Number(itemsSubtotal.toFixed(2));  // ✅ Subtotal BEFORE overall discount
+    const grandTotal = Number((subtotal - overallDiscount).toFixed(2));  // ✅ After overall discount
     const paidAmount = Number(amountPaid) || 0;
     const balanceDue = Number((grandTotal - paidAmount).toFixed(2));
 
@@ -216,10 +215,10 @@ export async function POST(request: NextRequest) {
         customerId,
         customerName,
         items: saleItems,
-        subtotal: grandTotal,
-        totalDiscount,
+        subtotal,  // ✅ BEFORE overall discount
+        totalDiscount,  // ✅ Item discounts + overall discount
         totalVAT: 0,
-        grandTotal,
+        grandTotal,  // ✅ AFTER overall discount
         paymentMethod: paymentMethod?.toUpperCase() || "CASH",
         amountPaid: paidAmount,
         balanceDue,
@@ -234,55 +233,54 @@ export async function POST(request: NextRequest) {
     const sale = saleDocs[0];
 
     // ───────────────── INVENTORY MOVEMENTS (SALE) ─────────────────
-for (const item of saleItems) {
-  if (item.isLabor || !item.productId) continue;
+    for (const item of saleItems) {
+      if (item.isLabor || !item.productId) continue;
 
-  const productId = new mongoose.Types.ObjectId(item.productId);
-  const saleQty = Number(item.quantity);
+      const productId = new mongoose.Types.ObjectId(item.productId);
+      const saleQty = Number(item.quantity);
 
-  // 1️⃣ Get last balance
-  const lastMovement = await InventoryMovement
-    .findOne({ productId, outletId })
-    .sort({ date: -1 });
+      // 1️⃣ Get last balance
+      const lastMovement = await InventoryMovement
+        .findOne({ productId, outletId })
+        .sort({ date: -1 });
 
-  const previousBalance = lastMovement?.balanceAfter || 0;
-  const newBalance = previousBalance - saleQty;
+      const previousBalance = lastMovement?.balanceAfter || 0;
+      const newBalance = previousBalance - saleQty;
 
-  if (newBalance < 0) {
-    throw new Error(
-      `Negative stock detected for ${item.name}. Balance would be ${newBalance}`
-    );
-  }
+      if (newBalance < 0) {
+        throw new Error(
+          `Negative stock detected for ${item.name}. Balance would be ${newBalance}`
+        );
+      }
 
-  // 2️⃣ Create inventory movement (SALE)
-  await InventoryMovement.create({
-    productId,
-    productName: item.name,
-    sku: item.sku,
+      // 2️⃣ Create inventory movement (SALE)
+      await InventoryMovement.create({
+        productId,
+        productName: item.name,
+        sku: item.sku,
 
-    movementType: "SALE",
-    quantity: -saleQty, // 🔴 OUT
-    unitCost: item.costPrice || 0,
-    totalValue: saleQty * (item.costPrice || 0),
+        movementType: "SALE",
+        quantity: -saleQty, // 🔴 OUT
+        unitCost: item.costPrice || 0,
+        totalValue: saleQty * (item.costPrice || 0),
 
-    referenceType: "SALE",
-    referenceId: sale._id,
-    referenceNumber: sale.invoiceNumber,
+        referenceType: "SALE",
+        referenceId: sale._id,
+        referenceNumber: sale.invoiceNumber,
 
-    outletId,
-    balanceAfter: newBalance,
+        outletId,
+        balanceAfter: newBalance,
 
-    date: new Date(),
-    createdBy: userId,
-    ledgerEntriesCreated: true,
-  });
+        date: new Date(),
+        createdBy: userId,
+        ledgerEntriesCreated: true,
+      });
 
-  // 3️⃣ Update cached stock on product
-  await Product.findByIdAndUpdate(productId, {
-    currentStock: newBalance,
-  });
-}
-
+      // 3️⃣ Update cached stock on product
+      await Product.findByIdAndUpdate(productId, {
+        currentStock: newBalance,
+      });
+    }
 
     // ───────────────── ACCOUNTING ─────────────────
     const { voucherId, cogsVoucherId } = await postSaleToLedger(sale, userId);

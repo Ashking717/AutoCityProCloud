@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
-import InvoicePrint from '@/components/InvoicePrint';
+import InvoicePrint from "@/components/InvoicePrint";
 import {
   Plus,
   Search,
@@ -70,7 +70,7 @@ export default function SalesPage() {
     pages: 1,
   });
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  
+
   // Mobile states
   const [isMobile, setIsMobile] = useState(false);
   const [showDynamicIsland, setShowDynamicIsland] = useState(true);
@@ -82,14 +82,15 @@ export default function SalesPage() {
   const [returnItems, setReturnItems] = useState<any[]>([]);
   const [returnReason, setReturnReason] = useState("");
   const [processingReturn, setProcessingReturn] = useState(false);
-  
+
   // Details modal states
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedSaleDetails, setSelectedSaleDetails] = useState<any>(null);
 
   // Invoice printing states
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
-  const [selectedSaleForInvoice, setSelectedSaleForInvoice] = useState<any>(null);
+  const [selectedSaleForInvoice, setSelectedSaleForInvoice] =
+    useState<any>(null);
   const [invoiceData, setInvoiceData] = useState<any>(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
 
@@ -120,8 +121,8 @@ export default function SalesPage() {
       setIsMobile(window.innerWidth < 768);
     };
     checkIfMobile();
-    window.addEventListener('resize', checkIfMobile);
-    return () => window.removeEventListener('resize', checkIfMobile);
+    window.addEventListener("resize", checkIfMobile);
+    return () => window.removeEventListener("resize", checkIfMobile);
   }, []);
 
   useEffect(() => {
@@ -140,7 +141,28 @@ export default function SalesPage() {
       console.error("Failed to fetch user");
     }
   };
+const calculateReturnItemTotal = (item: any) => {
+    const qty = item.returnQuantity || 0;
+    if (qty <= 0) return 0;
 
+    // Use the same ERP calculation as the backend
+    const originalItem = item.originalItem || item;
+    const sale = selectedSaleForReturn;
+    
+    if (!sale || !originalItem) return 0;
+
+    // Calculate gross line total (original item's contribution to subtotal)
+    const grossLineTotal = originalItem.unitPrice * originalItem.quantity;
+
+    // Calculate net line total (proportional share of grand total)
+    const netLineTotal = grossLineTotal * (sale.grandTotal / sale.subtotal);
+
+    // Calculate net unit price
+    const netUnitPrice = netLineTotal / originalItem.quantity;
+
+    // Calculate return amount
+    return Number((netUnitPrice * qty).toFixed(2));
+  };
   const fetchSales = async () => {
     try {
       const queryParams = new URLSearchParams({
@@ -172,104 +194,108 @@ export default function SalesPage() {
     }
   };
 
-const handlePrintInvoice = async (sale: any) => {
-  try {
-    setInvoiceLoading(true);
-    
-    const res = await fetch(`/api/sales/${sale._id}`, {
-      credentials: "include",
-    });
+  const handlePrintInvoice = async (sale: any) => {
+    try {
+      setInvoiceLoading(true);
 
-    if (res.ok) {
-      const data = await res.json();
-      const saleData = data.sale;
-      
-      // Format data for InvoicePrint component
-      const invoiceData = {
-        invoiceNumber: saleData.invoiceNumber,
-        saleDate: saleData.saleDate,
-        poNumber: saleData.poNumber || "",
-        dueDate: saleData.dueDate || "",
-        items: saleData.items?.map((item: any) => ({
-          name: item.name,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          discount: item.discountAmount || 0,
-          total: item.total || (item.unitPrice * item.quantity),
-        })) || [],
-        subtotal: saleData.subtotal || 0,
-        totalDiscount: saleData.totalDiscount || 0,
-        totalTax: saleData.totalTax || 0,
-        grandTotal: saleData.grandTotal || 0,
-      };
-
-      // DEBUG: Log the data to see what we're getting
-      console.log("Sale data for invoice:", {
-        saleId: sale._id,
-        customerId: saleData.customerId,
-        customerIdType: typeof saleData.customerId,
-        customerData: saleData.customer,
-        outletId: user?.outletId,
-        user: user
+      const res = await fetch(`/api/sales/${sale._id}`, {
+        credentials: "include",
       });
 
-      // Extract customer ID properly
-      let customerId;
-      if (typeof saleData.customerId === 'object' && saleData.customerId !== null) {
-        // If customerId is an object, get the _id from it
-        customerId = saleData.customerId._id || saleData.customerId.id;
-      } else if (saleData.customer && typeof saleData.customer === 'object') {
-        // If there's a customer object, get the _id from it
-        customerId = saleData.customer._id;
+      if (res.ok) {
+        const data = await res.json();
+        const saleData = data.sale;
+
+        // Format data for InvoicePrint component
+        const invoiceData = {
+          invoiceNumber: saleData.invoiceNumber,
+          saleDate: saleData.saleDate,
+          poNumber: saleData.poNumber || "",
+          dueDate: saleData.dueDate || "",
+          items:
+            saleData.items?.map((item: any) => ({
+              name: item.name,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              discount: item.discountAmount || 0,
+              total: item.total || item.unitPrice * item.quantity,
+            })) || [],
+          subtotal: saleData.subtotal || 0,
+          totalDiscount: saleData.totalDiscount || 0,
+          totalTax: saleData.totalTax || 0,
+          grandTotal: saleData.grandTotal || 0,
+        };
+
+        // DEBUG: Log the data to see what we're getting
+        console.log("Sale data for invoice:", {
+          saleId: sale._id,
+          customerId: saleData.customerId,
+          customerIdType: typeof saleData.customerId,
+          customerData: saleData.customer,
+          outletId: user?.outletId,
+          user: user,
+        });
+
+        // Extract customer ID properly
+        let customerId;
+        if (
+          typeof saleData.customerId === "object" &&
+          saleData.customerId !== null
+        ) {
+          // If customerId is an object, get the _id from it
+          customerId = saleData.customerId._id || saleData.customerId.id;
+        } else if (saleData.customer && typeof saleData.customer === "object") {
+          // If there's a customer object, get the _id from it
+          customerId = saleData.customer._id;
+        } else {
+          // Otherwise use it as is
+          customerId = saleData.customerId;
+        }
+
+        // Get outlet ID - check if user has outletId or if it's in saleData
+        let outletId = user?.outletId || saleData.outletId;
+
+        // If outletId is an object, extract the string
+        if (typeof outletId === "object" && outletId !== null) {
+          outletId = outletId._id || outletId.id;
+        }
+
+        // Validate required data
+        if (!customerId) {
+          toast.error("Customer information not available");
+          console.error("No customer ID found:", saleData);
+          return;
+        }
+
+        if (!outletId) {
+          toast.error("Outlet information not available");
+          console.error("No outlet ID found:", { user, saleData });
+          return;
+        }
+
+        console.log("Final IDs for invoice:", { customerId, outletId });
+
+        setInvoiceData(invoiceData);
+        setSelectedSaleForInvoice({
+          ...saleData,
+          outletId: outletId,
+          customerId: customerId,
+        });
+        setShowInvoiceModal(true);
+        setShowActions(null);
+
+        toast.success("Invoice loaded for printing");
       } else {
-        // Otherwise use it as is
-        customerId = saleData.customerId;
+        const errorData = await res.json();
+        toast.error(errorData.error || "Failed to load invoice data");
       }
-
-      // Get outlet ID - check if user has outletId or if it's in saleData
-      let outletId = user?.outletId || saleData.outletId;
-      
-      // If outletId is an object, extract the string
-      if (typeof outletId === 'object' && outletId !== null) {
-        outletId = outletId._id || outletId.id;
-      }
-
-      // Validate required data
-      if (!customerId) {
-        toast.error("Customer information not available");
-        console.error("No customer ID found:", saleData);
-        return;
-      }
-
-      if (!outletId) {
-        toast.error("Outlet information not available");
-        console.error("No outlet ID found:", { user, saleData });
-        return;
-      }
-
-      console.log("Final IDs for invoice:", { customerId, outletId });
-
-      setInvoiceData(invoiceData);
-      setSelectedSaleForInvoice({
-        ...saleData,
-        outletId: outletId,
-        customerId: customerId
-      });
-      setShowInvoiceModal(true);
-      setShowActions(null);
-      
-      toast.success("Invoice loaded for printing");
-    } else {
-      const errorData = await res.json();
-      toast.error(errorData.error || "Failed to load invoice data");
+    } catch (error) {
+      console.error("Error loading invoice:", error);
+      toast.error("Failed to load invoice");
+    } finally {
+      setInvoiceLoading(false);
     }
-  } catch (error) {
-    console.error("Error loading invoice:", error);
-    toast.error("Failed to load invoice");
-  } finally {
-    setInvoiceLoading(false);
-  }
-};
+  };
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     window.location.href = "/autocityPro/login";
@@ -324,7 +350,9 @@ const handlePrintInvoice = async (sale: any) => {
   };
 
   const handleCancelSale = async (sale: any) => {
-    if (!confirm(`Are you sure you want to cancel sale ${sale.invoiceNumber}?`)) {
+    if (
+      !confirm(`Are you sure you want to cancel sale ${sale.invoiceNumber}?`)
+    ) {
       return;
     }
 
@@ -348,33 +376,37 @@ const handlePrintInvoice = async (sale: any) => {
   };
 
   const handleReturnSale = (sale: any) => {
-    if (sale.status !== 'COMPLETED') {
-      toast.error('Only completed sales can be returned');
+    if (sale.status !== "COMPLETED") {
+      toast.error("Only completed sales can be returned");
       return;
     }
-    
-    const totalReturned = sale.returns?.reduce((sum: number, ret: any) => sum + ret.totalAmount, 0) || 0;
+
+    const totalReturned =
+      sale.returns?.reduce(
+        (sum: number, ret: any) => sum + ret.totalAmount,
+        0
+      ) || 0;
     if (totalReturned >= sale.grandTotal) {
-      toast.error('This sale has already been fully returned');
+      toast.error("This sale has already been fully returned");
       return;
     }
-    
+
     setSelectedSaleForReturn(sale);
-    
+
     const initialReturnItems = sale.items
       .filter((item: any) => {
-        const isLabor = 
-          item.isLabor || 
-          item.sku === 'LABOR' || 
-          item.name?.includes('Labor') ||
-          item.name?.includes('labor') ||
+        const isLabor =
+          item.isLabor ||
+          item.sku === "LABOR" ||
+          item.name?.includes("Labor") ||
+          item.name?.includes("labor") ||
           false;
         return !isLabor;
       })
       .map((item: any) => {
         const alreadyReturned = item.returnedQuantity || 0;
         const availableForReturn = Math.max(0, item.quantity - alreadyReturned);
-        
+
         return {
           _id: item._id,
           productId: item.productId,
@@ -386,20 +418,20 @@ const handlePrintInvoice = async (sale: any) => {
           unitPrice: item.unitPrice,
           maxReturnQuantity: availableForReturn,
           returnQuantity: 0,
-          returnReason: '',
+          returnReason: "",
           originalItem: item,
-          isLabor: item.isLabor
+          isLabor: item.isLabor,
         };
       })
       .filter((item: any) => item.availableForReturn > 0);
-    
+
     if (initialReturnItems.length === 0) {
-      toast.error('No items available for return in this sale');
+      toast.error("No items available for return in this sale");
       return;
     }
-    
+
     setReturnItems(initialReturnItems);
-    setReturnReason('');
+    setReturnReason("");
     setShowReturnModal(true);
     setShowActions(null);
   };
@@ -426,66 +458,66 @@ const handlePrintInvoice = async (sale: any) => {
     if (!selectedSaleForReturn) return;
 
     const itemsToReturn = returnItems
-      .filter(item => {
-        const isLabor = 
-          item.originalItem?.isLabor || 
-          item.isLabor || 
-          item.sku === 'LABOR' || 
-          item.productName?.includes('Labor') ||
-          item.productName?.includes('labor') ||
+      .filter((item) => {
+        const isLabor =
+          item.originalItem?.isLabor ||
+          item.isLabor ||
+          item.sku === "LABOR" ||
+          item.productName?.includes("Labor") ||
+          item.productName?.includes("labor") ||
           false;
-        
+
         return !isLabor && item.returnQuantity > 0;
       })
-      .map(item => ({
+      .map((item) => ({
         productId: item.productId?.toString(),
         productName: item.productName,
         sku: item.sku,
         quantity: item.returnQuantity,
         unitPrice: item.unitPrice,
-        totalAmount: item.returnQuantity * item.unitPrice,
-        reason: item.returnReason || ''
+
+        reason: item.returnReason || "",
       }));
-    
+
     if (itemsToReturn.length === 0) {
-      toast.error('Please select items to return');
+      toast.error("Please select items to return");
       return;
     }
 
-    const totalReturnAmount = itemsToReturn.reduce((sum, item) => sum + item.totalAmount, 0);
+   
 
     const returnData = {
-      saleId: selectedSaleForReturn._id,
-      invoiceNumber: selectedSaleForReturn.invoiceNumber,
-      reason: returnReason,
-      items: itemsToReturn,
-      totalAmount: totalReturnAmount
-    };
+  saleId: selectedSaleForReturn._id,
+  invoiceNumber: selectedSaleForReturn.invoiceNumber,
+  reason: returnReason,
+  items: itemsToReturn
+};
 
     setProcessingReturn(true);
 
     try {
-      const res = await fetch('/api/sales/return', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(returnData)
+      const res = await fetch("/api/sales/return", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(returnData),
       });
 
       const data = await res.json();
-      
+
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to process return');
+        throw new Error(data.error || "Failed to process return");
       }
 
-      toast.success(`Return processed successfully. Return #${data.data?.returnNumber}`);
+      toast.success(
+        `Return processed successfully. Return #${data.data?.returnNumber}`
+      );
       setShowReturnModal(false);
       setSelectedSaleForReturn(null);
       setReturnItems([]);
       fetchSales();
-      
     } catch (error: any) {
-      toast.error(error.message || 'Failed to process return');
+      toast.error(error.message || "Failed to process return");
     } finally {
       setProcessingReturn(false);
     }
@@ -667,19 +699,25 @@ const handlePrintInvoice = async (sale: any) => {
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
                   <Zap className="h-3 w-3 text-[#E84545]" />
-                  <span className="text-white text-xs font-semibold">{formatCompactCurrency(totalSalesAmount)}</span>
+                  <span className="text-white text-xs font-semibold">
+                    {formatCompactCurrency(totalSalesAmount)}
+                  </span>
                 </div>
                 <div className="h-3 w-px bg-white/10"></div>
                 <div className="flex items-center gap-1.5">
                   <ShoppingCart className="h-3 w-3 text-green-400" />
-                  <span className="text-white text-xs font-medium">{filteredSales.length}</span>
+                  <span className="text-white text-xs font-medium">
+                    {filteredSales.length}
+                  </span>
                 </div>
                 {totalBalance > 0 && (
                   <>
                     <div className="h-3 w-px bg-white/10"></div>
                     <div className="flex items-center gap-1">
                       <AlertCircle className="h-3 w-3 text-[#E84545]" />
-                      <span className="text-[#E84545] text-xs font-medium">{formatCompactCurrency(totalBalance)}</span>
+                      <span className="text-[#E84545] text-xs font-medium">
+                        {formatCompactCurrency(totalBalance)}
+                      </span>
                     </div>
                   </>
                 )}
@@ -701,7 +739,9 @@ const handlePrintInvoice = async (sale: any) => {
                 </button>
                 <div>
                   <h1 className="text-xl font-bold text-white">Sales</h1>
-                  <p className="text-xs text-white/60">{filteredSales.length} transactions</p>
+                  <p className="text-xs text-white/60">
+                    {filteredSales.length} transactions
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -719,7 +759,7 @@ const handlePrintInvoice = async (sale: any) => {
                 </button>
               </div>
             </div>
-            
+
             <div className="relative">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-white/70" />
               <input
@@ -734,14 +774,15 @@ const handlePrintInvoice = async (sale: any) => {
         </div>
 
         {/* Desktop Header */}
-    <div className="hidden md:block py-4 md:py-11 bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-lg overflow-hidden relative">
+        <div className="hidden md:block py-4 md:py-11 bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-lg overflow-hidden relative">
           <div className="px-8">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <h1 className="text-3xl font-bold text-white">Sales</h1>
                 <div className="flex items-center gap-2 mt-2">
                   <p className="text-white/90 text-sm">
-                    {filteredSales.length} sales • QAR {totalSalesAmount.toFixed(2)} total
+                    {filteredSales.length} sales • QAR{" "}
+                    {totalSalesAmount.toFixed(2)} total
                   </p>
                   <span className="text-xs text-white/90 bg-[#E84545]/30 px-2 py-1 rounded-full">
                     {statusFilter === "all" ? "All Status" : statusFilter}
@@ -779,7 +820,9 @@ const handlePrintInvoice = async (sale: any) => {
                 <TrendingUp className="h-4 w-4 text-green-400" />
               </div>
               <p className="text-xs text-gray-400 mb-1">Total Sales</p>
-              <p className="text-xl md:text-2xl font-bold text-white">{formatCompactCurrency(totalSalesAmount)}</p>
+              <p className="text-xl md:text-2xl font-bold text-white">
+                {formatCompactCurrency(totalSalesAmount)}
+              </p>
             </div>
 
             <div className="bg-gradient-to-r from-[#111111] to-[#0A0A0A] border border-white/5 rounded-2xl p-4 active:scale-[0.98] transition-all hover:border-green-500/30 group cursor-pointer">
@@ -789,7 +832,9 @@ const handlePrintInvoice = async (sale: any) => {
                 </div>
               </div>
               <p className="text-xs text-gray-400 mb-1">Total Paid</p>
-              <p className="text-xl md:text-2xl font-bold text-white">{formatCompactCurrency(totalPaidAmount)}</p>
+              <p className="text-xl md:text-2xl font-bold text-white">
+                {formatCompactCurrency(totalPaidAmount)}
+              </p>
             </div>
 
             <div className="bg-gradient-to-r from-[#111111] to-[#0A0A0A] border border-white/5 rounded-2xl p-4 active:scale-[0.98] transition-all hover:border-[#E84545]/30 group cursor-pointer col-span-2 md:col-span-1">
@@ -799,7 +844,9 @@ const handlePrintInvoice = async (sale: any) => {
                 </div>
               </div>
               <p className="text-xs text-gray-400 mb-1">Pending Balance</p>
-              <p className="text-xl md:text-2xl font-bold text-white">{formatCompactCurrency(totalBalance)}</p>
+              <p className="text-xl md:text-2xl font-bold text-white">
+                {formatCompactCurrency(totalBalance)}
+              </p>
             </div>
           </div>
 
@@ -840,7 +887,8 @@ const handlePrintInvoice = async (sale: any) => {
                   className="w-full flex items-center justify-between px-3 py-2 text-sm bg-[#111111] border border-white/5 rounded hover:bg-[#0A0A0A] transition-colors text-white"
                 >
                   <span className="truncate">
-                    {format(parseISO(dateRange.startDate), "MMM d")} - {format(parseISO(dateRange.endDate), "MMM d")}
+                    {format(parseISO(dateRange.startDate), "MMM d")} -{" "}
+                    {format(parseISO(dateRange.endDate), "MMM d")}
                   </span>
                   <Calendar className="h-4 w-4 text-gray-400 flex-shrink-0 ml-2" />
                 </button>
@@ -849,7 +897,9 @@ const handlePrintInvoice = async (sale: any) => {
                   <div className="absolute top-full left-0 right-0 mt-1 bg-[#0A0A0A] border border-white/5 rounded-lg shadow-xl z-10">
                     <div className="p-3">
                       <div className="flex justify-between items-center mb-2">
-                        <h3 className="text-xs font-semibold text-white">Date Range</h3>
+                        <h3 className="text-xs font-semibold text-white">
+                          Date Range
+                        </h3>
                         <button
                           onClick={() => setShowDateFilter(false)}
                           className="text-gray-400 hover:text-white"
@@ -872,23 +922,33 @@ const handlePrintInvoice = async (sale: any) => {
 
                       <div className="space-y-2">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">From</label>
+                          <label className="block text-xs text-gray-400 mb-1">
+                            From
+                          </label>
                           <input
                             type="date"
                             value={dateRange.startDate}
                             onChange={(e) =>
-                              setDateRange((prev) => ({ ...prev, startDate: e.target.value }))
+                              setDateRange((prev) => ({
+                                ...prev,
+                                startDate: e.target.value,
+                              }))
                             }
                             className="w-full px-2 py-1.5 text-xs bg-[#111111] border border-white/5 rounded text-white"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">To</label>
+                          <label className="block text-xs text-gray-400 mb-1">
+                            To
+                          </label>
                           <input
                             type="date"
                             value={dateRange.endDate}
                             onChange={(e) =>
-                              setDateRange((prev) => ({ ...prev, endDate: e.target.value }))
+                              setDateRange((prev) => ({
+                                ...prev,
+                                endDate: e.target.value,
+                              }))
                             }
                             className="w-full px-2 py-1.5 text-xs bg-[#111111] border border-white/5 rounded text-white"
                           />
@@ -903,7 +963,6 @@ const handlePrintInvoice = async (sale: any) => {
 
           {/* Sales Content */}
           <div className="bg-[#0A0A0A] border border-white/5 rounded-2xl shadow-xl">
-
             {loading ? (
               <div className="flex items-center justify-center py-12">
                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#E84545]"></div>
@@ -911,8 +970,12 @@ const handlePrintInvoice = async (sale: any) => {
             ) : filteredSales.length === 0 ? (
               <div className="text-center py-12">
                 <ShoppingCart className="h-16 w-16 mx-auto mb-4 text-gray-600" />
-                <p className="text-gray-400 text-lg font-medium">No sales found</p>
-                <p className="text-gray-500 text-sm mt-2">Create your first sale to get started</p>
+                <p className="text-gray-400 text-lg font-medium">
+                  No sales found
+                </p>
+                <p className="text-gray-500 text-sm mt-2">
+                  Create your first sale to get started
+                </p>
               </div>
             ) : (
               <>
@@ -921,56 +984,106 @@ const handlePrintInvoice = async (sale: any) => {
                   <table className="min-w-full divide-y divide-white/5 text-sm">
                     <thead className="bg-[#111111]">
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">Invoice</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">Date</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">Customer</th>
-                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-300 uppercase tracking-wider">Items</th>
-                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-300 uppercase tracking-wider">Total</th>
-                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-300 uppercase tracking-wider">Paid</th>
-                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-300 uppercase tracking-wider">Balance</th>
-                        <th className="px-4 py-3 text-center text-xs font-semibold text-gray-300 uppercase tracking-wider">Payment</th>
-                        <th className="px-4 py-3 text-center text-xs font-semibold text-gray-300 uppercase tracking-wider">Status</th>
-                        <th className="px-4 py-3 text-center text-xs font-semibold text-gray-300 uppercase tracking-wider">Actions</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                          Invoice
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                          Date
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                          Customer
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                          Items
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                          Total
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                          Paid
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                          Balance
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                          Payment
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                          Actions
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
                       {filteredSales.map((sale) => (
-                        <tr key={sale._id} className="bg-[#0A0A0A] hover:bg-white/5 transition-colors">
+                        <tr
+                          key={sale._id}
+                          className="bg-[#0A0A0A] hover:bg-white/5 transition-colors"
+                        >
                           <td className="px-4 py-3 whitespace-nowrap">
-                            <span className="text-sm font-medium text-[#E84545] hover:text-[#cc3c3c] transition-colors cursor-pointer" onClick={() => handleViewDetails(sale)}>
+                            <span
+                              className="text-sm font-medium text-[#E84545] hover:text-[#cc3c3c] transition-colors cursor-pointer"
+                              onClick={() => handleViewDetails(sale)}
+                            >
                               {sale.invoiceNumber}
                             </span>
                             {sale.returnStatus && (
                               <span className="text-xs text-[#E84545] ml-1">
-                                ({sale.returnStatus === "PARTIAL_RETURN" ? "Partial Return" : "Returned"})
+                                (
+                                {sale.returnStatus === "PARTIAL_RETURN"
+                                  ? "Partial Return"
+                                  : "Returned"}
+                                )
                               </span>
                             )}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <div className="flex flex-col">
-                              <span className="text-sm text-gray-300">{format(parseISO(sale.saleDate), "MMM d")}</span>
-                              <span className="text-xs text-gray-500">{format(parseISO(sale.saleDate), "h:mm a")}</span>
+                              <span className="text-sm text-gray-300">
+                                {format(parseISO(sale.saleDate), "MMM d")}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {format(parseISO(sale.saleDate), "h:mm a")}
+                              </span>
                             </div>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <div className="flex flex-col max-w-[120px]">
-                              <span className="text-sm text-gray-300 truncate">{sale.customerName}</span>
+                              <span className="text-sm text-gray-300 truncate">
+                                {sale.customerName}
+                              </span>
                               {sale.customerId?.phone && (
-                                <span className="text-xs text-gray-500 truncate">{sale.customerId.phone}</span>
+                                <span className="text-xs text-gray-500 truncate">
+                                  {sale.customerId.phone}
+                                </span>
                               )}
                             </div>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-right">
-                            <span className="text-sm text-gray-300">{sale.items?.length || 0}</span>
+                            <span className="text-sm text-gray-300">
+                              {sale.items?.length || 0}
+                            </span>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-right">
-                            <span className="text-sm font-semibold text-white">QAR {sale.grandTotal?.toFixed(2)}</span>
+                            <span className="text-sm font-semibold text-white">
+                              QAR {sale.grandTotal?.toFixed(2)}
+                            </span>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-right">
-                            <span className="text-sm text-green-400">QAR {sale.amountPaid?.toFixed(2)}</span>
+                            <span className="text-sm text-green-400">
+                              QAR {sale.amountPaid?.toFixed(2)}
+                            </span>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-right">
-                            <span className={`text-sm font-semibold ${sale.balanceDue > 0 ? "text-[#E84545]" : "text-green-400"}`}>
+                            <span
+                              className={`text-sm font-semibold ${
+                                sale.balanceDue > 0
+                                  ? "text-[#E84545]"
+                                  : "text-green-400"
+                              }`}
+                            >
                               QAR {sale.balanceDue?.toFixed(2)}
                             </span>
                           </td>
@@ -981,14 +1094,18 @@ const handlePrintInvoice = async (sale: any) => {
                             {getStatusBadge(sale.status)}
                             {sale.returnStatus && (
                               <div className="text-xs text-[#E84545] mt-1">
-                                {sale.returnStatus === "PARTIAL_RETURN" ? "Partial Return" : "Fully Returned"}
+                                {sale.returnStatus === "PARTIAL_RETURN"
+                                  ? "Partial Return"
+                                  : "Fully Returned"}
                               </div>
                             )}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-center relative">
                             <button
                               onClick={() =>
-                                setShowActions(showActions === sale._id ? null : sale._id)
+                                setShowActions(
+                                  showActions === sale._id ? null : sale._id
+                                )
                               }
                               className="relative z-30 inline-flex items-center pointer-events-auto text-gray-400 hover:text-white transition-colors"
                             >
@@ -1036,57 +1153,62 @@ const handlePrintInvoice = async (sale: any) => {
                                     </button>
                                   )}
 
-                                  {sale.status === "COMPLETED" && !sale.returnStatus && (
-                                    <button
-                                      onClick={() => {
-                                        handleReturnSale(sale);
-                                        setShowActions(null);
-                                      }}
-                                      className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-yellow-400 hover:bg-white/5 transition-colors"
-                                    >
-                                      <Undo className="h-3 w-3" />
-                                      <span>Return Items</span>
-                                    </button>
-                                  )}
+                                  {sale.status === "COMPLETED" &&
+                                    !sale.returnStatus && (
+                                      <button
+                                        onClick={() => {
+                                          handleReturnSale(sale);
+                                          setShowActions(null);
+                                        }}
+                                        className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-yellow-400 hover:bg-white/5 transition-colors"
+                                      >
+                                        <Undo className="h-3 w-3" />
+                                        <span>Return Items</span>
+                                      </button>
+                                    )}
 
-                                  {sale.status === "COMPLETED" && sale.returnStatus === "PARTIAL_RETURN" && (
-                                    <button
-                                      onClick={() => {
-                                        handleReturnSale(sale);
-                                        setShowActions(null);
-                                      }}
-                                      className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-yellow-400 hover:bg-white/5 transition-colors"
-                                    >
-                                      <Undo className="h-3 w-3" />
-                                      <span>Return More Items</span>
-                                    </button>
-                                  )}
+                                  {sale.status === "COMPLETED" &&
+                                    sale.returnStatus === "PARTIAL_RETURN" && (
+                                      <button
+                                        onClick={() => {
+                                          handleReturnSale(sale);
+                                          setShowActions(null);
+                                        }}
+                                        className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-yellow-400 hover:bg-white/5 transition-colors"
+                                      >
+                                        <Undo className="h-3 w-3" />
+                                        <span>Return More Items</span>
+                                      </button>
+                                    )}
 
-                                  {sale.status === "COMPLETED" && sale.balanceDue < 0 && (
-                                    <button
-                                      onClick={() => {
-                                        handleRefundSale(sale);
-                                        setShowActions(null);
-                                      }}
-                                      className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-purple-400 hover:bg-white/5 transition-colors"
-                                    >
-                                      <CreditCard className="h-3 w-3" />
-                                      <span>Process Refund</span>
-                                    </button>
-                                  )}
+                                  {sale.status === "COMPLETED" &&
+                                    sale.balanceDue < 0 && (
+                                      <button
+                                        onClick={() => {
+                                          handleRefundSale(sale);
+                                          setShowActions(null);
+                                        }}
+                                        className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-purple-400 hover:bg-white/5 transition-colors"
+                                      >
+                                        <CreditCard className="h-3 w-3" />
+                                        <span>Process Refund</span>
+                                      </button>
+                                    )}
 
-                                  {sale.status !== "CANCELLED" && sale.status !== "REFUNDED" && !sale.returnStatus && (
-                                    <button
-                                      onClick={() => {
-                                        handleCancelSale(sale);
-                                        setShowActions(null);
-                                      }}
-                                      className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-[#E84545] hover:bg-white/5 transition-colors"
-                                    >
-                                      <X className="h-3 w-3" />
-                                      <span>Cancel Sale</span>
-                                    </button>
-                                  )}
+                                  {sale.status !== "CANCELLED" &&
+                                    sale.status !== "REFUNDED" &&
+                                    !sale.returnStatus && (
+                                      <button
+                                        onClick={() => {
+                                          handleCancelSale(sale);
+                                          setShowActions(null);
+                                        }}
+                                        className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-[#E84545] hover:bg-white/5 transition-colors"
+                                      >
+                                        <X className="h-3 w-3" />
+                                        <span>Cancel Sale</span>
+                                      </button>
+                                    )}
 
                                   {sale.status === "DRAFT" && (
                                     <button
@@ -1122,13 +1244,19 @@ const handlePrintInvoice = async (sale: any) => {
                           <p className="text-sm font-semibold text-[#E84545] mb-1 group-hover:text-[#E84545] transition-colors">
                             {sale.invoiceNumber}
                           </p>
-                          <p className="text-xs text-gray-300 truncate">{sale.customerName}</p>
+                          <p className="text-xs text-gray-300 truncate">
+                            {sale.customerName}
+                          </p>
                           <p className="text-xs text-gray-500 mt-1">
                             {format(parseISO(sale.saleDate), "MMM d, h:mm a")}
                           </p>
                           {sale.returnStatus && (
                             <span className="inline-block text-xs text-[#E84545] mt-1">
-                              ({sale.returnStatus === "PARTIAL_RETURN" ? "Partial Return" : "Returned"})
+                              (
+                              {sale.returnStatus === "PARTIAL_RETURN"
+                                ? "Partial Return"
+                                : "Returned"}
+                              )
                             </span>
                           )}
                         </div>
@@ -1140,32 +1268,48 @@ const handlePrintInvoice = async (sale: any) => {
 
                       <div className="grid grid-cols-3 gap-3 py-3 border-t border-b border-white/10 mb-3">
                         <div>
-                          <span className="text-[10px] text-gray-500 uppercase block mb-1">Total</span>
+                          <span className="text-[10px] text-gray-500 uppercase block mb-1">
+                            Total
+                          </span>
                           <p className="text-sm font-bold text-white truncate">
                             {formatCompactCurrency(sale.grandTotal)}
                           </p>
                         </div>
                         <div>
-                          <span className="text-[10px] text-gray-500 uppercase block mb-1">Paid</span>
+                          <span className="text-[10px] text-gray-500 uppercase block mb-1">
+                            Paid
+                          </span>
                           <p className="text-sm font-semibold text-green-400 truncate">
                             {formatCompactCurrency(sale.amountPaid)}
                           </p>
                         </div>
                         <div>
-                          <span className="text-[10px] text-gray-500 uppercase block mb-1">Balance</span>
-                          <p className={`text-sm font-semibold truncate ${
-                            sale.balanceDue > 0 ? "text-[#E84545]" : "text-green-400"
-                          }`}>
+                          <span className="text-[10px] text-gray-500 uppercase block mb-1">
+                            Balance
+                          </span>
+                          <p
+                            className={`text-sm font-semibold truncate ${
+                              sale.balanceDue > 0
+                                ? "text-[#E84545]"
+                                : "text-green-400"
+                            }`}
+                          >
                             {formatCompactCurrency(sale.balanceDue)}
                           </p>
                         </div>
                       </div>
 
                       <button
-                        onClick={() => setShowActions(showActions === sale._id ? null : sale._id)}
+                        onClick={() =>
+                          setShowActions(
+                            showActions === sale._id ? null : sale._id
+                          )
+                        }
                         className="w-full py-2 text-xs text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-2 active:scale-95"
                       >
-                        <span>{showActions === sale._id ? "Hide" : "Show"} Actions</span>
+                        <span>
+                          {showActions === sale._id ? "Hide" : "Show"} Actions
+                        </span>
                         <MoreVertical className="h-4 w-4" />
                       </button>
 
@@ -1200,45 +1344,50 @@ const handlePrintInvoice = async (sale: any) => {
                             </button>
                           )}
 
-                          {sale.status === "COMPLETED" && !sale.returnStatus && (
-                            <button
-                              onClick={() => handleReturnSale(sale)}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-yellow-400 bg-yellow-500/10 rounded-lg hover:bg-yellow-500/20 transition-colors active:scale-95"
-                            >
-                              <Undo className="h-3 w-3" />
-                              <span>Return Items</span>
-                            </button>
-                          )}
+                          {sale.status === "COMPLETED" &&
+                            !sale.returnStatus && (
+                              <button
+                                onClick={() => handleReturnSale(sale)}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-yellow-400 bg-yellow-500/10 rounded-lg hover:bg-yellow-500/20 transition-colors active:scale-95"
+                              >
+                                <Undo className="h-3 w-3" />
+                                <span>Return Items</span>
+                              </button>
+                            )}
 
-                          {sale.status === "COMPLETED" && sale.returnStatus === "PARTIAL_RETURN" && (
-                            <button
-                              onClick={() => handleReturnSale(sale)}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-yellow-400 bg-yellow-500/10 rounded-lg hover:bg-yellow-500/20 transition-colors active:scale-95"
-                            >
-                              <Undo className="h-3 w-3" />
-                              <span>Return More Items</span>
-                            </button>
-                          )}
+                          {sale.status === "COMPLETED" &&
+                            sale.returnStatus === "PARTIAL_RETURN" && (
+                              <button
+                                onClick={() => handleReturnSale(sale)}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-yellow-400 bg-yellow-500/10 rounded-lg hover:bg-yellow-500/20 transition-colors active:scale-95"
+                              >
+                                <Undo className="h-3 w-3" />
+                                <span>Return More Items</span>
+                              </button>
+                            )}
 
-                          {sale.status === "COMPLETED" && sale.balanceDue < 0 && (
-                            <button
-                              onClick={() => handleRefundSale(sale)}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-purple-400 bg-purple-500/10 rounded-lg hover:bg-purple-500/20 transition-colors active:scale-95"
-                            >
-                              <CreditCard className="h-3 w-3" />
-                              <span>Process Refund</span>
-                            </button>
-                          )}
+                          {sale.status === "COMPLETED" &&
+                            sale.balanceDue < 0 && (
+                              <button
+                                onClick={() => handleRefundSale(sale)}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-purple-400 bg-purple-500/10 rounded-lg hover:bg-purple-500/20 transition-colors active:scale-95"
+                              >
+                                <CreditCard className="h-3 w-3" />
+                                <span>Process Refund</span>
+                              </button>
+                            )}
 
-                          {sale.status !== "CANCELLED" && sale.status !== "REFUNDED" && !sale.returnStatus && (
-                            <button
-                              onClick={() => handleCancelSale(sale)}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#E84545] bg-[#E84545]/10 rounded-lg hover:bg-[#E84545]/20 transition-colors active:scale-95"
-                            >
-                              <X className="h-3 w-3" />
-                              <span>Cancel Sale</span>
-                            </button>
-                          )}
+                          {sale.status !== "CANCELLED" &&
+                            sale.status !== "REFUNDED" &&
+                            !sale.returnStatus && (
+                              <button
+                                onClick={() => handleCancelSale(sale)}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#E84545] bg-[#E84545]/10 rounded-lg hover:bg-[#E84545]/20 transition-colors active:scale-95"
+                              >
+                                <X className="h-3 w-3" />
+                                <span>Cancel Sale</span>
+                              </button>
+                            )}
 
                           {sale.status === "DRAFT" && (
                             <button
@@ -1260,46 +1409,68 @@ const handlePrintInvoice = async (sale: any) => {
                   <div className="flex items-center justify-between px-4 py-3 border-t border-white/5">
                     <div className="text-xs text-gray-400">
                       Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
-                      {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} sales
+                      {Math.min(
+                        pagination.page * pagination.limit,
+                        pagination.total
+                      )}{" "}
+                      of {pagination.total} sales
                     </div>
                     <div className="flex items-center space-x-1">
                       <button
-                        onClick={() => setPagination((prev) => ({ ...prev, page: prev.page - 1 }))}
+                        onClick={() =>
+                          setPagination((prev) => ({
+                            ...prev,
+                            page: prev.page - 1,
+                          }))
+                        }
                         disabled={pagination.page === 1}
                         className="px-2 py-1 rounded border border-white/5 text-gray-400 hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         <ChevronLeft className="h-3 w-3" />
                       </button>
 
-                      {Array.from({ length: Math.min(5, pagination.pages) }, (_, i) => {
-                        let pageNum;
-                        if (pagination.pages <= 5) {
-                          pageNum = i + 1;
-                        } else if (pagination.page <= 3) {
-                          pageNum = i + 1;
-                        } else if (pagination.page >= pagination.pages - 2) {
-                          pageNum = pagination.pages - 4 + i;
-                        } else {
-                          pageNum = pagination.page - 2 + i;
-                        }
+                      {Array.from(
+                        { length: Math.min(5, pagination.pages) },
+                        (_, i) => {
+                          let pageNum;
+                          if (pagination.pages <= 5) {
+                            pageNum = i + 1;
+                          } else if (pagination.page <= 3) {
+                            pageNum = i + 1;
+                          } else if (pagination.page >= pagination.pages - 2) {
+                            pageNum = pagination.pages - 4 + i;
+                          } else {
+                            pageNum = pagination.page - 2 + i;
+                          }
 
-                        return (
-                          <button
-                            key={pageNum}
-                            onClick={() => setPagination((prev) => ({ ...prev, page: pageNum }))}
-                            className={`px-2 py-1 rounded border transition-colors text-xs ${
-                              pagination.page === pageNum
-                                ? "bg-[#E84545] border-[#E84545] text-white"
-                                : "border-white/5 text-gray-400 hover:bg-white/5"
-                            }`}
-                          >
-                            {pageNum}
-                          </button>
-                        );
-                      })}
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() =>
+                                setPagination((prev) => ({
+                                  ...prev,
+                                  page: pageNum,
+                                }))
+                              }
+                              className={`px-2 py-1 rounded border transition-colors text-xs ${
+                                pagination.page === pageNum
+                                  ? "bg-[#E84545] border-[#E84545] text-white"
+                                  : "border-white/5 text-gray-400 hover:bg-white/5"
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        }
+                      )}
 
                       <button
-                        onClick={() => setPagination((prev) => ({ ...prev, page: prev.page + 1 }))}
+                        onClick={() =>
+                          setPagination((prev) => ({
+                            ...prev,
+                            page: prev.page + 1,
+                          }))
+                        }
                         disabled={pagination.page === pagination.pages}
                         className="px-2 py-1 rounded border border-white/5 text-gray-400 hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
@@ -1317,26 +1488,28 @@ const handlePrintInvoice = async (sale: any) => {
         <div className="md:hidden h-6"></div>
       </div>
 
-{/* Invoice Print Modal */}
-{showInvoiceModal && invoiceData && selectedSaleForInvoice && (
-  <InvoicePrint
-    invoice={invoiceData}
-    outletId={selectedSaleForInvoice.outletId}
-    customerId={selectedSaleForInvoice.customerId}
-    onClose={() => {
-      setShowInvoiceModal(false);
-      setSelectedSaleForInvoice(null);
-      setInvoiceData(null);
-    }}
-  />
-)}
+      {/* Invoice Print Modal */}
+      {showInvoiceModal && invoiceData && selectedSaleForInvoice && (
+        <InvoicePrint
+          invoice={invoiceData}
+          outletId={selectedSaleForInvoice.outletId}
+          customerId={selectedSaleForInvoice.customerId}
+          onClose={() => {
+            setShowInvoiceModal(false);
+            setSelectedSaleForInvoice(null);
+            setInvoiceData(null);
+          }}
+        />
+      )}
       {/* Invoice Loading Overlay */}
       {invoiceLoading && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[100]">
           <div className="bg-[#0A0A0A] border border-white/5 rounded-xl p-6 shadow-2xl">
             <div className="animate-spin rounded-full h-12 w-12 border-4 border-white/10 border-t-[#E84545] mx-auto mb-4"></div>
             <p className="text-white font-medium">Preparing invoice...</p>
-            <p className="text-gray-400 text-sm mt-2">Loading invoice data for printing</p>
+            <p className="text-gray-400 text-sm mt-2">
+              Loading invoice data for printing
+            </p>
           </div>
         </div>
       )}
@@ -1345,6 +1518,7 @@ const handlePrintInvoice = async (sale: any) => {
       {showReturnModal && selectedSaleForReturn && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-[#0A0A0A] border border-white/5 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+            {/* Header */}
             <div className="p-6 border-b border-white/5 bg-gradient-to-r from-[#0A0A0A] to-[#111111]">
               <div className="flex items-center justify-between">
                 <div>
@@ -1366,8 +1540,9 @@ const handlePrintInvoice = async (sale: any) => {
               </div>
             </div>
 
+            {/* Body */}
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
-              {/* Return Summary */}
+              {/* Summary */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="bg-[#111111] border border-white/5 rounded-lg p-4">
                   <p className="text-sm text-gray-400">Original Amount</p>
@@ -1375,23 +1550,21 @@ const handlePrintInvoice = async (sale: any) => {
                     QAR {selectedSaleForReturn.grandTotal?.toFixed(2)}
                   </p>
                 </div>
+
                 <div className="bg-[#111111] border border-white/5 rounded-lg p-4">
                   <p className="text-sm text-gray-400">Items to Return</p>
                   <p className="text-lg font-bold text-yellow-400">
-                    {
-                      returnItems.filter((item) => item.returnQuantity > 0)
-                        .length
-                    }
+                    {returnItems.filter((i) => i.returnQuantity > 0).length}
                   </p>
                 </div>
+
                 <div className="bg-[#111111] border border-white/5 rounded-lg p-4">
                   <p className="text-sm text-gray-400">Return Amount</p>
                   <p className="text-lg font-bold text-green-400">
                     QAR{" "}
                     {returnItems
                       .reduce(
-                        (sum, item) =>
-                          sum + item.returnQuantity * item.unitPrice,
+                        (sum, item) => sum + calculateReturnItemTotal(item),
                         0
                       )
                       .toFixed(2)}
@@ -1399,7 +1572,7 @@ const handlePrintInvoice = async (sale: any) => {
                 </div>
               </div>
 
-              {/* Return Reason */}
+              {/* Reason */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Return Reason
@@ -1408,24 +1581,25 @@ const handlePrintInvoice = async (sale: any) => {
                   value={returnReason}
                   onChange={(e) => setReturnReason(e.target.value)}
                   placeholder="Enter reason for return..."
-                  className="w-full px-4 py-3 bg-[#111111] border border-white/5 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent text-white placeholder-gray-500 resize-none"
+                  className="w-full px-4 py-3 bg-[#111111] border border-white/5 rounded-lg focus:ring-2 focus:ring-yellow-500 text-white resize-none"
                   rows={3}
                 />
               </div>
 
-              {/* Items to Return */}
+              {/* Items */}
               <div>
                 <h3 className="text-lg font-semibold text-white mb-4">
                   Select Items to Return
                 </h3>
+
                 <div className="space-y-3">
                   {returnItems.map((item) => (
                     <div
                       key={item._id || item.sku}
                       className="bg-[#111111] border border-white/5 rounded-lg p-4"
                     >
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex-1">
+                      <div className="flex justify-between mb-3">
+                        <div>
                           <h4 className="font-medium text-white">
                             {item.productName}
                           </h4>
@@ -1433,19 +1607,18 @@ const handlePrintInvoice = async (sale: any) => {
                             SKU: {item.sku}
                           </p>
                           <p className="text-sm text-gray-400">
-                            QAR {item.unitPrice?.toFixed(2)} × {item.quantity} =
-                            QAR {(item.unitPrice * item.quantity).toFixed(2)}
+                            QAR {item.unitPrice.toFixed(2)} × {item.quantity}
                           </p>
                           {item.returnedQuantity > 0 && (
                             <p className="text-xs text-yellow-400 mt-1">
-                              Already returned: {item.returnedQuantity}{" "}
-                              {item.originalItem?.unit || "pcs"}
+                              Already returned: {item.returnedQuantity}
                             </p>
                           )}
                         </div>
+
                         <div className="text-right">
                           <span className="text-sm text-gray-400">
-                            Available to return:
+                            Available to return
                           </span>
                           <p className="text-lg font-semibold text-white">
                             {item.maxReturnQuantity}
@@ -1453,143 +1626,111 @@ const handlePrintInvoice = async (sale: any) => {
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <label className="text-sm text-gray-300 mr-3">
-                            Return Quantity:
-                          </label>
-                          <div className="flex items-center space-x-2">
-                            <button
-                              onClick={() =>
-                                handleReturnQuantityChange(
-                                  item._id || item.productId,
-                                  item.returnQuantity - 1
-                                )
-                              }
-                              disabled={item.returnQuantity <= 0}
-                              className="w-8 h-8 flex items-center justify-center bg-[#0A0A0A] border border-white/5 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/5"
-                            >
-                              <span className="text-white">-</span>
-                            </button>
-                            <input
-                              type="number"
-                              min="0"
-                              max={item.maxReturnQuantity}
-                              value={item.returnQuantity}
-                              onChange={(e) =>
-                                handleReturnQuantityChange(
-                                  item._id || item.productId,
-                                  parseInt(e.target.value) || 0
-                                )
-                              }
-                              className="w-16 text-center bg-[#0A0A0A] border border-white/5 rounded py-1 text-white"
-                            />
-                            <button
-                              onClick={() =>
-                                handleReturnQuantityChange(
-                                  item._id || item.productId,
-                                  item.returnQuantity + 1
-                                )
-                              }
-                              disabled={
-                                item.returnQuantity >= item.maxReturnQuantity
-                              }
-                              className="w-8 h-8 flex items-center justify-center bg-[#0A0A0A] border border-white/5 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/5"
-                            >
-                              <span className="text-white">+</span>
-                            </button>
-                          </div>
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() =>
+                              handleReturnQuantityChange(
+                                item._id || item.productId,
+                                item.returnQuantity - 1
+                              )
+                            }
+                            disabled={item.returnQuantity <= 0}
+                            className="w-8 h-8 bg-[#0A0A0A] border border-white/5 rounded text-white disabled:opacity-50"
+                          >
+                            −
+                          </button>
+
+                          <input
+                            type="number"
+                            min={0}
+                            max={item.maxReturnQuantity}
+                            value={item.returnQuantity}
+                            onChange={(e) =>
+                              handleReturnQuantityChange(
+                                item._id || item.productId,
+                                Number(e.target.value) || 0
+                              )
+                            }
+                            className="w-16 text-center bg-[#0A0A0A] border border-white/5 rounded py-1 text-white"
+                          />
+
+                          <button
+                            onClick={() =>
+                              handleReturnQuantityChange(
+                                item._id || item.productId,
+                                item.returnQuantity + 1
+                              )
+                            }
+                            disabled={
+                              item.returnQuantity >= item.maxReturnQuantity
+                            }
+                            className="w-8 h-8 bg-[#0A0A0A] border border-white/5 rounded text-white disabled:opacity-50"
+                          >
+                            +
+                          </button>
                         </div>
 
                         {item.returnQuantity > 0 && (
                           <div className="text-right">
                             <p className="text-sm text-gray-400">
-                              Return Amount:
+                              Return Amount
                             </p>
                             <p className="text-lg font-bold text-green-400">
-                              QAR{" "}
-                              {(item.returnQuantity * item.unitPrice).toFixed(
-                                2
-                              )}
+                              QAR {calculateReturnItemTotal(item).toFixed(2)}
                             </p>
                           </div>
                         )}
                       </div>
-
-                      {item.returnQuantity > 0 && (
-                        <div className="mt-3 pt-3 border-t border-white/5">
-                          <label className="block text-sm text-gray-300 mb-1">
-                            Item Return Reason (Optional)
-                          </label>
-                          <input
-                            type="text"
-                            value={item.returnReason || ""}
-                            onChange={(e) => {
-                              setReturnItems((prev) =>
-                                prev.map((i) =>
-                                  i._id === item._id ||
-                                  i.productId === item.productId
-                                    ? { ...i, returnReason: e.target.value }
-                                    : i
-                                )
-                              );
-                            }}
-                            placeholder="Why is this item being returned?"
-                            className="w-full px-3 py-2 text-sm bg-[#0A0A0A] border border-white/5 rounded focus:ring-2 focus:ring-yellow-500 focus:border-transparent text-white placeholder-gray-500"
-                          />
-                        </div>
-                      )}
                     </div>
                   ))}
                 </div>
               </div>
             </div>
 
-            <div className="p-6 border-t border-white/5 bg-[#111111]">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-400">Total Return Amount</p>
-                  <p className="text-2xl font-bold text-green-400">
-                    QAR{" "}
-                    {returnItems
-                      .reduce(
-                        (sum, item) =>
-                          sum + item.returnQuantity * item.unitPrice,
-                        0
-                      )
-                      .toFixed(2)}
-                  </p>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <button
-                    onClick={() => setShowReturnModal(false)}
-                    className="px-6 py-3 border border-white/5 text-gray-300 rounded-lg hover:bg-white/5 transition-colors"
-                    disabled={processingReturn}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={processReturn}
-                    disabled={
-                      processingReturn ||
-                      returnItems.filter((item) => item.returnQuantity > 0)
-                        .length === 0
-                    }
-                    className="px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-                  >
-                    {processingReturn ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        <span>Processing...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Undo className="h-4 w-4" />
-                        <span>Process Return</span>
-                      </>
-                    )}
-                  </button>
-                </div>
+            {/* Footer */}
+            <div className="p-6 border-t border-white/5 bg-[#111111] flex justify-between items-center">
+              <div>
+                <p className="text-sm text-gray-400">Total Return Amount</p>
+                <p className="text-2xl font-bold text-green-400">
+                  QAR{" "}
+                  {returnItems
+                    .reduce(
+                      (sum, item) => sum + calculateReturnItemTotal(item),
+                      0
+                    )
+                    .toFixed(2)}
+                </p>
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setShowReturnModal(false)}
+                  className="px-6 py-3 border border-white/5 text-gray-300 rounded-lg hover:bg-white/5"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={processReturn}
+                  disabled={
+                    processingReturn ||
+                    returnItems.every((i) => i.returnQuantity === 0)
+                  }
+                  className="px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50 flex items-center space-x-2"
+                >
+                  {processingReturn ? (
+                    <>
+                      <div className="animate-spin h-4 w-4 border-b-2 border-white rounded-full" />
+                      <span>Processing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Undo className="h-4 w-4" />
+                      <span>Process Return</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>
@@ -1608,7 +1749,10 @@ const handlePrintInvoice = async (sale: any) => {
                     Sale Details - {selectedSaleDetails.invoiceNumber}
                   </h2>
                   <p className="text-gray-400 text-sm mt-1">
-                    {format(parseISO(selectedSaleDetails.saleDate), "MMMM d, yyyy 'at' h:mm a")}
+                    {format(
+                      parseISO(selectedSaleDetails.saleDate),
+                      "MMMM d, yyyy 'at' h:mm a"
+                    )}
                   </p>
                 </div>
                 <button
@@ -1624,29 +1768,39 @@ const handlePrintInvoice = async (sale: any) => {
               {/* Sale Summary */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                 <div className="bg-[#111111] border border-white/5 rounded-lg p-4">
-                  <h3 className="text-lg font-semibold text-white mb-3">Customer Information</h3>
+                  <h3 className="text-lg font-semibold text-white mb-3">
+                    Customer Information
+                  </h3>
                   <div className="space-y-2">
                     <div>
                       <p className="text-sm text-gray-400">Customer Name</p>
-                      <p className="text-white font-medium">{selectedSaleDetails.customerName}</p>
+                      <p className="text-white font-medium">
+                        {selectedSaleDetails.customerName}
+                      </p>
                     </div>
                     {selectedSaleDetails.customerId?.phone && (
                       <div>
                         <p className="text-sm text-gray-400">Phone</p>
-                        <p className="text-white">{selectedSaleDetails.customerId.phone}</p>
+                        <p className="text-white">
+                          {selectedSaleDetails.customerId.phone}
+                        </p>
                       </div>
                     )}
                     {selectedSaleDetails.customerId?.email && (
                       <div>
                         <p className="text-sm text-gray-400">Email</p>
-                        <p className="text-white">{selectedSaleDetails.customerId.email}</p>
+                        <p className="text-white">
+                          {selectedSaleDetails.customerId.email}
+                        </p>
                       </div>
                     )}
                   </div>
                 </div>
 
                 <div className="bg-[#111111] border border-white/5 rounded-lg p-4">
-                  <h3 className="text-lg font-semibold text-white mb-3">Sale Summary</h3>
+                  <h3 className="text-lg font-semibold text-white mb-3">
+                    Sale Summary
+                  </h3>
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-gray-400">Status:</span>
@@ -1654,16 +1808,27 @@ const handlePrintInvoice = async (sale: any) => {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Payment Method:</span>
-                      <span>{getPaymentMethodBadge(selectedSaleDetails.paymentMethod)}</span>
+                      <span>
+                        {getPaymentMethodBadge(
+                          selectedSaleDetails.paymentMethod
+                        )}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Sale Date:</span>
-                      <span className="text-white">{format(parseISO(selectedSaleDetails.saleDate), "MMM d, yyyy")}</span>
+                      <span className="text-white">
+                        {format(
+                          parseISO(selectedSaleDetails.saleDate),
+                          "MMM d, yyyy"
+                        )}
+                      </span>
                     </div>
                     {selectedSaleDetails.createdBy?.email && (
                       <div className="flex justify-between">
                         <span className="text-gray-400">Created By:</span>
-                        <span className="text-white">{selectedSaleDetails.createdBy.email}</span>
+                        <span className="text-white">
+                          {selectedSaleDetails.createdBy.email}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -1677,51 +1842,80 @@ const handlePrintInvoice = async (sale: any) => {
                   <table className="min-w-full divide-y divide-white/5">
                     <thead className="bg-[#0A0A0A]">
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase">Item</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase">SKU</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase">Quantity</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase">Unit Price</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase">Tax</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase">Total</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase">Returned</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase">
+                          Item
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase">
+                          SKU
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase">
+                          Quantity
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase">
+                          Unit Price
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase">
+                          Tax
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase">
+                          Total
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase">
+                          Returned
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
-                      {selectedSaleDetails.items?.map((item: any, index: number) => (
-                        <tr key={index} className="hover:bg-white/5 transition-colors">
-                          <td className="px-4 py-3">
-                            <div>
-                              <p className="text-white font-medium">{item.name}</p>
-                              {item.isLabor && (
-                                <span className="text-xs text-yellow-400 bg-yellow-500/10 px-2 py-0.5 rounded">Labor</span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-gray-300">{item.sku}</td>
-                          <td className="px-4 py-3 text-gray-300">
-                            {item.quantity} {item.unit}
-                            {item.returnedQuantity > 0 && (
-                              <div className="text-xs text-[#E84545]">
-                                (Returned: {item.returnedQuantity})
+                      {selectedSaleDetails.items?.map(
+                        (item: any, index: number) => (
+                          <tr
+                            key={index}
+                            className="hover:bg-white/5 transition-colors"
+                          >
+                            <td className="px-4 py-3">
+                              <div>
+                                <p className="text-white font-medium">
+                                  {item.name}
+                                </p>
+                                {item.isLabor && (
+                                  <span className="text-xs text-yellow-400 bg-yellow-500/10 px-2 py-0.5 rounded">
+                                    Labor
+                                  </span>
+                                )}
                               </div>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-gray-300">QAR {item.unitPrice.toFixed(2)}</td>
-                          <td className="px-4 py-3 text-gray-300">
-                            {item.taxRate}% (QAR {item.taxAmount.toFixed(2)})
-                          </td>
-                          <td className="px-4 py-3 text-white font-medium">QAR {item.total.toFixed(2)}</td>
-                          <td className="px-4 py-3">
-                            {item.returnedQuantity > 0 ? (
-                              <span className="text-xs text-[#E84545] bg-[#E84545]/10 px-2 py-1 rounded">
-                                {item.returnedQuantity} returned
-                              </span>
-                            ) : (
-                              <span className="text-xs text-gray-500">-</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                            <td className="px-4 py-3 text-gray-300">
+                              {item.sku}
+                            </td>
+                            <td className="px-4 py-3 text-gray-300">
+                              {item.quantity} {item.unit}
+                              {item.returnedQuantity > 0 && (
+                                <div className="text-xs text-[#E84545]">
+                                  (Returned: {item.returnedQuantity})
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-gray-300">
+                              QAR {item.unitPrice.toFixed(2)}
+                            </td>
+                            <td className="px-4 py-3 text-gray-300">
+                              {item.taxRate}% (QAR {item.taxAmount.toFixed(2)})
+                            </td>
+                            <td className="px-4 py-3 text-white font-medium">
+                              QAR {item.total.toFixed(2)}
+                            </td>
+                            <td className="px-4 py-3">
+                              {item.returnedQuantity > 0 ? (
+                                <span className="text-xs text-[#E84545] bg-[#E84545]/10 px-2 py-1 rounded">
+                                  {item.returnedQuantity} returned
+                                </span>
+                              ) : (
+                                <span className="text-xs text-gray-500">-</span>
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -1729,25 +1923,37 @@ const handlePrintInvoice = async (sale: any) => {
 
               {/* Financial Summary */}
               <div className="mb-8">
-                <h3 className="text-lg font-semibold text-white mb-4">Financial Summary</h3>
+                <h3 className="text-lg font-semibold text-white mb-4">
+                  Financial Summary
+                </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="bg-[#111111] border border-white/5 rounded-lg p-4">
                     <div className="space-y-3">
                       <div className="flex justify-between">
                         <span className="text-gray-400">Subtotal:</span>
-                        <span className="text-white">QAR {selectedSaleDetails.subtotal.toFixed(2)}</span>
+                        <span className="text-white">
+                          QAR {selectedSaleDetails.subtotal.toFixed(2)}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">Tax:</span>
-                        <span className="text-white">QAR {selectedSaleDetails.totalTax.toFixed(2)}</span>
+                        <span className="text-white">
+                          QAR {selectedSaleDetails.totalTax.toFixed(2)}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">Discount:</span>
-                        <span className="text-white">QAR {selectedSaleDetails.totalDiscount.toFixed(2)}</span>
+                        <span className="text-white">
+                          QAR {selectedSaleDetails.totalDiscount.toFixed(2)}
+                        </span>
                       </div>
                       <div className="flex justify-between border-t border-white/5 pt-3">
-                        <span className="text-gray-300 font-semibold">Grand Total:</span>
-                        <span className="text-white font-bold text-lg">QAR {selectedSaleDetails.grandTotal.toFixed(2)}</span>
+                        <span className="text-gray-300 font-semibold">
+                          Grand Total:
+                        </span>
+                        <span className="text-white font-bold text-lg">
+                          QAR {selectedSaleDetails.grandTotal.toFixed(2)}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -1756,92 +1962,148 @@ const handlePrintInvoice = async (sale: any) => {
                     <div className="space-y-3">
                       <div className="flex justify-between">
                         <span className="text-gray-400">Amount Paid:</span>
-                        <span className="text-green-400 font-medium">QAR {selectedSaleDetails.amountPaid.toFixed(2)}</span>
+                        <span className="text-green-400 font-medium">
+                          QAR {selectedSaleDetails.amountPaid.toFixed(2)}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">Balance Due:</span>
-                        <span className={`font-medium ${
-                          selectedSaleDetails.balanceDue > 0 ? 'text-[#E84545]' : 
-                          selectedSaleDetails.balanceDue < 0 ? 'text-green-400' : 'text-gray-400'
-                        }`}>
+                        <span
+                          className={`font-medium ${
+                            selectedSaleDetails.balanceDue > 0
+                              ? "text-[#E84545]"
+                              : selectedSaleDetails.balanceDue < 0
+                              ? "text-green-400"
+                              : "text-gray-400"
+                          }`}
+                        >
                           QAR {selectedSaleDetails.balanceDue.toFixed(2)}
                           {selectedSaleDetails.balanceDue < 0 && (
-                            <span className="text-xs ml-1 text-gray-400">(Customer Credit)</span>
+                            <span className="text-xs ml-1 text-gray-400">
+                              (Customer Credit)
+                            </span>
                           )}
                         </span>
                       </div>
-                      {selectedSaleDetails.returns && selectedSaleDetails.returns.length > 0 && (
-                        <div className="flex justify-between border-t border-white/5 pt-3">
-                          <span className="text-gray-400">Total Returns:</span>
-                          <span className="text-[#E84545] font-medium">
-                            QAR {selectedSaleDetails.returns.reduce((sum: number, ret: any) => sum + ret.totalAmount, 0).toFixed(2)}
-                          </span>
-                        </div>
-                      )}
+                      {selectedSaleDetails.returns &&
+                        selectedSaleDetails.returns.length > 0 && (
+                          <div className="flex justify-between border-t border-white/5 pt-3">
+                            <span className="text-gray-400">
+                              Total Returns:
+                            </span>
+                            <span className="text-[#E84545] font-medium">
+                              QAR{" "}
+                              {selectedSaleDetails.returns
+                                .reduce(
+                                  (sum: number, ret: any) =>
+                                    sum + ret.totalAmount,
+                                  0
+                                )
+                                .toFixed(2)}
+                            </span>
+                          </div>
+                        )}
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Returns History */}
-              {selectedSaleDetails.returns && selectedSaleDetails.returns.length > 0 && (
-                <div className="mb-8">
-                  <h3 className="text-lg font-semibold text-white mb-4">Return History</h3>
-                  <div className="space-y-4">
-                    {selectedSaleDetails.returns.map((ret: any, index: number) => (
-                      <div key={index} className="bg-[#111111] border border-white/5 rounded-lg p-4">
-                        <div className="flex justify-between items-start mb-3">
-                          <div>
-                            <h4 className="text-white font-medium">Return #{ret.returnNumber}</h4>
-                            <p className="text-gray-400 text-sm">
-                              {format(parseISO(ret.returnDate), "MMM d, yyyy 'at' h:mm a")}
-                            </p>
-                            {ret.reason && (
-                              <p className="text-gray-300 text-sm mt-1">Reason: {ret.reason}</p>
-                            )}
-                          </div>
-                          <div className="text-right">
-                            <span className="text-lg font-bold text-[#E84545]">
-                              QAR {ret.totalAmount.toFixed(2)}
-                            </span>
-                            <p className="text-gray-400 text-sm">
-                              Processed by: {ret.processedByName}
-                            </p>
-                          </div>
-                        </div>
-                        
-                        <div className="border-t border-white/5 pt-3">
-                          <h5 className="text-gray-300 text-sm font-medium mb-2">Returned Items:</h5>
-                          <div className="space-y-2">
-                            {ret.items.map((item: any, itemIndex: number) => (
-                              <div key={itemIndex} className="flex justify-between text-sm">
-                                <div>
-                                  <span className="text-gray-300">{item.productName}</span>
-                                  <span className="text-gray-500 text-xs ml-2">({item.sku})</span>
-                                  {item.reason && (
-                                    <div className="text-gray-400 text-xs">Reason: {item.reason}</div>
+              {selectedSaleDetails.returns &&
+                selectedSaleDetails.returns.length > 0 && (
+                  <div className="mb-8">
+                    <h3 className="text-lg font-semibold text-white mb-4">
+                      Return History
+                    </h3>
+                    <div className="space-y-4">
+                      {selectedSaleDetails.returns.map(
+                        (ret: any, index: number) => (
+                          <div
+                            key={index}
+                            className="bg-[#111111] border border-white/5 rounded-lg p-4"
+                          >
+                            <div className="flex justify-between items-start mb-3">
+                              <div>
+                                <h4 className="text-white font-medium">
+                                  Return #{ret.returnNumber}
+                                </h4>
+                                <p className="text-gray-400 text-sm">
+                                  {format(
+                                    parseISO(ret.returnDate),
+                                    "MMM d, yyyy 'at' h:mm a"
                                   )}
-                                </div>
-                                <div className="text-right">
-                                  <div className="text-gray-300">{item.quantity} × QAR {item.unitPrice.toFixed(2)}</div>
-                                  <div className="text-[#E84545]">QAR {item.totalAmount.toFixed(2)}</div>
-                                </div>
+                                </p>
+                                {ret.reason && (
+                                  <p className="text-gray-300 text-sm mt-1">
+                                    Reason: {ret.reason}
+                                  </p>
+                                )}
                               </div>
-                            ))}
+                              <div className="text-right">
+                                <span className="text-lg font-bold text-[#E84545]">
+                                  QAR {ret.totalAmount.toFixed(2)}
+                                </span>
+                                <p className="text-gray-400 text-sm">
+                                  Processed by: {ret.processedByName}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="border-t border-white/5 pt-3">
+                              <h5 className="text-gray-300 text-sm font-medium mb-2">
+                                Returned Items:
+                              </h5>
+                              <div className="space-y-2">
+                                {ret.items.map(
+                                  (item: any, itemIndex: number) => (
+                                    <div
+                                      key={itemIndex}
+                                      className="flex justify-between text-sm"
+                                    >
+                                      <div>
+                                        <span className="text-gray-300">
+                                          {item.productName}
+                                        </span>
+                                        <span className="text-gray-500 text-xs ml-2">
+                                          ({item.sku})
+                                        </span>
+                                        {item.reason && (
+                                          <div className="text-gray-400 text-xs">
+                                            Reason: {item.reason}
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="text-right">
+                                        <div className="text-gray-300">
+                                          {item.quantity} × QAR{" "}
+                                          {item.unitPrice.toFixed(2)}
+                                        </div>
+                                        <div className="text-[#E84545]">
+                                          QAR {item.totalAmount.toFixed(2)}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    ))}
+                        )
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
               {/* Notes */}
               {selectedSaleDetails.notes && (
                 <div>
-                  <h3 className="text-lg font-semibold text-white mb-4">Notes</h3>
+                  <h3 className="text-lg font-semibold text-white mb-4">
+                    Notes
+                  </h3>
                   <div className="bg-[#111111] border border-white/5 rounded-lg p-4">
-                    <p className="text-gray-300 whitespace-pre-wrap">{selectedSaleDetails.notes}</p>
+                    <p className="text-gray-300 whitespace-pre-wrap">
+                      {selectedSaleDetails.notes}
+                    </p>
                   </div>
                 </div>
               )}

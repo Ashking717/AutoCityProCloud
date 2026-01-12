@@ -1135,7 +1135,7 @@ export async function postReturnToLedger(
     const salesReturnsAccount = (await Account.findOne({
       outletId: returnData.outletId,
       $or: [
-        { code: "REV-002" },
+        { code: "REV-001" },
         { name: { $regex: /sales.*return|return.*sale/i } },
         { subType: "SALES_RETURNS" },
       ],

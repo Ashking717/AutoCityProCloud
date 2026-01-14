@@ -87,7 +87,7 @@ const ProductSchema = new Schema(
     currentStock: { type: Number, required: true, default: 0 },
     minStock: { type: Number, default: 0 },
     maxStock: { type: Number, default: 1000 },
-    reorderPoint: { type: Number, default: 10 },
+    reorderPoint: { type: Number, default: 0 },
     unit: { type: String, default: 'pcs' },
     images: { type: [String], default: [] },
     primaryImage: { type: String, default: '' },

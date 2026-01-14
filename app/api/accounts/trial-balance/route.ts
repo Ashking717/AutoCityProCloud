@@ -112,25 +112,42 @@ export async function GET(req: Request) {
       });
     }
 
-    /* ----------------------------------------------------
-       5️⃣ PROCESS VOUCHERS (SINGLE PASS)
-    ---------------------------------------------------- */
-    for (const voucher of vouchers) {
-      for (const entry of voucher.entries) {
-        const row = tbMap.get(entry.accountId.toString());
-        if (!row) continue;
+   /* ----------------------------------------------------
+   5️⃣ PROCESS VOUCHERS (SINGLE PASS) — FIXED
+---------------------------------------------------- */
+for (const voucher of vouchers) {
+  for (const entry of voucher.entries) {
+    const key = entry.accountId.toString();
 
-        const debit = entry.debit || 0;
-        const credit = entry.credit || 0;
+    let row = tbMap.get(key);
 
-        if (voucher.date < from) {
-          row.openingBalance += debit - credit;
-        } else {
-          row.periodDebit += debit;
-          row.periodCredit += credit;
-        }
-      }
+    // 🔴 FIX: NEVER skip valid accounting entries
+    if (!row) {
+      row = {
+        accountId: key,
+        accountCode: entry.accountNumber || '',
+        accountName: entry.accountName || 'Unknown Account',
+        accountType: 'unknown', // fallback
+        openingBalance: 0,
+        periodDebit: 0,
+        periodCredit: 0,
+        closingBalance: 0,
+      };
+      tbMap.set(key, row);
     }
+
+    const debit = entry.debit || 0;
+    const credit = entry.credit || 0;
+
+    if (voucher.date < from) {
+      row.openingBalance += debit - credit;
+    } else {
+      row.periodDebit += debit;
+      row.periodCredit += credit;
+    }
+  }
+}
+
 
     /* ----------------------------------------------------
        6️⃣ FINALIZE ROWS & TOTALS

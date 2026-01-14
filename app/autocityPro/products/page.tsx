@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import {
@@ -39,6 +39,12 @@ export default function ProductsPage() {
   const [productToDelete, setProductToDelete] = useState<any>(null);
   const [isVehicle, setIsVehicle] = useState(false);
 
+  // Keyboard navigation state
+  const [selectedProductIndex, setSelectedProductIndex] = useState(-1);
+  const productRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const addButtonRef = useRef<HTMLButtonElement>(null);
+
   // Filters
   const [filterCategory, setFilterCategory] = useState("");
   const [filterMake, setFilterMake] = useState("");
@@ -69,8 +75,8 @@ export default function ProductsPage() {
     carMake: CarMake | "";
     carModel: string;
     variant: string;
-    yearFrom: string; // Changed from 'year'
-    yearTo: string; // New field
+    yearFrom: string;
+    yearTo: string;
     partNumber: string;
     color: string;
   }>({
@@ -88,8 +94,8 @@ export default function ProductsPage() {
     carMake: "",
     carModel: "",
     variant: "",
-    yearFrom: "", // Changed from 'year'
-    yearTo: "", // New field
+    yearFrom: "",
+    yearTo: "",
     partNumber: "",
     color: "",
   });
@@ -166,6 +172,185 @@ export default function ProductsPage() {
     "Forest Green",
   ];
 
+
+    const filteredProducts = products.filter((p) => {
+    const matchesSearch =
+      p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.barcode?.includes(searchTerm) ||
+      p.carMake?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.carModel?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.variant?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.color?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory =
+      !filterCategory || p.category?._id === filterCategory;
+    const matchesMake = !filterMake || p.carMake === filterMake;
+    const matchesVehicleType =
+      filterIsVehicle === "all" ||
+      (filterIsVehicle === "vehicle" && p.isVehicle) ||
+      (filterIsVehicle === "non-vehicle" && !p.isVehicle);
+    return (
+      matchesSearch && matchesCategory && matchesMake && matchesVehicleType
+    );
+  });
+
+
+  // Keyboard navigation handler
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Don't handle keyboard shortcuts when modals are open or in input fields
+      if (
+        showAddModal ||
+        showEditModal ||
+        showQuickAddCategory ||
+        productToDelete ||
+        showFilters ||
+        showMobileMenu
+      ) {
+        return;
+      }
+
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.tagName === "SELECT"
+      ) {
+        return;
+      }
+
+      switch (e.key) {
+        case "/":
+          // Focus search (like GitHub)
+          e.preventDefault();
+          searchInputRef.current?.focus();
+          break;
+
+        case "n":
+        case "N":
+          // New product (Shift+N or just N)
+          if (!e.shiftKey || e.key === "N") {
+            e.preventDefault();
+            setShowAddModal(true);
+          }
+          break;
+
+        case "f":
+        case "F":
+          // Toggle filters
+          e.preventDefault();
+          setShowFilters((prev) => !prev);
+          break;
+
+        case "e":
+        case "E":
+          // Export CSV
+          e.preventDefault();
+          downloadProductsCSV();
+          break;
+
+        case "ArrowDown":
+          // Navigate down through products
+          e.preventDefault();
+          setSelectedProductIndex((prev) => {
+            const newIndex = Math.min(prev + 1, filteredProducts.length - 1);
+            scrollToProduct(newIndex);
+            return newIndex;
+          });
+          break;
+
+        case "ArrowUp":
+          // Navigate up through products
+          e.preventDefault();
+          setSelectedProductIndex((prev) => {
+            const newIndex = Math.max(prev - 1, 0);
+            scrollToProduct(newIndex);
+            return newIndex;
+          });
+          break;
+
+        case "Enter":
+          // View selected product
+          if (selectedProductIndex >= 0 && selectedProductIndex < filteredProducts.length) {
+            e.preventDefault();
+            const product = filteredProducts[selectedProductIndex];
+            router.push(`/autocityPro/products/${product._id}`);
+          }
+          break;
+
+        case "e":
+          // Edit selected product (when one is selected)
+          if (selectedProductIndex >= 0 && selectedProductIndex < filteredProducts.length && !e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            const product = filteredProducts[selectedProductIndex];
+            openEditModal(product);
+          }
+          break;
+
+        case "Delete":
+        case "Backspace":
+          // Delete selected product (with confirmation)
+          if (selectedProductIndex >= 0 && selectedProductIndex < filteredProducts.length) {
+            e.preventDefault();
+            const product = filteredProducts[selectedProductIndex];
+            setProductToDelete(product);
+          }
+          break;
+
+        case "Escape":
+          // Clear selection
+          e.preventDefault();
+          setSelectedProductIndex(-1);
+          break;
+
+        case "?":
+          // Show keyboard shortcuts (you could implement a help modal)
+          e.preventDefault();
+          toast.success(
+            "Keyboard Shortcuts:\n" +
+            "/ - Focus search\n" +
+            "N - New product\n" +
+            "F - Toggle filters\n" +
+            "E - Export CSV\n" +
+            "↑↓ - Navigate products\n" +
+            "Enter - View product\n" +
+            "e - Edit product\n" +
+            "Del - Delete product\n" +
+            "Esc - Clear selection",
+            { duration: 5000 }
+          );
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [
+    showAddModal,
+    showEditModal,
+    showQuickAddCategory,
+    productToDelete,
+    showFilters,
+    showMobileMenu,
+    selectedProductIndex,
+    filteredProducts,
+  ]);
+
+  // Scroll to selected product
+  const scrollToProduct = (index: number) => {
+    if (index >= 0 && index < productRefs.current.length) {
+      productRefs.current[index]?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+  };
+
+  // Reset selection when filters change
+  useEffect(() => {
+    setSelectedProductIndex(-1);
+  }, [searchTerm, filterCategory, filterMake, filterIsVehicle]);
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -179,7 +364,6 @@ export default function ProductsPage() {
 
     loadData();
 
-    // Check if mobile
     const checkIfMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
@@ -196,7 +380,6 @@ export default function ProductsPage() {
     }
   }, [userLoading, user, router]);
 
-  // Generate next SKU based on existing products
   const generateNextSKU = (): string => {
     if (products.length === 0) {
       return "10001";
@@ -298,7 +481,6 @@ export default function ProductsPage() {
       return;
     }
 
-    // Validate year range
     if (isVehicle && newProduct.yearFrom && newProduct.yearTo) {
       if (parseInt(newProduct.yearFrom) > parseInt(newProduct.yearTo)) {
         toast.error("Year 'From' must be less than or equal to 'To'");
@@ -358,70 +540,79 @@ export default function ProductsPage() {
       toast.error("Failed to add product");
     }
   };
-const handleEditProduct = async () => {
-  if (!editingProduct) return;
-  if (!editingProduct.name || !editingProduct.sku) {
-    toast.error("Name and SKU are required");
-    return;
-  }
-  
-  // Validate year range
-  if (editingProduct.isVehicle && editingProduct.yearFrom && editingProduct.yearTo) {
-    if (parseInt(editingProduct.yearFrom) > parseInt(editingProduct.yearTo)) {
-      toast.error("Year 'From' must be less than or equal to 'To'");
+
+  const handleEditProduct = async () => {
+    if (!editingProduct) return;
+    if (!editingProduct.name || !editingProduct.sku) {
+      toast.error("Name and SKU are required");
       return;
     }
-  }
-  
-  try {
-    const productData: any = {
-      name: editingProduct.name,
-      description: editingProduct.description,
-      categoryId: editingProduct.categoryId || undefined,
-      sku: editingProduct.sku.toUpperCase(),
-      barcode: editingProduct.barcode || undefined,
-      unit: editingProduct.unit,
-      costPrice: parseFloat(editingProduct.costPrice as any) || 0,
-      sellingPrice: parseFloat(editingProduct.sellingPrice as any) || 0,
-      taxRate: parseFloat(editingProduct.taxRate as any) || 0,
-      currentStock: parseFloat(editingProduct.currentStock as any) || 0,
-      minStock: parseFloat(editingProduct.minStock as any) || 0,
-      maxStock: parseFloat(editingProduct.maxStock as any) || 1000,
-    };
 
-    if (editingProduct.isVehicle && editingProduct.carMake) {
-      productData.carMake = editingProduct.carMake;
-      productData.carModel = editingProduct.carModel;
-      productData.variant = editingProduct.variant;
-      productData.yearFrom = editingProduct.yearFrom ? parseInt(editingProduct.yearFrom) : undefined;  // CHANGED
-      productData.yearTo = editingProduct.yearTo ? parseInt(editingProduct.yearTo) : undefined;        // NEW
-      productData.partNumber = editingProduct.partNumber;
-      productData.color = editingProduct.color;
-      productData.isVehicle = true;
-    } else {
-      productData.isVehicle = false;
+    if (
+      editingProduct.isVehicle &&
+      editingProduct.yearFrom &&
+      editingProduct.yearTo
+    ) {
+      if (parseInt(editingProduct.yearFrom) > parseInt(editingProduct.yearTo)) {
+        toast.error("Year 'From' must be less than or equal to 'To'");
+        return;
+      }
     }
 
-    const res = await fetch(`/api/products/${editingProduct._id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(productData),
-    });
+    try {
+      const productData: any = {
+        name: editingProduct.name,
+        description: editingProduct.description,
+        categoryId: editingProduct.categoryId || undefined,
+        sku: editingProduct.sku.toUpperCase(),
+        barcode: editingProduct.barcode || undefined,
+        unit: editingProduct.unit,
+        costPrice: parseFloat(editingProduct.costPrice as any) || 0,
+        sellingPrice: parseFloat(editingProduct.sellingPrice as any) || 0,
+        taxRate: parseFloat(editingProduct.taxRate as any) || 0,
+        currentStock: parseFloat(editingProduct.currentStock as any) || 0,
+        minStock: parseFloat(editingProduct.minStock as any) || 0,
+        maxStock: parseFloat(editingProduct.maxStock as any) || 1000,
+      };
 
-    if (res.ok) {
-      toast.success("Product updated successfully!");
-      setShowEditModal(false);
-      setEditingProduct(null);
-      fetchProducts();
-    } else {
-      const error = await res.json();
-      toast.error(error.error || "Failed to update product");
+      if (editingProduct.isVehicle && editingProduct.carMake) {
+        productData.carMake = editingProduct.carMake;
+        productData.carModel = editingProduct.carModel;
+        productData.variant = editingProduct.variant;
+        productData.yearFrom = editingProduct.yearFrom
+          ? parseInt(editingProduct.yearFrom)
+          : undefined;
+        productData.yearTo = editingProduct.yearTo
+          ? parseInt(editingProduct.yearTo)
+          : undefined;
+        productData.partNumber = editingProduct.partNumber;
+        productData.color = editingProduct.color;
+        productData.isVehicle = true;
+      } else {
+        productData.isVehicle = false;
+      }
+
+      const res = await fetch(`/api/products/${editingProduct._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(productData),
+      });
+
+      if (res.ok) {
+        toast.success("Product updated successfully!");
+        setShowEditModal(false);
+        setEditingProduct(null);
+        fetchProducts();
+      } else {
+        const error = await res.json();
+        toast.error(error.error || "Failed to update product");
+      }
+    } catch (error) {
+      toast.error("Failed to update product");
     }
-  } catch (error) {
-    toast.error("Failed to update product");
-  }
-};
+  };
+
   const handleDeleteProduct = async () => {
     if (!productToDelete) return;
     try {
@@ -475,34 +666,14 @@ const handleEditProduct = async () => {
       carMake: "",
       carModel: "",
       variant: "",
-      yearFrom: "", // Changed from 'year'
-      yearTo: "", // New field
+      yearFrom: "",
+      yearTo: "",
       partNumber: "",
       color: "",
     });
     setIsVehicle(false);
   };
 
-  const filteredProducts = products.filter((p) => {
-    const matchesSearch =
-      p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.barcode?.includes(searchTerm) ||
-      p.carMake?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.carModel?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.variant?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.color?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory =
-      !filterCategory || p.category?._id === filterCategory;
-    const matchesMake = !filterMake || p.carMake === filterMake;
-    const matchesVehicleType =
-      filterIsVehicle === "all" ||
-      (filterIsVehicle === "vehicle" && p.isVehicle) ||
-      (filterIsVehicle === "non-vehicle" && !p.isVehicle);
-    return (
-      matchesSearch && matchesCategory && matchesMake && matchesVehicleType
-    );
-  });
 
   const availableMakes = [
     ...new Set(products.filter((p) => p.carMake).map((p) => p.carMake)),
@@ -519,54 +690,74 @@ const handleEditProduct = async () => {
     window.location.href = "/autocityPro/login";
   };
 
-const downloadProductsCSV = () => {
-  if (filteredProducts.length === 0) {
-    toast.error("No products to export");
-    return;
-  }
-  const headers = [
-    "SKU", "Name", "Category", "Barcode", "Selling Price", "Current Stock",
-    "Car Make", "Car Model", "Variant", "Year From", "Year To", "Part Number", "Color"  // CHANGED: Split year into yearFrom and yearTo
-  ];
-  const rows = filteredProducts.map(product => [
-    product.sku || "",
-    product.name || "",
-    product.category?.name || "",
-    product.barcode || "",
-    product.sellingPrice || 0,
-    product.currentStock || 0,
-    product.carMake || "",
-    product.carModel || "",
-    product.variant || "",
-    product.yearFrom || "",  // CHANGED
-    product.yearTo || "",    // NEW
-    product.partNumber || "",
-    product.color || ""
-  ]);
-  const csvContent = [
-    headers.join(","),
-    ...rows.map(row =>
-      row.map(cell => {
-        const cellStr = String(cell);
-        if (cellStr.includes(",") || cellStr.includes("\n") || cellStr.includes('"')) {
-          return `"${cellStr.replace(/"/g, '""')}"`;
-        }
-        return cellStr;
-      }).join(",")
-    )
-  ].join("\n");
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-  const link = document.createElement("a");
-  const url = URL.createObjectURL(blob);
-  link.setAttribute("href", url);
-  link.setAttribute("download", `products_${new Date().toISOString().split('T')[0]}.csv`);
-  link.style.visibility = "hidden";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  toast.success(`Exported ${filteredProducts.length} products to CSV`);
-};
-  // Calculate stats for dynamic island
+  const downloadProductsCSV = () => {
+    if (filteredProducts.length === 0) {
+      toast.error("No products to export");
+      return;
+    }
+    const headers = [
+      "SKU",
+      "Name",
+      "Category",
+      "Barcode",
+      "Selling Price",
+      "Current Stock",
+      "Car Make",
+      "Car Model",
+      "Variant",
+      "Year From",
+      "Year To",
+      "Part Number",
+      "Color",
+    ];
+    const rows = filteredProducts.map((product) => [
+      product.sku || "",
+      product.name || "",
+      product.category?.name || "",
+      product.barcode || "",
+      product.sellingPrice || 0,
+      product.currentStock || 0,
+      product.carMake || "",
+      product.carModel || "",
+      product.variant || "",
+      product.yearFrom || "",
+      product.yearTo || "",
+      product.partNumber || "",
+      product.color || "",
+    ]);
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) =>
+        row
+          .map((cell) => {
+            const cellStr = String(cell);
+            if (
+              cellStr.includes(",") ||
+              cellStr.includes("\n") ||
+              cellStr.includes('"')
+            ) {
+              return `"${cellStr.replace(/"/g, '""')}"`;
+            }
+            return cellStr;
+          })
+          .join(",")
+      ),
+    ].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `products_${new Date().toISOString().split("T")[0]}.csv`
+    );
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success(`Exported ${filteredProducts.length} products to CSV`);
+  };
+
   const lowStockCount = products.filter(
     (p) => (p.currentStock || 0) <= (p.minStock || 0)
   ).length;
@@ -624,10 +815,36 @@ const downloadProductsCSV = () => {
                     </div>
                   </>
                 )}
-              </div>
+                          </div>
             </div>
           </div>
         )}
+
+        {/* Keyboard Shortcuts Hint */}
+        <div className="hidden md:block fixed bottom-4 right-4 z-40">
+          <button
+            onClick={() => {
+              toast.success(
+                "Keyboard Shortcuts:\n" +
+                  "/ - Focus search\n" +
+                  "N - New product\n" +
+                  "F - Toggle filters\n" +
+                  "E - Export CSV\n" +
+                  "↑↓ - Navigate\n" +
+                  "Enter - View\n" +
+                  "e - Edit\n" +
+                  "Del - Delete\n" +
+                  "? - Show help",
+                { duration: 5000 }
+              );
+            }}
+            className="px-3 py-2 bg-[#0A0A0A]/90 backdrop-blur-sm border border-white/10 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-all text-xs flex items-center gap-2"
+            title="Keyboard shortcuts (press ?)"
+          >
+            <span className="font-mono">?</span>
+            <span>Shortcuts</span>
+          </button>
+        </div>
 
         {/* Mobile Header - Compact */}
         <div className="md:hidden fixed top-16 left-0 right-0 z-40 bg-gradient-to-br from-[#0A0A0A] via-[#050505] to-[#0A0A0A] border-b border-white/5 backdrop-blur-xl">
@@ -658,6 +875,7 @@ const downloadProductsCSV = () => {
             <div className="relative">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-white/70" />
               <input
+                ref={searchInputRef}
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -666,7 +884,6 @@ const downloadProductsCSV = () => {
               />
             </div>
 
-            {/* Quick Stats - Mobile */}
             <div className="grid grid-cols-3 gap-2 mt-3">
               <div className="bg-[#0A0A0A]/50 rounded-lg p-2 border border-white/5">
                 <p className="text-[10px] text-gray-400">Total</p>
@@ -712,13 +929,16 @@ const downloadProductsCSV = () => {
                 <button
                   onClick={downloadProductsCSV}
                   className="flex items-center space-x-2 px-4 py-2 bg-white/10 backdrop-blur-sm text-white rounded-lg hover:bg-white/20 transition-colors border border-white/20"
+                  title="Export CSV (E)"
                 >
                   <FileDown className="h-5 w-5" />
                   <span>Export CSV</span>
                 </button>
                 <button
+                  ref={addButtonRef}
                   onClick={() => setShowAddModal(true)}
                   className="flex items-center space-x-2 px-4 py-2 bg-white text-[#E84545] rounded-lg hover:bg-gray-100 transition-colors shadow-lg"
+                  title="Add Product (N)"
                 >
                   <Plus className="h-5 w-5" />
                   <span>Add Product</span>
@@ -735,10 +955,11 @@ const downloadProductsCSV = () => {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-3 h-5 w-5 text-[#E84545]" />
                 <input
+                  ref={searchInputRef}
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search by name, SKU, barcode, make, model, variant, or color..."
+                  placeholder="Search by name, SKU, barcode, make, model, variant, or color... (press / to focus)"
                   className="w-full pl-10 pr-4 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white placeholder-gray-400"
                 />
               </div>
@@ -749,6 +970,7 @@ const downloadProductsCSV = () => {
                     ? "bg-[#E84545]/20 backdrop-blur-sm text-white border-[#E84545]/30"
                     : "hover:bg-white/5 text-white"
                 }`}
+                title="Toggle Filters (F)"
               >
                 <Filter className="h-5 w-5" />
                 <span>Filters</span>
@@ -1013,10 +1235,16 @@ const downloadProductsCSV = () => {
                       </td>
                     </tr>
                   ) : (
-                    filteredProducts.map((product) => (
+                    filteredProducts.map((product, index) => (
                       <tr
                         key={product._id}
-                        className="hover:bg-white/2 transition-colors"
+                        ref={(el) => { productRefs.current[index] = el; }}
+                        className={`transition-all ${
+                          selectedProductIndex === index
+                            ? "bg-[#E84545]/10 ring-2 ring-[#E84545]/50 ring-inset"
+                            : "hover:bg-white/2"
+                        }`}
+                        onClick={() => setSelectedProductIndex(index)}
                       >
                         <td className="px-6 py-4">
                           <div className="flex items-center">
@@ -1096,27 +1324,34 @@ const downloadProductsCSV = () => {
                         <td className="px-6 py-4 text-right text-sm font-medium">
                           <div className="flex justify-end space-x-2">
                             <button
-                              onClick={() =>
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 router.push(
                                   `/autocityPro/products/${product._id}`
-                                )
-                              }
+                                );
+                              }}
                               className="text-blue-400 hover:text-blue-300 p-2 transition-colors"
-                              title="View Details"
+                              title="View Details (Enter)"
                             >
                               <Eye className="h-5 w-5" />
                             </button>
                             <button
-                              onClick={() => openEditModal(product)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEditModal(product);
+                              }}
                               className="text-[#E84545] hover:text-[#cc3c3c] p-2 transition-colors"
-                              title="Edit"
+                              title="Edit (e)"
                             >
                               <Edit className="h-5 w-5" />
                             </button>
                             <button
-                              onClick={() => setProductToDelete(product)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setProductToDelete(product);
+                              }}
                               className="text-red-400 hover:text-red-300 p-2 transition-colors"
-                              title="Delete"
+                              title="Delete (Del)"
                             >
                               <Trash2 className="h-5 w-5" />
                             </button>
@@ -1205,26 +1440,37 @@ const downloadProductsCSV = () => {
                         </div>
                       </div>
 
-{product.carMake && (
-  <div className="mb-3 p-2 bg-[#0A0A0A]/50 rounded-lg border border-white/5">
-    <div className="text-xs space-y-1">
-      <div className="flex items-center text-gray-300 font-medium">
-        <Car className="h-3 w-3 mr-1 text-[#E84545]" />
-        <span>{product.carMake}</span>
-        {product.carModel && <span className="ml-1">• {product.carModel}</span>}
-      </div>
-      {product.variant && (
-        <div className="text-gray-400 pl-4">Variant: {product.variant}</div>
-      )}
-      <div className="flex gap-3 text-gray-500 pl-4">
-        {(product.yearFrom || product.yearTo) && (
-          <span>Year: {formatYearRange(product.yearFrom, product.yearTo)}</span>
-        )}
-        {product.color && <span>Color: {product.color}</span>}
-      </div>
-    </div>
-  </div>
-)}
+                      {product.carMake && (
+                        <div className="mb-3 p-2 bg-[#0A0A0A]/50 rounded-lg border border-white/5">
+                          <div className="text-xs space-y-1">
+                            <div className="flex items-center text-gray-300 font-medium">
+                              <Car className="h-3 w-3 mr-1 text-[#E84545]" />
+                              <span>{product.carMake}</span>
+                              {product.carModel && (
+                                <span className="ml-1">• {product.carModel}</span>
+                              )}
+                            </div>
+                            {product.variant && (
+                              <div className="text-gray-400 pl-4">
+                                Variant: {product.variant}
+                              </div>
+                            )}
+                            <div className="flex gap-3 text-gray-500 pl-4">
+                              {(product.yearFrom || product.yearTo) && (
+                                <span>
+                                  Year:{" "}
+                                  {formatYearRange(
+                                    product.yearFrom,
+                                    product.yearTo
+                                  )}
+                                </span>
+                              )}
+                              {product.color && <span>Color: {product.color}</span>}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="flex items-center justify-between">
                         <span className="text-lg font-bold text-white">
                           QAR {product.sellingPrice || 0}
@@ -1647,40 +1893,55 @@ const downloadProductsCSV = () => {
                     </div>
                   )}
 
-<div className="md:col-span-2">
-  <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-    Year Range (Compatibility)
-  </label>
-  <div className="grid grid-cols-2 gap-3">
-    <div>
-      <label className="block text-xs text-gray-400 mb-1">From</label>
-      <input
-        type="number"
-        value={newProduct.yearFrom}
-        onChange={(e) => setNewProduct({ ...newProduct, yearFrom: e.target.value })}
-        className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-        placeholder="e.g., 2015"
-        min="1900"
-        max="2100"
-      />
-    </div>
-    <div>
-      <label className="block text-xs text-gray-400 mb-1">To</label>
-      <input
-        type="number"
-        value={newProduct.yearTo}
-        onChange={(e) => setNewProduct({ ...newProduct, yearTo: e.target.value })}
-        className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-        placeholder="e.g., 2020"
-        min="1900"
-        max="2100"
-      />
-    </div>
-  </div>
-  <p className="text-xs text-gray-500 mt-1">
-    Leave "To" empty for current year onwards (e.g., 2018+)
-  </p>
-</div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
+                      Year Range (Compatibility)
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">
+                          From
+                        </label>
+                        <input
+                          type="number"
+                          value={newProduct.yearFrom}
+                          onChange={(e) =>
+                            setNewProduct({
+                              ...newProduct,
+                              yearFrom: e.target.value,
+                            })
+                          }
+                          className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                          placeholder="e.g., 2015"
+                          min="1900"
+                          max="2100"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">
+                          To
+                        </label>
+                        <input
+                          type="number"
+                          value={newProduct.yearTo}
+                          onChange={(e) =>
+                            setNewProduct({
+                              ...newProduct,
+                              yearTo: e.target.value,
+                            })
+                          }
+                          className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                          placeholder="e.g., 2020"
+                          min="1900"
+                          max="2100"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Leave "To" empty for current year onwards (e.g., 2018+)
+                    </p>
+                  </div>
+
                   <div>
                     <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                       Part Number
@@ -1796,7 +2057,7 @@ const downloadProductsCSV = () => {
                     className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
                   />
                 </div>
-                <div>
+                {/* <div>
                   <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                     Max Stock
                   </label>
@@ -1812,7 +2073,7 @@ const downloadProductsCSV = () => {
                     min="0"
                     className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
                   />
-                </div>
+                </div> */}
               </div>
             </div>
 
@@ -1836,7 +2097,6 @@ const downloadProductsCSV = () => {
           </div>
         </div>
       )}
-
       {/* Edit Product Modal */}
       {showEditModal && editingProduct && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
@@ -1997,7 +2257,6 @@ const downloadProductsCSV = () => {
                 </div>
               </div>
 
-              {/* Vehicle Toggle for Edit */}
               <div className="flex items-center space-x-2 p-3 bg-[#E84545]/10 rounded-xl border border-[#E84545]/20">
                 <input
                   type="checkbox"
@@ -2015,7 +2274,6 @@ const downloadProductsCSV = () => {
                 </label>
               </div>
 
-              {/* Vehicle Details for Edit */}
               {isVehicle && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-[#E84545]/5 rounded-xl border border-[#E84545]/10">
                   <div>
@@ -2193,40 +2451,55 @@ const downloadProductsCSV = () => {
                     </div>
                   )}
 
-<div className="md:col-span-2">
-  <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-    Year Range (Compatibility)
-  </label>
-  <div className="grid grid-cols-2 gap-3">
-    <div>
-      <label className="block text-xs text-gray-400 mb-1">From</label>
-      <input
-        type="number"
-        value={editingProduct.yearFrom}
-        onChange={(e) => setEditingProduct({ ...editingProduct, yearFrom: e.target.value })}
-        className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-        placeholder="e.g., 2015"
-        min="1900"
-        max="2100"
-      />
-    </div>
-    <div>
-      <label className="block text-xs text-gray-400 mb-1">To</label>
-      <input
-        type="number"
-        value={editingProduct.yearTo}
-        onChange={(e) => setEditingProduct({ ...editingProduct, yearTo: e.target.value })}
-        className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-        placeholder="e.g., 2020"
-        min="1900"
-        max="2100"
-      />
-    </div>
-  </div>
-  <p className="text-xs text-gray-500 mt-1">
-    Leave "To" empty for current year onwards (e.g., 2018+)
-  </p>
-</div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
+                      Year Range (Compatibility)
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">
+                          From
+                        </label>
+                        <input
+                          type="number"
+                          value={editingProduct.yearFrom}
+                          onChange={(e) =>
+                            setEditingProduct({
+                              ...editingProduct,
+                              yearFrom: e.target.value,
+                            })
+                          }
+                          className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                          placeholder="e.g., 2015"
+                          min="1900"
+                          max="2100"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">
+                          To
+                        </label>
+                        <input
+                          type="number"
+                          value={editingProduct.yearTo}
+                          onChange={(e) =>
+                            setEditingProduct({
+                              ...editingProduct,
+                              yearTo: e.target.value,
+                            })
+                          }
+                          className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                          placeholder="e.g., 2020"
+                          min="1900"
+                          max="2100"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Leave "To" empty for current year onwards (e.g., 2018+)
+                    </p>
+                  </div>
+
                   <div>
                     <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                       Part Number
@@ -2247,7 +2520,6 @@ const downloadProductsCSV = () => {
                 </div>
               )}
 
-              {/* Pricing for Edit */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
@@ -2306,7 +2578,6 @@ const downloadProductsCSV = () => {
                 </div>
               </div>
 
-              {/* Stock for Edit */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
@@ -2342,7 +2613,7 @@ const downloadProductsCSV = () => {
                     className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
                   />
                 </div>
-                <div>
+                {/* <div>
                   <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                     Max Stock
                   </label>
@@ -2358,7 +2629,7 @@ const downloadProductsCSV = () => {
                     min="0"
                     className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
                   />
-                </div>
+                </div> */}
               </div>
             </div>
 

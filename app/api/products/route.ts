@@ -185,6 +185,7 @@ export async function POST(request: NextRequest) {
       currentStock: stockQty,
       minStock: Number(minStock) || 0,
       maxStock: Number(maxStock) || 1000,
+      reorderPoint: Number(minStock) || 0,
       unit: unit || 'pcs',
       outletId: user.outletId,
     });

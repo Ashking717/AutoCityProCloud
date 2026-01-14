@@ -150,13 +150,15 @@ export default function NewSalePage() {
     rate: 0,
     taxRate: 0,
   });
-  // NEW: Filter states
-const [filterYear, setFilterYear] = useState<string>("all");
-const [filterMake, setFilterMake] = useState<string>("all");
-const [filterCategory, setFilterCategory] = useState<string>("all");
-const [showDesktopFilters, setShowDesktopFilters] = useState(false);
-const [showMobileFilters, setShowMobileFilters] = useState(false);
-const [categories, setCategories] = useState<any[]>([]);
+  
+  // Filter states
+  const [filterYear, setFilterYear] = useState<string>("all");
+  const [filterMake, setFilterMake] = useState<string>("all");
+  const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [showDesktopFilters, setShowDesktopFilters] = useState(false);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [showKeyboardHints, setShowKeyboardHints] = useState(true);
 
   useEffect(() => {
     fetchUser();
@@ -172,6 +174,7 @@ const [categories, setCategories] = useState<any[]>([]);
       setPayments([{ ...payments[0], amount: totals.total }]);
     }
   }, [cart, overallDiscount, overallDiscountType]);
+
   useEffect(() => {
     const checkIfMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -180,6 +183,172 @@ const [categories, setCategories] = useState<any[]>([]);
     window.addEventListener("resize", checkIfMobile);
     return () => window.removeEventListener("resize", checkIfMobile);
   }, []);
+      const filteredProducts = products.filter((p) => {
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch =
+        p.name?.toLowerCase().includes(searchLower) ||
+        p.sku?.toLowerCase().includes(searchLower) ||
+        p.barcode?.toLowerCase().includes(searchLower) ||
+        p.partNumber?.toLowerCase().includes(searchLower) ||
+        p.vin?.toLowerCase().includes(searchLower) ||
+        p.carMake?.toLowerCase().includes(searchLower) ||
+        p.carModel?.toLowerCase().includes(searchLower) ||
+        p.variant?.toLowerCase().includes(searchLower) ||
+        p.color?.toLowerCase().includes(searchLower) ||
+        p.category?.name?.toLowerCase().includes(searchLower);
+
+      if (!matchesSearch) return false;
+    }
+
+    if (filterYear !== "all" && filterYear !== "") {
+      if (!checkYearMatch(p, parseInt(filterYear))) return false;
+    }
+
+    if (filterMake !== "all" && filterMake !== "") {
+      if (p.carMake !== filterMake) return false;
+    }
+
+    if (filterCategory !== "all" && filterCategory !== "") {
+      const productCategoryId = p.category?._id?.toString() || p.category?.toString();
+      const selectedCategoryId = filterCategory.toString();
+      if (productCategoryId !== selectedCategoryId) return false;
+    }
+
+    return true;
+  });
+
+  // KEYBOARD NAVIGATION
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Ignore if user is typing in an input/textarea
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.tagName === "SELECT"
+      ) {
+        // Allow Escape to close modals even when in input
+        if (e.key === "Escape") {
+          if (showAddCustomer) setShowAddCustomer(false);
+          if (showAddLabor) setShowAddLabor(false);
+          if (showMobileMenu) setShowMobileMenu(false);
+          if (showMobileFilters) setShowMobileFilters(false);
+          return;
+        }
+        return;
+      }
+
+      // Prevent default for handled keys
+      const handledKeys = [
+        "f",
+        "c",
+        "l",
+        "p",
+        "s",
+        "Escape",
+        "ArrowDown",
+        "ArrowUp",
+        "+",
+        "=",
+        "h",
+      ];
+      if (handledKeys.includes(e.key.toLowerCase()) || handledKeys.includes(e.key)) {
+        e.preventDefault();
+      }
+
+      // Keyboard shortcuts
+      switch (e.key.toLowerCase()) {
+        case "f":
+          // Focus search
+          const searchInput = document.querySelector(
+            'input[placeholder*="Search"]'
+          ) as HTMLInputElement;
+          if (searchInput) searchInput.focus();
+          break;
+
+        case "c":
+          // Toggle customer modal
+          setShowAddCustomer(!showAddCustomer);
+          break;
+
+        case "l":
+          // Toggle labor modal
+          setShowAddLabor(!showAddLabor);
+          break;
+
+        case "p":
+          // Focus payment amount
+          const paymentInput = document.querySelector(
+            'input[placeholder="Amount"]'
+          ) as HTMLInputElement;
+          if (paymentInput) paymentInput.focus();
+          break;
+
+        case "s":
+          // Submit sale (only if cart has items and customer selected)
+          if (cart.length > 0 && selectedCustomer && !loading) {
+            handleSubmit();
+          }
+          break;
+
+        case "h":
+          // Toggle keyboard hints
+          setShowKeyboardHints(!showKeyboardHints);
+          break;
+
+        case "escape":
+          // Close any open modals
+          if (showAddCustomer) setShowAddCustomer(false);
+          else if (showAddLabor) setShowAddLabor(false);
+          else if (showMobileMenu) setShowMobileMenu(false);
+          else if (showMobileFilters) setShowMobileFilters(false);
+          else if (searchTerm) setSearchTerm("");
+          break;
+
+        case "arrowdown":
+          // Navigate to first product in search results
+          if (searchTerm && filteredProducts.length > 0) {
+            const firstProduct = document.querySelector(
+              '[data-search-item="0"]'
+            ) as HTMLElement;
+            if (firstProduct) firstProduct.focus();
+          } else if (!searchTerm && frequentProducts.length > 0) {
+            const firstFrequent = document.querySelector(
+              '[data-product-item="0"]'
+            ) as HTMLElement;
+            if (firstFrequent) firstFrequent.focus();
+          }
+          break;
+
+        case "+":
+        case "=":
+          // Quick add first frequent product if visible
+          if (!searchTerm && frequentProducts.length > 0) {
+            addToCart(frequentProducts[0]);
+          }
+          break;
+
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyPress);
+    return () => window.removeEventListener("keydown", handleKeyPress);
+  }, [
+    cart,
+    selectedCustomer,
+    loading,
+    searchTerm,
+    filteredProducts,
+    frequentProducts,
+    showAddCustomer,
+    showAddLabor,
+    showMobileMenu,
+    showMobileFilters,
+    showKeyboardHints,
+  ]);
 
   const fetchUser = async () => {
     try {
@@ -238,17 +407,18 @@ const [categories, setCategories] = useState<any[]>([]);
       console.error("Failed to fetch customers");
     }
   };
+
   const fetchCategories = async () => {
-  try {
-    const res = await fetch("/api/categories", { credentials: "include" });
-    if (res.ok) {
-      const data = await res.json();
-      setCategories(data.categories || []);
+    try {
+      const res = await fetch("/api/categories", { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setCategories(data.categories || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch categories");
     }
-  } catch (error) {
-    console.error("Failed to fetch categories");
-  }
-};
+  };
 
   const generateCustomerCode = (name: string) => {
     const code = name
@@ -327,11 +497,7 @@ const [categories, setCategories] = useState<any[]>([]);
       toast.error("Labor description is required");
       return;
     }
-    const formatCompactCurrency = (amount: number) => {
-      if (amount >= 1000000) return `QR${(amount / 1000000).toFixed(1)}M`;
-      if (amount >= 10000) return `QR${(amount / 1000).toFixed(1)}K`;
-      return `QR${amount.toFixed(0)}`;
-    };
+
     const amount = laborCharge.hours * laborCharge.rate;
     const laborItem: CartItem = {
       productName: `Labor: ${laborCharge.description}`,
@@ -630,84 +796,42 @@ const [categories, setCategories] = useState<any[]>([]);
     }
   };
 
-// FINAL FIX - Replace your entire filteredProducts section with this
+  // Helper function to check if a product matches a given year
+  const checkYearMatch = (product: any, year: number): boolean => {
+    if (!product.isVehicle) return true;
+    if (!year) return true;
+    
+    const yearFrom = product.yearFrom;
+    const yearTo = product.yearTo;
 
-// Helper function to check if a product matches a given year
-const checkYearMatch = (product: any, year: number): boolean => {
-  if (!product.isVehicle) return true;
-  if (!year) return true;
-  
-  const yearFrom = product.yearFrom;
-  const yearTo = product.yearTo;
+    if (!yearFrom && !yearTo) return true;
+    if (yearFrom && !yearTo) return year >= yearFrom;
+    if (!yearFrom && yearTo) return year <= yearTo;
+    return year >= yearFrom && year <= yearTo;
+  };
 
-  if (!yearFrom && !yearTo) return true;
-  if (yearFrom && !yearTo) return year >= yearFrom;
-  if (!yearFrom && yearTo) return year <= yearTo;
-  return year >= yearFrom && year <= yearTo;
-};
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 32 }, (_, i) => currentYear + 2 - i);
 
-const currentYear = new Date().getFullYear();
-const yearOptions = Array.from({ length: 32 }, (_, i) => currentYear + 2 - i);
+  const availableMakes = [
+    ...new Set(products.filter((p) => p.carMake).map((p) => p.carMake)),
+  ].sort();
 
-const availableMakes = [
-  ...new Set(products.filter((p) => p.carMake).map((p) => p.carMake)),
-].sort();
+  const clearFilters = () => {
+    setFilterYear("all");
+    setFilterMake("all");
+    setFilterCategory("all");
+  };
 
-const clearFilters = () => {
-  setFilterYear("all");
-  setFilterMake("all");
-  setFilterCategory("all");
-};
+  const activeFilterCount = [
+    filterYear !== "all",
+    filterMake !== "all",
+    filterCategory !== "all",
+  ].filter(Boolean).length;
 
-const activeFilterCount = [
-  filterYear !== "all",
-  filterMake !== "all",
-  filterCategory !== "all",
-].filter(Boolean).length;
 
-// FIXED: Now works whether you have a search term or not!
-const filteredProducts = products.filter((p) => {
-  // If there's a search term, product must match it
-  if (searchTerm) {
-    const searchLower = searchTerm.toLowerCase();
-    const matchesSearch =
-      p.name?.toLowerCase().includes(searchLower) ||
-      p.sku?.toLowerCase().includes(searchLower) ||
-      p.barcode?.toLowerCase().includes(searchLower) ||
-      p.partNumber?.toLowerCase().includes(searchLower) ||
-      p.vin?.toLowerCase().includes(searchLower) ||
-      p.carMake?.toLowerCase().includes(searchLower) ||
-      p.carModel?.toLowerCase().includes(searchLower) ||
-      p.variant?.toLowerCase().includes(searchLower) ||
-      p.color?.toLowerCase().includes(searchLower) ||
-      p.category?.name?.toLowerCase().includes(searchLower);
-
-    // If search term doesn't match, exclude this product
-    if (!matchesSearch) return false;
-  }
-
-  // Apply year filter if active
-  if (filterYear !== "all" && filterYear !== "") {
-    if (!checkYearMatch(p, parseInt(filterYear))) return false;
-  }
-
-  // Apply make filter if active
-  if (filterMake !== "all" && filterMake !== "") {
-    if (p.carMake !== filterMake) return false;
-  }
-
-  // Apply category filter if active
-  if (filterCategory !== "all" && filterCategory !== "") {
-    const productCategoryId = p.category?._id?.toString() || p.category?.toString();
-    const selectedCategoryId = filterCategory.toString();
-    if (productCategoryId !== selectedCategoryId) return false;
-  }
-
-  // Product passed all filters
-  return true;
-});
   const totals = calculateTotals();
-  // Helper function for compact currency
+
   const formatCompactCurrency = (amount: number) => {
     if (amount >= 1000000) return `QR${(amount / 1000000).toFixed(1)}M`;
     if (amount >= 10000) return `QR${(amount / 1000).toFixed(1)}K`;
@@ -802,12 +926,10 @@ const filteredProducts = products.filter((p) => {
 
       {/* Desktop Header */}
       <div className="hidden md:block py-4 md:py-8 bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-lg overflow-hidden relative">
-        {/* Background Pattern */}
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSIjRjg0NTQ1IiBmaWxsLW9wYWNpdHk9IjAuMSIgZmlsbC1ydWxlPSJldmVub2RkIj48Y2lyY2xlIGN4PSIzIiBjeT0iMyIgcj0iMyIvPjxjaXJjbGUgY3g9IjEzIiBjeT0iMTMiIHI9IjMiLz48L2c+PC9zdmc+')] opacity-20"></div>
 
         <div className="px-4 md:px-6 relative z-10">
           <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-            {/* Title Section */}
             <div>
               <h1 className="text-xl md:text-3xl font-bold text-white mb-1 flex items-center">
                 <Sparkles className="h-4 w-4 md:h-5 md:w-5 mr-2 text-white" />
@@ -818,9 +940,7 @@ const filteredProducts = products.filter((p) => {
               </p>
             </div>
 
-            {/* Stats Section */}
             <div className="flex gap-3 md:gap-5">
-              {/* Cart Items */}
               <div className="flex-1 bg-white/20 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/10 text-center">
                 <p className="text-xs md:text-sm text-white/80">Cart Items</p>
                 <p className="text-base md:text-lg font-semibold text-white">
@@ -828,7 +948,6 @@ const filteredProducts = products.filter((p) => {
                 </p>
               </div>
 
-              {/* Total */}
               <div className="flex-1 bg-white/20 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/10 text-center">
                 <p className="text-xs md:text-sm text-white/80">Total</p>
                 <p className="text-lg md:text-xl font-bold text-white">
@@ -840,7 +959,7 @@ const filteredProducts = products.filter((p) => {
         </div>
       </div>
 
-      {/* Main Content - ADD PADDING FOR MOBILE HEADER */}
+      {/* Main Content */}
       <div className="px-4 md:px-6 pt-[180px] md:pt-6 pb-6 bg-[#050505] min-h-screen">
         <div className="p-6 bg-[#050505] min-h-screen">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -854,11 +973,37 @@ const filteredProducts = products.filter((p) => {
                     Frequent Products
                   </h2>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {frequentProducts.map((product) => (
+                    {frequentProducts.map((product, index) => (
                       <div
                         key={product._id}
+                        data-product-item={index}
+                        tabIndex={0}
                         onClick={() => addToCart(product)}
-                        className="p-4 bg-[#111111] border border-white/5 rounded-lg hover:border-[#E84545]/50 hover:shadow-[#E84545]/20 hover:shadow-md cursor-pointer transition-all duration-200 hover:scale-[1.02] group"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            addToCart(product);
+                          }
+                          if (e.key === "ArrowRight" && index < frequentProducts.length - 1) {
+                            const next = document.querySelector(
+                              `[data-product-item="${index + 1}"]`
+                            ) as HTMLElement;
+                            if (next) next.focus();
+                          }
+                          if (e.key === "ArrowLeft" && index > 0) {
+                            const prev = document.querySelector(
+                              `[data-product-item="${index - 1}"]`
+                            ) as HTMLElement;
+                            if (prev) prev.focus();
+                          }
+                          if (e.key === "ArrowUp") {
+                            const searchInput = document.querySelector(
+                              'input[placeholder*="Search"]'
+                            ) as HTMLInputElement;
+                            if (searchInput) searchInput.focus();
+                          }
+                        }}
+                        className="p-4 bg-[#111111] border border-white/5 rounded-lg hover:border-[#E84545]/50 hover:shadow-[#E84545]/20 hover:shadow-md cursor-pointer transition-all duration-200 hover:scale-[1.02] group focus:outline-none focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
                       >
                         <div className="flex justify-between items-start">
                           <div className="flex-1 min-w-0">
@@ -892,261 +1037,297 @@ const filteredProducts = products.filter((p) => {
                 </div>
               )}
 
-{/* Enhanced Search Section with Filters */}
-<div className="bg-[#0A0A0A] rounded-lg shadow-lg border border-white/5 p-6">
-  <div className="flex items-center gap-3 mb-4">
-    <div className="relative flex-1">
-      <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-      <input
-        type="text"
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        placeholder="Search by name, SKU, barcode, part#, VIN, make, model, category..."
-        className="w-full pl-10 pr-4 py-3 bg-[#111111] border border-white/5 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white placeholder-gray-400"
-      />
-    </div>
-   <button
-  onClick={() =>
-    isMobile
-      ? setShowMobileFilters(true)
-      : setShowDesktopFilters(!showDesktopFilters)
-  }
-  className={`flex items-center space-x-2 px-4 py-3 border rounded-lg transition-colors ${
-    (isMobile ? showMobileFilters : showDesktopFilters) || activeFilterCount > 0
-      ? "bg-[#E84545]/20 border-[#E84545]/30 text-white"
-      : "border-white/5 text-gray-300 hover:bg-white/5"
-  }`}
->
-
-      <Filter className="h-5 w-5" />
-      <span className="hidden md:inline">Filters</span>
-      {activeFilterCount > 0 && (
-        <span className="px-2 py-0.5 bg-[#E84545] text-white text-xs rounded-full font-semibold">
-          {activeFilterCount}
-        </span>
-      )}
-    </button>
-    <button
-      onClick={() => setShowAddLabor(true)}
-      className="flex items-center space-x-2 px-4 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-lg hover:from-[#cc3c3c] hover:to-[#E84545] whitespace-nowrap transition-all shadow-lg hover:shadow-[#E84545]/30"
-    >
-      <Wrench className="h-5 w-5" />
-      <span className="hidden md:inline">Add Labor</span>
-    </button>
-  </div>
-
-  {/* Filter Options */}
-{showDesktopFilters && !isMobile && (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4 border-t border-white/10 animate-in slide-in-from-top duration-200">
-      <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">
-          Category
-        </label>
-        <select
-          value={filterCategory}
-          onChange={(e) => setFilterCategory(e.target.value)}
-          className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg text-white focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-        >
-          <option value="all" className="bg-[#0A0A0A]">
-            All Categories
-          </option>
-          {categories.map((cat) => (
-            <option
-              key={cat._id}
-              value={cat._id}
-              className="bg-[#0A0A0A]"
-            >
-              {cat.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">
-          Vehicle Make
-        </label>
-        <select
-          value={filterMake}
-          onChange={(e) => setFilterMake(e.target.value)}
-          className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg text-white focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-        >
-          <option value="all" className="bg-[#0A0A0A]">
-            All Makes
-          </option>
-          {availableMakes.map((make) => (
-            <option key={make} value={make} className="bg-[#0A0A0A]">
-              {make}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">
-          Vehicle Year
-        </label>
-        <select
-          value={filterYear}
-          onChange={(e) => setFilterYear(e.target.value)}
-          className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg text-white focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-        >
-          <option value="all" className="bg-[#0A0A0A]">
-            All Years
-          </option>
-          {yearOptions.map((year) => (
-            <option key={year} value={year} className="bg-[#0A0A0A]">
-              {year}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="flex items-end">
-        <button
-          onClick={clearFilters}
-          disabled={activeFilterCount === 0}
-          className="w-full px-4 py-2 bg-[#E84545]/10 border border-[#E84545]/30 rounded-lg hover:bg-[#E84545]/20 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Clear Filters
-        </button>
-      </div>
-    </div>
-  )}
-
-  {/* Active Filters Display */}
-{activeFilterCount > 0 && !showDesktopFilters && !isMobile && (
-    <div className="flex flex-wrap gap-2 mt-3">
-      {filterCategory !== "all" && (
-        <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#E84545]/20 border border-[#E84545]/30 rounded-full text-xs text-white">
-          Category: {categories.find((c) => c._id === filterCategory)?.name}
-          <button
-            onClick={() => setFilterCategory("all")}
-            className="ml-1 hover:text-[#E84545]"
-          >
-            <X className="h-3 w-3" />
-          </button>
-        </span>
-      )}
-      {filterMake !== "all" && (
-        <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#E84545]/20 border border-[#E84545]/30 rounded-full text-xs text-white">
-          Make: {filterMake}
-          <button
-            onClick={() => setFilterMake("all")}
-            className="ml-1 hover:text-[#E84545]"
-          >
-            <X className="h-3 w-3" />
-          </button>
-        </span>
-      )}
-      {filterYear !== "all" && (
-        <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#E84545]/20 border border-[#E84545]/30 rounded-full text-xs text-white">
-          Year: {filterYear}
-          <button
-            onClick={() => setFilterYear("all")}
-            className="ml-1 hover:text-[#E84545]"
-          >
-            <X className="h-3 w-3" />
-          </button>
-        </span>
-      )}
-    </div>
-  )}
-
-  {/* Search Results */}
-  {searchTerm && (
-    <div className="mt-4">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-sm text-gray-400">
-          {filteredProducts.length} product{filteredProducts.length !== 1 ? "s" : ""} found
-        </p>
-        {activeFilterCount > 0 && (
-          <button
-            onClick={clearFilters}
-            className="text-xs text-[#E84545] hover:text-[#cc3c3c] transition-colors"
-          >
-            Clear all filters
-          </button>
-        )}
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
-        {filteredProducts.length === 0 ? (
-          <div className="col-span-2 text-center py-8 text-gray-400">
-            <Search className="h-12 w-12 mx-auto mb-3 text-gray-600" />
-            <p>No products found</p>
-            <p className="text-sm mt-2">
-              Try adjusting your search or filters
-            </p>
-          </div>
-        ) : (
-          filteredProducts.map((product) => (
-            <div
-              key={product._id}
-              onClick={() => addToCart(product)}
-              className="p-4 bg-[#111111] border border-white/5 rounded-lg hover:border-[#E84545]/50 hover:shadow-[#E84545]/20 hover:shadow-md cursor-pointer transition-all group"
-            >
-              <div className="flex justify-between items-start">
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-white group-hover:text-[#E84545] transition-colors truncate">
-                    {product.name}
-                  </h3>
-                  <div className="space-y-1 mt-1">
-                    <p className="text-xs text-gray-400 truncate">
-                      SKU: {product.sku}
-                      {product.partNumber && ` | Part#: ${product.partNumber}`}
-                    </p>
-                    {product.category?.name && (
-                      <p className="text-xs text-gray-500 truncate">
-                        {product.category.name}
-                      </p>
+              {/* Enhanced Search Section with Filters */}
+              <div className="bg-[#0A0A0A] rounded-lg shadow-lg border border-white/5 p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "ArrowDown" && filteredProducts.length > 0) {
+                          e.preventDefault();
+                          const first = document.querySelector(
+                            '[data-search-item="0"]'
+                          ) as HTMLElement;
+                          if (first) first.focus();
+                        }
+                      }}
+                      placeholder="Search by name, SKU, barcode, part#, VIN, make, model, category... (Press F)"
+                      className="w-full pl-10 pr-4 py-3 bg-[#111111] border border-white/5 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white placeholder-gray-400"
+                    />
+                  </div>
+                  <button
+                    onClick={() =>
+                      isMobile
+                        ? setShowMobileFilters(true)
+                        : setShowDesktopFilters(!showDesktopFilters)
+                    }
+                    className={`flex items-center space-x-2 px-4 py-3 border rounded-lg transition-colors ${
+                      (isMobile ? showMobileFilters : showDesktopFilters) || activeFilterCount > 0
+                        ? "bg-[#E84545]/20 border-[#E84545]/30 text-white"
+                        : "border-white/5 text-gray-300 hover:bg-white/5"
+                    }`}
+                  >
+                    <Filter className="h-5 w-5" />
+                    <span className="hidden md:inline">Filters</span>
+                    {activeFilterCount > 0 && (
+                      <span className="px-2 py-0.5 bg-[#E84545] text-white text-xs rounded-full font-semibold">
+                        {activeFilterCount}
+                      </span>
                     )}
-                    {product.isVehicle && (
-                      <div className="flex items-center gap-1 flex-wrap">
-                        <Car className="h-3 w-3 text-[#E84545]" />
-                        <span className="text-xs text-[#E84545]">
-                          {product.carMake} {product.carModel}
-                          {product.variant && ` ${product.variant}`}
-                        </span>
-                        {(product.yearFrom || product.yearTo) && (
-                          <span className="text-xs text-gray-500">
-                            | {product.yearFrom && product.yearTo
-                              ? `${product.yearFrom}-${product.yearTo}`
-                              : product.yearFrom
-                              ? `${product.yearFrom}+`
-                              : `Up to ${product.yearTo}`}
-                          </span>
-                        )}
-                        {product.color && (
-                          <span className="text-xs text-gray-500">
-                            | {product.color}
-                          </span>
-                        )}
-                      </div>
+                  </button>
+                  <button
+                    onClick={() => setShowAddLabor(true)}
+                    className="flex items-center space-x-2 px-4 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-lg hover:from-[#cc3c3c] hover:to-[#E84545] whitespace-nowrap transition-all shadow-lg hover:shadow-[#E84545]/30"
+                  >
+                    <Wrench className="h-5 w-5" />
+                    <span className="hidden md:inline">Add Labor</span>
+                  </button>
+                </div>
+
+                {/* Filter Options */}
+                {showDesktopFilters && !isMobile && (
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4 border-t border-white/10 animate-in slide-in-from-top duration-200">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Category
+                      </label>
+                      <select
+                        value={filterCategory}
+                        onChange={(e) => setFilterCategory(e.target.value)}
+                        className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg text-white focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                      >
+                        <option value="all" className="bg-[#0A0A0A]">
+                          All Categories
+                        </option>
+                        {categories.map((cat) => (
+                          <option
+                            key={cat._id}
+                            value={cat._id}
+                            className="bg-[#0A0A0A]"
+                          >
+                            {cat.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Vehicle Make
+                      </label>
+                      <select
+                        value={filterMake}
+                        onChange={(e) => setFilterMake(e.target.value)}
+                        className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg text-white focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                      >
+                        <option value="all" className="bg-[#0A0A0A]">
+                          All Makes
+                        </option>
+                        {availableMakes.map((make) => (
+                          <option key={make} value={make} className="bg-[#0A0A0A]">
+                            {make}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Vehicle Year
+                      </label>
+                      <select
+                        value={filterYear}
+                        onChange={(e) => setFilterYear(e.target.value)}
+                        className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg text-white focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                      >
+                        <option value="all" className="bg-[#0A0A0A]">
+                          All Years
+                        </option>
+                        {yearOptions.map((year) => (
+                          <option key={year} value={year} className="bg-[#0A0A0A]">
+                            {year}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex items-end">
+                      <button
+                        onClick={clearFilters}
+                        disabled={activeFilterCount === 0}
+                        className="w-full px-4 py-2 bg-[#E84545]/10 border border-[#E84545]/30 rounded-lg hover:bg-[#E84545]/20 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Clear Filters
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Active Filters Display */}
+                {activeFilterCount > 0 && !showDesktopFilters && !isMobile && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {filterCategory !== "all" && (
+                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#E84545]/20 border border-[#E84545]/30 rounded-full text-xs text-white">
+                        Category: {categories.find((c) => c._id === filterCategory)?.name}
+                        <button
+                          onClick={() => setFilterCategory("all")}
+                          className="ml-1 hover:text-[#E84545]"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
                     )}
-                    {product.vin && (
-                      <p className="text-xs text-gray-500 font-mono truncate">
-                        VIN: {product.vin}
-                      </p>
+                    {filterMake !== "all" && (
+                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#E84545]/20 border border-[#E84545]/30 rounded-full text-xs text-white">
+                        Make: {filterMake}
+                        <button
+                          onClick={() => setFilterMake("all")}
+                          className="ml-1 hover:text-[#E84545]"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    )}
+                    {filterYear !== "all" && (
+                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#E84545]/20 border border-[#E84545]/30 rounded-full text-xs text-white">
+                        Year: {filterYear}
+                        <button
+                          onClick={() => setFilterYear("all")}
+                          className="ml-1 hover:text-[#E84545]"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
                     )}
                   </div>
-                </div>
-                <div className="text-right ml-3 flex-shrink-0">
-                  <p className="font-bold text-[#E84545] whitespace-nowrap">
-                    QAR {product.sellingPrice}
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    Stock: {product.currentStock}
-                  </p>
-                </div>
+                )}
+
+                {/* Search Results */}
+                {searchTerm && (
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-sm text-gray-400">
+                        {filteredProducts.length} product{filteredProducts.length !== 1 ? "s" : ""} found
+                      </p>
+                      {activeFilterCount > 0 && (
+                        <button
+                          onClick={clearFilters}
+                          className="text-xs text-[#E84545] hover:text-[#cc3c3c] transition-colors"
+                        >
+                          Clear all filters
+                        </button>
+                      )}
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
+                      {filteredProducts.length === 0 ? (
+                        <div className="col-span-2 text-center py-8 text-gray-400">
+                          <Search className="h-12 w-12 mx-auto mb-3 text-gray-600" />
+                          <p>No products found</p>
+                          <p className="text-sm mt-2">
+                            Try adjusting your search or filters
+                          </p>
+                        </div>
+                      ) : (
+                        filteredProducts.map((product, index) => (
+                          <div
+                            key={product._id}
+                            data-search-item={index}
+                            tabIndex={0}
+                            onClick={() => addToCart(product)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                addToCart(product);
+                              }
+                              if (e.key === "ArrowDown" && index < filteredProducts.length - 1) {
+                                const next = document.querySelector(
+                                  `[data-search-item="${index + 1}"]`
+                                ) as HTMLElement;
+                                if (next) next.focus();
+                              }
+                              if (e.key === "ArrowUp") {
+                                if (index > 0) {
+                                  const prev = document.querySelector(
+                                    `[data-search-item="${index - 1}"]`
+                                  ) as HTMLElement;
+                                  if (prev) prev.focus();
+                                } else {
+                                  const searchInput = document.querySelector(
+                                    'input[placeholder*="Search"]'
+                                  ) as HTMLInputElement;
+                                  if (searchInput) searchInput.focus();
+                                }
+                              }
+                            }}
+                            className="p-4 bg-[#111111] border border-white/5 rounded-lg hover:border-[#E84545]/50 hover:shadow-[#E84545]/20 hover:shadow-md cursor-pointer transition-all group focus:outline-none focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                          >
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-semibold text-white group-hover:text-[#E84545] transition-colors truncate">
+                                  {product.name}
+                                </h3>
+                                <div className="space-y-1 mt-1">
+                                  <p className="text-xs text-gray-400 truncate">
+                                    SKU: {product.sku}
+                                    {product.partNumber && ` | Part#: ${product.partNumber}`}
+                                  </p>
+                                  {product.category?.name && (
+                                    <p className="text-xs text-gray-500 truncate">
+                                      {product.category.name}
+                                    </p>
+                                  )}
+                                  {product.isVehicle && (
+                                    <div className="flex items-center gap-1 flex-wrap">
+                                      <Car className="h-3 w-3 text-[#E84545]" />
+                                      <span className="text-xs text-[#E84545]">
+                                        {product.carMake} {product.carModel}
+                                        {product.variant && ` ${product.variant}`}
+                                      </span>
+                                      {(product.yearFrom || product.yearTo) && (
+                                        <span className="text-xs text-gray-500">
+                                          | {product.yearFrom && product.yearTo
+                                            ? `${product.yearFrom}-${product.yearTo}`
+                                            : product.yearFrom
+                                            ? `${product.yearFrom}+`
+                                            : `Up to ${product.yearTo}`}
+                                        </span>
+                                      )}
+                                      {product.color && (
+                                        <span className="text-xs text-gray-500">
+                                          | {product.color}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                  {product.vin && (
+                                    <p className="text-xs text-gray-500 font-mono truncate">
+                                      VIN: {product.vin}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right ml-3 flex-shrink-0">
+                                <p className="font-bold text-[#E84545] whitespace-nowrap">
+                                  QAR {product.sellingPrice}
+                                </p>
+                                <p className="text-xs text-gray-400">
+                                  Stock: {product.currentStock}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  )}
-</div>
+
               {/* Cart */}
               <div className="bg-[#0A0A0A] rounded-lg shadow-lg border border-white/5 p-6">
                 <h2 className="text-xl font-bold mb-4 flex items-center text-white">
@@ -1360,7 +1541,7 @@ const filteredProducts = products.filter((p) => {
                   className="w-full flex items-center justify-center space-x-2 px-3 py-3 border-2 border-dashed border-[#E84545]/50 text-[#E84545] rounded-lg hover:border-[#E84545] hover:bg-[#E84545]/10 transition-colors"
                 >
                   <Plus className="h-4 w-4" />
-                  <span>Quick Add Customer</span>
+                  <span>Quick Add Customer (C)</span>
                 </button>
               </div>
 
@@ -1566,14 +1747,15 @@ const filteredProducts = products.filter((p) => {
                       Processing...
                     </span>
                   ) : (
-                    "Complete Sale"
+                    "Complete Sale (S)"
                   )}
                 </button>
               </div>
             </div>
           </div>
         </div>
-        {/* Mobile Action Menu - ADD BEFORE CLOSING </MainLayout> */}
+
+        {/* Mobile Action Menu */}
         {showMobileMenu && (
           <div className="md:hidden fixed inset-0 bg-black/80 backdrop-blur-md z-[60] animate-in fade-in duration-200">
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-b from-[#0A0A0A] to-[#050505] rounded-t-3xl border-t border-white/10 p-6 animate-in slide-in-from-bottom duration-300 shadow-2xl">
@@ -1627,7 +1809,8 @@ const filteredProducts = products.filter((p) => {
         {/* Mobile Safe Area Bottom Padding */}
         <div className="md:hidden h-6"></div>
       </div>
-      {/* Add Customer Modal with Vehicle Info */}
+
+      {/* Add Customer Modal */}
       {showAddCustomer && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-[#0A0A0A] rounded-lg shadow-2xl max-w-2xl w-full my-8 border border-white/5">
@@ -2010,24 +2193,9 @@ const filteredProducts = products.filter((p) => {
           </div>
         </div>
       )}
-      <div className="md:hidden h-6"></div>
-      {/* Invoice Print Modal */}
-      {showInvoice && invoiceData && user?.outletId && invoiceCustomer && (
-        <>
-          <InvoicePrint
-            invoice={invoiceData}
-            outletId={user.outletId}
-            customerId={invoiceCustomer._id}
-            onClose={() => {
-              setShowInvoice(false);
-              setInvoiceCustomer(null);
-            }}
-          />
-        </>
-      )}
-      {/* Mobile Filter Modal */}
-{showMobileFilters && isMobile && (
 
+      {/* Mobile Filter Modal */}
+      {showMobileFilters && isMobile && (
         <div className="md:hidden fixed inset-0 bg-black/80 backdrop-blur-md z-[60] animate-in fade-in duration-200">
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-b from-[#0A0A0A] to-[#050505] rounded-t-3xl border-t border-white/10 p-6 animate-in slide-in-from-bottom duration-300 shadow-2xl max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
@@ -2040,8 +2208,7 @@ const filteredProducts = products.filter((p) => {
                 )}
               </div>
               <button
-               onClick={() => setShowMobileFilters(false)}
-
+                onClick={() => setShowMobileFilters(false)}
                 className="p-2 rounded-xl bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
               >
                 <X className="h-5 w-5" />
@@ -2049,7 +2216,6 @@ const filteredProducts = products.filter((p) => {
             </div>
 
             <div className="space-y-4">
-              {/* Category Filter */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Category
@@ -2074,7 +2240,6 @@ const filteredProducts = products.filter((p) => {
                 </select>
               </div>
 
-              {/* Make Filter */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Vehicle Make
@@ -2095,7 +2260,6 @@ const filteredProducts = products.filter((p) => {
                 </select>
               </div>
 
-              {/* Year Filter */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Vehicle Year
@@ -2116,7 +2280,6 @@ const filteredProducts = products.filter((p) => {
                 </select>
               </div>
 
-              {/* Active Filters Display */}
               {activeFilterCount > 0 && (
                 <div className="p-4 bg-[#E84545]/10 border border-[#E84545]/30 rounded-xl">
                   <p className="text-xs font-medium text-white mb-2">
@@ -2142,7 +2305,6 @@ const filteredProducts = products.filter((p) => {
                 </div>
               )}
 
-              {/* Action Buttons */}
               <div className="flex gap-3 pt-4 border-t border-white/10">
                 <button
                   onClick={clearFilters}
@@ -2162,7 +2324,104 @@ const filteredProducts = products.filter((p) => {
           </div>
         </div>
       )}
+
+      {/* Invoice Print Modal */}
+      {showInvoice && invoiceData && user?.outletId && invoiceCustomer && (
+        <>
+          <InvoicePrint
+            invoice={invoiceData}
+            outletId={user.outletId}
+            customerId={invoiceCustomer._id}
+            onClose={() => {
+              setShowInvoice(false);
+              setInvoiceCustomer(null);
+            }}
+          />
+        </>
+      )}
+
+      {/* Keyboard Hints Toggle Button - Desktop Only */}
+      {!showKeyboardHints && !isMobile && (
+        <button
+          onClick={() => setShowKeyboardHints(true)}
+          className="hidden md:flex fixed bottom-6 right-6 z-40 items-center gap-2 bg-[#0A0A0A]/95 backdrop-blur-xl border border-white/10 rounded-xl px-4 py-3 shadow-2xl hover:bg-[#E84545]/20 hover:border-[#E84545]/30 transition-all group animate-in slide-in-from-bottom duration-300"
+          title="Show keyboard shortcuts (Press H)"
+        >
+          <span className="text-xl">⌨️</span>
+          <span className="text-xs font-medium text-white">Shortcuts</span>
+          <kbd className="px-1.5 py-0.5 bg-[#111111] border border-white/10 rounded text-[10px] text-white/60 font-mono group-hover:text-white">
+            H
+          </kbd>
+        </button>
+      )}
+
+      {/* Keyboard Hints Panel - Desktop Only */}
+      {showKeyboardHints && !isMobile && (
+        <div className="hidden md:block fixed bottom-6 right-6 z-40 bg-[#0A0A0A]/95 backdrop-blur-xl border border-white/10 rounded-xl p-4 shadow-2xl max-w-xs animate-in slide-in-from-bottom duration-300">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-semibold text-white flex items-center">
+              <span className="mr-2">⌨️</span>
+              Keyboard Shortcuts
+            </h3>
+            <button
+              onClick={() => setShowKeyboardHints(false)}
+              className="text-gray-400 hover:text-white transition-colors"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+          <div className="space-y-1.5 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400">Search</span>
+              <kbd className="px-2 py-0.5 bg-[#111111] border border-white/10 rounded text-white font-mono">
+                F
+              </kbd>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400">Add Customer</span>
+              <kbd className="px-2 py-0.5 bg-[#111111] border border-white/10 rounded text-white font-mono">
+                C
+              </kbd>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400">Add Labor</span>
+              <kbd className="px-2 py-0.5 bg-[#111111] border border-white/10 rounded text-white font-mono">
+                L
+              </kbd>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400">Payment</span>
+              <kbd className="px-2 py-0.5 bg-[#111111] border border-white/10 rounded text-white font-mono">
+                P
+              </kbd>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400">Complete Sale</span>
+              <kbd className="px-2 py-0.5 bg-[#111111] border border-white/10 rounded text-white font-mono">
+                S
+              </kbd>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400">Close/Clear</span>
+              <kbd className="px-2 py-0.5 bg-[#111111] border border-white/10 rounded text-white font-mono">
+                ESC
+              </kbd>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400">Navigate</span>
+              <kbd className="px-2 py-0.5 bg-[#111111] border border-white/10 rounded text-white font-mono">
+                ↑↓
+              </kbd>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400">Toggle Hints</span>
+              <kbd className="px-2 py-0.5 bg-[#111111] border border-white/10 rounded text-white font-mono">
+                H
+              </kbd>
+            </div>
+          </div>
+        </div>
+      )}
     </MainLayout>
-   
   );
 }

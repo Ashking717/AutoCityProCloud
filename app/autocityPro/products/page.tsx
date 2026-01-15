@@ -25,6 +25,16 @@ import {
 } from "lucide-react";
 import { CarMake, carMakesModels } from "@/lib/data/carData";
 import toast from "react-hot-toast";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+
+// Extend jsPDF type to include autoTable
+declare module "jspdf" {
+  interface jsPDF {
+    autoTable: (...args: any[]) => void;
+  }
+}
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -172,8 +182,7 @@ export default function ProductsPage() {
     "Forest Green",
   ];
 
-
-    const filteredProducts = products.filter((p) => {
+  const filteredProducts = products.filter((p) => {
     const matchesSearch =
       p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -193,7 +202,6 @@ export default function ProductsPage() {
       matchesSearch && matchesCategory && matchesMake && matchesVehicleType
     );
   });
-
 
   // Keyboard navigation handler
   useEffect(() => {
@@ -271,7 +279,10 @@ export default function ProductsPage() {
 
         case "Enter":
           // View selected product
-          if (selectedProductIndex >= 0 && selectedProductIndex < filteredProducts.length) {
+          if (
+            selectedProductIndex >= 0 &&
+            selectedProductIndex < filteredProducts.length
+          ) {
             e.preventDefault();
             const product = filteredProducts[selectedProductIndex];
             router.push(`/autocityPro/products/${product._id}`);
@@ -280,7 +291,12 @@ export default function ProductsPage() {
 
         case "e":
           // Edit selected product (when one is selected)
-          if (selectedProductIndex >= 0 && selectedProductIndex < filteredProducts.length && !e.ctrlKey && !e.metaKey) {
+          if (
+            selectedProductIndex >= 0 &&
+            selectedProductIndex < filteredProducts.length &&
+            !e.ctrlKey &&
+            !e.metaKey
+          ) {
             e.preventDefault();
             const product = filteredProducts[selectedProductIndex];
             openEditModal(product);
@@ -290,7 +306,10 @@ export default function ProductsPage() {
         case "Delete":
         case "Backspace":
           // Delete selected product (with confirmation)
-          if (selectedProductIndex >= 0 && selectedProductIndex < filteredProducts.length) {
+          if (
+            selectedProductIndex >= 0 &&
+            selectedProductIndex < filteredProducts.length
+          ) {
             e.preventDefault();
             const product = filteredProducts[selectedProductIndex];
             setProductToDelete(product);
@@ -308,15 +327,15 @@ export default function ProductsPage() {
           e.preventDefault();
           toast.success(
             "Keyboard Shortcuts:\n" +
-            "/ - Focus search\n" +
-            "N - New product\n" +
-            "F - Toggle filters\n" +
-            "E - Export CSV\n" +
-            "↑↓ - Navigate products\n" +
-            "Enter - View product\n" +
-            "e - Edit product\n" +
-            "Del - Delete product\n" +
-            "Esc - Clear selection",
+              "/ - Focus search\n" +
+              "N - New product\n" +
+              "F - Toggle filters\n" +
+              "E - Export CSV\n" +
+              "↑↓ - Navigate products\n" +
+              "Enter - View product\n" +
+              "e - Edit product\n" +
+              "Del - Delete product\n" +
+              "Esc - Clear selection",
             { duration: 5000 }
           );
           break;
@@ -674,7 +693,6 @@ export default function ProductsPage() {
     setIsVehicle(false);
   };
 
-
   const availableMakes = [
     ...new Set(products.filter((p) => p.carMake).map((p) => p.carMake)),
   ].sort();
@@ -689,6 +707,93 @@ export default function ProductsPage() {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     window.location.href = "/autocityPro/login";
   };
+const downloadProductsPDF = () => {
+  if (filteredProducts.length === 0) {
+    toast.error("No products to export");
+    return;
+  }
+
+  const doc = new jsPDF({
+    orientation: "landscape",
+    unit: "mm",
+    format: "a4",
+  });
+
+  const headers = [[
+    "SKU",
+    "Name",
+    "Category",
+    "Barcode",
+    "Price",
+    "Stock",
+    "Make",
+    "Model",
+    "Variant",
+    "Year",
+    "Part No",
+    "Color",
+  ]];
+
+  const rows = filteredProducts.map((p) => [
+    p.sku || "",
+    p.name || "",
+    p.category?.name || "",
+    p.barcode || "",
+    p.sellingPrice || 0,
+    p.currentStock || 0,
+    p.carMake || "",
+    p.carModel || "",
+    p.variant || "",
+    formatYearRange(p.yearFrom, p.yearTo),
+    p.partNumber || "",
+    p.color || "",
+  ]);
+
+  doc.setFontSize(16);
+  doc.text("Stock", 10, 15);
+
+  autoTable(doc, {
+    head: headers,
+    body: rows,
+    startY: 22,
+    theme: "grid",
+    showHead: "everyPage",
+    pageBreak: "auto",
+
+    styles: {
+      fontSize: 9.5,
+      cellPadding: 2.5,
+      overflow: "linebreak",
+      valign: "middle",
+    },
+
+    headStyles: {
+      fillColor: [232, 69, 69], // #E84545
+      textColor: 255,
+      fontStyle: "bold",
+    },
+
+    columnStyles: {
+    0: { cellWidth: 20 },   // SKU
+    1: { cellWidth: 48 },   // Name (wider)
+    2: { cellWidth: 26 },   // Category
+    3: { cellWidth: 28 },   // Barcode
+    4: { cellWidth: 16 },   // Price
+    5: { cellWidth: 16 },   // Stock
+    6: { cellWidth: 22 },   // Make
+    7: { cellWidth: 22 },   // Model
+    8: { cellWidth: 20 },   // Variant
+    9: { cellWidth: 20 },   // Year
+    10:{ cellWidth: 26 },   // Part No
+    11:{ cellWidth: 18 },   // Color
+  },
+
+    margin: { top: 18, left: 8, right: 8 },
+  });
+
+  doc.save(`products_${new Date().toISOString().split("T")[0]}.pdf`);
+  toast.success(`Exported ${filteredProducts.length} products to PDF`);
+};
 
   const downloadProductsCSV = () => {
     if (filteredProducts.length === 0) {
@@ -815,7 +920,7 @@ export default function ProductsPage() {
                     </div>
                   </>
                 )}
-                          </div>
+              </div>
             </div>
           </div>
         )}
@@ -929,16 +1034,22 @@ export default function ProductsPage() {
                 <button
                   onClick={downloadProductsCSV}
                   className="flex items-center space-x-2 px-4 py-2 bg-white/10 backdrop-blur-sm text-white rounded-lg hover:bg-white/20 transition-colors border border-white/20"
-                  title="Export CSV (E)"
                 >
                   <FileDown className="h-5 w-5" />
-                  <span>Export CSV</span>
+                  <span>CSV</span>
                 </button>
+
                 <button
-                  ref={addButtonRef}
+                  onClick={downloadProductsPDF}
+                  className="flex items-center space-x-2 px-4 py-2 bg-[#E84545] text-white rounded-lg hover:bg-[#cc3c3c] transition-colors shadow-lg"
+                >
+                  <FileDown className="h-5 w-5" />
+                  <span>PDF</span>
+                </button>
+
+                <button
                   onClick={() => setShowAddModal(true)}
                   className="flex items-center space-x-2 px-4 py-2 bg-white text-[#E84545] rounded-lg hover:bg-gray-100 transition-colors shadow-lg"
-                  title="Add Product (N)"
                 >
                   <Plus className="h-5 w-5" />
                   <span>Add Product</span>
@@ -1238,7 +1349,9 @@ export default function ProductsPage() {
                     filteredProducts.map((product, index) => (
                       <tr
                         key={product._id}
-                        ref={(el) => { productRefs.current[index] = el; }}
+                        ref={(el) => {
+                          productRefs.current[index] = el;
+                        }}
                         className={`transition-all ${
                           selectedProductIndex === index
                             ? "bg-[#E84545]/10 ring-2 ring-[#E84545]/50 ring-inset"
@@ -1447,7 +1560,9 @@ export default function ProductsPage() {
                               <Car className="h-3 w-3 mr-1 text-[#E84545]" />
                               <span>{product.carMake}</span>
                               {product.carModel && (
-                                <span className="ml-1">• {product.carModel}</span>
+                                <span className="ml-1">
+                                  • {product.carModel}
+                                </span>
                               )}
                             </div>
                             {product.variant && (
@@ -1465,7 +1580,9 @@ export default function ProductsPage() {
                                   )}
                                 </span>
                               )}
-                              {product.color && <span>Color: {product.color}</span>}
+                              {product.color && (
+                                <span>Color: {product.color}</span>
+                              )}
                             </div>
                           </div>
                         </div>

@@ -10,11 +10,11 @@ import { Lock, User, Mail, Eye, EyeOff, ArrowLeft, Globe } from 'lucide-react';
 const content = {
   en: {
     title: 'AutoCity ',
-    subtitle: 'Internal Operations Portal',
+    subtitle: 'Portal',
     signIn: 'Sign In',
-    signInDesc: 'Access your staff dashboard',
+    signInDesc: 'Access ',
     identifier: 'Username or Email',
-    identifierPlaceholder: 'username or you@example.com',
+    identifierPlaceholder: 'username or email',
     password: 'Password',
     passwordPlaceholder: '••••••••',
     rememberMe: 'Remember me',
@@ -101,7 +101,17 @@ export default function LoginPage() {
         throw new Error(data.error || 'Login failed');
       }
 
-      window.location.href = '/autocityPro/dashboard';
+      // Role-based redirect
+      const userRole = data.user?.role;
+      let redirectPath = '/autocityPro/dashboard'; // Default
+
+      if (userRole === 'CASHIER') {
+        redirectPath = '/autocityPro/sales/new';
+      } else if (userRole === 'ACCOUNTANT') {
+        redirectPath = '/autocityPro/ledgers';
+      }
+
+      window.location.href = redirectPath;
     } catch (err: any) {
       setError(err.message || 'An error occurred during login');
       setLoading(false);
@@ -188,15 +198,16 @@ export default function LoginPage() {
       <div className="relative z-10 max-w-md w-full">
         {/* Logo and Title */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center mb-6">
+          <Link href="/" className="inline-flex items-center justify-center mb-6 hover:opacity-80 transition-opacity cursor-pointer">
             <Image
-              src="/logo.png"
+              src="/login.png"
               alt="Auto City Qatar"
-              width={200}
-              height={100}
-              className="object-contain"
+              width={300}
+              height={150}
+              className="object-contain cursor-pointer"
+              priority
             />
-          </div>
+          </Link>
           <h1 className="text-3xl font-bold text-white mb-2">{t.title}</h1>
           <p className="text-gray-500">{t.subtitle}</p>
         </div>

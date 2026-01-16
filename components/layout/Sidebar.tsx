@@ -64,7 +64,13 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
     });
   };
 
-  const navigation = [
+  // Helper function to check if user has access to a feature
+  const hasAccess = (allowedRoles: string[]) => {
+    return user?.role && allowedRoles.includes(user.role);
+  };
+
+  // Define all navigation items with role-based access
+  const allNavigationSections = [
     {
       title: "Main",
       items: [
@@ -74,6 +80,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           href: "/autocityPro/dashboard",
           badge: null,
           mobile: true,
+          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "VIEWER", ],
         },
         {
           name: "New Sale",
@@ -81,6 +88,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           href: "/autocityPro/sales/new",
           badge: null,
           mobile: true,
+          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "SALESPERSON", "CASHIER"],
         },
         {
           name: "Sales",
@@ -88,6 +96,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           href: "/autocityPro/sales",
           badge: null,
           mobile: true,
+          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "SALESPERSON", "VIEWER", "CASHIER"],
         },
       ],
     },
@@ -100,6 +109,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           href: "/autocityPro/products",
           badge: null,
           mobile: true,
+          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "SALESPERSON", ],
         },
         {
           name: "Stock",
@@ -107,6 +117,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           href: "/autocityPro/stock",
           badge: null,
           mobile: true,
+          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "VIEWER","CASHIER"],
         },
       ],
     },
@@ -119,6 +130,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           href: "/autocityPro/customers",
           badge: null,
           mobile: true,
+          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "SALESPERSON", "CASHIER"],
         },
         {
           name: "Portal",
@@ -126,6 +138,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           href: "/autocityPro/portal",
           badge: null,
           mobile: true,
+          roles: ["SUPERADMIN", "ADMIN", "MANAGER","ACCOUNTANT" ],
         },
       ],
     },
@@ -138,6 +151,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           href: "/autocityPro/vouchers",
           badge: null,
           mobile: true,
+          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "ACCOUNTANT"],
         },
         {
           name: "Accounts",
@@ -145,6 +159,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           href: "/autocityPro/accounts",
           badge: null,
           mobile: true,
+          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "ACCOUNTANT"],
         },
         {
           name: "Ledgers",
@@ -152,6 +167,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           href: "/autocityPro/ledgers",
           badge: null,
           mobile: true,
+          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "ACCOUNTANT"],
         },
       ],
     },
@@ -164,6 +180,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           href: "/autocityPro/reports",
           badge: null,
           mobile: true,
+          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "VIEWER", "ACCOUNTANT"],
         },
       ],
     },
@@ -176,6 +193,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           href: "/autocityPro/closings",
           badge: null,
           mobile: true,
+          roles: ["SUPERADMIN", "ADMIN", "MANAGER","ACCOUNTANT"],
         },
         {
           name: "Settings",
@@ -183,13 +201,15 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           href: "/autocityPro/settings",
           badge: null,
           mobile: true,
+          roles: ["SUPERADMIN", "ADMIN"],
         },
       ],
     },
   ];
 
+  // Add SUPERADMIN-only section
   if (user?.role === "SUPERADMIN") {
-    navigation.push({
+    allNavigationSections.push({
       title: "Admin",
       items: [
         {
@@ -198,6 +218,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           href: "/autocityPro/settings/outlets/new",
           badge: null,
           mobile: true,
+          roles: ["SUPERADMIN"],
         },
         {
           name: "Users",
@@ -205,6 +226,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           href: "/autocityPro/settings/users",
           badge: null,
           mobile: true,
+          roles: ["SUPERADMIN"],
         },
         {
           name: "Activity Logs",
@@ -212,34 +234,51 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           href: "/autocityPro/settings/logs",
           badge: null,
           mobile: true,
+          roles: ["SUPERADMIN"],
         },
       ],
     });
   }
 
-  // Primary mobile navigation items (shown in bottom bar)
-  const primaryMobileNavItems = [
+  // Filter navigation based on user role
+  const navigation = allNavigationSections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => hasAccess(item.roles)),
+    }))
+    .filter((section) => section.items.length > 0); // Remove empty sections
+
+  // Primary mobile navigation items (shown in bottom bar) - filtered by role
+  const allPrimaryMobileNavItems = [
     {
       name: "Dashboard",
       icon: LayoutDashboard,
       href: "/autocityPro/dashboard",
+      roles: ["SUPERADMIN", "ADMIN", "MANAGER", "VIEWER"],
     },
     {
       name: "New Sale",
       icon: Sparkles,
       href: "/autocityPro/sales/new",
+      roles: ["SUPERADMIN", "ADMIN", "MANAGER", "SALESPERSON", "CASHIER"],
     },
     {
       name: "Sales",
       icon: ShoppingCart,
       href: "/autocityPro/sales",
+      roles: ["SUPERADMIN", "ADMIN", "MANAGER", "SALESPERSON", "VIEWER", "CASHIER"],
     },
     {
       name: "Reports",
       icon: BarChart3,
       href: "/autocityPro/reports",
+      roles: ["SUPERADMIN", "ADMIN", "MANAGER", "VIEWER", "ACCOUNTANT"],
     },
   ];
+
+  const primaryMobileNavItems = allPrimaryMobileNavItems.filter((item) =>
+    hasAccess(item.roles)
+  );
 
   // Check if mobile on mount and resize
   useEffect(() => {

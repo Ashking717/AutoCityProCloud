@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
     const count = await Sale.countDocuments({ outletId });
     const now = new Date();
 
-    const invoiceNumber = `INV-${now.getFullYear()}${String(
+    const invoiceNumber = `AC-${now.getFullYear()}${String(
       now.getMonth() + 1
     ).padStart(2, "0")}-${String(count + 1).padStart(5, "0")}`;
 

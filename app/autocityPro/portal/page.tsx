@@ -285,7 +285,8 @@ export default function PurchasesPortalPage() {
           type: 'expense',
           vendor: null,
           category: e.category || e.expense_category || 'General',
-          amount: e.amount || 0,
+          amount: e.grandTotal ?? 0,
+
           date: e.created_at || e.date || new Date().toISOString().split('T')[0],
           status: e.status || 'complete'
         }))

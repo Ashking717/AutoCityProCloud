@@ -308,11 +308,6 @@ export async function POST(request: NextRequest) {
 // ENHANCED GET METHOD FOR /api/expenses
 // ═══════════════════════════════════════════════════════════
 // 
-// INSTRUCTIONS: Replace your existing GET method in app/api/expenses/route.ts
-// with this enhanced version that adds sort, order, and limit parameters
-//
-// Your existing POST and PATCH methods remain unchanged!
-// ═══════════════════════════════════════════════════════════
 
 export async function GET(request: NextRequest) {
   try {

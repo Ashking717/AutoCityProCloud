@@ -30,9 +30,15 @@ export default function StockPage() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showDynamicIsland, setShowDynamicIsland] = useState(true);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMoreProducts, setHasMoreProducts] = useState(true);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
   useEffect(() => {
     fetchUser();
-    fetchProducts();
+    fetchProducts(1, false);
 
     const checkIfMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -43,6 +49,12 @@ export default function StockPage() {
 
     return () => window.removeEventListener('resize', checkIfMobile);
   }, []);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+    fetchProducts(1, false);
+  }, [searchTerm, filterStatus]);
 
   // Function to convert stock value to code format
   const convertToStockCode = (value: number) => {
@@ -85,21 +97,61 @@ export default function StockPage() {
     }
   };
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (page = 1, append = false) => {
     try {
-      setLoading(true);
-      const res = await fetch('/api/products', { credentials: 'include' });
+      if (!append) {
+        setLoading(true);
+      } else {
+        setIsLoadingMore(true);
+      }
+
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: '50',
+      });
+
+      // Add search parameter
+      if (searchTerm) params.append('search', searchTerm);
+
+      const res = await fetch(`/api/products?${params.toString()}`, { 
+        credentials: 'include' 
+      });
+
       if (res.ok) {
         const data = await res.json();
-        setProducts(data.products || []);
+
+        if (append) {
+          setProducts(prev => [...prev, ...data.products]);
+        } else {
+          setProducts(data.products || []);
+        }
+
+        setTotalProducts(data.pagination.total);
+        setHasMoreProducts(data.pagination.hasMore);
+        setCurrentPage(page);
+
+        console.log('✓ Fetched stock data:', data.products?.length || 0);
+      } else {
+        toast.error('Failed to load stock data');
+        setProducts([]);
       }
     } catch (error) {
-      console.error('Failed to fetch products');
+      console.error('Failed to fetch products:', error);
+      toast.error('Failed to load stock data');
+      setProducts([]);
     } finally {
       setLoading(false);
+      setIsLoadingMore(false);
     }
   };
 
+  const loadMoreProducts = () => {
+    if (!isLoadingMore && hasMoreProducts) {
+      fetchProducts(currentPage + 1, true);
+    }
+  };
+
+  // Calculate stats from loaded products
   const totalStockValue = products.reduce((sum, p) => sum + (p.currentStock * p.costPrice), 0);
   const lowStockItems = products.filter(p => p.currentStock <= p.reorderPoint);
   const outOfStockItems = products.filter(p => p.currentStock <= 0);
@@ -112,15 +164,14 @@ export default function StockPage() {
     window.location.href = '/autocityPro/login';
   };
 
+  // Client-side filtering for status (since we have products loaded)
   const filteredProducts = products.filter((p) => {
-    const matchesSearch = p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.sku?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus =
       filterStatus === "all" ||
       (filterStatus === "low" && p.currentStock <= p.reorderPoint && p.currentStock > 0) ||
       (filterStatus === "out" && p.currentStock <= 0) ||
       (filterStatus === "critical" && p.currentStock > 0 && p.currentStock <= p.minStock);
-    return matchesSearch && matchesStatus;
+    return matchesStatus;
   });
 
   const clearFilters = () => {
@@ -171,7 +222,7 @@ export default function StockPage() {
                 </div>
                 <div className="h-3 w-px bg-white/20"></div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-white text-xs font-medium">{products.length} items</span>
+                  <span className="text-white text-xs font-medium">{products.length} of {totalProducts}</span>
                 </div>
                 {lowStockItems.length > 0 && (
                   <>
@@ -200,7 +251,7 @@ export default function StockPage() {
                 </button>
                 <div>
                   <h1 className="text-xl font-bold text-white">Stock</h1>
-                  <p className="text-xs text-white/60">{filteredProducts.length} products</p>
+                  <p className="text-xs text-white/60">{products.length} of {totalProducts} loaded</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -238,7 +289,9 @@ export default function StockPage() {
             <div className="flex justify-between items-center">
               <div>
                 <h1 className="text-3xl font-bold text-white">Stock Management</h1>
-                <p className="text-white/80 mt-1">Monitor and manage your inventory levels</p>
+                <p className="text-white/80 mt-1">
+                  Monitor and manage your inventory levels • {products.length} of {totalProducts} loaded
+                </p>
               </div>
               <button
                 onClick={downloadStockCSV}
@@ -488,6 +541,64 @@ export default function StockPage() {
               </>
             )}
           </div>
+
+          {/* Load More Button - Desktop */}
+          {hasMoreProducts && !loading && (
+            <div className="hidden md:flex justify-center py-8">
+              <button
+                onClick={loadMoreProducts}
+                disabled={isLoadingMore}
+                className="flex items-center space-x-3 px-6 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 shadow-lg"
+              >
+                {isLoadingMore ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                    <span>Loading More...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Load More Products</span>
+                    <span className="text-sm opacity-80 bg-white/20 px-2 py-1 rounded">
+                      {products.length} of {totalProducts}
+                    </span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+
+          {/* Load More Button - Mobile */}
+          {hasMoreProducts && !loading && (
+            <div className="md:hidden flex justify-center py-6">
+              <button
+                onClick={loadMoreProducts}
+                disabled={isLoadingMore}
+                className="w-full mx-4 px-6 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isLoadingMore ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                    <span>Loading...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Load More</span>
+                    <span className="text-sm opacity-80">
+                      ({products.length}/{totalProducts})
+                    </span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+
+          {/* Products Count Display */}
+          {!loading && products.length > 0 && (
+            <div className="text-center py-4 text-gray-400 text-sm border-t border-white/5">
+              Showing {products.length} of {totalProducts} products
+              {hasMoreProducts && " • Scroll down to load more"}
+            </div>
+          )}
         </div>
 
         {/* Mobile Safe Area Bottom Padding */}
@@ -569,7 +680,7 @@ export default function StockPage() {
               </button>
               <button
                 onClick={() => {
-                  fetchProducts();
+                  fetchProducts(1, false);
                   setShowMobileMenu(false);
                   toast.success('Stock data refreshed');
                 }}

@@ -22,12 +22,13 @@ import {
   TrendingDown,
   Zap,
   Box,
+  LucideGitPullRequestDraft,
+  File,
 } from "lucide-react";
 import { CarMake, carMakesModels } from "@/lib/data/carData";
 import toast from "react-hot-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-
 
 // Extend jsPDF type to include autoTable
 declare module "jspdf" {
@@ -65,6 +66,12 @@ export default function ProductsPage() {
   const [isMobile, setIsMobile] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showDynamicIsland, setShowDynamicIsland] = useState(true);
+  // ADD THESE NEW STATES:
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMoreProducts, setHasMoreProducts] = useState(true);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [nextSKU, setNextSKU] = useState<string>("10001");
 
   // Quick Add Category
   const [showQuickAddCategory, setShowQuickAddCategory] = useState(false);
@@ -151,6 +158,20 @@ export default function ProductsPage() {
     "Lx600",
     "V8",
     "V6",
+    "Standard",
+    "Platinum",
+    "FJ100",
+    "FJ200",
+    "Lc200",
+    "Lc300",
+    "Lx600",
+    "Z71",
+    "Z41",
+    "2500",
+    "1500",
+    "Single-door",
+    "Double-door",
+    "4x4",
   ];
 
   // Common vehicle colors
@@ -182,26 +203,8 @@ export default function ProductsPage() {
     "Forest Green",
   ];
 
-  const filteredProducts = products.filter((p) => {
-    const matchesSearch =
-      p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.barcode?.includes(searchTerm) ||
-      p.carMake?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.carModel?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.variant?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.color?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory =
-      !filterCategory || p.category?._id === filterCategory;
-    const matchesMake = !filterMake || p.carMake === filterMake;
-    const matchesVehicleType =
-      filterIsVehicle === "all" ||
-      (filterIsVehicle === "vehicle" && p.isVehicle) ||
-      (filterIsVehicle === "non-vehicle" && !p.isVehicle);
-    return (
-      matchesSearch && matchesCategory && matchesMake && matchesVehicleType
-    );
-  });
+  // REPLACE WITH:
+  const filteredProducts = products; // Filtering now done server-side
 
   // Keyboard navigation handler
   useEffect(() => {
@@ -374,14 +377,16 @@ export default function ProductsPage() {
     const loadData = async () => {
       try {
         await fetchUser();
-        await fetchProducts();
+        await fetchProducts(1, false); // ← Add parameters
         await fetchCategories();
+        await fetchNextSKU();
       } finally {
         setUserLoading(false);
       }
     };
 
     loadData();
+    
 
     const checkIfMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -393,26 +398,38 @@ export default function ProductsPage() {
     return () => window.removeEventListener("resize", checkIfMobile);
   }, []);
 
+  // ADD THIS NEW USEEFFECT after the initial one:
+    useEffect(() => {
+      setCurrentPage(1);
+      fetchProducts(1, false);
+    }, [searchTerm, filterCategory, filterMake, filterIsVehicle]);
+
   useEffect(() => {
     if (!userLoading && !user) {
       router.push("/autocityPro/login");
     }
   }, [userLoading, user, router]);
 
+  // REPLACE WITH:
   const generateNextSKU = (): string => {
-    if (products.length === 0) {
-      return "10001";
+    return nextSKU; // Now comes from server
+  };
+  // ADD THIS NEW FUNCTION after generateNextSKU:
+  const fetchNextSKU = async () => {
+    try {
+      const res = await fetch("/api/products/next-sku", {
+        credentials: "include",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNextSKU(data.nextSKU);
+        console.log("✓ Next SKU fetched:", data.nextSKU);
+        return data.nextSKU;
+      }
+    } catch (error) {
+      console.error("Error fetching next SKU:", error);
     }
-    const numericSKUs = products
-      .map((p) => p.sku)
-      .filter((sku: string) => /^\d+$/.test(sku))
-      .map((sku: string) => parseInt(sku, 10));
-    if (numericSKUs.length === 0) {
-      return "10001";
-    }
-    const maxSKU = Math.max(...numericSKUs);
-    const nextSKU = Math.max(maxSKU + 1, 10001);
-    return nextSKU.toString();
+    return "10001";
   };
 
   const fetchUser = async () => {
@@ -429,22 +446,67 @@ export default function ProductsPage() {
     }
   };
 
-  const fetchProducts = async () => {
+  // REPLACE WITH:
+  const fetchProducts = async (page = 1, append = false) => {
     try {
-      setLoading(true);
-      const res = await fetch("/api/products", { credentials: "include" });
+      if (!append) {
+        setLoading(true);
+      } else {
+        setIsLoadingMore(true);
+      }
+
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: "50",
+      });
+
+      if (searchTerm) params.append("search", searchTerm);
+      if (filterCategory) params.append("categoryId", filterCategory);
+      if (filterMake) params.append("carMake", filterMake);
+      if (filterIsVehicle !== "all") {
+        params.append(
+          "isVehicle",
+          filterIsVehicle === "vehicle" ? "true" : "false"
+        );
+      }
+
+      const res = await fetch(`/api/products?${params.toString()}`, {
+        credentials: "include",
+      });
+
       if (res.ok) {
         const data = await res.json();
-        setProducts(data.products || []);
+
+        if (append) {
+          setProducts((prev) => [...prev, ...data.products]);
+        } else {
+          setProducts(data.products || []);
+        }
+
+        setTotalProducts(data.pagination.total);
+        setHasMoreProducts(data.pagination.hasMore);
+        setCurrentPage(page);
+
+        console.log("✓ Fetched products:", data.products?.length || 0);
+        console.log("✓ Total in DB:", data.pagination.total);
+        console.log("✓ Has more:", data.pagination.hasMore);
       } else {
         toast.error("Failed to load products");
         setProducts([]);
       }
     } catch (error) {
+      console.error("Error fetching products:", error);
       toast.error("Failed to load products");
       setProducts([]);
     } finally {
       setLoading(false);
+      setIsLoadingMore(false);
+    }
+  };
+  // ADD THIS NEW FUNCTION after fetchProducts:
+  const loadMoreProducts = () => {
+    if (!isLoadingMore && hasMoreProducts) {
+      fetchProducts(currentPage + 1, true);
     }
   };
 
@@ -493,7 +555,11 @@ export default function ProductsPage() {
       toast.error("Failed to add category");
     }
   };
-
+  // ADD THIS NEW FUNCTION before handleAddProduct:
+  const openAddModal = async () => {
+    await fetchNextSKU();
+    setShowAddModal(true);
+  };
   const handleAddProduct = async () => {
     if (!newProduct.name) {
       toast.error("Product name is required");
@@ -509,6 +575,8 @@ export default function ProductsPage() {
 
     try {
       const generatedSKU = generateNextSKU();
+      console.log("🔄 Creating product with SKU:", generatedSKU);
+
       const productData: any = {
         name: newProduct.name,
         description: newProduct.description,
@@ -547,19 +615,27 @@ export default function ProductsPage() {
       });
 
       if (res.ok) {
+        const responseData = await res.json();
+        console.log("✓ Product created successfully:", responseData);
         toast.success(`Product added successfully! SKU: ${generatedSKU}`);
+
         setShowAddModal(false);
         resetNewProduct();
-        fetchProducts();
+
+        // Refresh products list from page 1 and get next SKU
+        await fetchProducts(1, false);
+        await fetchNextSKU();
+        console.log("✓ Products list refreshed");
       } else {
         const error = await res.json();
+        console.error("❌ Failed to create product:", error);
         toast.error(error.error || "Failed to add product");
       }
     } catch (error) {
+      console.error("❌ Error in handleAddProduct:", error);
       toast.error("Failed to add product");
     }
   };
-
   const handleEditProduct = async () => {
     if (!editingProduct) return;
     if (!editingProduct.name || !editingProduct.sku) {
@@ -622,7 +698,7 @@ export default function ProductsPage() {
         toast.success("Product updated successfully!");
         setShowEditModal(false);
         setEditingProduct(null);
-        fetchProducts();
+        await fetchProducts(1, false); // ← NEW
       } else {
         const error = await res.json();
         toast.error(error.error || "Failed to update product");
@@ -642,7 +718,7 @@ export default function ProductsPage() {
       if (res.ok) {
         toast.success("Product deleted successfully!");
         setProductToDelete(null);
-        fetchProducts();
+        await fetchProducts(1, false); // ← NEW
       } else {
         const error = await res.json();
         toast.error(error.error || "Failed to delete product");
@@ -701,99 +777,130 @@ export default function ProductsPage() {
     setFilterCategory("");
     setFilterMake("");
     setFilterIsVehicle("all");
+    setSearchTerm("");
   };
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     window.location.href = "/autocityPro/login";
   };
-const downloadProductsPDF = () => {
-  if (filteredProducts.length === 0) {
-    toast.error("No products to export");
-    return;
-  }
+  const downloadProductsPDF = () => {
+    if (filteredProducts.length === 0) {
+      toast.error("No products to export");
+      return;
+    }
 
-  const doc = new jsPDF({
-    orientation: "landscape",
-    unit: "mm",
-    format: "a4",
-  });
+    // ✅ Sort by SKU ascending (numeric-safe + string-safe)
+    const sortedProducts = [...filteredProducts].sort((a, b) => {
+      const skuA = a.sku?.toString() || "";
+      const skuB = b.sku?.toString() || "";
 
-  const headers = [[
-    "SKU",
-    "Name",
-    "Category",
-    "Barcode",
-    "Price",
-    "Stock",
-    "Make",
-    "Model",
-    "Variant",
-    "Year",
-    "Part No",
-    "Color",
-  ]];
+      if (!isNaN(Number(skuA)) && !isNaN(Number(skuB))) {
+        return Number(skuA) - Number(skuB);
+      }
 
-  const rows = filteredProducts.map((p) => [
-    p.sku || "",
-    p.name || "",
-    p.category?.name || "",
-    p.barcode || "",
-    p.sellingPrice || 0,
-    p.currentStock || 0,
-    p.carMake || "",
-    p.carModel || "",
-    p.variant || "",
-    formatYearRange(p.yearFrom, p.yearTo),
-    p.partNumber || "",
-    p.color || "",
-  ]);
+      return skuA.localeCompare(skuB, undefined, { numeric: true });
+    });
 
-  doc.setFontSize(16);
-  doc.text("Stock", 10, 15);
+    const doc = new jsPDF({
+      orientation: "landscape",
+      unit: "mm",
+      format: "a4",
+    });
 
-  autoTable(doc, {
-    head: headers,
-    body: rows,
-    startY: 22,
-    theme: "grid",
-    showHead: "everyPage",
-    pageBreak: "auto",
+    const headers = [
+      [
+        "SKU",
+        "Name",
+        "Category",
+        "Barcode",
+        "Price",
+        "Stock",
+        "Make",
+        "Model",
+        "Variant",
+        "Year",
+        "Color",
+        "Part No",
+      ],
+    ];
 
-    styles: {
-      fontSize: 9.5,
-      cellPadding: 2.5,
-      overflow: "linebreak",
-      valign: "middle",
-    },
+    const rows = sortedProducts.map((p) => [
+      p.sku || "",
+      p.name || "",
+      p.category?.name || "",
+      p.barcode || "",
+      p.sellingPrice || 0,
+      p.currentStock || 0,
+      p.carMake || "",
+      p.carModel || "",
+      p.variant || "",
+      formatYearRange(p.yearFrom, p.yearTo),
+      p.color || "",
+      p.partNumber || "",
+    ]);
 
-    headStyles: {
-      fillColor: [232, 69, 69], // #E84545
-      textColor: 255,
-      fontStyle: "bold",
-    },
+    autoTable(doc, {
+      head: headers,
+      body: rows,
+      startY: 22,
+      theme: "grid",
+      showHead: "everyPage",
+      pageBreak: "auto",
 
-    columnStyles: {
-    0: { cellWidth: 20 },   // SKU
-    1: { cellWidth: 48 },   // Name (wider)
-    2: { cellWidth: 26 },   // Category
-    3: { cellWidth: 28 },   // Barcode
-    4: { cellWidth: 16 },   // Price
-    5: { cellWidth: 16 },   // Stock
-    6: { cellWidth: 22 },   // Make
-    7: { cellWidth: 22 },   // Model
-    8: { cellWidth: 20 },   // Variant
-    9: { cellWidth: 20 },   // Year
-    10:{ cellWidth: 26 },   // Part No
-    11:{ cellWidth: 18 },   // Color
-  },
+      styles: {
+        fontSize: 6.8, // 🎯 sweet spot for 22–25 rows
+        cellPadding: {
+          top: 1.4,
+          bottom: 1.4,
+          left: 2,
+          right: 2,
+        },
+        overflow: "linebreak",
+        valign: "middle",
+        minCellHeight: 5.8, // 🎯 controls row height
+      },
 
-    margin: { top: 18, left: 8, right: 8 },
-  });
+      headStyles: {
+        fillColor: [65, 16, 16],
+        textColor: 255,
+        fontStyle: "bold",
+        fontSize: 7.5,
+        minCellHeight: 8, // header slightly taller
+      },
 
-  doc.save(`products_${new Date().toISOString().split("T")[0]}.pdf`);
-  toast.success(`Exported ${filteredProducts.length} products to PDF`);
-};
+      columnStyles: {
+        0: { cellWidth: 14 }, // SKU
+        1: { cellWidth: 48 }, // Name
+        2: { cellWidth: 32 },
+        3: { cellWidth: 31 },
+        4: { cellWidth: 14 },
+        5: { cellWidth: 15 },
+        6: { cellWidth: 18 },
+        7: { cellWidth: 24 },
+        8: { cellWidth: 17 },
+        9: { cellWidth: 22 },
+        11: { cellWidth: 16 },
+        10: { cellWidth: 30 },
+      },
+
+      margin: {
+        top: 18,
+        left: 8,
+        right: 8,
+      },
+
+      didParseCell: (data) => {
+        // 🔒 Prevent extra height from empty cells
+        if (data.cell.raw === null || data.cell.raw === undefined) {
+          data.cell.text = [""];
+        }
+      },
+    });
+
+    doc.save(`products_${new Date().toISOString().split("T")[0]}.pdf`);
+    toast.success(`Exported ${sortedProducts.length} products to PDF`);
+  };
 
   const downloadProductsCSV = () => {
     if (filteredProducts.length === 0) {
@@ -899,7 +1006,7 @@ const downloadProductsPDF = () => {
                 <div className="flex items-center gap-2">
                   <Box className="h-3 w-3 text-[#E84545]" />
                   <span className="text-white text-xs font-semibold">
-                    {products.length}
+                    {totalProducts}
                   </span>
                 </div>
                 <div className="h-3 w-px bg-white/20"></div>
@@ -952,7 +1059,7 @@ const downloadProductsPDF = () => {
         </div>
 
         {/* Mobile Header - Compact */}
-        <div className="md:hidden fixed top-16 left-0 right-0 z-40 bg-gradient-to-br from-[#0A0A0A] via-[#050505] to-[#0A0A0A] border-b border-white/5 backdrop-blur-xl">
+        <div className="md:hidden fixed top-14 left-0 right-0 z-40 bg-gradient-to-br from-[#0A0A0A] via-[#050505] to-[#0A0A0A] border-b border-white/5 backdrop-blur-xl">
           <div className="px-4 py-3">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
@@ -965,7 +1072,7 @@ const downloadProductsPDF = () => {
                 <div>
                   <h1 className="text-xl font-bold text-white">Products</h1>
                   <p className="text-xs text-white/60">
-                    {filteredProducts.length} items
+                    {products.length} of {totalProducts} loaded
                   </p>
                 </div>
               </div>
@@ -992,9 +1099,7 @@ const downloadProductsPDF = () => {
             <div className="grid grid-cols-3 gap-2 mt-3">
               <div className="bg-[#0A0A0A]/50 rounded-lg p-2 border border-white/5">
                 <p className="text-[10px] text-gray-400">Total</p>
-                <p className="text-sm font-bold text-white">
-                  {products.length}
-                </p>
+                <p className="text-sm font-bold text-white">{totalProducts}</p>
               </div>
               <div className="bg-[#0A0A0A]/50 rounded-lg p-2 border border-white/5">
                 <p className="text-[10px] text-gray-400">Value</p>
@@ -1023,11 +1128,12 @@ const downloadProductsPDF = () => {
               <div>
                 <h1 className="text-3xl font-bold text-white">Products</h1>
                 <p className="text-white/80 mt-1">
-                  {filteredProducts.length} products
+                  {products.length} of {totalProducts} products loaded
                   {(filterCategory ||
                     filterMake ||
-                    filterIsVehicle !== "all") &&
-                    ` (filtered from ${products.length})`}
+                    filterIsVehicle !== "all" ||
+                    searchTerm) &&
+                    ` (filtered)`}
                 </p>
               </div>
               <div className="flex gap-3">
@@ -1048,8 +1154,8 @@ const downloadProductsPDF = () => {
                 </button>
 
                 <button
-                  onClick={() => setShowAddModal(true)}
-                  className="flex items-center space-x-2 px-4 py-2 bg-white text-[#E84545] rounded-lg hover:bg-gray-100 transition-colors shadow-lg"
+                  onClick={openAddModal} // ← NEW
+                  className="flex items-center space-x-2 px-4 py-2 bg-white text-[#E84545]..."
                 >
                   <Plus className="h-5 w-5" />
                   <span>Add Product</span>
@@ -1621,6 +1727,63 @@ const downloadProductsPDF = () => {
               </div>
             </div>
           </div>
+          {/* Load More Button - Desktop */}
+          {hasMoreProducts && !loading && (
+            <div className="hidden md:flex justify-center py-8">
+              <button
+                onClick={loadMoreProducts}
+                disabled={isLoadingMore}
+                className="flex items-center space-x-3 px-6 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 shadow-lg"
+              >
+                {isLoadingMore ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                    <span>Loading More...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Load More Products</span>
+                    <span className="text-sm opacity-80 bg-white/20 px-2 py-1 rounded">
+                      {products.length} of {totalProducts}
+                    </span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+
+          {/* Load More Button - Mobile */}
+          {hasMoreProducts && !loading && (
+            <div className="md:hidden flex justify-center py-6">
+              <button
+                onClick={loadMoreProducts}
+                disabled={isLoadingMore}
+                className="w-full mx-4 px-6 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isLoadingMore ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                    <span>Loading...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Load More</span>
+                    <span className="text-sm opacity-80">
+                      ({products.length}/{totalProducts})
+                    </span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+
+          {/* Products Count Display */}
+          {!loading && products.length > 0 && (
+            <div className="text-center py-4 text-gray-400 text-sm border-t border-white/5">
+              Showing {products.length} of {totalProducts} products
+              {hasMoreProducts && " • Scroll down to load more"}
+            </div>
+          )}
         </div>
       </div>
 
@@ -1640,14 +1803,25 @@ const downloadProductsPDF = () => {
 
             <div className="space-y-3">
               <button
-                onClick={() => {
+                onClick={async () => {
+                  await fetchNextSKU(); // ← ADD THIS
                   setShowAddModal(true);
                   setShowMobileMenu(false);
                 }}
-                className="w-full p-4 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] rounded-2xl text-white font-semibold hover:from-[#d63d3d] hover:to-[#b53535] transition-all flex items-center justify-between shadow-lg active:scale-95"
+                className="w-full p-4 bg-gradient-to-r..."
               >
                 <span>Add Product</span>
                 <Plus className="h-5 w-5" />
+              </button>
+              <button
+                onClick={() => {
+                  downloadProductsPDF();
+                  setShowMobileMenu(false);
+                }}
+                className="w-full p-4 bg-[#0A0A0A] border border-white/10 rounded-2xl text-white font-semibold hover:bg-[#E84545]/20 transition-all flex items-center justify-between active:scale-95"
+              >
+                <span>Export PDF</span>
+                <File className="h-5 w-5" />
               </button>
 
               <button
@@ -1686,7 +1860,7 @@ const downloadProductsPDF = () => {
                   Add New Product
                 </h2>
                 <p className="text-xs md:text-sm text-gray-400 mt-1">
-                  SKU: {generateNextSKU()}
+                  Next SKU: {nextSKU}
                 </p>
               </div>
               <button

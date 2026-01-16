@@ -9,7 +9,9 @@ import { postInventoryAdjustmentToLedger } from '@/lib/services/accountingServic
 import mongoose from 'mongoose';
 import InventoryMovement from '@/lib/models/InventoryMovement';
 
-// GET /api/products
+// ============================================================================
+// GET /api/products - Fetch products with pagination, search, and filters
+// ============================================================================
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
@@ -22,24 +24,49 @@ export async function GET(request: NextRequest) {
     }
     
     const user = verifyToken(token);
+    
+    // Ensure outletId is properly typed as ObjectId
+    const outletIdObj = typeof user.outletId === 'string' 
+      ? new mongoose.Types.ObjectId(user.outletId)
+      : user.outletId;
+    
     const { searchParams } = new URL(request.url);
     
     const query: any = {
-      outletId: user.outletId,
+      outletId: outletIdObj,
       isActive: true,
     };
     
+    // ─────────────────────────────────────────────────────────────
+    // SEARCH FUNCTIONALITY - Server-side search for performance
+    // ─────────────────────────────────────────────────────────────
+    const searchTerm = searchParams.get('search');
+    if (searchTerm) {
+      query.$or = [
+        { name: { $regex: searchTerm, $options: 'i' } },
+        { sku: { $regex: searchTerm, $options: 'i' } },
+        { barcode: { $regex: searchTerm, $options: 'i' } },
+        { carMake: { $regex: searchTerm, $options: 'i' } },
+        { carModel: { $regex: searchTerm, $options: 'i' } },
+        { variant: { $regex: searchTerm, $options: 'i' } },
+        { color: { $regex: searchTerm, $options: 'i' } },
+        { partNumber: { $regex: searchTerm, $options: 'i' } },
+      ];
+    }
+    
+    // ─────────────────────────────────────────────────────────────
+    // FILTERS
+    // ─────────────────────────────────────────────────────────────
     const categoryId = searchParams.get('categoryId');
     if (categoryId) {
-      query.category = categoryId;
+      query.category = new mongoose.Types.ObjectId(categoryId);
     }
     
     const isVehicle = searchParams.get('isVehicle');
-    if (isVehicle !== null) {
+    if (isVehicle !== null && isVehicle !== 'all') {
       query.isVehicle = isVehicle === 'true';
     }
     
-    // Add filters for vehicle-specific fields
     const carMake = searchParams.get('carMake');
     if (carMake) {
       query.carMake = carMake;
@@ -57,17 +84,35 @@ export async function GET(request: NextRequest) {
     
     const year = searchParams.get('year');
     if (year) {
-      query.year = parseInt(year);
+      const yearNum = parseInt(year);
+      query.$and = [
+        { $or: [{ yearFrom: { $lte: yearNum } }, { yearFrom: null }] },
+        { $or: [{ yearTo: { $gte: yearNum } }, { yearTo: null }] }
+      ];
     }
     
+    // ─────────────────────────────────────────────────────────────
+    // PAGINATION
+    // ─────────────────────────────────────────────────────────────
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
     const skip = (page - 1) * limit;
     
+    // ─────────────────────────────────────────────────────────────
+    // SORTING
+    // ─────────────────────────────────────────────────────────────
+    const sortBy = searchParams.get('sortBy') || 'sku';
+    const sortOrder = searchParams.get('sortOrder') === 'desc' ? -1 : 1;
+    const sort: any = { [sortBy]: sortOrder };
+    
+    // ─────────────────────────────────────────────────────────────
+    // EXECUTE QUERY - Use lean() for performance
+    // ─────────────────────────────────────────────────────────────
     const [products, total] = await Promise.all([
       Product.find(query)
         .populate('category', 'name')
-        .sort({ name: 1 })
+        .select('-__v') // Exclude version key for smaller payload
+        .sort(sort)
         .skip(skip)
         .limit(limit)
         .lean(),
@@ -81,6 +126,7 @@ export async function GET(request: NextRequest) {
         page,
         limit,
         pages: Math.ceil(total / limit),
+        hasMore: page < Math.ceil(total / limit),
       },
     });
   } catch (error: any) {
@@ -89,8 +135,9 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/products
-// POST /api/products
+// ============================================================================
+// POST /api/products - Create a new product
+// ============================================================================
 export async function POST(request: NextRequest) {
   try {
     await connectDB();
@@ -104,6 +151,18 @@ export async function POST(request: NextRequest) {
     
     const user = verifyToken(token);
     const userId = new mongoose.Types.ObjectId(user.userId);
+    
+    // Ensure outletId is properly typed as ObjectId
+    const outletIdObj = typeof user.outletId === 'string' 
+      ? new mongoose.Types.ObjectId(user.outletId)
+      : user.outletId;
+    
+    console.log('🔍 Creating product for user:', {
+      userId: user.userId,
+      outletId: outletIdObj ? outletIdObj.toString() : '',
+      email: user.email
+    });
+    
     const body = await request.json();
     
     const {
@@ -117,8 +176,8 @@ export async function POST(request: NextRequest) {
       carMake,
       carModel,
       variant,
-      yearFrom,  // CHANGED: from 'year' to 'yearFrom'
-      yearTo,    // NEW: added yearTo
+      yearFrom,
+      yearTo,
       color,
       vin,
       unit,
@@ -137,13 +196,16 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    console.log('🔍 Checking for existing SKU:', sku);
+    
     // Check if SKU already exists
     const existingProduct = await Product.findOne({
       sku,
-      outletId: user.outletId,
+      outletId: outletIdObj,
     });
     
     if (existingProduct) {
+      console.log('❌ SKU already exists:', sku);
       return NextResponse.json(
         { error: 'Product with this SKU already exists' },
         { status: 400 }
@@ -163,11 +225,24 @@ export async function POST(request: NextRequest) {
       }
     }
     
+    // Ensure categoryId is also an ObjectId
+    const categoryIdObj = typeof categoryId === 'string'
+      ? new mongoose.Types.ObjectId(categoryId)
+      : categoryId;
+    
+    console.log('🔍 Creating product with data:', {
+      sku,
+      name,
+      outletId: outletIdObj?.toString() ?? '',
+      category: categoryIdObj.toString(),
+      isActive: true,
+    });
+    
     // Create product
     const product = await Product.create({
       name,
       description,
-      category: categoryId,
+      category: categoryIdObj,
       sku,
       barcode,
       partNumber,
@@ -175,8 +250,8 @@ export async function POST(request: NextRequest) {
       carMake: isVehicle ? carMake : undefined,
       carModel: isVehicle ? carModel : undefined,
       variant: isVehicle ? variant : undefined,
-      yearFrom: isVehicle && yearFrom ? parseInt(yearFrom) : undefined,  // CHANGED
-      yearTo: isVehicle && yearTo ? parseInt(yearTo) : undefined,        // NEW
+      yearFrom: isVehicle && yearFrom ? parseInt(yearFrom) : undefined,
+      yearTo: isVehicle && yearTo ? parseInt(yearTo) : undefined,
       color: isVehicle ? color : undefined,
       vin: isVehicle ? vin : undefined,
       costPrice: cost,
@@ -187,47 +262,64 @@ export async function POST(request: NextRequest) {
       maxStock: Number(maxStock) || 1000,
       reorderPoint: Number(minStock) || 0,
       unit: unit || 'pcs',
-      outletId: user.outletId,
+      outletId: outletIdObj,
+      isActive: true, // Explicitly set to true
     });
     
-    console.log(`✓ Product created: ${name} (SKU: ${sku})`);
+    console.log(`✅ Product created successfully:`, {
+      _id: product._id.toString(),
+      sku: product.sku,
+      name: product.name,
+      outletId: product.outletId.toString(),
+      isActive: product.isActive,
+    });
+    
+    // Verify it can be found immediately
+    const verifyProduct = await Product.findOne({
+      sku: product.sku,
+      outletId: outletIdObj,
+      isActive: true,
+    }).lean();
+    
+    console.log('🔍 Verification - Product findable:', verifyProduct ? 'YES ✅' : 'NO ❌');
+    if (!verifyProduct) {
+      console.error('⚠️ WARNING: Product was created but cannot be found with query!');
+    }
+    
     if (isVehicle) {
       console.log(`   Type: Vehicle`);
       console.log(`   Make: ${carMake}${carModel ? ` ${carModel}` : ''}${variant ? ` ${variant}` : ''}`);
       if (color) console.log(`   Color: ${color}`);
-      if (yearFrom || yearTo) {  // CHANGED
+      if (yearFrom || yearTo) {
         const yearRange = yearFrom && yearTo ? `${yearFrom}-${yearTo}` : 
                          yearFrom ? `${yearFrom}+` : 
                          yearTo ? `Up to ${yearTo}` : '';
         console.log(`   Year Range: ${yearRange}`);
       }
     }
-     // ───────────────── INVENTORY OPENING MOVEMENT ─────────────────
-if (stockQty > 0 && cost > 0) {
-  await InventoryMovement.create({
-    productId: product._id,
-    productName: name,
-    sku,
-
-    movementType: 'ADJUSTMENT', // opening stock
-    quantity: stockQty,
-    unitCost: cost,
-    totalValue: stockQty * cost,
-
-    referenceType: 'ADJUSTMENT',
-    referenceId: product._id,
-    referenceNumber: `OPEN-${sku}`,
-
-    outletId: user.outletId,
-    balanceAfter: stockQty,
-
-    date: new Date(),
-    notes: 'Opening stock on product creation',
-    createdBy: userId,
-    ledgerEntriesCreated: true,
-  });
-}
-
+    
+    // ─────────────────── INVENTORY OPENING MOVEMENT ─────────────────
+    if (stockQty > 0 && cost > 0) {
+      await InventoryMovement.create({
+        productId: product._id,
+        productName: name,
+        sku,
+        movementType: 'ADJUSTMENT',
+        quantity: stockQty,
+        unitCost: cost,
+        totalValue: stockQty * cost,
+        referenceType: 'ADJUSTMENT',
+        referenceId: product._id,
+        referenceNumber: `OPEN-${sku}`,
+        outletId: outletIdObj,
+        balanceAfter: stockQty,
+        date: new Date(),
+        notes: 'Opening stock on product creation',
+        createdBy: userId,
+        ledgerEntriesCreated: true,
+      });
+    }
+    
     // ═══════════════════════════════════════════════════════════
     // ACCOUNTING: Post initial inventory value to ledger
     // ═══════════════════════════════════════════════════════════
@@ -255,7 +347,7 @@ if (stockQty > 0 && cost > 0) {
           totalValue: inventoryValue,
           date: new Date(),
           reason: `Opening stock for new product: ${name}`,
-          outletId: user.outletId,
+          outletId: outletIdObj,
         };
         
         const result = await postInventoryAdjustmentToLedger(
@@ -267,14 +359,12 @@ if (stockQty > 0 && cost > 0) {
         
         console.log(`✓ Inventory value posted: QAR ${inventoryValue.toFixed(2)}`);
         console.log(`✓ Journal Entry: ${result.voucherNumber}`);
-        console.log(`   DR Inventory (Asset): ${inventoryValue.toFixed(2)}`);
-        console.log(`   CR Owner's Equity: ${inventoryValue.toFixed(2)}`);
         
       } catch (ledgerError: any) {
         console.error('⚠️ Failed to post inventory to ledger:', ledgerError.message);
       }
     } else if (stockQty > 0) {
-      console.warn(`⚠️ Product has opening stock (${stockQty}) but no cost price set. Skipping ledger entry.`);
+      console.warn(`⚠️ Product has opening stock (${stockQty}) but no cost price set.`);
     }
     
     // Activity log
@@ -292,7 +382,7 @@ if (stockQty > 0 && cost > 0) {
       }${
         stockQty > 0 ? ` with opening stock: ${stockQty} ${unit || 'pcs'} @ QAR ${cost.toFixed(2)} = QAR ${(stockQty * cost).toFixed(2)}` : ''
       }`,
-      outletId: user.outletId,
+      outletId: outletIdObj,
       timestamp: new Date(),
     });
     
@@ -304,7 +394,8 @@ if (stockQty > 0 && cost > 0) {
     }, { status: 201 });
     
   } catch (error: any) {
-    console.error('Error creating product:', error);
+    console.error('❌ Error creating product:', error);
+    console.error('Error stack:', error.stack);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

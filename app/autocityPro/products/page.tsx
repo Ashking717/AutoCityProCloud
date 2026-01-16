@@ -77,6 +77,10 @@ export default function ProductsPage() {
   const [showQuickAddCategory, setShowQuickAddCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [nameSuggestions, setNameSuggestions] = useState<string[]>([]);
+  const [showNameSuggestions, setShowNameSuggestions] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
   const [newProduct, setNewProduct] = useState<{
     name: string;
     description: string;
@@ -386,7 +390,6 @@ export default function ProductsPage() {
     };
 
     loadData();
-    
 
     const checkIfMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -399,10 +402,10 @@ export default function ProductsPage() {
   }, []);
 
   // ADD THIS NEW USEEFFECT after the initial one:
-    useEffect(() => {
-      setCurrentPage(1);
-      fetchProducts(1, false);
-    }, [searchTerm, filterCategory, filterMake, filterIsVehicle]);
+  useEffect(() => {
+    setCurrentPage(1);
+    fetchProducts(1, false);
+  }, [searchTerm, filterCategory, filterMake, filterIsVehicle]);
 
   useEffect(() => {
     if (!userLoading && !user) {
@@ -507,6 +510,26 @@ export default function ProductsPage() {
   const loadMoreProducts = () => {
     if (!isLoadingMore && hasMoreProducts) {
       fetchProducts(currentPage + 1, true);
+    }
+  };
+  const fetchNameSuggestions = async (query: string) => {
+    if (query.length < 1) {
+      setNameSuggestions([]);
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        `/api/products/suggestions?q=${encodeURIComponent(query)}`,
+        { credentials: "include" }
+      );
+
+      if (res.ok) {
+        const data = await res.json();
+        setNameSuggestions(data.suggestions || []);
+      }
+    } catch (err) {
+      console.error("Suggestion fetch failed:", err);
     }
   };
 
@@ -1808,7 +1831,7 @@ export default function ProductsPage() {
                   setShowAddModal(true);
                   setShowMobileMenu(false);
                 }}
-                className="w-full p-4 bg-gradient-to-r..."
+                className="w-full p-4 bg-gradient-to-red from-[#E84545] to-[#cc3c3c] rounded-2xl text-white font-semibold hover:opacity-90 transition-all flex items-center justify-between active:scale-95"
               >
                 <span>Add Product</span>
                 <Plus className="h-5 w-5" />
@@ -1877,19 +1900,46 @@ export default function ProductsPage() {
             <div className="p-4 md:p-6 space-y-4 overflow-y-auto max-h-[calc(90vh-140px)]">
               {/* Basic Info */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
+                <div className="md:col-span-2 relative">
                   <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                     Product Name *
                   </label>
+
                   <input
                     type="text"
                     value={newProduct.name}
-                    onChange={(e) =>
-                      setNewProduct({ ...newProduct, name: e.target.value })
-                    }
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setNewProduct({ ...newProduct, name: value });
+                      fetchNameSuggestions(value);
+                      setShowNameSuggestions(true);
+                    }}
+                    onBlur={() => {
+                      // delay so click works
+                      setTimeout(() => setShowNameSuggestions(false), 150);
+                    }}
                     className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
                     placeholder="Product name"
+                    autoComplete="off"
                   />
+
+                  {/* Suggestions dropdown */}
+                  {showNameSuggestions && nameSuggestions.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-[#0A0A0A] border border-white/10 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+                      {nameSuggestions.map((name, index) => (
+                        <div
+                          key={index}
+                          onMouseDown={() => {
+                            setNewProduct({ ...newProduct, name });
+                            setShowNameSuggestions(false);
+                          }}
+                          className="px-3 py-2 text-sm text-gray-200 hover:bg-[#E84545]/20 cursor-pointer"
+                        >
+                          {name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="md:col-span-2">

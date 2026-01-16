@@ -807,22 +807,78 @@ export default function ProductsPage() {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     window.location.href = "/autocityPro/login";
   };
-  const downloadProductsPDF = () => {
-    if (filteredProducts.length === 0) {
+const downloadProductsPDF = async () => {
+  try {
+    toast.loading("Preparing PDF export...");
+
+    const PRIORITY_MAKES = ["toyota", "nissan", "lexus", "ford"];
+
+    // Fetch ALL products (export mode)
+    const params = new URLSearchParams({ export: "true" });
+
+    if (searchTerm) params.append("search", searchTerm);
+    if (filterCategory) params.append("categoryId", filterCategory);
+    if (filterMake) params.append("carMake", filterMake);
+    if (filterIsVehicle !== "all") {
+      params.append(
+        "isVehicle",
+        filterIsVehicle === "vehicle" ? "true" : "false"
+      );
+    }
+
+    const res = await fetch(`/api/products?${params.toString()}`, {
+      credentials: "include",
+    });
+
+    if (!res.ok) throw new Error("Export fetch failed");
+
+    const { products: allProducts } = await res.json();
+
+    if (!allProducts || allProducts.length === 0) {
+      toast.dismiss();
       toast.error("No products to export");
       return;
     }
 
-    // ✅ Sort by SKU ascending (numeric-safe + string-safe)
-    const sortedProducts = [...filteredProducts].sort((a, b) => {
-      const skuA = a.sku?.toString() || "";
-      const skuB = b.sku?.toString() || "";
+    // ─────────────────────────────────────────────
+    // SORTING (OTHERS ALWAYS LAST)
+    // ─────────────────────────────────────────────
+    const sortedProducts = [...allProducts].sort((a, b) => {
+      const hasMakeA = !!a.carMake;
+      const hasMakeB = !!b.carMake;
 
-      if (!isNaN(Number(skuA)) && !isNaN(Number(skuB))) {
-        return Number(skuA) - Number(skuB);
-      }
+      // 1️⃣ Products without carMake go LAST
+      if (hasMakeA && !hasMakeB) return -1;
+      if (!hasMakeA && hasMakeB) return 1;
 
-      return skuA.localeCompare(skuB, undefined, { numeric: true });
+      // Both have no make → keep relative order
+      if (!hasMakeA && !hasMakeB) return 0;
+
+      const makeA = a.carMake.toLowerCase();
+      const makeB = b.carMake.toLowerCase();
+
+      const idxA = PRIORITY_MAKES.indexOf(makeA);
+      const idxB = PRIORITY_MAKES.indexOf(makeB);
+
+      // 2️⃣ Both priority makes
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+
+      // 3️⃣ One priority make
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+
+      // 4️⃣ Alphabetical by make
+      if (makeA !== makeB) return makeA.localeCompare(makeB);
+
+      // 5️⃣ Same make → model
+      const modelA = (a.carModel || "").toLowerCase();
+      const modelB = (b.carModel || "").toLowerCase();
+      if (modelA !== modelB) return modelA.localeCompare(modelB);
+
+      // 6️⃣ Same model → name
+      return (a.name || "").toLowerCase().localeCompare(
+        (b.name || "").toLowerCase()
+      );
     });
 
     const doc = new jsPDF({
@@ -831,37 +887,125 @@ export default function ProductsPage() {
       format: "a4",
     });
 
-    const headers = [
-      [
-        "SKU",
-        "Name",
-        "Category",
-        "Barcode",
-        "Price",
-        "Stock",
-        "Make",
-        "Model",
-        "Variant",
-        "Year",
-        "Color",
-        "Part No",
-      ],
-    ];
+    const headers = [[
+      "SKU",
+      "Name",
+      "Category",
+      "Barcode",
+      "Price",
+      "Stock",
+      "Make",
+      "Model",
+      "Variant",
+      "Year",
+      "Color",
+      "Part No",
+    ]];
 
-    const rows = sortedProducts.map((p) => [
-      p.sku || "",
-      p.name || "",
-      p.category?.name || "",
-      p.barcode || "",
-      p.sellingPrice || 0,
-      p.currentStock || 0,
-      p.carMake || "",
-      p.carModel || "",
-      p.variant || "",
-      formatYearRange(p.yearFrom, p.yearTo),
-      p.color || "",
-      p.partNumber || "",
-    ]);
+    const rows: any[] = [];
+    let lastMake = "";
+    let lastModel = "";
+    let othersStarted = false;
+
+    sortedProducts.forEach((p) => {
+      const hasMake = !!p.carMake;
+
+      // ───── OTHERS (ALWAYS LAST) ─────
+      if (!hasMake) {
+        if (!othersStarted) {
+          // Spacer rows
+          rows.push(["", "", "", "", "", "", "", "", "", "", "", ""]);
+          rows.push(["", "", "", "", "", "", "", "", "", "", "", ""]);
+
+          // OTHERS header (centered)
+          rows.push([
+            {
+              content: "OTHERS / GENERAL PRODUCTS",
+              colSpan: 12,
+              styles: {
+                fillColor: [40, 40, 40],
+                textColor: 255,
+                fontStyle: "bold",
+                fontSize: 9,
+                halign: "center",
+              },
+            },
+          ]);
+
+          othersStarted = true;
+        }
+
+        rows.push([
+          p.sku || "",
+          p.name || "",
+          p.category?.name || "",
+          p.barcode || "",
+          p.sellingPrice || 0,
+          p.currentStock || 0,
+          "",
+          "",
+          p.variant || "",
+          formatYearRange(p.yearFrom, p.yearTo),
+          p.color || "",
+          p.partNumber || "",
+        ]);
+
+        return;
+      }
+
+      // ───── MAKE HEADER (CENTERED) ─────
+      if (p.carMake !== lastMake) {
+        rows.push([
+          {
+            content: p.carMake.toUpperCase(),
+            colSpan: 12,
+            styles: {
+              fillColor: [25, 25, 25],
+              textColor: 255,
+              fontStyle: "bold",
+              fontSize: 9,
+              halign: "center",
+            },
+          },
+        ]);
+        lastMake = p.carMake;
+        lastModel = "";
+      }
+
+      // ───── MODEL HEADER (LEFT) ─────
+      if (p.carModel && p.carModel !== lastModel) {
+        rows.push([
+          {
+            content: `  ${p.carModel}`,
+            colSpan: 12,
+            styles: {
+              fillColor: [140, 140, 140],
+              textColor: 255,
+              fontStyle: "bold",
+              fontSize: 8,
+              halign: "left",
+            },
+          },
+        ]);
+        lastModel = p.carModel;
+      }
+
+      // ───── PRODUCT ROW ─────
+      rows.push([
+        p.sku || "",
+        p.name || "",
+        p.category?.name || "",
+        p.barcode || "",
+        p.sellingPrice || 0,
+        p.currentStock || 0,
+        p.carMake || "",
+        p.carModel || "",
+        p.variant || "",
+        formatYearRange(p.yearFrom, p.yearTo),
+        p.color || "",
+        p.partNumber || "",
+      ]);
+    });
 
     autoTable(doc, {
       head: headers,
@@ -870,60 +1014,30 @@ export default function ProductsPage() {
       theme: "grid",
       showHead: "everyPage",
       pageBreak: "auto",
-
       styles: {
-        fontSize: 6.8, // 🎯 sweet spot for 22–25 rows
-        cellPadding: {
-          top: 1.4,
-          bottom: 1.4,
-          left: 2,
-          right: 2,
-        },
-        overflow: "linebreak",
+        fontSize: 6.8,
+        cellPadding: { top: 1.4, bottom: 1.4, left: 2, right: 2 },
         valign: "middle",
-        minCellHeight: 5.8, // 🎯 controls row height
       },
-
       headStyles: {
         fillColor: [65, 16, 16],
         textColor: 255,
         fontStyle: "bold",
         fontSize: 7.5,
-        minCellHeight: 8, // header slightly taller
       },
-
-      columnStyles: {
-        0: { cellWidth: 14 }, // SKU
-        1: { cellWidth: 48 }, // Name
-        2: { cellWidth: 32 },
-        3: { cellWidth: 31 },
-        4: { cellWidth: 14 },
-        5: { cellWidth: 15 },
-        6: { cellWidth: 18 },
-        7: { cellWidth: 24 },
-        8: { cellWidth: 17 },
-        9: { cellWidth: 22 },
-        11: { cellWidth: 16 },
-        10: { cellWidth: 30 },
-      },
-
-      margin: {
-        top: 18,
-        left: 8,
-        right: 8,
-      },
-
-      didParseCell: (data) => {
-        // 🔒 Prevent extra height from empty cells
-        if (data.cell.raw === null || data.cell.raw === undefined) {
-          data.cell.text = [""];
-        }
-      },
+      margin: { top: 18, left: 8, right: 8 },
     });
 
     doc.save(`products_${new Date().toISOString().split("T")[0]}.pdf`);
+
+    toast.dismiss();
     toast.success(`Exported ${sortedProducts.length} products to PDF`);
-  };
+  } catch (err) {
+    toast.dismiss();
+    console.error("PDF export failed:", err);
+    toast.error("Failed to export PDF");
+  }
+};
 
   const downloadProductsCSV = () => {
     if (filteredProducts.length === 0) {

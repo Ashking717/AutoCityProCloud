@@ -14,7 +14,10 @@ import {
   FileDown, 
   Search,
   Zap,
-  RefreshCw 
+  RefreshCw,
+  Car,
+  Palette,
+  Calendar
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -22,6 +25,7 @@ export default function StockPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -29,6 +33,15 @@ export default function StockPage() {
   const [isMobile, setIsMobile] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showDynamicIsland, setShowDynamicIsland] = useState(true);
+
+  // Advanced filters
+  const [filterCategory, setFilterCategory] = useState("");
+  const [filterMake, setFilterMake] = useState("");
+  const [filterModel, setFilterModel] = useState("");
+  const [filterVariant, setFilterVariant] = useState("");
+  const [filterColor, setFilterColor] = useState("");
+  const [filterYear, setFilterYear] = useState("");
+  const [filterIsVehicle, setFilterIsVehicle] = useState<string>("all");
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -38,6 +51,7 @@ export default function StockPage() {
 
   useEffect(() => {
     fetchUser();
+    fetchCategories();
     fetchProducts(1, false);
 
     const checkIfMobile = () => {
@@ -54,9 +68,17 @@ export default function StockPage() {
   useEffect(() => {
     setCurrentPage(1);
     fetchProducts(1, false);
-  }, [searchTerm, filterStatus]);
+  }, [searchTerm, filterStatus, filterCategory, filterMake, filterModel, filterVariant, filterColor, filterYear, filterIsVehicle]);
 
-  // Function to convert stock value to code format
+  // Helper function to check if a year falls within a product's year range
+  const isYearInRange = (product: any, selectedYear: string) => {
+    if (!selectedYear) return true;
+    const year = parseInt(selectedYear);
+    const yearFrom = product.yearFrom || year;
+    const yearTo = product.yearTo || yearFrom;
+    return year >= yearFrom && year <= yearTo;
+  };
+
   const convertToStockCode = (value: number) => {
     const valueStr = Math.floor(value).toString();
     let result = '';
@@ -97,6 +119,18 @@ export default function StockPage() {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch('/api/categories', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setCategories(data.categories || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch categories');
+    }
+  };
+
   const fetchProducts = async (page = 1, append = false) => {
     try {
       if (!append) {
@@ -110,8 +144,17 @@ export default function StockPage() {
         limit: '50',
       });
 
-      // Add search parameter
+      // Add all filter parameters
       if (searchTerm) params.append('search', searchTerm);
+      if (filterCategory) params.append('categoryId', filterCategory);
+      if (filterMake) params.append('carMake', filterMake);
+      if (filterModel) params.append('carModel', filterModel);
+      if (filterVariant) params.append('variant', filterVariant);
+      if (filterColor) params.append('color', filterColor);
+      // Note: Year filtering will be done client-side to support range checking
+      if (filterIsVehicle !== 'all') {
+        params.append('isVehicle', filterIsVehicle === 'vehicle' ? 'true' : 'false');
+      }
 
       const res = await fetch(`/api/products?${params.toString()}`, { 
         credentials: 'include' 
@@ -151,11 +194,13 @@ export default function StockPage() {
     }
   };
 
-  // Calculate stats from loaded products
-  const totalStockValue = products.reduce((sum, p) => sum + (p.currentStock * p.costPrice), 0);
-  const lowStockItems = products.filter(p => p.currentStock <= p.reorderPoint);
-  const outOfStockItems = products.filter(p => p.currentStock <= 0);
-  const criticalItems = products.filter(p => p.currentStock > 0 && p.currentStock <= p.minStock);
+  // Calculate stats from loaded products (after year range filtering)
+  const yearFilteredProducts = products.filter(p => isYearInRange(p, filterYear));
+  
+  const totalStockValue = yearFilteredProducts.reduce((sum, p) => sum + (p.currentStock * p.costPrice), 0);
+  const lowStockItems = yearFilteredProducts.filter(p => p.currentStock <= p.reorderPoint);
+  const outOfStockItems = yearFilteredProducts.filter(p => p.currentStock <= 0);
+  const criticalItems = yearFilteredProducts.filter(p => p.currentStock > 0 && p.currentStock <= p.minStock);
 
   const totalStockCode = convertToStockCode(totalStockValue);
 
@@ -164,8 +209,8 @@ export default function StockPage() {
     window.location.href = '/autocityPro/login';
   };
 
-  // Client-side filtering for status (since we have products loaded)
-  const filteredProducts = products.filter((p) => {
+  // Client-side filtering for status and year range
+  const filteredProducts = yearFilteredProducts.filter((p) => {
     const matchesStatus =
       filterStatus === "all" ||
       (filterStatus === "low" && p.currentStock <= p.reorderPoint && p.currentStock > 0) ||
@@ -174,24 +219,69 @@ export default function StockPage() {
     return matchesStatus;
   });
 
+  // Get unique values for filters from loaded products
+  const availableMakes = [...new Set(products.filter(p => p.carMake).map(p => p.carMake))].sort();
+  const availableModels = filterMake 
+    ? [...new Set(products.filter(p => p.carMake === filterMake && p.carModel).map(p => p.carModel))].sort()
+    : [];
+  const availableVariants = [...new Set(products.filter(p => p.variant).map(p => p.variant))].sort();
+  const availableColors = [...new Set(products.filter(p => p.color).map(p => p.color))].sort();
+  
+  // Generate a list of years from all products' year ranges
+  const availableYears = (() => {
+    const yearsSet = new Set<number>();
+    products.forEach(p => {
+      if (p.yearFrom) {
+        const yearTo = p.yearTo || p.yearFrom;
+        for (let year = p.yearFrom; year <= yearTo; year++) {
+          yearsSet.add(year);
+        }
+      }
+    });
+    return Array.from(yearsSet).sort((a, b) => b - a);
+  })();
+
   const clearFilters = () => {
     setFilterStatus("all");
+    setFilterCategory("");
+    setFilterMake("");
+    setFilterModel("");
+    setFilterVariant("");
+    setFilterColor("");
+    setFilterYear("");
+    setFilterIsVehicle("all");
     setSearchTerm("");
   };
+
+  const activeFilterCount = [
+    filterCategory,
+    filterMake,
+    filterModel,
+    filterVariant,
+    filterColor,
+    filterYear,
+    filterIsVehicle !== "all",
+    filterStatus !== "all"
+  ].filter(Boolean).length;
 
   const downloadStockCSV = () => {
     if (filteredProducts.length === 0) {
       toast.error("No stock data to export");
       return;
     }
-    const headers = ["SKU", "Name", "Current Stock", "Min Stock", "Reorder Point", "Stock Value"];
+    const headers = ["SKU", "Name", "Current Stock", "Min Stock", "Reorder Point", "Stock Value", "Make", "Model", "Variant", "Color", "Year Range"];
     const rows = filteredProducts.map(p => [
       p.sku || "",
       p.name || "",
       p.currentStock || 0,
       p.minStock || 0,
       p.reorderPoint || 0,
-      (p.currentStock * p.costPrice) || 0
+      (p.currentStock * p.costPrice) || 0,
+      p.carMake || "",
+      p.carModel || "",
+      p.variant || "",
+      p.color || "",
+      p.yearFrom ? `${p.yearFrom}${p.yearTo ? `-${p.yearTo}` : ''}` : ""
     ]);
     const csvContent = [
       headers.join(","),
@@ -222,7 +312,7 @@ export default function StockPage() {
                 </div>
                 <div className="h-3 w-px bg-white/20"></div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-white text-xs font-medium">{products.length} of {totalProducts}</span>
+                  <span className="text-white text-xs font-medium">{filteredProducts.length} of {totalProducts}</span>
                 </div>
                 {lowStockItems.length > 0 && (
                   <>
@@ -251,15 +341,20 @@ export default function StockPage() {
                 </button>
                 <div>
                   <h1 className="text-xl font-bold text-white">Stock</h1>
-                  <p className="text-xs text-white/60">{products.length} of {totalProducts} loaded</p>
+                  <p className="text-xs text-white/60">{filteredProducts.length} of {totalProducts} loaded</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowFilters(true)}
-                  className="p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
+                  className="p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all relative"
                 >
                   <Filter className="h-4 w-4" />
+                  {activeFilterCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-[#E84545] text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+                      {activeFilterCount}
+                    </span>
+                  )}
                 </button>
                 <button
                   onClick={() => setShowMobileMenu(true)}
@@ -290,7 +385,8 @@ export default function StockPage() {
               <div>
                 <h1 className="text-3xl font-bold text-white">Stock Management</h1>
                 <p className="text-white/80 mt-1">
-                  Monitor and manage your inventory levels • {products.length} of {totalProducts} loaded
+                  Monitor and manage your inventory levels • {filteredProducts.length} of {totalProducts} loaded
+                  {activeFilterCount > 0 && ` • ${activeFilterCount} filter${activeFilterCount > 1 ? 's' : ''} active`}
                 </p>
               </div>
               <button
@@ -368,7 +464,7 @@ export default function StockPage() {
 
           {/* Desktop Filters */}
           <div className="hidden md:block bg-slate-800 border border-slate-700 rounded-lg shadow p-3 mb-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-400" />
                 <input
@@ -391,18 +487,169 @@ export default function StockPage() {
                   <option value="critical">Critical</option>
                   <option value="out">Out of Stock</option>
                 </select>
-                <div className="absolute right-2 top-2.5 pointer-events-none">
-                  <Filter className="h-4 w-4 text-slate-400" />
-                </div>
               </div>
 
-              <button
-                onClick={clearFilters}
-                className="px-4 py-2 text-sm bg-slate-900 border border-slate-700 rounded hover:bg-slate-800 transition-colors text-white"
-              >
-                Clear Filters
-              </button>
+              <div className="relative">
+                <select
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white appearance-none"
+                >
+                  <option value="">All Categories</option>
+                  {categories.map((cat) => (
+                    <option key={cat._id} value={cat._id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="relative">
+                <select
+                  value={filterIsVehicle}
+                  onChange={(e) => setFilterIsVehicle(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white appearance-none"
+                >
+                  <option value="all">All Types</option>
+                  <option value="vehicle">Vehicles/Parts Only</option>
+                  <option value="non-vehicle">Non-Vehicle Only</option>
+                </select>
+              </div>
             </div>
+
+            {/* Vehicle-specific filters */}
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+              <div className="relative">
+                <Car className="absolute left-2 top-2.5 h-4 w-4 text-slate-400" />
+                <select
+                  value={filterMake}
+                  onChange={(e) => {
+                    setFilterMake(e.target.value);
+                    setFilterModel(""); // Reset model when make changes
+                  }}
+                  className="w-full pl-8 pr-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white appearance-none"
+                >
+                  <option value="">All Makes</option>
+                  {availableMakes.map((make) => (
+                    <option key={make} value={make}>
+                      {make}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="relative">
+                <select
+                  value={filterModel}
+                  onChange={(e) => setFilterModel(e.target.value)}
+                  disabled={!filterMake}
+                  className="w-full px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white appearance-none disabled:opacity-50"
+                >
+                  <option value="">All Models</option>
+                  {availableModels.map((model) => (
+                    <option key={model} value={model}>
+                      {model}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="relative">
+                <select
+                  value={filterVariant}
+                  onChange={(e) => setFilterVariant(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white appearance-none"
+                >
+                  <option value="">All Variants</option>
+                  {availableVariants.map((variant) => (
+                    <option key={variant} value={variant}>
+                      {variant}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="relative">
+                <Palette className="absolute left-2 top-2.5 h-4 w-4 text-slate-400" />
+                <select
+                  value={filterColor}
+                  onChange={(e) => setFilterColor(e.target.value)}
+                  className="w-full pl-8 pr-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white appearance-none"
+                >
+                  <option value="">All Colors</option>
+                  {availableColors.map((color) => (
+                    <option key={color} value={color}>
+                      {color}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="relative">
+                <Calendar className="absolute left-2 top-2.5 h-4 w-4 text-slate-400" />
+                <select
+                  value={filterYear}
+                  onChange={(e) => setFilterYear(e.target.value)}
+                  className="w-full pl-8 pr-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white appearance-none"
+                >
+                  <option value="">All Years</option>
+                  {availableYears.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {activeFilterCount > 0 && (
+              <div className="mt-3 flex items-center justify-between">
+                <div className="flex flex-wrap gap-2">
+                  {filterCategory && (
+                    <span className="px-2 py-1 bg-[#E84545]/20 text-[#E84545] text-xs rounded-full flex items-center gap-1">
+                      Category: {categories.find(c => c._id === filterCategory)?.name}
+                      <X className="h-3 w-3 cursor-pointer" onClick={() => setFilterCategory("")} />
+                    </span>
+                  )}
+                  {filterMake && (
+                    <span className="px-2 py-1 bg-[#E84545]/20 text-[#E84545] text-xs rounded-full flex items-center gap-1">
+                      Make: {filterMake}
+                      <X className="h-3 w-3 cursor-pointer" onClick={() => setFilterMake("")} />
+                    </span>
+                  )}
+                  {filterModel && (
+                    <span className="px-2 py-1 bg-[#E84545]/20 text-[#E84545] text-xs rounded-full flex items-center gap-1">
+                      Model: {filterModel}
+                      <X className="h-3 w-3 cursor-pointer" onClick={() => setFilterModel("")} />
+                    </span>
+                  )}
+                  {filterVariant && (
+                    <span className="px-2 py-1 bg-[#E84545]/20 text-[#E84545] text-xs rounded-full flex items-center gap-1">
+                      Variant: {filterVariant}
+                      <X className="h-3 w-3 cursor-pointer" onClick={() => setFilterVariant("")} />
+                    </span>
+                  )}
+                  {filterColor && (
+                    <span className="px-2 py-1 bg-[#E84545]/20 text-[#E84545] text-xs rounded-full flex items-center gap-1">
+                      Color: {filterColor}
+                      <X className="h-3 w-3 cursor-pointer" onClick={() => setFilterColor("")} />
+                    </span>
+                  )}
+                  {filterYear && (
+                    <span className="px-2 py-1 bg-[#E84545]/20 text-[#E84545] text-xs rounded-full flex items-center gap-1">
+                      Year: {filterYear}
+                      <X className="h-3 w-3 cursor-pointer" onClick={() => setFilterYear("")} />
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={clearFilters}
+                  className="px-4 py-1 text-xs bg-slate-900 border border-slate-700 rounded hover:bg-slate-800 transition-colors text-white"
+                >
+                  Clear All
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Stock List */}
@@ -415,6 +662,14 @@ export default function StockPage() {
               <div className="text-center py-12">
                 <Package className="h-16 w-16 mx-auto mb-4 text-slate-600" />
                 <p className="text-slate-400 text-lg font-medium">No products found</p>
+                {activeFilterCount > 0 && (
+                  <button
+                    onClick={clearFilters}
+                    className="mt-4 px-4 py-2 bg-[#E84545] text-white rounded-lg hover:bg-[#cc3c3c] transition-colors"
+                  >
+                    Clear Filters
+                  </button>
+                )}
               </div>
             ) : (
               <>
@@ -441,6 +696,7 @@ export default function StockPage() {
 
                     const productStockValue = product.currentStock * product.costPrice;
                     const productStockCode = convertToStockCode(productStockValue);
+                    const yearRange = product.yearFrom ? `${product.yearFrom}${product.yearTo ? `-${product.yearTo}` : ''}` : '';
 
                     return (
                       <div
@@ -449,8 +705,17 @@ export default function StockPage() {
                       >
                         <div className="flex justify-between items-start mb-3">
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-white truncate">{product.name}</p>
+                            <div className="flex items-center gap-2">
+                              {product.isVehicle && <Car className="h-3 w-3 text-[#E84545]" />}
+                              <p className="text-sm font-semibold text-white truncate">{product.name}</p>
+                            </div>
                             <p className="text-xs text-slate-500 mt-1">{product.sku}</p>
+                            {product.carMake && (
+                              <div className="text-xs text-slate-400 mt-1">
+                                <p>{product.carMake} {product.carModel} {product.variant}</p>
+                                {yearRange && <p className="text-slate-500">Year: {yearRange}</p>}
+                              </div>
+                            )}
                           </div>
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${bgColor} ${statusColor} flex-shrink-0 ml-2`}>
                             {statusText}
@@ -486,6 +751,7 @@ export default function StockPage() {
                     <thead className="bg-slate-900">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Product</th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Vehicle Info</th>
                         <th className="px-6 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Current Stock</th>
                         <th className="px-6 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Min Stock</th>
                         <th className="px-6 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Reorder Point</th>
@@ -515,12 +781,32 @@ export default function StockPage() {
 
                         const productStockValue = product.currentStock * product.costPrice;
                         const productStockCode = convertToStockCode(productStockValue);
+                        const yearRange = product.yearFrom ? `${product.yearFrom}${product.yearTo ? `-${product.yearTo}` : ''}` : '';
 
                         return (
                           <tr key={product._id} className="hover:bg-slate-700/50 transition-colors">
                             <td className="px-6 py-4">
-                              <p className="text-sm font-medium text-white">{product.name}</p>
-                              <p className="text-xs text-slate-500">{product.sku}</p>
+                              <div className="flex items-center gap-2">
+                                {product.isVehicle && <Car className="h-4 w-4 text-[#E84545]" />}
+                                <div>
+                                  <p className="text-sm font-medium text-white">{product.name}</p>
+                                  <p className="text-xs text-slate-500">{product.sku}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              {product.carMake ? (
+                                <div className="text-xs">
+                                  <p className="text-slate-300">{product.carMake} {product.carModel}</p>
+                                  {product.variant && <p className="text-slate-500">{product.variant}</p>}
+                                  <div className="flex gap-2 mt-1">
+                                    {product.color && <span className="text-slate-500">{product.color}</span>}
+                                    {yearRange && <span className="text-slate-500">• {yearRange}</span>}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-slate-500 text-xs">-</span>
+                              )}
                             </td>
                             <td className="px-6 py-4 text-sm text-slate-300">{product.currentStock} {product.unit}</td>
                             <td className="px-6 py-4 text-sm text-slate-300">{product.minStock} {product.unit}</td>
@@ -559,7 +845,7 @@ export default function StockPage() {
                   <>
                     <span>Load More Products</span>
                     <span className="text-sm opacity-80 bg-white/20 px-2 py-1 rounded">
-                      {products.length} of {totalProducts}
+                      {filteredProducts.length} of {totalProducts}
                     </span>
                   </>
                 )}
@@ -584,7 +870,7 @@ export default function StockPage() {
                   <>
                     <span>Load More</span>
                     <span className="text-sm opacity-80">
-                      ({products.length}/{totalProducts})
+                      ({filteredProducts.length}/{totalProducts})
                     </span>
                   </>
                 )}
@@ -593,9 +879,9 @@ export default function StockPage() {
           )}
 
           {/* Products Count Display */}
-          {!loading && products.length > 0 && (
+          {!loading && filteredProducts.length > 0 && (
             <div className="text-center py-4 text-gray-400 text-sm border-t border-white/5">
-              Showing {products.length} of {totalProducts} products
+              Showing {filteredProducts.length} of {totalProducts} products
               {hasMoreProducts && " • Scroll down to load more"}
             </div>
           )}
@@ -607,10 +893,15 @@ export default function StockPage() {
 
       {/* Mobile Filter Modal */}
       {showFilters && (
-        <div className="md:hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 animate-in fade-in duration-200">
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-b from-[#050505] to-[#0A0A0A] rounded-t-3xl border-t border-white/10 p-6 animate-in slide-in-from-bottom duration-300">
+        <div className="md:hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 animate-in fade-in duration-200 overflow-y-auto">
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-b from-[#050505] to-[#0A0A0A] rounded-t-3xl border-t border-white/10 p-6 animate-in slide-in-from-bottom duration-300 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-bold text-white">Filters</h2>
+              <div>
+                <h2 className="text-lg font-bold text-white">Filters</h2>
+                {activeFilterCount > 0 && (
+                  <p className="text-xs text-slate-400 mt-1">{activeFilterCount} active filter{activeFilterCount > 1 ? 's' : ''}</p>
+                )}
+              </div>
               <button
                 onClick={() => setShowFilters(false)}
                 className="p-2 rounded-xl bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
@@ -620,18 +911,141 @@ export default function StockPage() {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Status</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Stock Status</label>
                 <select
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value)}
                   className="w-full px-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white"
                 >
-                  <option value="all">All</option>
+                  <option value="all">All Status</option>
                   <option value="low">Low Stock</option>
                   <option value="critical">Critical</option>
                   <option value="out">Out of Stock</option>
                 </select>
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Category</label>
+                <select
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white"
+                >
+                  <option value="">All Categories</option>
+                  {categories.map((cat) => (
+                    <option key={cat._id} value={cat._id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Type</label>
+                <select
+                  value={filterIsVehicle}
+                  onChange={(e) => setFilterIsVehicle(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white"
+                >
+                  <option value="all">All Types</option>
+                  <option value="vehicle">Vehicles/Parts</option>
+                  <option value="non-vehicle">Non-Vehicle</option>
+                </select>
+              </div>
+
+              <div className="border-t border-white/10 pt-4">
+                <h3 className="text-sm font-medium text-gray-300 mb-3 flex items-center gap-2">
+                  <Car className="h-4 w-4" />
+                  Vehicle Filters
+                </h3>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Make</label>
+                    <select
+                      value={filterMake}
+                      onChange={(e) => {
+                        setFilterMake(e.target.value);
+                        setFilterModel("");
+                      }}
+                      className="w-full px-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white text-sm"
+                    >
+                      <option value="">All Makes</option>
+                      {availableMakes.map((make) => (
+                        <option key={make} value={make}>
+                          {make}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Model</label>
+                    <select
+                      value={filterModel}
+                      onChange={(e) => setFilterModel(e.target.value)}
+                      disabled={!filterMake}
+                      className="w-full px-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white text-sm disabled:opacity-50"
+                    >
+                      <option value="">All Models</option>
+                      {availableModels.map((model) => (
+                        <option key={model} value={model}>
+                          {model}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Variant</label>
+                    <select
+                      value={filterVariant}
+                      onChange={(e) => setFilterVariant(e.target.value)}
+                      className="w-full px-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white text-sm"
+                    >
+                      <option value="">All Variants</option>
+                      {availableVariants.map((variant) => (
+                        <option key={variant} value={variant}>
+                          {variant}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Color</label>
+                    <select
+                      value={filterColor}
+                      onChange={(e) => setFilterColor(e.target.value)}
+                      className="w-full px-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white text-sm"
+                    >
+                      <option value="">All Colors</option>
+                      {availableColors.map((color) => (
+                        <option key={color} value={color}>
+                          {color}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Year (filters by range)</label>
+                    <select
+                      value={filterYear}
+                      onChange={(e) => setFilterYear(e.target.value)}
+                      className="w-full px-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white text-sm"
+                    >
+                      <option value="">All Years</option>
+                      {availableYears.map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={() => {
@@ -640,13 +1054,13 @@ export default function StockPage() {
                   }}
                   className="flex-1 px-4 py-3 bg-[#0A0A0A] border border-white/10 rounded-lg text-gray-300 hover:text-white transition-colors active:scale-95"
                 >
-                  Clear
+                  Clear All
                 </button>
                 <button
                   onClick={() => setShowFilters(false)}
                   className="flex-1 px-4 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] rounded-lg text-white font-semibold active:scale-95 transition-all"
                 >
-                  Apply
+                  Apply Filters
                 </button>
               </div>
             </div>

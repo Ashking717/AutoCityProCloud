@@ -8,6 +8,8 @@ import Product from '@/lib/models/ProductEnhanced';
 import { postInventoryAdjustmentToLedger } from '@/lib/services/accountingService';
 import mongoose from 'mongoose';
 import InventoryMovement from '@/lib/models/InventoryMovement';
+import type { SortOrder } from 'mongoose';
+
 
 // ============================================================================
 // GET /api/products - Fetch products with pagination, search, and filters
@@ -94,16 +96,28 @@ export async function GET(request: NextRequest) {
     // ─────────────────────────────────────────────────────────────
     // PAGINATION
     // ─────────────────────────────────────────────────────────────
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
-    const skip = (page - 1) * limit;
+    const isExport = searchParams.get('export') === 'true';
+
+const page = isExport ? 1 : parseInt(searchParams.get('page') || '1');
+
+// Hard cap export size (safe for 2k–5k products)
+const limit = isExport
+  ? 10000
+  : Math.min(parseInt(searchParams.get('limit') || '50'), 100);
+
+const skip = isExport ? 0 : (page - 1) * limit;
+
     
     // ─────────────────────────────────────────────────────────────
     // SORTING
     // ─────────────────────────────────────────────────────────────
     const sortBy = searchParams.get('sortBy') || 'sku';
     const sortOrder = searchParams.get('sortOrder') === 'desc' ? -1 : 1;
-    const sort: any = { [sortBy]: sortOrder };
+   const sort: Record<string, SortOrder> = isExport
+  ? { carMake: 'asc', carModel: 'asc', name: 'asc' }
+  : { [sortBy]: sortOrder as SortOrder };
+
+
     
     // ─────────────────────────────────────────────────────────────
     // EXECUTE QUERY - Use lean() for performance

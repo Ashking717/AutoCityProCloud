@@ -1,5 +1,5 @@
 export const carMakesModels = {
-  Toyota: ["Camry", "Corolla", "RAV4", "Highlander", "Land Cruiser", "Hilux", "Prado", "Yaris", "Fortuner","Tacoma","Tundra","Sequoia"],
+  Toyota: ["Camry", "Corolla", "RAV4", "Highlander", "Land Cruiser", "Hilux", "Prado", "Yaris", "Fortuner","Tacoma","Tundra","Sequoia","fj cruiser"],
   Nissan: ["Altima", "Patrol", "Patrol Super Safari", "Sentra", "Pathfinder","Pickup","Frontier","Rogue","v-tec","Armada","NV3500"],
   Honda: ["Accord", "Civic", "CR-V", "Pilot"],
   BMW: ["3 Series", "5 Series", "X3", "X5"],

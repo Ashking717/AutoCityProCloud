@@ -394,15 +394,15 @@ export default function HomePage() {
       <div className="noise" />
 
       {/* Navigation */}
-      <header className="fixed top-0 left-0 right-0 z-50">
+      <header className="fixed top-0 left-0 right-0 z-50" role="banner">
         <div className="glass-dark">
-          <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <nav className="max-w-7xl mx-auto px-6 lg:px-8" aria-label="Main navigation">
             <div className="flex items-center justify-between h-20">
               {/* Logo */}
-              <Link href="/" className="relative h-12 w-48">
+              <Link href="/" className="relative h-12 w-48" aria-label="Auto City Qatar Home">
                 <Image
-                  src="/logo.png"
-                  alt="Auto City Qatar"
+                  src="/login.png"
+                  alt="Auto City Qatar - Premium Car Accessories"
                   fill
                   className="object-contain object-left"
                   priority
@@ -410,23 +410,24 @@ export default function HomePage() {
               </Link>
 
               {/* Nav Links */}
-              <nav className="hidden lg:flex items-center gap-10">
+              <ul className="hidden lg:flex items-center gap-10">
                 {[
                   { key: 'services', href: '#services' },
                   { key: 'about', href: '#about' },
                   { key: 'branches', href: '#branches' },
                   { key: 'contact', href: '#contact' },
                 ].map((item) => (
-                  <a
-                    key={item.key}
-                    href={item.href}
-                    className="text-sm font-medium text-gray-400 hover:text-[#E84545] transition-colors duration-300 relative group"
-                  >
-                    {t.nav[item.key as keyof typeof t.nav]}
-                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#E84545] group-hover:w-full transition-all duration-300" />
-                  </a>
+                  <li key={item.key}>
+                    <a
+                      href={item.href}
+                      className="text-sm font-medium text-gray-400 hover:text-[#E84545] transition-colors duration-300 relative group"
+                    >
+                      {t.nav[item.key as keyof typeof t.nav]}
+                      <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#E84545] group-hover:w-full transition-all duration-300" />
+                    </a>
+                  </li>
                 ))}
-              </nav>
+              </ul>
 
               {/* Language Selector & CTA */}
               <div className="flex items-center gap-4">
@@ -434,8 +435,9 @@ export default function HomePage() {
                 <button
                   onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg border border-white/10 hover:border-[#E84545]/50 transition-colors"
+                  aria-label={lang === 'en' ? 'Switch to Arabic' : 'Switch to English'}
                 >
-                  <Globe className="w-4 h-4 text-[#E84545]" />
+                  <Globe className="w-4 h-4 text-[#E84545]" aria-hidden="true" />
                   <span className="text-sm font-medium">{lang === 'en' ? 'العربية' : 'English'}</span>
                 </button>
 
@@ -447,14 +449,14 @@ export default function HomePage() {
                 </Link>
               </div>
             </div>
-          </div>
+          </nav>
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center pt-20">
+      <section className="relative min-h-screen flex items-center pt-20" aria-labelledby="hero-heading">
         {/* Background Elements */}
-        <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
           <div className="absolute -top-1/4 -right-1/4 w-[800px] h-[800px] rounded-full opacity-10 bg-[#E84545] blur-[150px]" />
           <div 
             className="absolute inset-0 opacity-[0.02]"
@@ -485,11 +487,11 @@ export default function HomePage() {
             {/* Content */}
             <div>
               <div className="animate-fade-in-up inline-flex items-center gap-3 px-4 py-2 rounded-full border border-[#E84545]/30 bg-[#E84545]/5 mb-8">
-                <span className="w-2 h-2 rounded-full bg-[#E84545] animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-[#E84545] animate-pulse" aria-hidden="true" />
                 <span className="text-sm text-gray-300">{t.hero.badge}</span>
               </div>
 
-              <h1 className="animate-fade-in-up delay-100">
+              <h1 id="hero-heading" className="animate-fade-in-up delay-100">
                 <span className="block text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-white mb-4">
                   {t.hero.title1}
                 </span>
@@ -512,7 +514,7 @@ export default function HomePage() {
                   className={`group inline-flex items-center gap-2 px-8 py-4 bg-[#E84545] text-white font-semibold rounded-lg hover:bg-[#cc3c3c] transition-all duration-300 hover-glow`}
                 >
                   {t.hero.cta1}
-                  <ArrowRight className={`w-5 h-5 group-hover:translate-x-1 transition-transform ${isRTL ? 'rotate-180 group-hover:-translate-x-1' : ''}`} />
+                  <ArrowRight className={`w-5 h-5 group-hover:translate-x-1 transition-transform ${isRTL ? 'rotate-180 group-hover:-translate-x-1' : ''}`} aria-hidden="true" />
                 </a>
                 <a
                   href="#contact"
@@ -535,7 +537,7 @@ export default function HomePage() {
             {/* Hero Visual */}
             <div className="animate-scale-in delay-300 relative hidden lg:block">
               <div className="relative">
-                <div className="absolute inset-0 flex items-center justify-center">
+                <div className="absolute inset-0 flex items-center justify-center" aria-hidden="true">
                   <div className="w-[400px] h-[400px] border border-[#E84545]/10 rounded-full" />
                   <div className="absolute w-[500px] h-[500px] border border-[#E84545]/5 rounded-full" />
                   <div 
@@ -548,7 +550,7 @@ export default function HomePage() {
                   <div className="glass rounded-3xl p-12 hover-lift">
                     <Image
                       src="/logo.png"
-                      alt="Auto City"
+                      alt="Auto City Qatar Brand Logo"
                       width={300}
                       height={150}
                       className="object-contain"
@@ -561,42 +563,42 @@ export default function HomePage() {
         </div>
 
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 animate-fade-in delay-600">
-          <a href="#services" className="flex flex-col items-center gap-2 text-gray-500 hover:text-[#E84545] transition-colors">
-            <ChevronDown className="w-5 h-5 animate-bounce" />
+          <a href="#services" className="flex flex-col items-center gap-2 text-gray-500 hover:text-[#E84545] transition-colors" aria-label="Scroll to services">
+            <ChevronDown className="w-5 h-5 animate-bounce" aria-hidden="true" />
           </a>
         </div>
       </section>
 
       {/* Services Section */}
-      <section id="services" className="relative py-32">
+      <section id="services" className="relative py-32" aria-labelledby="services-heading">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="text-center mb-20">
+          <header className="text-center mb-20">
             <span className="text-[#E84545] text-sm font-semibold tracking-[0.2em] uppercase">{t.services.label}</span>
-            <h2 className="text-4xl md:text-5xl font-bold mt-4 mb-6 relative inline-block line-accent line-accent-center">
+            <h2 id="services-heading" className="text-4xl md:text-5xl font-bold mt-4 mb-6 relative inline-block line-accent line-accent-center">
               {t.services.title}
             </h2>
             <p className="text-gray-400 text-lg max-w-2xl mx-auto mt-8">
               {t.services.description}
             </p>
-          </div>
+          </header>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {t.services.items.map((service, i) => {
               const Icon = serviceIcons[i];
               return (
-                <div
+                <article
                   key={i}
                   className="group relative p-6 lg:p-8 bg-[#0A0A0A] border border-white/5 rounded-2xl hover:border-[#E84545]/30 hover-lift transition-all duration-500"
                 >
                   <div className="w-12 h-12 rounded-xl bg-[#E84545]/10 flex items-center justify-center mb-5 group-hover:bg-[#E84545] transition-colors duration-300">
-                    <Icon className="w-6 h-6 text-[#E84545] group-hover:text-white transition-colors duration-300" />
+                    <Icon className="w-6 h-6 text-[#E84545] group-hover:text-white transition-colors duration-300" aria-hidden="true" />
                   </div>
 
                   <h3 className="text-lg font-bold mb-3">{service.title}</h3>
                   <p className="text-gray-400 text-sm leading-relaxed">{service.description}</p>
 
-                  <div className="absolute bottom-0 left-0 w-full h-1 bg-[#E84545] scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left rounded-b-2xl" />
-                </div>
+                  <div className="absolute bottom-0 left-0 w-full h-1 bg-[#E84545] scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left rounded-b-2xl" aria-hidden="true" />
+                </article>
               );
             })}
           </div>
@@ -604,12 +606,12 @@ export default function HomePage() {
       </section>
 
       {/* About Section */}
-      <section id="about" className="relative py-32 bg-[#0A0A0A]">
+      <section id="about" className="relative py-32 bg-[#0A0A0A]" aria-labelledby="about-heading">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div>
               <span className="text-[#E84545] text-sm font-semibold tracking-[0.2em] uppercase">{t.about.label}</span>
-              <h2 className="text-4xl md:text-5xl font-bold mt-4 mb-8 relative line-accent">
+              <h2 id="about-heading" className="text-4xl md:text-5xl font-bold mt-4 mb-8 relative line-accent">
                 {t.about.title}
               </h2>
               
@@ -621,22 +623,22 @@ export default function HomePage() {
                 {t.about.description2}
               </p>
 
-              <div className="grid grid-cols-2 gap-4">
+              <ul className="grid grid-cols-2 gap-4">
                 {t.about.features.map((item, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-[#E84545]" />
+                  <li key={i} className="flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full bg-[#E84545]" aria-hidden="true" />
                     <span className="text-gray-300 text-sm">{item}</span>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
 
             <div className="relative">
               <div className="glass rounded-3xl p-10 lg:p-16">
                 <div className="text-center">
                   <Image
-                    src="/logo.png"
-                    alt="Auto City"
+                    src="/login.png"
+                    alt="Auto City Qatar - Leading Car Accessories Provider"
                     width={350}
                     height={175}
                     className="mx-auto mb-8"
@@ -648,62 +650,64 @@ export default function HomePage() {
                 </div>
               </div>
               
-              <div className={`absolute -top-4 ${isRTL ? '-left-4' : '-right-4'} w-24 h-24 border-t-2 ${isRTL ? 'border-l-2 rounded-tl-3xl' : 'border-r-2 rounded-tr-3xl'} border-[#E84545]/30`} />
-              <div className={`absolute -bottom-4 ${isRTL ? '-right-4' : '-left-4'} w-24 h-24 border-b-2 ${isRTL ? 'border-r-2 rounded-br-3xl' : 'border-l-2 rounded-bl-3xl'} border-[#E84545]/30`} />
+              <div className={`absolute -top-4 ${isRTL ? '-left-4' : '-right-4'} w-24 h-24 border-t-2 ${isRTL ? 'border-l-2 rounded-tl-3xl' : 'border-r-2 rounded-tr-3xl'} border-[#E84545]/30`} aria-hidden="true" />
+              <div className={`absolute -bottom-4 ${isRTL ? '-right-4' : '-left-4'} w-24 h-24 border-b-2 ${isRTL ? 'border-r-2 rounded-br-3xl' : 'border-l-2 rounded-bl-3xl'} border-[#E84545]/30`} aria-hidden="true" />
             </div>
           </div>
         </div>
       </section>
 
       {/* Branches Section */}
-      <section id="branches" className="relative py-32">
+      <section id="branches" className="relative py-32" aria-labelledby="branches-heading">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="text-center mb-16">
+          <header className="text-center mb-16">
             <span className="text-[#E84545] text-sm font-semibold tracking-[0.2em] uppercase">{t.branches.label}</span>
-            <h2 className="text-4xl md:text-5xl font-bold mt-4 mb-6 relative inline-block line-accent line-accent-center">
+            <h2 id="branches-heading" className="text-4xl md:text-5xl font-bold mt-4 mb-6 relative inline-block line-accent line-accent-center">
               {t.branches.title}
             </h2>
             <p className="text-gray-400 text-lg max-w-2xl mx-auto mt-8">
               {t.branches.description}
             </p>
-          </div>
+          </header>
 
           <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
             {t.branches.items.map((branch, i) => (
-              <div
+              <article
                 key={i}
                 className="group p-8 bg-[#0A0A0A] border border-white/5 rounded-2xl text-center hover:border-[#E84545]/30 hover-lift transition-all duration-300"
+                itemScope
+                itemType="https://schema.org/LocalBusiness"
               >
                 <div className="w-16 h-16 rounded-full bg-[#E84545]/10 flex items-center justify-center mx-auto mb-6 group-hover:bg-[#E84545] transition-colors duration-300">
-                  <MapPin className="w-7 h-7 text-[#E84545] group-hover:text-white transition-colors duration-300" />
+                  <MapPin className="w-7 h-7 text-[#E84545] group-hover:text-white transition-colors duration-300" aria-hidden="true" />
                 </div>
-                <h3 className="text-xl font-bold mb-2">{branch.name}</h3>
-                <p className="text-gray-500">{branch.area}</p>
-              </div>
+                <h3 className="text-xl font-bold mb-2" itemProp="name">{branch.name}</h3>
+                <p className="text-gray-500" itemProp="address">{branch.area}</p>
+              </article>
             ))}
           </div>
         </div>
       </section>
 
       {/* Contact Section */}
-      <section id="contact" className="relative py-32 bg-[#0A0A0A]">
+      <section id="contact" className="relative py-32 bg-[#0A0A0A]" aria-labelledby="contact-heading">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="text-center mb-16">
+          <header className="text-center mb-16">
             <span className="text-[#E84545] text-sm font-semibold tracking-[0.2em] uppercase">{t.contact.label}</span>
-            <h2 className="text-4xl md:text-5xl font-bold mt-4 mb-6 relative inline-block line-accent line-accent-center">
+            <h2 id="contact-heading" className="text-4xl md:text-5xl font-bold mt-4 mb-6 relative inline-block line-accent line-accent-center">
               {t.contact.title}
             </h2>
             <p className="text-gray-400 text-lg mt-8">
               {t.contact.description}
             </p>
-          </div>
+          </header>
 
           <div className="grid lg:grid-cols-2 gap-12 max-w-5xl mx-auto">
             {/* Phone Numbers */}
             <div className="glass rounded-2xl p-8">
               <div className="flex items-center gap-3 mb-8">
                 <div className="w-12 h-12 rounded-xl bg-[#E84545]/10 flex items-center justify-center">
-                  <Phone className="w-6 h-6 text-[#E84545]" />
+                  <Phone className="w-6 h-6 text-[#E84545]" aria-hidden="true" />
                 </div>
                 <div>
                   <h3 className="text-xl font-bold">{t.contact.callUs}</h3>
@@ -711,56 +715,61 @@ export default function HomePage() {
                 </div>
               </div>
               
-              <div className="space-y-4">
+              <address className="space-y-4 not-italic">
                 {phoneNumbers.map((phone, i) => (
                   <a
                     key={i}
                     href={`tel:${phone.replace(/\s/g, '')}`}
                     className="flex items-center justify-between p-4 bg-white/5 rounded-xl hover:bg-[#E84545]/10 transition-colors group"
                     dir="ltr"
+                    itemProp="telephone"
                   >
                     <span className="text-lg font-medium">{phone}</span>
-                    <ArrowRight className={`w-5 h-5 text-gray-500 group-hover:text-[#E84545] group-hover:translate-x-1 transition-all`} />
+                    <ArrowRight className={`w-5 h-5 text-gray-500 group-hover:text-[#E84545] group-hover:translate-x-1 transition-all`} aria-hidden="true" />
                   </a>
                 ))}
-              </div>
+              </address>
             </div>
 
             {/* Business Hours & Email */}
             <div className="space-y-6">
               {/* Email */}
               <div className="glass rounded-2xl p-8">
-                <div className="flex items-center gap-3">
+                <address className="flex items-center gap-3 not-italic">
                   <div className="w-12 h-12 rounded-xl bg-[#E84545]/10 flex items-center justify-center">
-                    <Mail className="w-6 h-6 text-[#E84545]" />
+                    <Mail className="w-6 h-6 text-[#E84545]" aria-hidden="true" />
                   </div>
                   <div>
                     <h3 className="text-lg font-bold">{t.contact.emailUs}</h3>
-                    <a href="mailto:info@autocityqatar.com" className="text-gray-400 hover:text-[#E84545] transition-colors">
+                    <a href="mailto:info@autocityqatar.com" className="text-gray-400 hover:text-[#E84545] transition-colors" itemProp="email">
                       info@autocityqatar.com
                     </a>
                   </div>
-                </div>
+                </address>
               </div>
 
               {/* Business Hours */}
               <div className="glass rounded-2xl p-8">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="w-12 h-12 rounded-xl bg-[#E84545]/10 flex items-center justify-center">
-                    <Clock className="w-6 h-6 text-[#E84545]" />
+                    <Clock className="w-6 h-6 text-[#E84545]" aria-hidden="true" />
                   </div>
                   <h3 className="text-lg font-bold">{t.contact.businessHours}</h3>
                 </div>
-                <div className="space-y-3">
+                <dl className="space-y-3">
                   <div className="flex justify-between items-center py-2 border-b border-white/5">
-                    <span className="text-gray-400">{t.contact.satThu}</span>
-                    <span className="font-medium" dir="ltr">8:00 AM – 8:00 PM</span>
+                    <dt className="text-gray-400">{t.contact.satThu}</dt>
+                    <dd className="font-medium" dir="ltr">
+                      <time dateTime="08:00">8:00 AM</time> – <time dateTime="20:00">8:00 PM</time>
+                    </dd>
                   </div>
                   <div className="flex justify-between items-center py-2">
-                    <span className="text-gray-400">{t.contact.friday}</span>
-                    <span className="font-medium" dir="ltr">2:00 PM – 8:00 PM</span>
+                    <dt className="text-gray-400">{t.contact.friday}</dt>
+                    <dd className="font-medium" dir="ltr">
+                      <time dateTime="14:00">2:00 PM</time> – <time dateTime="20:00">8:00 PM</time>
+                    </dd>
                   </div>
-                </div>
+                </dl>
               </div>
             </div>
           </div>
@@ -768,14 +777,14 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="relative py-16 border-t border-white/5">
+      <footer className="relative py-16 border-t border-white/5" role="contentinfo">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="grid md:grid-cols-4 gap-12 mb-16">
             {/* Brand */}
             <div className="md:col-span-2">
               <Image
                 src="/logo.png"
-                alt="Auto City Qatar"
+                alt="Auto City Qatar Logo"
                 width={180}
                 height={90}
                 className="mb-6"
@@ -789,17 +798,17 @@ export default function HomePage() {
             </div>
 
             {/* Services */}
-            <div>
+            <nav aria-label="Footer services">
               <h4 className="font-semibold mb-6">{t.footer.services}</h4>
               <ul className="space-y-3 text-gray-500">
                 {t.services.items.slice(0, 5).map((service, i) => (
                   <li key={i}>{service.title}</li>
                 ))}
               </ul>
-            </div>
+            </nav>
 
             {/* Contact */}
-            <div>
+            <address className="not-italic">
               <h4 className="font-semibold mb-6">{t.footer.contact}</h4>
               <ul className="space-y-3 text-gray-500">
                 {phoneNumbers.map((phone, i) => (
@@ -815,7 +824,7 @@ export default function HomePage() {
                   </a>
                 </li>
               </ul>
-            </div>
+            </address>
           </div>
 
           {/* Branches */}
@@ -824,7 +833,7 @@ export default function HomePage() {
               <span className="text-sm font-medium text-white">{t.footer.ourBranches}:</span>
               {t.branches.items.map((branch, i) => (
                 <span key={i} className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-[#E84545]" />
+                  <MapPin className="w-4 h-4 text-[#E84545]" aria-hidden="true" />
                   {branch.name}
                 </span>
               ))}

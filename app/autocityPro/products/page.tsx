@@ -77,6 +77,8 @@ export default function ProductsPage() {
   const [showQuickAddCategory, setShowQuickAddCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
+
   const [nameSuggestions, setNameSuggestions] = useState<string[]>([]);
   const [showNameSuggestions, setShowNameSuggestions] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -154,6 +156,7 @@ export default function ProductsPage() {
     "Gxr",
     "Vx",
     "Vxr",
+    "Gxr/Vxr",
     "Vxs",
     "Twin turbo",
     "Platinium",
@@ -807,123 +810,162 @@ export default function ProductsPage() {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     window.location.href = "/autocityPro/login";
   };
-const downloadProductsPDF = async () => {
-  try {
-    toast.loading("Preparing PDF export...");
+  const downloadProductsPDF = async () => {
+    try {
+      toast.loading("Preparing PDF export...");
 
-    const PRIORITY_MAKES = ["toyota", "nissan", "lexus", "ford"];
+      const PRIORITY_MAKES = ["toyota", "nissan", "lexus", "ford"];
 
-    // Fetch ALL products (export mode)
-    const params = new URLSearchParams({ export: "true" });
+      // Fetch ALL products (export mode)
+      const params = new URLSearchParams({ export: "true" });
 
-    if (searchTerm) params.append("search", searchTerm);
-    if (filterCategory) params.append("categoryId", filterCategory);
-    if (filterMake) params.append("carMake", filterMake);
-    if (filterIsVehicle !== "all") {
-      params.append(
-        "isVehicle",
-        filterIsVehicle === "vehicle" ? "true" : "false"
-      );
-    }
+      if (searchTerm) params.append("search", searchTerm);
+      if (filterCategory) params.append("categoryId", filterCategory);
+      if (filterMake) params.append("carMake", filterMake);
+      if (filterIsVehicle !== "all") {
+        params.append(
+          "isVehicle",
+          filterIsVehicle === "vehicle" ? "true" : "false"
+        );
+      }
 
-    const res = await fetch(`/api/products?${params.toString()}`, {
-      credentials: "include",
-    });
+      const res = await fetch(`/api/products?${params.toString()}`, {
+        credentials: "include",
+      });
 
-    if (!res.ok) throw new Error("Export fetch failed");
+      if (!res.ok) throw new Error("Export fetch failed");
 
-    const { products: allProducts } = await res.json();
+      const { products: allProducts } = await res.json();
 
-    if (!allProducts || allProducts.length === 0) {
-      toast.dismiss();
-      toast.error("No products to export");
-      return;
-    }
+      if (!allProducts || allProducts.length === 0) {
+        toast.dismiss();
+        toast.error("No products to export");
+        return;
+      }
 
-    // ─────────────────────────────────────────────
-    // SORTING (OTHERS ALWAYS LAST)
-    // ─────────────────────────────────────────────
-    const sortedProducts = [...allProducts].sort((a, b) => {
-      const hasMakeA = !!a.carMake;
-      const hasMakeB = !!b.carMake;
+      // ─────────────────────────────────────────────
+      // SORTING (OTHERS ALWAYS LAST)
+      // ─────────────────────────────────────────────
+      const sortedProducts = [...allProducts].sort((a, b) => {
+        const hasMakeA = !!a.carMake;
+        const hasMakeB = !!b.carMake;
 
-      // 1️⃣ Products without carMake go LAST
-      if (hasMakeA && !hasMakeB) return -1;
-      if (!hasMakeA && hasMakeB) return 1;
+        // 1️⃣ Products without carMake go LAST
+        if (hasMakeA && !hasMakeB) return -1;
+        if (!hasMakeA && hasMakeB) return 1;
 
-      // Both have no make → keep relative order
-      if (!hasMakeA && !hasMakeB) return 0;
+        // Both have no make → keep relative order
+        if (!hasMakeA && !hasMakeB) return 0;
 
-      const makeA = a.carMake.toLowerCase();
-      const makeB = b.carMake.toLowerCase();
+        const makeA = a.carMake.toLowerCase();
+        const makeB = b.carMake.toLowerCase();
 
-      const idxA = PRIORITY_MAKES.indexOf(makeA);
-      const idxB = PRIORITY_MAKES.indexOf(makeB);
+        const idxA = PRIORITY_MAKES.indexOf(makeA);
+        const idxB = PRIORITY_MAKES.indexOf(makeB);
 
-      // 2️⃣ Both priority makes
-      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+        // 2️⃣ Both priority makes
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
 
-      // 3️⃣ One priority make
-      if (idxA !== -1) return -1;
-      if (idxB !== -1) return 1;
+        // 3️⃣ One priority make
+        if (idxA !== -1) return -1;
+        if (idxB !== -1) return 1;
 
-      // 4️⃣ Alphabetical by make
-      if (makeA !== makeB) return makeA.localeCompare(makeB);
+        // 4️⃣ Alphabetical by make
+        if (makeA !== makeB) return makeA.localeCompare(makeB);
 
-      // 5️⃣ Same make → model
-      const modelA = (a.carModel || "").toLowerCase();
-      const modelB = (b.carModel || "").toLowerCase();
-      if (modelA !== modelB) return modelA.localeCompare(modelB);
+        // 5️⃣ Same make → model
+        const modelA = (a.carModel || "").toLowerCase();
+        const modelB = (b.carModel || "").toLowerCase();
+        if (modelA !== modelB) return modelA.localeCompare(modelB);
 
-      // 6️⃣ Same model → name
-      return (a.name || "").toLowerCase().localeCompare(
-        (b.name || "").toLowerCase()
-      );
-    });
+        // 6️⃣ Same model → name
+        return (a.name || "")
+          .toLowerCase()
+          .localeCompare((b.name || "").toLowerCase());
+      });
 
-    const doc = new jsPDF({
-      orientation: "landscape",
-      unit: "mm",
-      format: "a4",
-    });
+      const doc = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4",
+      });
 
-    const headers = [[
-      "SKU",
-      "Name",
-      "Category",
-      "Barcode",
-      "Price",
-      "Stock",
-      "Make",
-      "Model",
-      "Variant",
-      "Year",
-      "Color",
-      "Part No",
-    ]];
+      const headers = [
+        [
+          "SKU",
+          "Name",
+          "Category",
+          "Barcode",
+          "Price",
+          "Stock",
+          "Make",
+          "Model",
+          "Variant",
+          "Year",
+          "Color",
+          "Part No",
+        ],
+      ];
 
-    const rows: any[] = [];
-    let lastMake = "";
-    let lastModel = "";
-    let othersStarted = false;
+      const rows: any[] = [];
+      let lastMake = "";
+      let lastModel = "";
+      let othersStarted = false;
 
-    sortedProducts.forEach((p) => {
-      const hasMake = !!p.carMake;
+      sortedProducts.forEach((p) => {
+        const hasMake = !!p.carMake;
 
-      // ───── OTHERS (ALWAYS LAST) ─────
-      if (!hasMake) {
-        if (!othersStarted) {
-          // Spacer rows
-          rows.push(["", "", "", "", "", "", "", "", "", "", "", ""]);
-          rows.push(["", "", "", "", "", "", "", "", "", "", "", ""]);
+        // ───── OTHERS (ALWAYS LAST) ─────
+        if (!hasMake) {
+          if (!othersStarted) {
+            // Spacer rows
+            rows.push(["", "", "", "", "", "", "", "", "", "", "", ""]);
+            rows.push(["", "", "", "", "", "", "", "", "", "", "", ""]);
 
-          // OTHERS header (centered)
+            // OTHERS header (centered)
+            rows.push([
+              {
+                content: "OTHERS / GENERAL PRODUCTS",
+                colSpan: 12,
+                styles: {
+                  fillColor: [40, 40, 40],
+                  textColor: 255,
+                  fontStyle: "bold",
+                  fontSize: 9,
+                  halign: "center",
+                },
+              },
+            ]);
+
+            othersStarted = true;
+          }
+
+          rows.push([
+            p.sku || "",
+            p.name || "",
+            p.category?.name || "",
+            p.barcode || "",
+            p.sellingPrice || 0,
+            p.currentStock || 0,
+            "",
+            "",
+            p.variant || "",
+            formatYearRange(p.yearFrom, p.yearTo),
+            p.color || "",
+            p.partNumber || "",
+          ]);
+
+          return;
+        }
+
+        // ───── MAKE HEADER (CENTERED) ─────
+        if (p.carMake !== lastMake) {
           rows.push([
             {
-              content: "OTHERS / GENERAL PRODUCTS",
+              content: p.carMake.toUpperCase(),
               colSpan: 12,
               styles: {
-                fillColor: [40, 40, 40],
+                fillColor: [25, 25, 25],
                 textColor: 255,
                 fontStyle: "bold",
                 fontSize: 9,
@@ -931,10 +973,29 @@ const downloadProductsPDF = async () => {
               },
             },
           ]);
-
-          othersStarted = true;
+          lastMake = p.carMake;
+          lastModel = "";
         }
 
+        // ───── MODEL HEADER (LEFT) ─────
+        if (p.carModel && p.carModel !== lastModel) {
+          rows.push([
+            {
+              content: `  ${p.carModel}`,
+              colSpan: 12,
+              styles: {
+                fillColor: [140, 140, 140],
+                textColor: 255,
+                fontStyle: "bold",
+                fontSize: 8,
+                halign: "left",
+              },
+            },
+          ]);
+          lastModel = p.carModel;
+        }
+
+        // ───── PRODUCT ROW ─────
         rows.push([
           p.sku || "",
           p.name || "",
@@ -942,102 +1003,46 @@ const downloadProductsPDF = async () => {
           p.barcode || "",
           p.sellingPrice || 0,
           p.currentStock || 0,
-          "",
-          "",
+          p.carMake || "",
+          p.carModel || "",
           p.variant || "",
           formatYearRange(p.yearFrom, p.yearTo),
           p.color || "",
           p.partNumber || "",
         ]);
+      });
 
-        return;
-      }
+      autoTable(doc, {
+        head: headers,
+        body: rows,
+        startY: 22,
+        theme: "grid",
+        showHead: "everyPage",
+        pageBreak: "auto",
+        styles: {
+          fontSize: 6.8,
+          cellPadding: { top: 1.4, bottom: 1.4, left: 2, right: 2 },
+          valign: "middle",
+        },
+        headStyles: {
+          fillColor: [65, 16, 16],
+          textColor: 255,
+          fontStyle: "bold",
+          fontSize: 7.5,
+        },
+        margin: { top: 18, left: 8, right: 8 },
+      });
 
-      // ───── MAKE HEADER (CENTERED) ─────
-      if (p.carMake !== lastMake) {
-        rows.push([
-          {
-            content: p.carMake.toUpperCase(),
-            colSpan: 12,
-            styles: {
-              fillColor: [25, 25, 25],
-              textColor: 255,
-              fontStyle: "bold",
-              fontSize: 9,
-              halign: "center",
-            },
-          },
-        ]);
-        lastMake = p.carMake;
-        lastModel = "";
-      }
+      doc.save(`products_${new Date().toISOString().split("T")[0]}.pdf`);
 
-      // ───── MODEL HEADER (LEFT) ─────
-      if (p.carModel && p.carModel !== lastModel) {
-        rows.push([
-          {
-            content: `  ${p.carModel}`,
-            colSpan: 12,
-            styles: {
-              fillColor: [140, 140, 140],
-              textColor: 255,
-              fontStyle: "bold",
-              fontSize: 8,
-              halign: "left",
-            },
-          },
-        ]);
-        lastModel = p.carModel;
-      }
-
-      // ───── PRODUCT ROW ─────
-      rows.push([
-        p.sku || "",
-        p.name || "",
-        p.category?.name || "",
-        p.barcode || "",
-        p.sellingPrice || 0,
-        p.currentStock || 0,
-        p.carMake || "",
-        p.carModel || "",
-        p.variant || "",
-        formatYearRange(p.yearFrom, p.yearTo),
-        p.color || "",
-        p.partNumber || "",
-      ]);
-    });
-
-    autoTable(doc, {
-      head: headers,
-      body: rows,
-      startY: 22,
-      theme: "grid",
-      showHead: "everyPage",
-      pageBreak: "auto",
-      styles: {
-        fontSize: 6.8,
-        cellPadding: { top: 1.4, bottom: 1.4, left: 2, right: 2 },
-        valign: "middle",
-      },
-      headStyles: {
-        fillColor: [65, 16, 16],
-        textColor: 255,
-        fontStyle: "bold",
-        fontSize: 7.5,
-      },
-      margin: { top: 18, left: 8, right: 8 },
-    });
-
-    doc.save(`products_${new Date().toISOString().split("T")[0]}.pdf`);
-
-    toast.dismiss();
-    toast.success(`Exported ${sortedProducts.length} products to PDF`);
-  } catch (err) {
-    toast.dismiss();
-    console.error("PDF export failed:", err);
-    toast.error("Failed to export PDF");
-  }
-};
+      toast.dismiss();
+      toast.success(`Exported ${sortedProducts.length} products to PDF`);
+    } catch (err) {
+      toast.dismiss();
+      console.error("PDF export failed:", err);
+      toast.error("Failed to export PDF");
+    }
+  };
 
   const downloadProductsCSV = () => {
     if (filteredProducts.length === 0) {
@@ -2027,10 +2032,52 @@ const downloadProductsPDF = async () => {
                       setNewProduct({ ...newProduct, name: value });
                       fetchNameSuggestions(value);
                       setShowNameSuggestions(true);
+                      setHighlightedIndex(-1); // reset highlight on typing
+                    }}
+                    onKeyDown={(e) => {
+                      e.stopPropagation(); // 🔥 REQUIRED
+
+                      if (!showNameSuggestions || nameSuggestions.length === 0)
+                        return;
+
+                      switch (e.key) {
+                        case "ArrowDown":
+                          e.preventDefault();
+                          setHighlightedIndex((prev) =>
+                            prev < nameSuggestions.length - 1 ? prev + 1 : 0
+                          );
+                          break;
+
+                        case "ArrowUp":
+                          e.preventDefault();
+                          setHighlightedIndex((prev) =>
+                            prev > 0 ? prev - 1 : nameSuggestions.length - 1
+                          );
+                          break;
+
+                        case "Enter":
+                          if (highlightedIndex >= 0) {
+                            e.preventDefault();
+                            setNewProduct({
+                              ...newProduct,
+                              name: nameSuggestions[highlightedIndex],
+                            });
+                            setShowNameSuggestions(false);
+                            setHighlightedIndex(-1);
+                          }
+                          break;
+
+                        case "Escape":
+                          setShowNameSuggestions(false);
+                          setHighlightedIndex(-1);
+                          break;
+                      }
                     }}
                     onBlur={() => {
-                      // delay so click works
-                      setTimeout(() => setShowNameSuggestions(false), 150);
+                      setTimeout(() => {
+                        setShowNameSuggestions(false);
+                        setHighlightedIndex(-1);
+                      }, 150);
                     }}
                     className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
                     placeholder="Product name"
@@ -2043,11 +2090,17 @@ const downloadProductsPDF = async () => {
                       {nameSuggestions.map((name, index) => (
                         <div
                           key={index}
-                          onMouseDown={() => {
+                          onMouseDown={(e) => {
+                            e.stopPropagation();
                             setNewProduct({ ...newProduct, name });
                             setShowNameSuggestions(false);
+                            setHighlightedIndex(-1);
                           }}
-                          className="px-3 py-2 text-sm text-gray-200 hover:bg-[#E84545]/20 cursor-pointer"
+                          className={`px-3 py-2 text-sm cursor-pointer ${
+                            index === highlightedIndex
+                              ? "bg-[#E84545]/40 text-white"
+                              : "text-gray-200 hover:bg-[#E84545]/20"
+                          }`}
                         >
                           {name}
                         </div>
@@ -2140,6 +2193,9 @@ const downloadProductsPDF = async () => {
                   >
                     <option value="pcs" className="text-[#050505]">
                       Pieces
+                    </option>
+                    <option value="set" className="text-[#050505]">
+                      Set
                     </option>
                     <option value="kg" className="text-[#050505]">
                       Kilogram

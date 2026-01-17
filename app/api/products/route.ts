@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     
     const query: any = {
       outletId: outletIdObj,
-      isActive: true,
+      
     };
     
     // ─────────────────────────────────────────────────────────────

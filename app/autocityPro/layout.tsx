@@ -3,17 +3,17 @@ import type { Metadata } from "next";
 // Admin-specific metadata with correct manifest
 export const metadata: Metadata = {
   title: {
-    default: "AutoCity Pro",
-    template: "%s | AutoCity Pro",
+    default: "AutoCity ",
+    template: "%s | AutoCity ",
   },
-  description: "AutoCity Pro dashboard for managing sales, inventory, and reports.",
+  description: "AutoCity  dashboard for managing sales, inventory, and reports.",
   
   // Reference admin-specific manifest
   manifest: "/manifest-admin.json",
   
   appleWebApp: {
     capable: true,
-    title: "AutoCity Pro",
+    title: "AutoCity ",
     statusBarStyle: "black-translucent",
   },
   
@@ -26,25 +26,25 @@ export const metadata: Metadata = {
   },
   
   openGraph: {
-    title: "AutoCity Pro",
-    description: "AutoCity Pro dashboard for managing business operations.",
+    title: "AutoCity ",
+    description: "AutoCity  dashboard for managing business operations.",
     url: "https://autocityqatar.com/autocityPro/login",
-    siteName: "AutoCity Pro",
+    siteName: "AutoCity ",
     type: "website",
     images: [
       {
         url: "https://autocityqatar.com/logo.png",
         width: 1200,
         height: 630,
-        alt: "AutoCity Pro Logo",
+        alt: "AutoCity  Logo",
       },
     ],
   },
   
   twitter: {
     card: "summary_large_image",
-    title: "AutoCity Pro",
-    description: "AutoCity Pro dashboard for sales, stock, and reporting.",
+    title: "AutoCity ",
+    description: "AutoCity  dashboard for sales, stock, and reporting.",
     images: ["https://autocityqatar.com/logo.png"],
   },
   

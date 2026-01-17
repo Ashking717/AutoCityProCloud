@@ -415,7 +415,7 @@ export default function CashFlowPage() {
                 <div className="px-4 md:px-6 py-3 md:py-4 bg-gradient-to-r from-[#E84545] to-[#cc3c3c]">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h2 className="text-base md:text-xl font-bold text-white">{user?.outletName || 'AutoCity Pro'}</h2>
+                      <h2 className="text-base md:text-xl font-bold text-white">{user?.outletName || 'AutoCity'}</h2>
                       <p className="text-xs md:text-sm text-white/90 mt-1">
                         {new Date(dateRange.fromDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(dateRange.toDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </p>

@@ -328,7 +328,7 @@ export async function GET(request: NextRequest) {
       openingCash: roundToTwo(openingCash),
       closingCash: roundToTwo(closingCash),
       metadata: {
-        outletName: outlet?.name || 'AutoCity Pro',
+        outletName: outlet?.name || 'AutoCity',
         outletId,
         generatedAt: new Date().toISOString(),
         fromDate: fromDate.toISOString(),

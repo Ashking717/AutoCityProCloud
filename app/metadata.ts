@@ -103,13 +103,104 @@ export const metadata: Metadata = {
 export const jsonLd = {
   '@context': 'https://schema.org',
   '@graph': [
+    // PRIMARY ORGANIZATION SCHEMA - For Google Search Logo
     {
-      '@type': 'AutoPartsStore',
+      '@type': 'Organization',
       '@id': 'https://autocityqatar.com/#organization',
       name: 'Auto City Qatar',
       alternateName: 'اوتو سيتي قطر',
+      legalName: 'Auto City Qatar Car Accessories',
       url: 'https://autocityqatar.com',
-      logo: 'https://autocityqatar.com/logo.png',
+      
+      // LOGO - This is what Google uses for search results
+      logo: {
+        '@type': 'ImageObject',
+        '@id': 'https://autocityqatar.com/#logo',
+        url: 'https://autocityqatar.com/login.png',
+        contentUrl: 'https://autocityqatar.com/login.png',
+        caption: 'Auto City Qatar Logo',
+        inLanguage: 'en-QA',
+        width: 600,
+        height: 60,
+      },
+      
+      // ADDITIONAL IMAGE - For better display
+      image: {
+        '@type': 'ImageObject',
+        url: 'https://autocityqatar.com/login.png',
+        width: 600,
+        height: 60,
+      },
+      
+      description: 'Leading car accessories provider in Qatar offering vehicle facelifts, stereo upgrades, genuine parts, interior & exterior enhancements, window tinting, and professional automotive services across 3 Doha branches',
+      
+      telephone: '+974-5086-7676',
+      email: 'info@autocityqatar.com',
+      
+      address: {
+        '@type': 'PostalAddress',
+        streetAddress: '',
+        addressLocality: 'Doha',
+        addressRegion: 'Doha',
+        postalCode: '',
+        addressCountry: 'QA',
+      },
+      
+      openingHoursSpecification: [
+        {
+          '@type': 'OpeningHoursSpecification',
+          dayOfWeek: ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'],
+          opens: '08:00',
+          closes: '20:00',
+        },
+        {
+          '@type': 'OpeningHoursSpecification',
+          dayOfWeek: 'Friday',
+          opens: '14:00',
+          closes: '20:00',
+        },
+      ],
+      
+      contactPoint: [
+        {
+          '@type': 'ContactPoint',
+          telephone: '+974-5086-7676',
+          contactType: 'customer service',
+          areaServed: 'QA',
+          availableLanguage: ['English', 'Arabic']
+        },
+        {
+          '@type': 'ContactPoint',
+          telephone: '+974-6664-2884',
+          contactType: 'customer service',
+          areaServed: 'QA',
+          availableLanguage: ['English', 'Arabic']
+        },
+        {
+          '@type': 'ContactPoint',
+          telephone: '+974-7730-3968',
+          contactType: 'customer service',
+          areaServed: 'QA',
+          availableLanguage: ['English', 'Arabic']
+        }
+      ],
+      
+      sameAs: [
+        // Add your social media profiles here when available
+        // 'https://www.facebook.com/autocityqatar',
+        // 'https://www.instagram.com/autocityqatar',
+        // 'https://twitter.com/autocityqatar',
+      ],
+    },
+    
+    // AUTO PARTS STORE SCHEMA
+    {
+      '@type': 'AutoPartsStore',
+      '@id': 'https://autocityqatar.com/#store',
+      name: 'Auto City Qatar',
+      alternateName: 'اوتو سيتي قطر',
+      url: 'https://autocityqatar.com',
+      logo: 'https://autocityqatar.com/login.png',
       description: 'Premium car accessories, genuine parts, and professional automotive services in Qatar',
       
       contactPoint: [

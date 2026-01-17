@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
       equity: { items: equity, total: totalEquity },
       isBalanced,
       metadata: {
-        outletName: outlet?.name || 'AutoCity Pro',
+        outletName: outlet?.name || 'AutoCity',
         outletId: user.outletId,
         generatedAt: new Date().toISOString(),
         asOfDate: asOfDate.toISOString(),
@@ -140,7 +140,7 @@ async function generateExcel(data: any, outlet: any) {
   // Subtitle
   worksheet.mergeCells('A2:D2');
   const subtitleCell = worksheet.getCell('A2');
-  subtitleCell.value = `Outlet: ${outlet?.outletName || 'AutoCity Pro'}`;
+  subtitleCell.value = `Outlet: ${outlet?.outletName || 'AutoCity'}`;
   subtitleCell.font = { size: 11, color: { argb: 'FF6B7280' } };
   subtitleCell.alignment = { horizontal: 'center' };
   

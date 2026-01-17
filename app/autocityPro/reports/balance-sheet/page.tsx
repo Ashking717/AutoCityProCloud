@@ -289,7 +289,7 @@ export default function BalanceSheetPage() {
       if (format === 'pdf') {
         toast.loading('Generating PDF...');
         const { exportToPDF } = await import('@/lib/export/balanceSheetPDF');
-        exportToPDF(reportData, asOfDate, user?.outletName || 'AutoCity Pro');
+        exportToPDF(reportData, asOfDate, user?.outletName || 'AutoCity');
         toast.dismiss();
         toast.success('PDF generated successfully');
       } else if (format === 'excel') {

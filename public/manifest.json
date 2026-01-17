@@ -91,7 +91,7 @@
       "name": "Staff Login",
       "short_name": "Login",
       "url": "/autocityPro/login",
-      "description": "AutoCity Pro staff dashboard login",
+      "description": "AutoCity portal login",
       "icons": [
         {
           "src": "/icons/icon-192.png",

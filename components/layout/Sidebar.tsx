@@ -408,7 +408,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
             <div className="relative w-14 h-14 flex items-center justify-center bg-gray-100/90 backdrop-blur-sm rounded-xl shadow-lg ring-2 ring-[#E84545]/20">
               <Image
                 src="/icon-192.png"
-                alt="AutoCity Pro Logo"
+                alt="AutoCity Logo"
                 width={60}
                 height={60}
                 className="rounded-lg"

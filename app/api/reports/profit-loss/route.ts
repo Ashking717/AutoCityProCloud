@@ -220,7 +220,7 @@ export async function GET(request: NextRequest) {
       operatingProfit: roundToTwo(operatingProfit),
       netProfit: roundToTwo(netProfit),
       metadata: {
-        outletName: outlet?.name || 'AutoCity Pro',
+        outletName: outlet?.name || 'AutoCity',
         outletId: user.outletId,
         generatedAt: new Date().toISOString(),
         fromDate: fromDate.toISOString(),

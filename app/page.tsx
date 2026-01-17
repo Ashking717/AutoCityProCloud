@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Wrench, Shield, ArrowRight, Phone, Mail, MapPin, ChevronDown, Clock, Disc3, Sparkles, PaintBucket, Sun, Repeat, Sofa, Settings, Globe } from 'lucide-react';
 
-// Content translations
+// Content translations with SEO-optimized text
 const content = {
   en: {
     nav: {
@@ -17,101 +17,119 @@ const content = {
     },
     hero: {
       badge: 'Premium Car Accessories in Qatar',
-      title1: 'Elevate Your',
-      title2: 'Drive',
-      subtitle: 'Auto City Car Accessories',
-      description: 'Your trusted destination for vehicle facelifts, stereo upgrades, genuine parts, interior & exterior enhancements, and professional tinting services across Qatar.',
-      cta1: 'Our Services',
+      title1: 'Car Accessories',
+      title2: 'in Qatar',
+      subtitle: 'Auto City - Your Trusted Auto Accessory Shop in Doha',
+      description: 'Leading car accessories shop in Qatar offering premium auto parts, stereo systems, window tinting, interior upgrades, and genuine parts. Visit our 3 Doha locations for quality automotive accessories.',
+      intro: 'Looking for car accessories in Qatar? Auto City is your premier destination for automotive accessories in Doha. With three convenient locations across Doha - Al Gharafa, Muaither, and Al Mesila - we offer the widest selection of car parts and accessories in Qatar.',
+      cta1: 'Browse Services',
       cta2: 'Contact Us',
       stats: [
-        { value: '3', label: 'Branches' },
+        { value: '3', label: 'Doha Branches' },
         { value: '8+', label: 'Services' },
-        { value: '100%', label: 'Quality' },
+        { value: '10,000+', label: 'Products' },
       ],
     },
     services: {
-      label: 'Our Services',
-      title: 'What We Offer',
-      description: 'Comprehensive automotive solutions to transform and maintain your vehicle',
+      label: 'Car Accessories & Services',
+      title: 'Complete Auto Accessories in Qatar',
+      description: 'From interior upgrades to exterior enhancements, we offer comprehensive car accessories and automotive services across Doha',
       items: [
         {
           title: 'Vehicle Facelift',
-          description: 'Transform your vehicle with our comprehensive facelift services. Modernize your car\'s appearance with updated styling elements.',
+          description: 'Transform your car with comprehensive facelift services in Qatar. Modernize your vehicle\'s appearance with updated styling elements and premium auto accessories.',
         },
         {
-          title: 'Stereo Upgradation',
-          description: 'Upgrade your audio experience with premium sound systems, speakers, and multimedia units from leading brands.',
+          title: 'Car Stereo Systems',
+          description: 'Upgrade your car audio in Doha with premium sound systems, speakers, and multimedia units. Expert installation of Pioneer, JBL, Sony, and Kenwood stereos.',
         },
         {
-          title: 'Genuine Parts',
-          description: 'OEM certified parts sourced directly from manufacturers. Quality guaranteed for perfect fit and performance.',
+          title: 'Genuine Car Parts',
+          description: 'OEM certified genuine car parts in Qatar sourced directly from manufacturers. Quality guaranteed auto parts for perfect fit and performance.',
         },
         {
           title: 'Aftermarket Parts',
-          description: 'High-quality aftermarket alternatives offering excellent value without compromising on performance.',
+          description: 'High-quality aftermarket car parts in Qatar offering excellent value. Premium alternatives without compromising on performance or reliability.',
         },
         {
-          title: 'Interior Upgradation',
-          description: 'Elevate your cabin with premium upholstery, custom trims, ambient lighting, and comfort accessories.',
+          title: 'Interior Accessories',
+          description: 'Transform your car interior in Qatar with premium upholstery, custom trims, ambient LED lighting, seat covers, and comfort accessories.',
         },
         {
-          title: 'Exterior Detailing',
-          description: 'Professional detailing services including paint correction, ceramic coating, and protective films.',
+          title: 'Exterior Accessories',
+          description: 'Professional car detailing in Doha including paint correction, ceramic coating, protective films, and body kit installations.',
         },
         {
-          title: 'Window Tinting',
-          description: 'Premium window films for UV protection, privacy, and heat reduction. Multiple shades available.',
+          title: 'Window Tinting ',
+          description: 'Premium window tinting services  for UV protection, privacy, and heat reduction. Essential for Qatar\'s climate. Multiple shades available.',
         },
         {
-          title: 'Vehicle Type Conversion',
-          description: 'Specialized conversion services to transform your vehicle\'s configuration to meet your specific needs.',
+          title: 'Vehicle Conversion',
+          description: 'Specialized vehicle type conversion services in Qatar. Transform your vehicle\'s configuration to meet specific needs and requirements.',
         },
       ],
     },
     about: {
-      label: 'About Us',
-      title: 'Your Trusted Partner',
-      description1: 'Auto City Qatar is a leading destination for car accessories and automotive services. We serve vehicle owners across Qatar with a strong focus on quality, reliability, and customer satisfaction.',
-      description2: 'With three strategically located branches in Doha and an experienced team, we ensure premium automotive solutions are always within reach.',
+      label: 'About Auto City Qatar',
+      title: 'Qatar\'s Leading Car Accessories Shop',
+      description1: 'Auto City Qatar is the leading destination for car accessories and automotive services in Doha. We serve vehicle owners across Qatar with a strong focus on quality, reliability, and customer satisfaction.',
+      description2: 'With three strategically located branches across Doha (Al Gharafa, Muaither, and Al Mesila) and an experienced team, we ensure premium automotive solutions are always within reach. Whether you need genuine parts, aftermarket accessories, or professional installation services, Auto City Qatar is your trusted partner.',
       features: [
-        'Vehicle Facelift',
-        'Stereo Systems',
-        'Genuine Parts',
-        'Aftermarket Parts',
+        'Vehicle Facelift Services',
+        'Car Audio Systems',
+        'Genuine OEM Parts',
+        'Aftermarket Accessories',
         'Interior Upgrades',
         'Exterior Detailing',
         'Window Tinting',
-        'Type Conversion',
+        'Vehicle Conversions',
       ],
     },
     branches: {
-      label: 'Locations',
-      title: 'Our Branches',
-      description: 'Visit any of our three convenient locations across Doha',
+      label: 'Our Locations in Doha',
+      title: 'Visit Our Car Accessories Shops',
+      description: 'Three convenient car accessories shops across Doha, Qatar. Visit any location for premium auto parts and services.',
       items: [
-        { name: 'Al Gharafa', area: 'Doha' },
-        { name: 'Muaither', area: 'Doha' },
-        { name: 'Al Mesila', area: 'Doha' },
+        { name: 'Al Gharafa Branch', area: 'Doha, Qatar', desc: 'Car accessories shop in Al Gharafa' },
+        { name: 'Muaither Branch', area: 'Doha, Qatar', desc: 'Auto parts store in Muaither' },
+        { name: 'Al Mesila Branch', area: 'Doha, Qatar', desc: 'Automotive accessories in Al Mesila' },
       ],
     },
     contact: {
-      label: 'Contact',
-      title: 'Get in Touch',
-      description: 'Reach out to us — we\'re here to help with all your automotive needs',
-      callUs: 'Call Us',
-      callUsDesc: 'We\'re available during business hours',
+      label: 'Contact Auto City Qatar',
+      title: 'Get in Touch - Car Accessories Qatar',
+      description: 'Contact us for car accessories in Qatar. We\'re here to help with all your automotive needs across Doha.',
+      callUs: 'Call Our Doha Branches',
+      callUsDesc: 'Available during business hours',
       emailUs: 'Email Us',
       businessHours: 'Business Hours',
       satThu: 'Saturday – Thursday',
       friday: 'Friday',
     },
     footer: {
-      description: 'Premium car accessories, genuine parts, and professional automotive services — your complete solution in Qatar.',
-      services: 'Services',
+      description: 'Auto City Qatar - Leading car accessories shop in Doha. Premium auto parts, genuine OEM parts, aftermarket accessories, stereo systems, window tinting, and professional automotive services. Your complete car accessories solution in Qatar.',
+      services: 'Car Accessories',
       contact: 'Contact',
-      ourBranches: 'Our Branches',
+      ourBranches: 'Doha Branches',
       rights: 'All rights reserved.',
     },
+    faq: {
+      title: 'Frequently Asked Questions',
+      items: [
+        {
+          q: 'Where can I buy car accessories in Qatar?',
+          a: 'Auto City Qatar offers premium car accessories across 3 locations in Doha: Al Gharafa, Muaither, and Al Mesila. We provide genuine parts, aftermarket accessories, stereo systems, window tinting, and more.'
+        },
+        {
+          q: 'What car accessories do you offer in Doha?',
+          a: 'We offer complete car accessories including interior upgrades (upholstery, trims, lighting), exterior accessories (body kits, protective films), stereo systems, genuine OEM parts, aftermarket parts, window tinting, and vehicle customization services.'
+        },
+        {
+          q: 'Do you have genuine car parts in Qatar?',
+          a: 'Yes, Auto City Qatar stocks OEM certified genuine car parts sourced directly from manufacturers, plus high-quality aftermarket alternatives for all vehicle makes and models.'
+        },
+      ]
+    }
   },
   ar: {
     nav: {
@@ -123,101 +141,119 @@ const content = {
     },
     hero: {
       badge: 'إكسسوارات سيارات فاخرة في قطر',
-      title1: 'ارتقِ',
-      title2: 'بقيادتك',
-      subtitle: 'اوتو سيتي لزينة السيارات',
-      description: 'وجهتك الموثوقة لتجديد المركبات، ترقية أنظمة الصوت، قطع الغيار الأصلية، التحسينات الداخلية والخارجية، وخدمات التظليل الاحترافية في قطر.',
-      cta1: 'خدماتنا',
+      title1: 'إكسسوارات',
+      title2: 'السيارات في قطر',
+      subtitle: 'اوتو سيتي - متجر قطع غيار السيارات الموثوق في الدوحة',
+      description: 'متجر رائد لإكسسوارات السيارات في قطر يقدم قطع غيار متميزة وأنظمة صوت وتظليل نوافذ وترقيات داخلية وقطع أصلية. قم بزيارة فروعنا الثلاثة في الدوحة للحصول على إكسسوارات سيارات عالية الجودة.',
+      intro: 'تبحث عن إكسسوارات السيارات في قطر؟ اوتو سيتي هي وجهتك المثالية لإكسسوارات السيارات في الدوحة. مع ثلاثة مواقع مريحة في الدوحة - الغرافة ومعيذر والمسيلة - نقدم أوسع مجموعة من قطع غيار وإكسسوارات السيارات في قطر.',
+      cta1: 'تصفح الخدمات',
       cta2: 'اتصل بنا',
       stats: [
-        { value: '٣', label: 'فروع' },
+        { value: '٣', label: 'فروع في الدوحة' },
         { value: '+٨', label: 'خدمات' },
-        { value: '١٠٠٪', label: 'جودة' },
+        { value: '+١٠٬٠٠٠', label: 'منتج' },
       ],
     },
     services: {
-      label: 'خدماتنا',
-      title: 'ماذا نقدم',
-      description: 'حلول سيارات شاملة لتحويل وصيانة سيارتك',
+      label: 'إكسسوارات وخدمات السيارات',
+      title: 'إكسسوارات سيارات كاملة في قطر',
+      description: 'من الترقيات الداخلية إلى التحسينات الخارجية، نقدم إكسسوارات وخدمات سيارات شاملة في الدوحة',
       items: [
         {
           title: 'تجديد المركبات',
-          description: 'قم بتحويل سيارتك مع خدمات التجديد الشاملة لدينا. حدّث مظهر سيارتك بعناصر تصميم عصرية.',
+          description: 'قم بتحويل سيارتك مع خدمات التجديد الشاملة في قطر. حدّث مظهر سيارتك بعناصر تصميم عصرية وإكسسوارات سيارات متميزة.',
         },
         {
-          title: 'ترقية أنظمة الصوت',
-          description: 'قم بترقية تجربتك الصوتية مع أنظمة صوت متميزة ومكبرات صوت ووحدات وسائط متعددة من أفضل العلامات التجارية.',
+          title: 'أنظمة صوت السيارات',
+          description: 'قم بترقية صوت سيارتك في الدوحة مع أنظمة صوت متميزة ومكبرات صوت ووحدات وسائط متعددة. تركيب احترافي لأنظمة بايونير وJBL وسوني وكينوود.',
         },
         {
           title: 'قطع غيار أصلية',
-          description: 'قطع غيار معتمدة من الشركة المصنعة مباشرة. جودة مضمونة للملاءمة والأداء المثالي.',
+          description: 'قطع غيار سيارات أصلية معتمدة من OEM في قطر مباشرة من المصنعين. جودة مضمونة لقطع غيار السيارات للملاءمة والأداء المثالي.',
         },
         {
           title: 'قطع غيار بديلة',
-          description: 'بدائل عالية الجودة توفر قيمة ممتازة دون المساس بالأداء.',
+          description: 'قطع غيار سيارات بديلة عالية الجودة في قطر توفر قيمة ممتازة. بدائل متميزة دون المساس بالأداء أو الموثوقية.',
         },
         {
-          title: 'ترقية المقصورة الداخلية',
-          description: 'ارتقِ بمقصورتك مع تنجيد فاخر وزخارف مخصصة وإضاءة محيطية وإكسسوارات راحة.',
+          title: 'إكسسوارات داخلية',
+          description: 'قم بتحويل داخلية سيارتك في قطر مع تنجيد فاخر وزخارف مخصصة وإضاءة LED محيطة وأغطية مقاعد وإكسسوارات راحة.',
         },
         {
-          title: 'تفصيل خارجي',
-          description: 'خدمات تفصيل احترافية تشمل تصحيح الطلاء والطلاء السيراميكي والأفلام الواقية.',
+          title: 'إكسسوارات خارجية',
+          description: 'تفصيل سيارات احترافي في الدوحة بما في ذلك تصحيح الطلاء والطلاء السيراميكي والأفلام الواقية وتركيب هياكل الجسم.',
         },
         {
-          title: 'تظليل النوافذ',
-          description: 'أفلام نوافذ متميزة للحماية من الأشعة فوق البنفسجية والخصوصية وتقليل الحرارة. درجات متعددة متاحة.',
+          title: 'تظليل النوافذ قطر',
+          description: 'خدمات تظليل نوافذ متميزة في قطر للحماية من الأشعة فوق البنفسجية والخصوصية وتقليل الحرارة. ضروري لمناخ قطر. درجات متعددة متاحة.',
         },
         {
-          title: 'تحويل نوع المركبة',
-          description: 'خدمات تحويل متخصصة لتغيير تكوين سيارتك لتلبية احتياجاتك الخاصة.',
+          title: 'تحويل المركبات',
+          description: 'خدمات تحويل نوع المركبة المتخصصة في قطر. قم بتحويل تكوين سيارتك لتلبية الاحتياجات والمتطلبات الخاصة.',
         },
       ],
     },
     about: {
-      label: 'من نحن',
-      title: 'شريكك الموثوق',
-      description1: 'اوتو سيتي قطر هي الوجهة الرائدة لإكسسوارات السيارات وخدمات السيارات. نخدم أصحاب المركبات في جميع أنحاء قطر مع التركيز القوي على الجودة والموثوقية ورضا العملاء.',
-      description2: 'مع ثلاثة فروع في مواقع استراتيجية في الدوحة وفريق من ذوي الخبرة، نضمن أن حلول السيارات المتميزة دائماً في متناول اليد.',
+      label: 'عن اوتو سيتي قطر',
+      title: 'متجر إكسسوارات السيارات الرائد في قطر',
+      description1: 'اوتو سيتي قطر هي الوجهة الرائدة لإكسسوارات السيارات وخدمات السيارات في الدوحة. نخدم أصحاب المركبات في جميع أنحاء قطر مع التركيز القوي على الجودة والموثوقية ورضا العملاء.',
+      description2: 'مع ثلاثة فروع في مواقع استراتيجية في الدوحة (الغرافة ومعيذر والمسيلة) وفريق من ذوي الخبرة، نضمن أن حلول السيارات المتميزة دائماً في متناول اليد. سواء كنت بحاجة إلى قطع غيار أصلية أو إكسسوارات بديلة أو خدمات تركيب احترافية، اوتو سيتي قطر هو شريكك الموثوق.',
       features: [
-        'تجديد المركبات',
-        'أنظمة الصوت',
-        'قطع غيار أصلية',
-        'قطع غيار بديلة',
-        'ترقية داخلية',
+        'خدمات تجديد المركبات',
+        'أنظمة صوت السيارات',
+        'قطع غيار OEM أصلية',
+        'إكسسوارات بديلة',
+        'ترقيات داخلية',
         'تفصيل خارجي',
         'تظليل النوافذ',
-        'تحويل النوع',
+        'تحويلات المركبات',
       ],
     },
     branches: {
-      label: 'المواقع',
-      title: 'فروعنا',
-      description: 'قم بزيارة أي من فروعنا الثلاثة في الدوحة',
+      label: 'مواقعنا في الدوحة',
+      title: 'قم بزيارة متاجر إكسسوارات السيارات لدينا',
+      description: 'ثلاثة متاجر إكسسوارات سيارات مريحة في الدوحة، قطر. قم بزيارة أي موقع للحصول على قطع غيار وخدمات سيارات متميزة.',
       items: [
-        { name: 'الغرافة', area: 'الدوحة' },
-        { name: 'معيذر', area: 'الدوحة' },
-        { name: 'المسيلة', area: 'الدوحة' },
+        { name: 'فرع الغرافة', area: 'الدوحة، قطر', desc: 'متجر إكسسوارات السيارات في الغرافة' },
+        { name: 'فرع معيذر', area: 'الدوحة، قطر', desc: 'متجر قطع غيار السيارات في معيذر' },
+        { name: 'فرع المسيلة', area: 'الدوحة، قطر', desc: 'إكسسوارات السيارات في المسيلة' },
       ],
     },
     contact: {
-      label: 'اتصل بنا',
-      title: 'تواصل معنا',
-      description: 'تواصل معنا — نحن هنا لمساعدتك في جميع احتياجات سيارتك',
-      callUs: 'اتصل بنا',
-      callUsDesc: 'نحن متاحون خلال ساعات العمل',
+      label: 'اتصل بـ اوتو سيتي قطر',
+      title: 'تواصل معنا - إكسسوارات السيارات قطر',
+      description: 'اتصل بنا للحصول على إكسسوارات السيارات في قطر. نحن هنا لمساعدتك في جميع احتياجات سيارتك في الدوحة.',
+      callUs: 'اتصل بفروعنا في الدوحة',
+      callUsDesc: 'متاح خلال ساعات العمل',
       emailUs: 'راسلنا',
       businessHours: 'ساعات العمل',
       satThu: 'السبت – الخميس',
       friday: 'الجمعة',
     },
     footer: {
-      description: 'إكسسوارات سيارات فاخرة، قطع غيار أصلية، وخدمات سيارات احترافية — حلك الكامل في قطر.',
-      services: 'الخدمات',
+      description: 'اوتو سيتي قطر - متجر إكسسوارات السيارات الرائد في الدوحة. قطع غيار سيارات متميزة، قطع غيار OEM أصلية، إكسسوارات بديلة، أنظمة صوت، تظليل نوافذ، وخدمات سيارات احترافية. حل إكسسوارات السيارات الكامل في قطر.',
+      services: 'إكسسوارات السيارات',
       contact: 'اتصل بنا',
-      ourBranches: 'فروعنا',
+      ourBranches: 'فروع الدوحة',
       rights: 'جميع الحقوق محفوظة.',
     },
+    faq: {
+      title: 'الأسئلة الشائعة',
+      items: [
+        {
+          q: 'أين يمكنني شراء إكسسوارات السيارات في قطر؟',
+          a: 'تقدم اوتو سيتي قطر إكسسوارات سيارات متميزة في 3 مواقع في الدوحة: الغرافة ومعيذر والمسيلة. نوفر قطع غيار أصلية وإكسسوارات بديلة وأنظمة صوت وتظليل نوافذ والمزيد.'
+        },
+        {
+          q: 'ما هي إكسسوارات السيارات التي تقدمونها في الدوحة؟',
+          a: 'نقدم إكسسوارات سيارات كاملة بما في ذلك الترقيات الداخلية (التنجيد والزخارف والإضاءة) والإكسسوارات الخارجية (هياكل الجسم والأفلام الواقية) وأنظمة الصوت وقطع غيار OEM الأصلية والقطع البديلة وتظليل النوافذ وخدمات تخصيص المركبات.'
+        },
+        {
+          q: 'هل لديكم قطع غيار سيارات أصلية في قطر؟',
+          a: 'نعم، تخزن اوتو سيتي قطر قطع غيار سيارات أصلية معتمدة من OEM مباشرة من المصنعين، بالإضافة إلى بدائل عالية الجودة لجميع ماركات وموديلات المركبات.'
+        },
+      ]
+    }
   },
 };
 
@@ -399,10 +435,10 @@ export default function HomePage() {
           <nav className="max-w-7xl mx-auto px-6 lg:px-8" aria-label="Main navigation">
             <div className="flex items-center justify-between h-20">
               {/* Logo */}
-              <Link href="/" className="relative h-12 w-48" aria-label="Auto City Qatar Home">
+              <Link href="/" className="relative h-12 w-48" aria-label="Auto City Qatar - Car Accessories Shop in Doha">
                 <Image
                   src="/login.png"
-                  alt="Auto City Qatar - Premium Car Accessories"
+                  alt="Auto City Qatar - Premium Car Accessories in Doha"
                   fill
                   className="object-contain object-left"
                   priority
@@ -504,8 +540,12 @@ export default function HomePage() {
                 {t.hero.subtitle}
               </p>
 
-              <p className="animate-fade-in-up delay-300 text-lg text-gray-400 max-w-lg mb-10 leading-relaxed">
+              <p className="animate-fade-in-up delay-300 text-lg text-gray-400 max-w-lg mb-6 leading-relaxed">
                 {t.hero.description}
+              </p>
+
+              <p className="animate-fade-in-up delay-300 text-base text-gray-500 max-w-lg mb-10 leading-relaxed">
+                {t.hero.intro}
               </p>
 
               <div className="animate-fade-in-up delay-400 flex flex-wrap gap-4">
@@ -550,7 +590,7 @@ export default function HomePage() {
                   <div className="glass rounded-3xl p-12 hover-lift">
                     <Image
                       src="/logo.png"
-                      alt="Auto City Qatar Brand Logo"
+                      alt="Auto City Qatar - Leading Car Accessories Provider in Doha"
                       width={300}
                       height={150}
                       className="object-contain"
@@ -563,7 +603,7 @@ export default function HomePage() {
         </div>
 
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 animate-fade-in delay-600">
-          <a href="#services" className="flex flex-col items-center gap-2 text-gray-500 hover:text-[#E84545] transition-colors" aria-label="Scroll to services">
+          <a href="#services" className="flex flex-col items-center gap-2 text-gray-500 hover:text-[#E84545] transition-colors" aria-label="Scroll to car accessories services">
             <ChevronDown className="w-5 h-5 animate-bounce" aria-hidden="true" />
           </a>
         </div>
@@ -589,13 +629,15 @@ export default function HomePage() {
                 <article
                   key={i}
                   className="group relative p-6 lg:p-8 bg-[#0A0A0A] border border-white/5 rounded-2xl hover:border-[#E84545]/30 hover-lift transition-all duration-500"
+                  itemScope
+                  itemType="https://schema.org/Service"
                 >
                   <div className="w-12 h-12 rounded-xl bg-[#E84545]/10 flex items-center justify-center mb-5 group-hover:bg-[#E84545] transition-colors duration-300">
                     <Icon className="w-6 h-6 text-[#E84545] group-hover:text-white transition-colors duration-300" aria-hidden="true" />
                   </div>
 
-                  <h3 className="text-lg font-bold mb-3">{service.title}</h3>
-                  <p className="text-gray-400 text-sm leading-relaxed">{service.description}</p>
+                  <h3 className="text-lg font-bold mb-3" itemProp="name">{service.title}</h3>
+                  <p className="text-gray-400 text-sm leading-relaxed" itemProp="description">{service.description}</p>
 
                   <div className="absolute bottom-0 left-0 w-full h-1 bg-[#E84545] scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left rounded-b-2xl" aria-hidden="true" />
                 </article>
@@ -638,14 +680,14 @@ export default function HomePage() {
                 <div className="text-center">
                   <Image
                     src="/login.png"
-                    alt="Auto City Qatar - Leading Car Accessories Provider"
+                    alt="Auto City Qatar - Premium Car Accessories Shop in Doha"
                     width={350}
                     height={175}
                     className="mx-auto mb-8"
                   />
                   <div className="space-y-2">
                     <p className="text-xl font-semibold">{lang === 'en' ? 'Auto City Qatar' : 'اوتو سيتي قطر'}</p>
-                    <p className="text-lg text-gray-500">{lang === 'en' ? 'Car Accessories' : 'لزينة السيارات'}</p>
+                    <p className="text-lg text-gray-500">{lang === 'en' ? 'Car Accessories & Auto Parts' : 'إكسسوارات السيارات وقطع الغيار'}</p>
                   </div>
                 </div>
               </div>
@@ -657,8 +699,32 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* FAQ Section - NEW for SEO */}
+      {lang === 'en' && (
+        <section className="relative py-32" aria-labelledby="faq-heading">
+          <div className="max-w-4xl mx-auto px-6 lg:px-8">
+            <header className="text-center mb-16">
+              <h2 id="faq-heading" className="text-4xl md:text-5xl font-bold relative inline-block line-accent line-accent-center">
+                {t.faq.title}
+              </h2>
+            </header>
+
+            <div className="space-y-6">
+              {t.faq.items.map((item, i) => (
+                <div key={i} className="glass rounded-2xl p-8" itemScope itemType="https://schema.org/Question">
+                  <h3 className="text-xl font-bold mb-4 text-[#E84545]" itemProp="name">{item.q}</h3>
+                  <div itemScope itemProp="acceptedAnswer" itemType="https://schema.org/Answer">
+                    <p className="text-gray-400 leading-relaxed" itemProp="text">{item.a}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Branches Section */}
-      <section id="branches" className="relative py-32" aria-labelledby="branches-heading">
+      <section id="branches" className="relative py-32 bg-[#0A0A0A]" aria-labelledby="branches-heading">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <header className="text-center mb-16">
             <span className="text-[#E84545] text-sm font-semibold tracking-[0.2em] uppercase">{t.branches.label}</span>
@@ -674,7 +740,7 @@ export default function HomePage() {
             {t.branches.items.map((branch, i) => (
               <article
                 key={i}
-                className="group p-8 bg-[#0A0A0A] border border-white/5 rounded-2xl text-center hover:border-[#E84545]/30 hover-lift transition-all duration-300"
+                className="group p-8 bg-[#050505] border border-white/5 rounded-2xl text-center hover:border-[#E84545]/30 hover-lift transition-all duration-300"
                 itemScope
                 itemType="https://schema.org/LocalBusiness"
               >
@@ -682,7 +748,8 @@ export default function HomePage() {
                   <MapPin className="w-7 h-7 text-[#E84545] group-hover:text-white transition-colors duration-300" aria-hidden="true" />
                 </div>
                 <h3 className="text-xl font-bold mb-2" itemProp="name">{branch.name}</h3>
-                <p className="text-gray-500" itemProp="address">{branch.area}</p>
+                <p className="text-gray-500 mb-2" itemProp="address">{branch.area}</p>
+                <p className="text-sm text-gray-600">{branch.desc}</p>
               </article>
             ))}
           </div>
@@ -690,7 +757,7 @@ export default function HomePage() {
       </section>
 
       {/* Contact Section */}
-      <section id="contact" className="relative py-32 bg-[#0A0A0A]" aria-labelledby="contact-heading">
+      <section id="contact" className="relative py-32" aria-labelledby="contact-heading">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <header className="text-center mb-16">
             <span className="text-[#E84545] text-sm font-semibold tracking-[0.2em] uppercase">{t.contact.label}</span>
@@ -777,30 +844,30 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="relative py-16 border-t border-white/5" role="contentinfo">
+      <footer className="relative py-16 border-t border-white/5 bg-[#0A0A0A]" role="contentinfo">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="grid md:grid-cols-4 gap-12 mb-16">
             {/* Brand */}
             <div className="md:col-span-2">
               <Image
-                src="/logo.png"
-                alt="Auto City Qatar Logo"
+                src="/login.png"
+                alt="Auto City Qatar - Car Accessories Shop"
                 width={180}
                 height={90}
                 className="mb-6"
               />
-              <p className="text-gray-500 max-w-sm leading-relaxed mb-6">
+              <p className="text-gray-500 max-w-sm leading-relaxed mb-6 text-sm">
                 {t.footer.description}
               </p>
-              <p className="text-[#E84545]">
+              <p className="text-[#E84545] font-semibold">
                 {lang === 'en' ? 'اوتو سيتي لزينة السيارات' : 'Auto City Car Accessories'}
               </p>
             </div>
 
             {/* Services */}
-            <nav aria-label="Footer services">
+            <nav aria-label="Footer car accessories services">
               <h4 className="font-semibold mb-6">{t.footer.services}</h4>
-              <ul className="space-y-3 text-gray-500">
+              <ul className="space-y-3 text-gray-500 text-sm">
                 {t.services.items.slice(0, 5).map((service, i) => (
                   <li key={i}>{service.title}</li>
                 ))}
@@ -810,7 +877,7 @@ export default function HomePage() {
             {/* Contact */}
             <address className="not-italic">
               <h4 className="font-semibold mb-6">{t.footer.contact}</h4>
-              <ul className="space-y-3 text-gray-500">
+              <ul className="space-y-3 text-gray-500 text-sm">
                 {phoneNumbers.map((phone, i) => (
                   <li key={i} dir="ltr">
                     <a href={`tel:${phone.replace(/\s/g, '')}`} className="hover:text-[#E84545] transition-colors">
@@ -829,8 +896,8 @@ export default function HomePage() {
 
           {/* Branches */}
           <div className="py-8 border-t border-b border-white/5 mb-8">
-            <div className="flex flex-wrap items-center justify-center gap-8 text-gray-500">
-              <span className="text-sm font-medium text-white">{t.footer.ourBranches}:</span>
+            <div className="flex flex-wrap items-center justify-center gap-8 text-gray-500 text-sm">
+              <span className="font-medium text-white">{t.footer.ourBranches}:</span>
               {t.branches.items.map((branch, i) => (
                 <span key={i} className="flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-[#E84545]" aria-hidden="true" />
@@ -843,7 +910,7 @@ export default function HomePage() {
           {/* Bottom */}
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-gray-500 text-sm">
-              © {new Date().getFullYear()} {lang === 'en' ? 'Auto City Qatar' : 'اوتو سيتي قطر'}. {t.footer.rights}
+              © {new Date().getFullYear()} {lang === 'en' ? 'Auto City Qatar - Car Accessories Shop in Doha' : 'اوتو سيتي قطر - متجر إكسسوارات السيارات في الدوحة'}. {t.footer.rights}
             </p>
             <Link 
               href="/autocityPro/login" 

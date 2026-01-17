@@ -119,7 +119,7 @@ function ResetPasswordForm() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-full mb-4">
             <Car className="h-8 w-8 text-blue-600" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">AutoCity Pro</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">AutoCity</h1>
           <p className="text-blue-100">Reset Your Password</p>
         </div>
 

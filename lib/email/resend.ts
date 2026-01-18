@@ -34,9 +34,10 @@ export async function sendPasswordResetEmail(
     const resend = getResend(); // ✅ Lazy init (FIX)
 
     const { data, error } = await resend.emails.send({
-      from: "AutoCity Pro <onboarding@resend.dev>", // Replace with verified domain
+      from: "AutoCity <no-reply@autocityqatar.com>",
+ // Replace with verified domain
       to: email,
-      subject: "Reset Your Password - AutoCity Pro",
+      subject: "Reset Your Password - AutoCity",
       html: `<!DOCTYPE html>
 <html lang="en">
 <head>

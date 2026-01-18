@@ -27,6 +27,7 @@ import {
 import toast from "react-hot-toast";
 import InvoicePrint from "@/components/InvoicePrint";
 import { ChevronLeft, MoreVertical, DollarSign } from "lucide-react";
+import { useRef } from "react";
 
 interface ICustomer {
   _id: string;
@@ -103,6 +104,7 @@ interface Payment {
 
 export default function NewSalePage() {
   const router = useRouter();
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
@@ -158,7 +160,7 @@ export default function NewSalePage() {
   const [showDesktopFilters, setShowDesktopFilters] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
-  const [showKeyboardHints, setShowKeyboardHints] = useState(true);
+  const [showKeyboardHints, setShowKeyboardHints] = useState(false);
 
   useEffect(() => {
     fetchUser();
@@ -184,39 +186,33 @@ export default function NewSalePage() {
     return () => window.removeEventListener("resize", checkIfMobile);
   }, []);
       const filteredProducts = products.filter((p) => {
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      const matchesSearch =
-        p.name?.toLowerCase().includes(searchLower) ||
-        p.sku?.toLowerCase().includes(searchLower) ||
-        p.barcode?.toLowerCase().includes(searchLower) ||
-        p.partNumber?.toLowerCase().includes(searchLower) ||
-        p.vin?.toLowerCase().includes(searchLower) ||
-        p.carMake?.toLowerCase().includes(searchLower) ||
-        p.carModel?.toLowerCase().includes(searchLower) ||
-        p.variant?.toLowerCase().includes(searchLower) ||
-        p.color?.toLowerCase().includes(searchLower) ||
-        p.category?.name?.toLowerCase().includes(searchLower);
+  if (filterYear !== "all" && filterYear !== "") {
+    if (!checkYearMatch(p, parseInt(filterYear))) return false;
+  }
 
-      if (!matchesSearch) return false;
-    }
+  if (filterMake !== "all" && filterMake !== "") {
+    if (p.carMake !== filterMake) return false;
+  }
 
-    if (filterYear !== "all" && filterYear !== "") {
-      if (!checkYearMatch(p, parseInt(filterYear))) return false;
-    }
+  if (filterCategory !== "all" && filterCategory !== "") {
+    const productCategoryId =
+      p.category?._id?.toString() || p.category?.toString();
+    if (productCategoryId !== filterCategory.toString()) return false;
+  }
 
-    if (filterMake !== "all" && filterMake !== "") {
-      if (p.carMake !== filterMake) return false;
-    }
+  return true;
+});
 
-    if (filterCategory !== "all" && filterCategory !== "") {
-      const productCategoryId = p.category?._id?.toString() || p.category?.toString();
-      const selectedCategoryId = filterCategory.toString();
-      if (productCategoryId !== selectedCategoryId) return false;
-    }
+    useEffect(() => {
+  const delay = setTimeout(() => {
+    fetchProducts(searchTerm);
+  }, 300); // debounce
 
-    return true;
-  });
+  return () => clearTimeout(delay);
+}, [searchTerm]);
+    useEffect(() => {
+  searchInputRef.current?.focus();
+}, []);
 
   // KEYBOARD NAVIGATION
   useEffect(() => {
@@ -362,17 +358,29 @@ export default function NewSalePage() {
     }
   };
 
-  const fetchProducts = async () => {
-    try {
-      const res = await fetch("/api/products", { credentials: "include" });
-      if (res.ok) {
-        const data = await res.json();
-        setProducts(data.products || []);
-      }
-    } catch (error) {
-      console.error("Failed to fetch products");
+  const fetchProducts = async (search = "") => {
+  try {
+    const params = new URLSearchParams({
+      limit: "50",
+    });
+
+    if (search) {
+      params.append("search", search);
     }
-  };
+
+    const res = await fetch(`/api/products?${params.toString()}`, {
+      credentials: "include",
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      setProducts(data.products || []);
+    }
+  } catch (error) {
+    console.error("Failed to fetch products");
+  }
+};
+
 
   const fetchFrequentProducts = async () => {
     try {
@@ -795,6 +803,12 @@ export default function NewSalePage() {
       setLoading(false);
     }
   };
+  const findExactSkuMatch = (sku: string) => {
+  return products.find(
+    (p) => p.sku?.toLowerCase() === sku.toLowerCase()
+  );
+};
+
 
   // Helper function to check if a product matches a given year
   const checkYearMatch = (product: any, year: number): boolean => {
@@ -1042,22 +1056,26 @@ export default function NewSalePage() {
                 <div className="flex items-center gap-3 mb-4">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                    <input
-                      type="text"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "ArrowDown" && filteredProducts.length > 0) {
-                          e.preventDefault();
-                          const first = document.querySelector(
-                            '[data-search-item="0"]'
-                          ) as HTMLElement;
-                          if (first) first.focus();
-                        }
-                      }}
-                      placeholder="Search by name, SKU, barcode, part#, VIN, make, model, category... (Press F)"
-                      className="w-full pl-10 pr-4 py-3 bg-[#111111] border border-white/5 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white placeholder-gray-400"
-                    />
+<input
+  ref={searchInputRef}
+  type="text"
+  value={searchTerm}
+  onChange={(e) => setSearchTerm(e.target.value)}
+  onKeyDown={(e) => {
+    if (e.key === "Enter") {
+      const exactMatch = findExactSkuMatch(searchTerm.trim());
+
+      if (exactMatch) {
+        addToCart(exactMatch);
+        setSearchTerm("");
+        searchInputRef.current?.focus();
+        e.preventDefault();
+      }
+    }
+  }}
+  placeholder="Search by name, SKU, barcode..."
+  className="w-full pl-10 pr-4 py-3 ..."
+/>
                   </div>
                   <button
                     onClick={() =>

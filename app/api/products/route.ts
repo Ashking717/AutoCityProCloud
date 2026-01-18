@@ -150,35 +150,29 @@ const skip = isExport ? 0 : (page - 1) * limit;
 }
 
 // ============================================================================
-// POST /api/products - Create a new product
+// POST /api/products - Create a new product (CONCURRENCY SAFE SKU)
 // ============================================================================
 export async function POST(request: NextRequest) {
   try {
     await connectDB();
-    
+
     const cookieStore = cookies();
     const token = cookieStore.get('auth-token')?.value;
-    
+
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
+
     const user = verifyToken(token);
     const userId = new mongoose.Types.ObjectId(user.userId);
-    
-    // Ensure outletId is properly typed as ObjectId
-    const outletIdObj = typeof user.outletId === 'string' 
-      ? new mongoose.Types.ObjectId(user.outletId)
-      : user.outletId;
-    
-    console.log('🔍 Creating product for user:', {
-      userId: user.userId,
-      outletId: outletIdObj ? outletIdObj.toString() : '',
-      email: user.email
-    });
-    
+
+    const outletIdObj =
+      typeof user.outletId === 'string'
+        ? new mongoose.Types.ObjectId(user.outletId)
+        : user.outletId;
+
     const body = await request.json();
-    
+
     const {
       name,
       description,
@@ -202,62 +196,67 @@ export async function POST(request: NextRequest) {
       minStock,
       maxStock,
     } = body;
-    
+
     if (!name || !categoryId || !sku || costPrice === undefined || sellingPrice === undefined) {
       return NextResponse.json(
         { error: 'Missing required fields: name, category, sku, costPrice, sellingPrice' },
         { status: 400 }
       );
     }
-    
-    console.log('🔍 Checking for existing SKU:', sku);
-    
-    // Check if SKU already exists
-    const existingProduct = await Product.findOne({
-      sku,
-      outletId: outletIdObj,
-    });
-    
-    if (existingProduct) {
-      console.log('❌ SKU already exists:', sku);
-      return NextResponse.json(
-        { error: 'Product with this SKU already exists' },
-        { status: 400 }
-      );
-    }
-    
-    const stockQty = Number(currentStock) || 0;
-    const cost = Number(costPrice);
-    
-    // Validate vehicle-specific fields if it's a vehicle
-    if (isVehicle) {
-      if (!carMake) {
+
+    // ─────────────────────────────────────────────
+    // ✅ CONCURRENCY-SAFE SKU RESOLUTION
+    // ─────────────────────────────────────────────
+    let finalSKU = sku;
+    let skuNumber = /^\d+$/.test(sku) ? parseInt(sku, 10) : null;
+
+    while (true) {
+      const exists = await Product.exists({
+        sku: finalSKU,
+        outletId: outletIdObj,
+      });
+
+      if (!exists) break;
+
+      if (skuNumber === null) {
         return NextResponse.json(
-          { error: 'Car make is required for vehicle products' },
+          { error: 'SKU already exists and is not numeric' },
           { status: 400 }
         );
       }
+
+      skuNumber += 1;
+      finalSKU = skuNumber.toString();
     }
-    
-    // Ensure categoryId is also an ObjectId
-    const categoryIdObj = typeof categoryId === 'string'
-      ? new mongoose.Types.ObjectId(categoryId)
-      : categoryId;
-    
-    console.log('🔍 Creating product with data:', {
-      sku,
-      name,
-      outletId: outletIdObj?.toString() ?? '',
-      category: categoryIdObj.toString(),
-      isActive: true,
-    });
-    
-    // Create product
+
+    console.log(`✅ Final resolved SKU: ${finalSKU}`);
+
+    // ─────────────────────────────────────────────
+    // VALIDATION
+    // ─────────────────────────────────────────────
+    if (isVehicle && !carMake) {
+      return NextResponse.json(
+        { error: 'Car make is required for vehicle products' },
+        { status: 400 }
+      );
+    }
+
+    const categoryIdObj =
+      typeof categoryId === 'string'
+        ? new mongoose.Types.ObjectId(categoryId)
+        : categoryId;
+
+    const stockQty = Number(currentStock) || 0;
+    const cost = Number(costPrice);
+
+    // ─────────────────────────────────────────────
+    // CREATE PRODUCT
+    // ─────────────────────────────────────────────
     const product = await Product.create({
       name,
       description,
       category: categoryIdObj,
-      sku,
+      sku: finalSKU,
       barcode,
       partNumber,
       isVehicle: isVehicle || false,
@@ -277,54 +276,22 @@ export async function POST(request: NextRequest) {
       reorderPoint: Number(minStock) || 0,
       unit: unit || 'pcs',
       outletId: outletIdObj,
-      isActive: true, // Explicitly set to true
-    });
-    
-    console.log(`✅ Product created successfully:`, {
-      _id: product._id.toString(),
-      sku: product.sku,
-      name: product.name,
-      outletId: product.outletId.toString(),
-      isActive: product.isActive,
-    });
-    
-    // Verify it can be found immediately
-    const verifyProduct = await Product.findOne({
-      sku: product.sku,
-      outletId: outletIdObj,
       isActive: true,
-    }).lean();
-    
-    console.log('🔍 Verification - Product findable:', verifyProduct ? 'YES ✅' : 'NO ❌');
-    if (!verifyProduct) {
-      console.error('⚠️ WARNING: Product was created but cannot be found with query!');
-    }
-    
-    if (isVehicle) {
-      console.log(`   Type: Vehicle`);
-      console.log(`   Make: ${carMake}${carModel ? ` ${carModel}` : ''}${variant ? ` ${variant}` : ''}`);
-      if (color) console.log(`   Color: ${color}`);
-      if (yearFrom || yearTo) {
-        const yearRange = yearFrom && yearTo ? `${yearFrom}-${yearTo}` : 
-                         yearFrom ? `${yearFrom}+` : 
-                         yearTo ? `Up to ${yearTo}` : '';
-        console.log(`   Year Range: ${yearRange}`);
-      }
-    }
-    
+    });
+
     // ─────────────────── INVENTORY OPENING MOVEMENT ─────────────────
     if (stockQty > 0 && cost > 0) {
       await InventoryMovement.create({
         productId: product._id,
         productName: name,
-        sku,
+        sku: finalSKU,
         movementType: 'ADJUSTMENT',
         quantity: stockQty,
         unitCost: cost,
         totalValue: stockQty * cost,
         referenceType: 'ADJUSTMENT',
         referenceId: product._id,
-        referenceNumber: `OPEN-${sku}`,
+        referenceNumber: `OPEN-${finalSKU}`,
         outletId: outletIdObj,
         balanceAfter: stockQty,
         date: new Date(),
@@ -333,28 +300,21 @@ export async function POST(request: NextRequest) {
         ledgerEntriesCreated: true,
       });
     }
-    
+
     // ═══════════════════════════════════════════════════════════
     // ACCOUNTING: Post initial inventory value to ledger
     // ═══════════════════════════════════════════════════════════
-    
     let voucherId = null;
-    
+
     if (stockQty > 0 && cost > 0) {
       try {
         const inventoryValue = stockQty * cost;
-        
-        console.log('\n📦 Posting Opening Stock to Ledger:');
-        console.log(`   Product: ${name}`);
-        console.log(`   Quantity: ${stockQty} ${unit || 'pcs'}`);
-        console.log(`   Cost Price: QAR ${cost.toFixed(2)}`);
-        console.log(`   Total Value: QAR ${inventoryValue.toFixed(2)}`);
-        
+
         const inventoryAdjustment = {
           _id: product._id,
           productId: product._id,
           productName: name,
-          sku,
+          sku: finalSKU,
           adjustmentType: 'OPENING_STOCK',
           quantity: stockQty,
           costPrice: cost,
@@ -363,53 +323,59 @@ export async function POST(request: NextRequest) {
           reason: `Opening stock for new product: ${name}`,
           outletId: outletIdObj,
         };
-        
+
         const result = await postInventoryAdjustmentToLedger(
           inventoryAdjustment,
           userId
         );
-        
+
         voucherId = result.voucherId;
-        
-        console.log(`✓ Inventory value posted: QAR ${inventoryValue.toFixed(2)}`);
-        console.log(`✓ Journal Entry: ${result.voucherNumber}`);
-        
       } catch (ledgerError: any) {
         console.error('⚠️ Failed to post inventory to ledger:', ledgerError.message);
       }
-    } else if (stockQty > 0) {
-      console.warn(`⚠️ Product has opening stock (${stockQty}) but no cost price set.`);
     }
-    
-    // Activity log
-    const yearRangeStr = yearFrom && yearTo ? `, ${yearFrom}-${yearTo}` : 
-                        yearFrom ? `, ${yearFrom}+` : 
-                        yearTo ? `, Up to ${yearTo}` : '';
-    
+
+    // ─────────────────── ACTIVITY LOG ─────────────────
+    const yearRangeStr =
+      yearFrom && yearTo
+        ? `, ${yearFrom}-${yearTo}`
+        : yearFrom
+        ? `, ${yearFrom}+`
+        : yearTo
+        ? `, Up to ${yearTo}`
+        : '';
+
     await ActivityLog.create({
       userId: user.userId,
       username: user.email,
       actionType: 'create',
       module: 'products',
-      description: `Created product: ${name} (${sku})${
-        isVehicle ? ` [Vehicle: ${carMake}${carModel ? ` ${carModel}` : ''}${variant ? ` ${variant}` : ''}${color ? `, ${color}` : ''}${yearRangeStr}]` : ''
+      description: `Created product: ${name} (${finalSKU})${
+        isVehicle
+          ? ` [Vehicle: ${carMake}${carModel ? ` ${carModel}` : ''}${variant ? ` ${variant}` : ''}${color ? `, ${color}` : ''}${yearRangeStr}]`
+          : ''
       }${
-        stockQty > 0 ? ` with opening stock: ${stockQty} ${unit || 'pcs'} @ QAR ${cost.toFixed(2)} = QAR ${(stockQty * cost).toFixed(2)}` : ''
+        stockQty > 0
+          ? ` with opening stock: ${stockQty} ${unit || 'pcs'} @ QAR ${cost.toFixed(
+              2
+            )} = QAR ${(stockQty * cost).toFixed(2)}`
+          : ''
       }`,
       outletId: outletIdObj,
       timestamp: new Date(),
     });
-    
-    return NextResponse.json({ 
-      product,
-      voucherId,
-      inventoryPosted: stockQty > 0 && cost > 0,
-      message: 'Product created successfully',
-    }, { status: 201 });
-    
+
+    return NextResponse.json(
+      {
+        product,
+        voucherId,
+        inventoryPosted: stockQty > 0 && cost > 0,
+        message: 'Product created successfully',
+      },
+      { status: 201 }
+    );
   } catch (error: any) {
     console.error('❌ Error creating product:', error);
-    console.error('Error stack:', error.stack);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

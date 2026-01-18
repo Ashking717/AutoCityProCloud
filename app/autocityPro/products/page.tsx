@@ -643,7 +643,7 @@ export default function ProductsPage() {
       if (res.ok) {
         const responseData = await res.json();
         console.log("✓ Product created successfully:", responseData);
-        toast.success(`Product added successfully! SKU: ${generatedSKU}`);
+        toast.success(`Product added successfully! `);
 
         setShowAddModal(false);
         resetNewProduct();

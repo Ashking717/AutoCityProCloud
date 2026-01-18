@@ -27,13 +27,13 @@ export const metadata: Metadata = {
   
   openGraph: {
     title: "AutoCity ",
-    description: "AutoCity  dashboard for managing business operations.",
+    description: "AutoCity Operations.",
     url: "https://autocityqatar.com/autocityPro/login",
     siteName: "AutoCity ",
     type: "website",
     images: [
       {
-        url: "https://autocityqatar.com/logo.png",
+        url: "https://autocityqatar.com/login.png",
         width: 1200,
         height: 630,
         alt: "AutoCity  Logo",
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "AutoCity ",
     description: "AutoCity  dashboard for sales, stock, and reporting.",
-    images: ["https://autocityqatar.com/logo.png"],
+    images: ["https://autocityqatar.com/login.png"],
   },
   
   // Prevent admin pages from being indexed

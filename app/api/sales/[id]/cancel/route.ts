@@ -64,9 +64,10 @@ export async function POST(
       const qty = Number(item.quantity);
 
       // Get last inventory balance
-      const lastMovement = await InventoryMovement
-        .findOne({ productId, outletId })
-        .sort({ date: -1 });
+      const lastMovement = await InventoryMovement.findOne({
+        productId,
+        outletId,
+      }).sort({ date: -1 });
 
       const previousBalance = lastMovement?.balanceAfter || 0;
       const newBalance = previousBalance + qty;
@@ -77,19 +78,24 @@ export async function POST(
         productName: item.name,
         sku: item.sku,
 
-        movementType: "SALE_REVERSAL",
-        quantity: qty, // 🔁 STOCK IN
-        unitCost: item.costPrice || 0,
-        totalValue: qty * (item.costPrice || 0),
+        // ✅ STOCK COMES BACK IN
+        movementType: "RETURN",
 
-        referenceType: "SALE_CANCEL",
+        // ✅ POSITIVE QUANTITY = IN
+        quantity: item.quantity,
+
+        unitCost: item.costPrice || 0,
+        totalValue: item.quantity * (item.costPrice || 0),
+
+        // ✅ REFERENCE IS STILL THE SALE
+        referenceType: "SALE",
         referenceId: sale._id,
         referenceNumber: sale.invoiceNumber,
 
         outletId,
         balanceAfter: newBalance,
-
         date: new Date(),
+
         createdBy: userId,
         ledgerEntriesCreated: true,
       });
@@ -105,11 +111,7 @@ export async function POST(
     // - Receipt reversal voucher
     // - COGS reversal voucher
     // - LedgerEntry rows (isReversal = true)
-    await reverseSaleVoucher(
-      sale,
-      userId,
-      "Sale cancelled"
-    );
+    await reverseSaleVoucher(sale, userId, "Sale cancelled");
 
     // ───────────────── UPDATE SALE ─────────────────
     sale.status = "CANCELLED";

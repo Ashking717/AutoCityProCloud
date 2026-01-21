@@ -86,6 +86,13 @@ export default function SalesPage() {
   // Details modal states
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedSaleDetails, setSelectedSaleDetails] = useState<any>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedSaleForEdit, setSelectedSaleForEdit] = useState<any>(null);
+  const [editItems, setEditItems] = useState<any[]>([]);
+  const [editPaymentMethod, setEditPaymentMethod] = useState("CASH");
+  const [editAmountPaid, setEditAmountPaid] = useState(0);
+  const [editNotes, setEditNotes] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
 
   // Invoice printing states
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
@@ -130,6 +137,25 @@ export default function SalesPage() {
     fetchSales();
   }, [dateRange, pagination.page, statusFilter]);
 
+  useEffect(() => {
+    if (!selectedSaleForEdit) return;
+
+    setEditItems(
+      selectedSaleForEdit.items.map((item: any) => ({
+        sku: item.sku,
+        name: item.name,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discount: item.discount || 0,
+        taxRate: item.taxRate || 0,
+      }))
+    );
+
+    setEditPaymentMethod(selectedSaleForEdit.paymentMethod);
+    setEditAmountPaid(selectedSaleForEdit.amountPaid);
+    setEditNotes("");
+  }, [selectedSaleForEdit]);
+
   const fetchUser = async () => {
     try {
       const res = await fetch("/api/auth/me", { credentials: "include" });
@@ -141,14 +167,14 @@ export default function SalesPage() {
       console.error("Failed to fetch user");
     }
   };
-const calculateReturnItemTotal = (item: any) => {
+  const calculateReturnItemTotal = (item: any) => {
     const qty = item.returnQuantity || 0;
     if (qty <= 0) return 0;
 
     // Use the same ERP calculation as the backend
     const originalItem = item.originalItem || item;
     const sale = selectedSaleForReturn;
-    
+
     if (!sale || !originalItem) return 0;
 
     // Calculate gross line total (original item's contribution to subtotal)
@@ -484,14 +510,12 @@ const calculateReturnItemTotal = (item: any) => {
       return;
     }
 
-   
-
     const returnData = {
-  saleId: selectedSaleForReturn._id,
-  invoiceNumber: selectedSaleForReturn.invoiceNumber,
-  reason: returnReason,
-  items: itemsToReturn
-};
+      saleId: selectedSaleForReturn._id,
+      invoiceNumber: selectedSaleForReturn.invoiceNumber,
+      reason: returnReason,
+      items: itemsToReturn,
+    };
 
     setProcessingReturn(true);
 
@@ -1140,18 +1164,20 @@ const calculateReturnItemTotal = (item: any) => {
                                     </button>
                                   )}
 
-                                  {sale.status === "DRAFT" && (
-                                    <button
-                                      onClick={() => {
-                                        handleEditSale(sale);
-                                        setShowActions(null);
-                                      }}
-                                      className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-blue-400 hover:bg-white/5 transition-colors"
-                                    >
-                                      <Edit className="h-3 w-3" />
-                                      <span>Edit Sale</span>
-                                    </button>
-                                  )}
+                                 {sale.status === "COMPLETED" &&
+                            !sale.returnStatus && (
+                              <button
+                                onClick={() => {
+                                  setSelectedSaleForEdit(sale);
+                                  setShowEditModal(true);
+                                  setShowActions(null);
+                                }}
+                                className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-blue-400 hover:bg-white/5 transition-colors"
+                              >
+                                <Edit className="h-3 w-3" />
+                                <span>Edit (Correction)</span>
+                              </button>
+                            )}
 
                                   {sale.status === "COMPLETED" &&
                                     !sale.returnStatus && (
@@ -1334,15 +1360,20 @@ const calculateReturnItemTotal = (item: any) => {
                             </button>
                           )}
 
-                          {sale.status === "DRAFT" && (
-                            <button
-                              onClick={() => handleEditSale(sale)}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-blue-400 bg-blue-500/10 rounded-lg hover:bg-blue-500/20 transition-colors active:scale-95"
-                            >
-                              <Edit className="h-3 w-3" />
-                              <span>Edit Sale</span>
-                            </button>
-                          )}
+                          {sale.status === "COMPLETED" &&
+                            !sale.returnStatus && (
+                              <button
+                                onClick={() => {
+                                  setSelectedSaleForEdit(sale);
+                                  setShowEditModal(true);
+                                  setShowActions(null);
+                                }}
+                                className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-blue-400 hover:bg-white/5 transition-colors"
+                              >
+                                <Edit className="h-3 w-3" />
+                                <span>Edit (Correction)</span>
+                              </button>
+                            )}
 
                           {sale.status === "COMPLETED" &&
                             !sale.returnStatus && (
@@ -1510,6 +1541,175 @@ const calculateReturnItemTotal = (item: any) => {
             <p className="text-gray-400 text-sm mt-2">
               Loading invoice data for printing
             </p>
+          </div>
+        </div>
+      )}
+      {/* Edit Sale Modal */}
+      {showEditModal && selectedSaleForEdit && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#0A0A0A] border border-white/5 rounded-xl w-full max-w-3xl shadow-2xl">
+            {/* HEADER */}
+            <div className="px-6 py-4 border-b border-white/5 flex justify-between items-center">
+              <h2 className="text-lg font-bold text-white">
+                Edit Sale (Correction)
+              </h2>
+              <button onClick={() => setShowEditModal(false)}>
+                <X className="h-5 w-5 text-gray-400 hover:text-white" />
+              </button>
+            </div>
+
+            {/* WARNING */}
+            <div className="px-6 py-3 bg-yellow-500/10 border-b border-yellow-500/30 text-yellow-400 text-sm">
+              ⚠ This will reverse and re-post accounting entries.
+            </div>
+
+            {/* BODY */}
+            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+              {/* ITEMS */}
+              <div>
+                <h3 className="text-sm font-semibold text-white mb-3">
+                  Price Correction
+                </h3>
+
+                <div className="space-y-3">
+                  {editItems.map((item, idx) => (
+                    <div
+                      key={item.sku}
+                      className="grid grid-cols-5 gap-3 bg-[#111111] p-3 rounded-lg"
+                    >
+                      <div className="col-span-2 text-white">
+                        {item.name}
+                        <div className="text-xs text-gray-400">
+                          Qty: {item.quantity}
+                        </div>
+                      </div>
+
+                      <input
+                        type="number"
+                        value={item.unitPrice}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setEditItems((prev) =>
+                            prev.map((i, iIdx) =>
+                              iIdx === idx ? { ...i, unitPrice: val } : i
+                            )
+                          );
+                        }}
+                        className="bg-[#0A0A0A] border border-white/10 rounded px-2 py-1 text-white text-sm"
+                      />
+
+                      <input
+                        type="number"
+                        value={item.discount}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setEditItems((prev) =>
+                            prev.map((i, iIdx) =>
+                              iIdx === idx ? { ...i, discount: val } : i
+                            )
+                          );
+                        }}
+                        className="bg-[#0A0A0A] border border-white/10 rounded px-2 py-1 text-white text-sm"
+                      />
+
+                      <div className="text-gray-300 text-sm flex items-center">
+                        %
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* PAYMENT */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-gray-400">
+                    Payment Method
+                  </label>
+                  <select
+                    value={editPaymentMethod}
+                    onChange={(e) => setEditPaymentMethod(e.target.value)}
+                    className="w-full bg-[#111111] border border-white/10 rounded px-3 py-2 text-white"
+                  >
+                    <option value="CASH">Cash</option>
+                    <option value="CARD">Card</option>
+                    <option value="BANK_TRANSFER">Bank Transfer</option>
+                    <option value="CREDIT">Credit</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs text-gray-400">Amount Paid</label>
+                  <input
+                    type="number"
+                    value={editAmountPaid}
+                    onChange={(e) => setEditAmountPaid(Number(e.target.value))}
+                    className="w-full bg-[#111111] border border-white/10 rounded px-3 py-2 text-white"
+                  />
+                </div>
+              </div>
+
+              {/* NOTES */}
+              <div>
+                <label className="text-xs text-gray-400">
+                  Correction Reason
+                </label>
+                <textarea
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  rows={2}
+                  className="w-full bg-[#111111] border border-white/10 rounded px-3 py-2 text-white"
+                />
+              </div>
+            </div>
+
+            {/* FOOTER */}
+            <div className="px-6 py-4 border-t border-white/5 flex justify-end gap-3">
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="px-4 py-2 text-gray-300 border border-white/10 rounded"
+              >
+                Cancel
+              </button>
+
+              <button
+                disabled={savingEdit}
+                onClick={async () => {
+                  setSavingEdit(true);
+                  try {
+                    const res = await fetch(
+                      `/api/sales/${selectedSaleForEdit._id}/edit`,
+                      {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "include",
+                        body: JSON.stringify({
+                          items: editItems,
+                          paymentMethod: editPaymentMethod,
+                          amountPaid: editAmountPaid,
+                          notes: editNotes,
+                          correctionReason: editNotes,
+                        }),
+                      }
+                    );
+
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error);
+
+                    toast.success("Sale corrected successfully");
+                    setShowEditModal(false);
+                    fetchSales();
+                  } catch (err: any) {
+                    toast.error(err.message || "Failed to update sale");
+                  } finally {
+                    setSavingEdit(false);
+                  }
+                }}
+                className="px-5 py-2 bg-[#E84545] text-white rounded hover:bg-[#cc3c3c]"
+              >
+                Save Correction
+              </button>
+            </div>
           </div>
         </div>
       )}

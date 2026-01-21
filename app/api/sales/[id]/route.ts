@@ -1,3 +1,4 @@
+// app/api/sales/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import Sale from '@/lib/models/Sale';
 import ActivityLog from '@/lib/models/ActivityLog';

@@ -82,6 +82,8 @@ export interface ISale extends Document {
   totalReturnedAmount: number;
   netSaleAmount: number;
   totalCOGS: number;
+  cancelledAt?: Date;               // ✅ ADD
+  cancelledBy?: mongoose.Types.ObjectId; // ✅ ADD
   
   // Methods
   canReturn(): boolean;

@@ -1,4 +1,4 @@
-// app/api/sales/route.ts - COMPLETE FIXED VERSION
+// app/api/sales/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { cookies } from "next/headers";
@@ -8,34 +8,61 @@ import Product from "@/lib/models/ProductEnhanced";
 import Outlet from "@/lib/models/Outlet";
 import ActivityLog from "@/lib/models/ActivityLog";
 import User from "@/lib/models/User";
+import InventoryMovement from "@/lib/models/InventoryMovement";
 
 import { postSaleToLedger } from "@/lib/services/accountingService";
 import { verifyToken } from "@/lib/auth/jwt";
 import { connectDB } from "@/lib/db/mongodb";
-import InventoryMovement from "@/lib/models/InventoryMovement";
 
-/// GET /api/sales
+// ─────────────────────────────────────────────────────────────
+// HELPER: Generate next invoice number (NO COUNTER)
+// ─────────────────────────────────────────────────────────────
+async function generateInvoiceNumber(outletId: mongoose.Types.ObjectId) {
+  const now = new Date();
+  const yearMonth = `${now.getFullYear()}${String(
+    now.getMonth() + 1
+  ).padStart(2, "0")}`;
+
+  const lastSale = await Sale.findOne(
+    {
+      outletId,
+      invoiceNumber: { $regex: `^AC-${yearMonth}-` },
+    },
+    { invoiceNumber: 1 }
+  )
+    .sort({ invoiceNumber: -1 })
+    .lean();
+
+  let nextSeq = 1;
+
+  if (lastSale?.invoiceNumber) {
+    const parts = lastSale.invoiceNumber.split("-");
+    nextSeq = parseInt(parts[2], 10) + 1;
+  }
+
+  return `AC-${yearMonth}-${String(nextSeq).padStart(5, "0")}`;
+}
+
+// ===================================================================
+// GET /api/sales
+// ===================================================================
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
 
-    const cookieStore = cookies();
-    const token = cookieStore.get("auth-token")?.value;
-
+    const token = cookies().get("auth-token")?.value;
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const user = verifyToken(token);
-
     const { searchParams } = new URL(request.url);
+
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
     const status = searchParams.get("status");
 
-    const query: any = {
-      outletId: user.outletId,
-    };
+    const query: any = { outletId: user.outletId };
 
     if (startDate && endDate) {
       query.saleDate = {
@@ -47,7 +74,7 @@ export async function GET(request: NextRequest) {
     if (status && status !== "all") {
       query.status = status;
     }
-    
+
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "20");
     const skip = (page - 1) * limit;
@@ -78,29 +105,26 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// ===================================================================
+// POST /api/sales  (SAFE INVOICE GENERATION – NO COUNTER)
+// ===================================================================
 export async function POST(request: NextRequest) {
   try {
     await connectDB();
 
-    // ───────────────── AUTH ─────────────────
+    // ───────── AUTH ─────────
     const token = cookies().get("auth-token")?.value;
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const user = verifyToken(token);
-    const userId = new mongoose.Types.ObjectId(user.userId);
-
     if (!user.outletId) {
-      return NextResponse.json(
-        { error: "Invalid token: outletId missing" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Invalid user: missing outletId" }, { status: 400 });
     }
-
+    const userId = new mongoose.Types.ObjectId(user.userId);
     const outletId = new mongoose.Types.ObjectId(user.outletId);
 
-    // ───────────────── BODY ─────────────────
     const body = await request.json();
     const {
       customerId,
@@ -112,36 +136,21 @@ export async function POST(request: NextRequest) {
       overallDiscountAmount = 0,
     } = body;
 
-    if (
-      !customerId ||
-      !customerName ||
-      !Array.isArray(items) ||
-      items.length === 0
-    ) {
+    if (!customerId || !customerName || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    // ───────────────── OUTLET ─────────────────
     const outlet = await Outlet.findById(outletId);
     if (!outlet) {
       return NextResponse.json({ error: "Outlet not found" }, { status: 404 });
     }
 
-    // ───────────────── INVOICE NUMBER ─────────────────
-    const count = await Sale.countDocuments({ outletId });
-    const now = new Date();
-
-    const invoiceNumber = `AC-${now.getFullYear()}${String(
-      now.getMonth() + 1
-    ).padStart(2, "0")}-${String(count + 1).padStart(5, "0")}`;
-
-    // ───────────────── CALCULATIONS ─────────────────
-    let itemsSubtotal = 0;  // ✅ Sum of all items (after item-level discounts)
-    let totalItemDiscount = 0;  // ✅ Sum of item-level discounts
-
+    // ───────── CALCULATIONS ─────────
+    let itemsSubtotal = 0;
+    let totalItemDiscount = 0;
     const saleItems: any[] = [];
 
     for (const item of items) {
@@ -153,11 +162,8 @@ export async function POST(request: NextRequest) {
         if (!product) {
           throw new Error(`Product not found: ${item.productId}`);
         }
-
         if (product.currentStock < item.quantity) {
-          throw new Error(
-            `Insufficient stock for ${product.name}. Available: ${product.currentStock}`
-          );
+          throw new Error(`Insufficient stock for ${product.name}`);
         }
       }
 
@@ -165,149 +171,147 @@ export async function POST(request: NextRequest) {
       const unitPrice = Number(item.unitPrice) || 0;
       const costPrice = isLabor ? 0 : Number(product.costPrice || 0);
 
-      // ── ITEM DISCOUNT ──
-      const discountType = item.discountType || "percentage";
       let itemDiscount = 0;
-
-      if (discountType === "percentage") {
-        const rate = Number(item.discount) || 0;
-        itemDiscount = (unitPrice * quantity * rate) / 100;
+      if (item.discountType === "percentage") {
+        itemDiscount = (unitPrice * quantity * (Number(item.discount) || 0)) / 100;
       } else {
-        itemDiscount =
-          Number(item.discountAmount) || Number(item.discount) || 0;
+        itemDiscount = Number(item.discountAmount || item.discount || 0);
       }
 
       const gross = unitPrice * quantity;
       const net = gross - itemDiscount;
 
-      itemsSubtotal += net;  // ✅ This is the subtotal BEFORE overall discount
+      itemsSubtotal += net;
       totalItemDiscount += itemDiscount;
 
       saleItems.push({
         productId: isLabor ? undefined : product._id,
-        name: item.name || product?.name || "Labor Service",
+        name: item.name || product?.name || "Labor",
         sku: item.sku || product?.sku || "LABOR",
         quantity,
-        unit: item.unit || (isLabor ? "job" : product.unit || "pcs"),
+        unit: item.unit || "pcs",
         unitPrice,
         costPrice,
-        discount: itemDiscount, // amount in QAR
+        discount: itemDiscount,
         total: net,
         isLabor,
       });
     }
 
-    // ───────────────── OVERALL DISCOUNT ─────────────────
+    const subtotal = Number(itemsSubtotal.toFixed(2));
     const overallDiscount = Number(overallDiscountAmount) || 0;
     const totalDiscount = totalItemDiscount + overallDiscount;
-
-    // ───────────────── TOTALS ─────────────────
-    const subtotal = Number(itemsSubtotal.toFixed(2));  // ✅ Subtotal BEFORE overall discount
-    const grandTotal = Number((subtotal - overallDiscount).toFixed(2));  // ✅ After overall discount
+    const grandTotal = Number((subtotal - overallDiscount).toFixed(2));
     const paidAmount = Number(amountPaid) || 0;
     const balanceDue = Number((grandTotal - paidAmount).toFixed(2));
 
-    // ───────────────── CREATE SALE ─────────────────
-    const saleDocs = await Sale.create([
-      {
-        invoiceNumber,
-        outletId,
-        customerId,
-        customerName,
-        items: saleItems,
-        subtotal,  // ✅ BEFORE overall discount
-        totalDiscount,  // ✅ Item discounts + overall discount
-        totalVAT: 0,
-        grandTotal,  // ✅ AFTER overall discount
-        paymentMethod: paymentMethod?.toUpperCase() || "CASH",
-        amountPaid: paidAmount,
-        balanceDue,
-        status: "COMPLETED",
-        notes,
-        createdBy: userId,
-        saleDate: now,
-        isPostedToGL: false,
-      },
-    ]);
+    // ───────── CREATE SALE (RETRY LOOP) ─────────
+    let sale: any = null;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 5;
+    const now = new Date();
 
-    const sale = saleDocs[0];
+    while (!sale && attempts < MAX_ATTEMPTS) {
+      attempts++;
 
-    // ───────────────── INVENTORY MOVEMENTS (SALE) ─────────────────
+      const invoiceNumber = await generateInvoiceNumber(outletId);
+
+      try {
+        const saleDocs = await Sale.create([
+          {
+            invoiceNumber,
+            outletId,
+            customerId,
+            customerName,
+            items: saleItems,
+            subtotal,
+            totalDiscount,
+            totalVAT: 0,
+            grandTotal,
+            paymentMethod: paymentMethod?.toUpperCase() || "CASH",
+            amountPaid: paidAmount,
+            balanceDue,
+            status: "COMPLETED",
+            notes,
+            createdBy: userId,
+            saleDate: now,
+            isPostedToGL: false,
+          },
+        ]);
+
+        sale = saleDocs[0];
+      } catch (err: any) {
+        if (err.code === 11000) {
+          console.warn("Invoice collision, retrying...");
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    if (!sale) {
+      throw new Error("Failed to generate unique invoice number");
+    }
+
+    // ───────── INVENTORY MOVEMENTS ─────────
     for (const item of saleItems) {
       if (item.isLabor || !item.productId) continue;
 
       const productId = new mongoose.Types.ObjectId(item.productId);
-      const saleQty = Number(item.quantity);
+      const qty = Number(item.quantity);
 
-      // 1️⃣ Get last balance
       const lastMovement = await InventoryMovement
         .findOne({ productId, outletId })
         .sort({ date: -1 });
 
-      const previousBalance = lastMovement?.balanceAfter || 0;
-      const newBalance = previousBalance - saleQty;
+      const prevBalance = lastMovement?.balanceAfter || 0;
+      const newBalance = prevBalance - qty;
 
       if (newBalance < 0) {
-        throw new Error(
-          `Negative stock detected for ${item.name}. Balance would be ${newBalance}`
-        );
+        throw new Error(`Negative stock for ${item.name}`);
       }
 
-      // 2️⃣ Create inventory movement (SALE)
       await InventoryMovement.create({
         productId,
         productName: item.name,
         sku: item.sku,
-
         movementType: "SALE",
-        quantity: -saleQty, // 🔴 OUT
+        quantity: -qty,
         unitCost: item.costPrice || 0,
-        totalValue: saleQty * (item.costPrice || 0),
-
+        totalValue: qty * (item.costPrice || 0),
         referenceType: "SALE",
         referenceId: sale._id,
         referenceNumber: sale.invoiceNumber,
-
         outletId,
         balanceAfter: newBalance,
-
         date: new Date(),
         createdBy: userId,
         ledgerEntriesCreated: true,
       });
 
-      // 3️⃣ Update cached stock on product
       await Product.findByIdAndUpdate(productId, {
         currentStock: newBalance,
       });
     }
 
-    // ───────────────── ACCOUNTING ─────────────────
+    // ───────── ACCOUNTING ─────────
     const { voucherId, cogsVoucherId } = await postSaleToLedger(sale, userId);
-
     sale.voucherId = voucherId;
-    sale.cogsVoucherId = cogsVoucherId || undefined;
+    sale.cogsVoucherId = cogsVoucherId;
     sale.isPostedToGL = true;
     await sale.save();
 
-    // ───────────────── ACTIVITY LOG ─────────────────
+    // ───────── ACTIVITY LOG ─────────
     const userDoc = await User.findById(userId).lean();
-    const username =
-      userDoc?.username || user.username || user.email || "Unknown User";
-
-    await ActivityLog.create([
-      {
-        userId,
-        username,
-        actionType: "create",
-        module: "sales",
-        description: `Created sale ${invoiceNumber} - QAR ${grandTotal.toFixed(
-          2
-        )}`,
-        outletId,
-        timestamp: new Date(),
-      },
-    ]);
+    await ActivityLog.create({
+      userId,
+      username: userDoc?.username || user.email,
+      actionType: "create",
+      module: "sales",
+      description: `Created sale ${sale.invoiceNumber} - QAR ${grandTotal.toFixed(2)}`,
+      outletId,
+      timestamp: new Date(),
+    });
 
     return NextResponse.json({ sale }, { status: 201 });
   } catch (error: any) {

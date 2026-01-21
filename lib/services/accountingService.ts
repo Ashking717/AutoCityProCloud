@@ -158,7 +158,10 @@ async function getAccountDetails(accountId: mongoose.Types.ObjectId) {
 
 export async function postSaleToLedger(
   sale: any,
-  userId: mongoose.Types.ObjectId
+  userId: mongoose.Types.ObjectId,
+  options?: {
+    skipCOGS?: boolean;
+  }
 ) {
   const outlet = await Outlet.findById(sale.outletId).lean();
   if (!outlet) throw new Error("Outlet not found");
@@ -1304,7 +1307,10 @@ export async function postReturnToLedger(
 export async function reverseSaleVoucher(
   sale: any,
   userId: mongoose.Types.ObjectId,
-  reason: string
+  reason: string,
+  options?: {
+    reverseCOGS?: boolean;
+  }
 ) {
   try {
     const reversalResults: any[] = [];
@@ -1377,73 +1383,86 @@ export async function reverseSaleVoucher(
       }
     }
 
-    // Reverse COGS voucher if exists
-    if (sale.cogsVoucherId) {
-      const cogsVoucherDoc = await Voucher.findById(sale.cogsVoucherId).lean();
-      if (cogsVoucherDoc) {
-        const cogsVoucher = cogsVoucherDoc as any;
+// Reverse COGS voucher if exists (OPTIONAL)
+if (sale.cogsVoucherId && options?.reverseCOGS !== false) {
+  const cogsVoucherDoc = await Voucher.findById(
+    sale.cogsVoucherId
+  ).lean();
 
-        const reversedCogsEntries = cogsVoucher.entries.map((e: any) => ({
-          accountId: e.accountId,
-          accountNumber: e.accountNumber,
-          accountName: e.accountName,
-          debit: e.credit,
-          credit: e.debit,
-        }));
+  if (cogsVoucherDoc) {
+    const cogsVoucher = cogsVoucherDoc as any;
 
-        const cogsReversalNumber = await generateVoucherNumber(
-          "journal",
-          sale.outletId
-        );
+    // 🔁 Reverse debit / credit
+    const reversedCogsEntries = cogsVoucher.entries.map((e: any) => ({
+      accountId: e.accountId,
+      accountNumber: e.accountNumber,
+      accountName: e.accountName,
+      debit: e.credit,
+      credit: e.debit,
+    }));
 
-        const cogsReversalVoucher = await Voucher.create([
-          {
-            voucherNumber: cogsReversalNumber,
-            voucherType: "journal",
-            date: new Date(),
-            narration: `REVERSAL: ${cogsVoucher.narration} - ${reason}`,
-            entries: reversedCogsEntries,
-            totalDebit: cogsVoucher.totalCredit,
-            totalCredit: cogsVoucher.totalDebit,
-            status: "posted",
-            referenceType: "REVERSAL",
-            referenceId: sale._id,
-            outletId: sale.outletId,
-            createdBy: userId,
-          },
-        ]);
+    const cogsReversalNumber = await generateVoucherNumber(
+      "journal",
+      sale.outletId
+    );
 
-        await applyVoucherBalances(cogsReversalVoucher[0]);
+    // 📘 Create reversal journal voucher
+    const cogsReversalVoucher = await Voucher.create([
+      {
+        voucherNumber: cogsReversalNumber,
+        voucherType: "journal",
+        date: new Date(),
+        narration: `REVERSAL: ${cogsVoucher.narration} - ${reason}`,
+        entries: reversedCogsEntries,
+        totalDebit: cogsVoucher.totalCredit,
+        totalCredit: cogsVoucher.totalDebit,
+        status: "posted",
+        referenceType: "REVERSAL",
+        referenceId: sale._id,
+        outletId: sale.outletId,
+        createdBy: userId,
+      },
+    ]);
 
-        const cogsLedgerDocs = reversedCogsEntries.map((e: any) => ({
-          voucherId: cogsReversalVoucher[0]._id,
-          voucherNumber: cogsReversalVoucher[0].voucherNumber,
-          voucherType: "journal",
-          accountId: e.accountId,
-          accountNumber: e.accountNumber,
-          accountName: e.accountName,
-          debit: e.debit,
-          credit: e.credit,
-          narration: cogsReversalVoucher[0].narration,
-          date: new Date(),
-          referenceType: "REVERSAL",
-          referenceId: sale._id,
-          referenceNumber: sale.invoiceNumber,
-          isReversal: true,
-          reversalReason: reason,
-          outletId: sale.outletId,
-          createdBy: userId,
-        }));
+    // ✅ Apply balance changes
+    await applyVoucherBalances(cogsReversalVoucher[0]);
 
-        await LedgerEntry.insertMany(cogsLedgerDocs);
+    // 📒 Create ledger entries (IMMUTABLE)
+    const cogsLedgerDocs = reversedCogsEntries.map((e: any) => ({
+      voucherId: cogsReversalVoucher[0]._id,
+      voucherNumber: cogsReversalVoucher[0].voucherNumber,
+      voucherType: "journal",
 
-        reversalResults.push({
-          type: "cogs",
-          reversalVoucherId: cogsReversalVoucher[0]._id,
-          reversalVoucherNumber: cogsReversalVoucher[0].voucherNumber,
-        });
-      }
-    }
+      accountId: e.accountId,
+      accountNumber: e.accountNumber,
+      accountName: e.accountName,
+
+      debit: e.debit,
+      credit: e.credit,
+
+      narration: cogsReversalVoucher[0].narration,
+      date: new Date(),
+
+      referenceType: "REVERSAL",
+      referenceId: sale._id,
+      referenceNumber: sale.invoiceNumber,
+
+      isReversal: true,
+      reversalReason: reason,
+
+      outletId: sale.outletId,
+      createdBy: userId,
+    }));
+
+    await LedgerEntry.insertMany(cogsLedgerDocs);
+
+    reversalResults.push({
+      type: "cogs",
+      reversalVoucherId: cogsReversalVoucher[0]._id,
+      reversalVoucherNumber: cogsReversalVoucher[0].voucherNumber,
+    });
+  }
+}
 
     console.log(`✓ Sale vouchers reversed: ${reversalResults.length} vouchers`);
 

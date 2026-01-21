@@ -82,6 +82,7 @@ export default function ProductsPage() {
   const [nameSuggestions, setNameSuggestions] = useState<string[]>([]);
   const [showNameSuggestions, setShowNameSuggestions] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const suggestionRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const [newProduct, setNewProduct] = useState<{
     name: string;
@@ -153,6 +154,7 @@ export default function ProductsPage() {
     "R/T",
     "SXT",
     "Gx",
+    "Gr",
     "Gxr",
     "Vx",
     "Vxr",
@@ -415,6 +417,14 @@ export default function ProductsPage() {
       router.push("/autocityPro/login");
     }
   }, [userLoading, user, router]);
+  useEffect(() => {
+    if (highlightedIndex >= 0) {
+      suggestionRefs.current[highlightedIndex]?.scrollIntoView({
+        block: "nearest",
+        behavior: "smooth",
+      });
+    }
+  }, [highlightedIndex]);
 
   // REPLACE WITH:
   const generateNextSKU = (): string => {
@@ -1289,7 +1299,7 @@ export default function ProductsPage() {
 
                 <button
                   onClick={downloadProductsPDF}
-                  className="flex items-center space-x-2 px-4 py-2 bg-[#E84545] text-white rounded-lg hover:bg-[#cc3c3c] transition-colors shadow-lg"
+                  className="flex items-center space-x-2 px-4 py-2 bg-white/10 backdrop-blur-sm text-white rounded-lg hover:bg-white/20 transition-colors border border-white/20"
                 >
                   <FileDown className="h-5 w-5" />
                   <span>PDF</span>
@@ -1297,10 +1307,10 @@ export default function ProductsPage() {
 
                 <button
                   onClick={openAddModal} // ← NEW
-                  className="flex items-center space-x-2 px-4 py-2 bg-white text-[#E84545]..."
+                  className="flex items-center space-x-2 rounded-xl px-4 py-2 bg-[#E84545] text-white hover:bg-[#cc3c3c] transition-colors..."
                 >
-                  <Plus className="h-5 w-5" />
-                  <span>Add Product</span>
+                  <Plus className="h-5 w-5 " />
+                  <span className="font-weight-medium ">Add Product</span>
                 </button>
               </div>
             </div>
@@ -2087,24 +2097,29 @@ export default function ProductsPage() {
                   {/* Suggestions dropdown */}
                   {showNameSuggestions && nameSuggestions.length > 0 && (
                     <div className="absolute z-50 w-full mt-1 bg-[#0A0A0A] border border-white/10 rounded-lg shadow-xl max-h-48 overflow-y-auto">
-                      {nameSuggestions.map((name, index) => (
-                        <div
-                          key={index}
-                          onMouseDown={(e) => {
-                            e.stopPropagation();
-                            setNewProduct({ ...newProduct, name });
-                            setShowNameSuggestions(false);
-                            setHighlightedIndex(-1);
-                          }}
-                          className={`px-3 py-2 text-sm cursor-pointer ${
-                            index === highlightedIndex
-                              ? "bg-[#E84545]/40 text-white"
-                              : "text-gray-200 hover:bg-[#E84545]/20"
-                          }`}
-                        >
-                          {name}
-                        </div>
-                      ))}
+                      <div className="max-h-48 overflow-y-auto">
+                        {nameSuggestions.map((name, index) => (
+                          <div
+                            key={index}
+                            ref={(el) => {
+                              suggestionRefs.current[index] = el;
+                            }}
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              setNewProduct({ ...newProduct, name });
+                              setShowNameSuggestions(false);
+                              setHighlightedIndex(-1);
+                            }}
+                            className={`px-3 py-2 text-sm cursor-pointer ${
+                              index === highlightedIndex
+                                ? "bg-[#E84545]/40 text-white"
+                                : "text-gray-200 hover:bg-[#E84545]/20"
+                            }`}
+                          >
+                            {name}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>

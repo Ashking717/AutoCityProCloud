@@ -44,7 +44,7 @@ export async function sendPasswordResetEmail(
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <title>Reset Your Password - AutoCity Pro</title>
+  <title>Reset Your Password - AutoCity </title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -149,7 +149,7 @@ export async function sendPasswordResetEmail(
     <div class="email-body">
       <p class="greeting">Hi <strong>${userName}</strong>,</p>
       <p class="content-text">
-        We received a request to reset your AutoCity Pro password.
+        We received a request to reset your AutoCity password.
       </p>
       <div class="button-container">
         <a href="${resetUrl}" class="reset-button">Reset My Password</a>
@@ -159,7 +159,7 @@ export async function sendPasswordResetEmail(
       </div>
     </div>
     <div class="email-footer">
-      <p>AutoCity Pro • Internal Operations Portal</p>
+      <p>AutoCity • Internal Operations Portal</p>
     </div>
   </div>
 </body>
@@ -167,7 +167,7 @@ export async function sendPasswordResetEmail(
       text: `
 Hi ${userName},
 
-Reset your AutoCity Pro password using this link:
+Reset your AutoCity password using this link:
 ${resetUrl}
 
 This link expires in 15 minutes and can only be used once.
@@ -199,18 +199,18 @@ export async function sendPasswordChangedEmail(
     const resend = getResend(); // ✅ Lazy init (FIX)
 
     const { data, error } = await resend.emails.send({
-      from: "AutoCity Pro <onboarding@resend.dev>",
+      from: "AutoCity <no-reply@autocityqatar.com>",
       to: email,
-      subject: "Your Password Was Changed - AutoCity Pro",
+      subject: "Your Password Was Changed - AutoCity",
       html: `
         <p>Hi <strong>${userName}</strong>,</p>
-        <p>Your AutoCity Pro password was successfully changed.</p>
+        <p>Your AutoCity password was successfully changed.</p>
         <p>If this wasn’t you, contact your administrator immediately.</p>
       `,
       text: `
 Hi ${userName},
 
-Your AutoCity Pro password was successfully changed.
+Your AutoCity password was successfully changed.
 
 If you did not make this change, contact your administrator immediately.
       `.trim(),

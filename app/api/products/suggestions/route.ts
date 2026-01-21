@@ -17,21 +17,27 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const q = searchParams.get("q");
 
-    if (!q || q.length < 1) {
+    if (!q || q.trim().length < 1) {
       return NextResponse.json({ suggestions: [] });
     }
+
+    // 🔥 CHANGE STARTS HERE
+    const words = q.trim().split(/\s+/);
 
     const suggestions = await Product.find(
       {
         outletId: user.outletId,
         isActive: true,
-        name: { $regex: `^${q}`, $options: "i" }, // ✅ starts-with
+        $and: words.map((word) => ({
+          name: { $regex: word, $options: "i" }, // CONTAINS, not startsWith
+        })),
       },
       { name: 1 }
     )
-      .limit(8)
+      .limit(15)
       .sort({ name: 1 })
       .lean();
+    // 🔥 CHANGE ENDS HERE
 
     return NextResponse.json({
       suggestions: suggestions.map((p) => p.name),

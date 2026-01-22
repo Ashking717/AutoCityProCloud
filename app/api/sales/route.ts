@@ -1,4 +1,4 @@
-// app/api/sales/route.ts
+// app/api/sales/route.ts - FIXED VERSION
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { cookies } from "next/headers";
@@ -43,8 +43,47 @@ async function generateInvoiceNumber(outletId: mongoose.Types.ObjectId) {
   return `AC-${yearMonth}-${String(nextSeq).padStart(5, "0")}`;
 }
 
+// ─────────────────────────────────────────────────────────────
+// HELPER: Parse and validate date string
+// ─────────────────────────────────────────────────────────────
+function parseDate(dateStr: string | null): Date | null {
+  if (!dateStr) return null;
+  
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) {
+    return null;
+  }
+  
+  return date;
+}
+
+// ─────────────────────────────────────────────────────────────
+// HELPER: Create start and end of day in local timezone
+// ─────────────────────────────────────────────────────────────
+function getDateRange(startDateStr: string | null, endDateStr: string | null) {
+  const startDate = parseDate(startDateStr);
+  const endDate = parseDate(endDateStr);
+  
+  if (!startDate || !endDate) {
+    return null;
+  }
+  
+  // Set start date to beginning of day (00:00:00.000)
+  const startOfDay = new Date(startDate);
+  startOfDay.setHours(0, 0, 0, 0);
+  
+  // Set end date to end of day (23:59:59.999)
+  const endOfDay = new Date(endDate);
+  endOfDay.setHours(23, 59, 59, 999);
+  
+  return {
+    $gte: startOfDay,
+    $lte: endOfDay,
+  };
+}
+
 // ===================================================================
-// GET /api/sales
+// GET /api/sales - FIXED VERSION WITH TOTALS
 // ===================================================================
 export async function GET(request: NextRequest) {
   try {
@@ -62,13 +101,20 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get("endDate");
     const status = searchParams.get("status");
 
+    // Build query
     const query: any = { outletId: user.outletId };
 
+    // Handle date range with proper timezone handling
     if (startDate && endDate) {
-      query.saleDate = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate + "T23:59:59.999Z"),
-      };
+      const dateRange = getDateRange(startDate, endDate);
+      if (dateRange) {
+        query.saleDate = dateRange;
+      } else {
+        return NextResponse.json(
+          { error: "Invalid date format" },
+          { status: 400 }
+        );
+      }
     }
 
     if (status && status !== "all") {
@@ -79,6 +125,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "20");
     const skip = (page - 1) * limit;
 
+    // Fetch sales with pagination
     const [sales, total] = await Promise.all([
       Sale.find(query)
         .populate("customerId", "name phone")
@@ -90,6 +137,29 @@ export async function GET(request: NextRequest) {
       Sale.countDocuments(query),
     ]);
 
+    // Calculate totals for the filtered date range (all records, not just current page)
+    const totalsAggregation = await Sale.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: null,
+          totalSales: { $sum: "$grandTotal" },
+          totalDiscount: { $sum: "$totalDiscount" },
+          totalPaid: { $sum: "$amountPaid" },
+          totalBalance: { $sum: "$balanceDue" },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const totals = totalsAggregation[0] || {
+      totalSales: 0,
+      totalDiscount: 0,
+      totalPaid: 0,
+      totalBalance: 0,
+      count: 0,
+    };
+
     return NextResponse.json({
       sales,
       pagination: {
@@ -97,6 +167,13 @@ export async function GET(request: NextRequest) {
         page,
         limit,
         pages: Math.ceil(total / limit),
+      },
+      totals: {
+        totalSales: Number(totals.totalSales?.toFixed(2) || 0),
+        totalDiscount: Number(totals.totalDiscount?.toFixed(2) || 0),
+        totalPaid: Number(totals.totalPaid?.toFixed(2) || 0),
+        totalBalance: Number(totals.totalBalance?.toFixed(2) || 0),
+        count: totals.count || 0,
       },
     });
   } catch (error: any) {
@@ -106,13 +183,12 @@ export async function GET(request: NextRequest) {
 }
 
 // ===================================================================
-// POST /api/sales  (SAFE INVOICE GENERATION – NO COUNTER)
+// POST /api/sales - CREATE NEW SALE
 // ===================================================================
 export async function POST(request: NextRequest) {
   try {
     await connectDB();
 
-    // ───────── AUTH ─────────
     const token = cookies().get("auth-token")?.value;
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -120,7 +196,10 @@ export async function POST(request: NextRequest) {
 
     const user = verifyToken(token);
     if (!user.outletId) {
-      return NextResponse.json({ error: "Invalid user: missing outletId" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid user: missing outletId" },
+        { status: 400 }
+      );
     }
     const userId = new mongoose.Types.ObjectId(user.userId);
     const outletId = new mongoose.Types.ObjectId(user.outletId);
@@ -130,13 +209,19 @@ export async function POST(request: NextRequest) {
       customerId,
       customerName,
       items,
-      paymentMethod,
+      paymentMethod, // Keep for backward compatibility
+      payments: paymentDetails, // NEW: array of payment methods
       amountPaid,
       notes,
       overallDiscountAmount = 0,
     } = body;
 
-    if (!customerId || !customerName || !Array.isArray(items) || items.length === 0) {
+    if (
+      !customerId ||
+      !customerName ||
+      !Array.isArray(items) ||
+      items.length === 0
+    ) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -173,7 +258,8 @@ export async function POST(request: NextRequest) {
 
       let itemDiscount = 0;
       if (item.discountType === "percentage") {
-        itemDiscount = (unitPrice * quantity * (Number(item.discount) || 0)) / 100;
+        itemDiscount =
+          (unitPrice * quantity * (Number(item.discount) || 0)) / 100;
       } else {
         itemDiscount = Number(item.discountAmount || item.discount || 0);
       }
@@ -205,6 +291,34 @@ export async function POST(request: NextRequest) {
     const paidAmount = Number(amountPaid) || 0;
     const balanceDue = Number((grandTotal - paidAmount).toFixed(2));
 
+    // ───────── PROCESS PAYMENT DETAILS ─────────
+    // Support both old single payment and new multiple payments
+    let processedPayments: any[] = [];
+    let primaryPaymentMethod = paymentMethod?.toUpperCase() || "CASH";
+
+    if (
+      paymentDetails &&
+      Array.isArray(paymentDetails) &&
+      paymentDetails.length > 0
+    ) {
+      // New format: multiple payments
+      processedPayments = paymentDetails.map((p: any) => ({
+        method: p.method?.toUpperCase() || "CASH",
+        amount: Number(p.amount) || 0,
+        reference: p.reference || undefined,
+      }));
+      primaryPaymentMethod = processedPayments[0].method;
+    } else if (paymentMethod) {
+      // Old format: single payment
+      processedPayments = [
+        {
+          method: primaryPaymentMethod,
+          amount: paidAmount,
+          reference: undefined,
+        },
+      ];
+    }
+
     // ───────── CREATE SALE (RETRY LOOP) ─────────
     let sale: any = null;
     let attempts = 0;
@@ -228,7 +342,8 @@ export async function POST(request: NextRequest) {
             totalDiscount,
             totalVAT: 0,
             grandTotal,
-            paymentMethod: paymentMethod?.toUpperCase() || "CASH",
+            paymentMethod: primaryPaymentMethod, // For backward compatibility
+            payments: processedPayments, // NEW: Multiple payments
             amountPaid: paidAmount,
             balanceDue,
             status: "COMPLETED",
@@ -260,9 +375,10 @@ export async function POST(request: NextRequest) {
       const productId = new mongoose.Types.ObjectId(item.productId);
       const qty = Number(item.quantity);
 
-      const lastMovement = await InventoryMovement
-        .findOne({ productId, outletId })
-        .sort({ date: -1 });
+      const lastMovement = await InventoryMovement.findOne({
+        productId,
+        outletId,
+      }).sort({ date: -1 });
 
       const prevBalance = lastMovement?.balanceAfter || 0;
       const newBalance = prevBalance - qty;
@@ -308,7 +424,9 @@ export async function POST(request: NextRequest) {
       username: userDoc?.username || user.email,
       actionType: "create",
       module: "sales",
-      description: `Created sale ${sale.invoiceNumber} - QAR ${grandTotal.toFixed(2)}`,
+      description: `Created sale ${sale.invoiceNumber} - QAR ${grandTotal.toFixed(
+        2
+      )}`,
       outletId,
       timestamp: new Date(),
     });

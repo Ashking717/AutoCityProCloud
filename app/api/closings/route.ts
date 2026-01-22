@@ -14,6 +14,12 @@ import Account, { AccountSubType } from '@/lib/models/Account';
 import Purchase from '@/lib/models/Purchase';
 import Expense from '@/lib/models/Expense';
 
+// Type for earliest transaction results
+interface EarliestTransaction {
+  saleDate?: Date;
+  purchaseDate?: Date;
+  expenseDate?: Date;
+}
 
 // ─────────────────────────────────────────────
 // GET /api/closings
@@ -53,30 +59,130 @@ export async function GET(request: NextRequest) {
 }
 
 // ─────────────────────────────────────────────
+// Helper: Get Earliest Transaction Date
+// ─────────────────────────────────────────────
+async function getEarliestTransactionDate(outletId: string): Promise<Date | null> {
+  const [earliestSale, earliestPurchase, earliestExpense] = await Promise.all([
+    Sale.findOne({ outletId })
+      .sort({ saleDate: 1 })
+      .select('saleDate')
+      .lean<{ saleDate: Date } | null>(),
+    
+    Purchase.findOne({ outletId })
+      .sort({ purchaseDate: 1 })
+      .select('purchaseDate')
+      .lean<{ purchaseDate: Date } | null>(),
+    
+    Expense.findOne({ outletId })
+      .sort({ expenseDate: 1 })
+      .select('expenseDate')
+      .lean<{ expenseDate: Date } | null>(),
+  ]);
+
+  const dates: Date[] = [];
+  if (earliestSale?.saleDate) dates.push(new Date(earliestSale.saleDate));
+  if (earliestPurchase?.purchaseDate) dates.push(new Date(earliestPurchase.purchaseDate));
+  if (earliestExpense?.expenseDate) dates.push(new Date(earliestExpense.expenseDate));
+
+  if (dates.length === 0) return null;
+
+  return new Date(Math.min(...dates.map(d => d.getTime())));
+}
+
+// ─────────────────────────────────────────────
 // Helper: Calculate Period Boundaries
 // ─────────────────────────────────────────────
-function calculatePeriodBoundaries(closingType: 'day' | 'month', closingDate: string) {
+interface PeriodBoundaries {
+  periodStart: Date;
+  periodEnd: Date;
+  closingDay: Date;
+  isFirstClosing: boolean;
+}
+
+async function calculatePeriodBoundaries(
+  closingType: 'day' | 'month',
+  closingDate: string,
+  outletId: string
+): Promise<PeriodBoundaries> {
   const closingDay = new Date(closingDate);
   closingDay.setHours(0, 0, 0, 0);
 
   let periodStart: Date;
   let periodEnd: Date;
 
+  // Check if this is the first closing ever for this outlet
+  const previousClosing = await Closing.findOne({
+    outletId,
+    closingType,
+    closingDate: { $lt: closingDay },
+  })
+    .sort({ closingDate: -1 })
+    .lean();
+
+  const isFirstClosing = !previousClosing;
+
   if (closingType === 'day') {
-    // Daily closing: same day
-    periodStart = new Date(closingDay);
+    if (isFirstClosing) {
+      // FIRST CLOSING: Include all historical data
+      const earliestDate = await getEarliestTransactionDate(outletId);
+
+      if (earliestDate) {
+        periodStart = new Date(earliestDate);
+        periodStart.setHours(0, 0, 0, 0);
+      } else {
+        // No historical data, start from today
+        periodStart = new Date(closingDay);
+        periodStart.setHours(0, 0, 0, 0);
+      }
+
+      console.log(`FIRST CLOSING: Including all data from ${periodStart.toISOString()}`);
+    } else {
+      // Subsequent closings: Start from day after previous closing
+      const prevClosingDate = new Date(previousClosing.closingDate);
+      periodStart = new Date(prevClosingDate);
+      periodStart.setDate(periodStart.getDate() + 1);
+      periodStart.setHours(0, 0, 0, 0);
+    }
+
+    // End time: Include transactions up to 6 AM next day (for late night operations)
     periodEnd = new Date(closingDay);
-    periodEnd.setHours(23, 59, 59, 999);
+    periodEnd.setDate(periodEnd.getDate() + 1);
+    periodEnd.setHours(6, 0, 0, 0); // 6 AM next day cutoff
   } else {
-    // Monthly closing: entire month
-    periodStart = new Date(closingDay.getFullYear(), closingDay.getMonth(), 1);
-    periodStart.setHours(0, 0, 0, 0);
-    
-    periodEnd = new Date(closingDay.getFullYear(), closingDay.getMonth() + 1, 0);
-    periodEnd.setHours(23, 59, 59, 999);
+    // Monthly closing
+    if (isFirstClosing) {
+      // FIRST MONTHLY CLOSING: Include all historical data
+      const earliestDate = await getEarliestTransactionDate(outletId);
+
+      if (earliestDate) {
+        periodStart = new Date(earliestDate);
+        periodStart.setHours(0, 0, 0, 0);
+      } else {
+        // No historical data, start from beginning of month
+        periodStart = new Date(closingDay.getFullYear(), closingDay.getMonth(), 1);
+        periodStart.setHours(0, 0, 0, 0);
+      }
+
+      console.log(`FIRST MONTHLY CLOSING: Including all data from ${periodStart.toISOString()}`);
+    } else {
+      // Subsequent monthly closings: Start from month after previous closing
+      const prevClosingDate = new Date(previousClosing.closingDate);
+      periodStart = new Date(
+        prevClosingDate.getFullYear(),
+        prevClosingDate.getMonth() + 1,
+        1
+      );
+      periodStart.setHours(0, 0, 0, 0);
+    }
+
+    // End of month + 6 hours buffer for late night operations
+    periodEnd = new Date(closingDay.getFullYear(), closingDay.getMonth() + 1, 1);
+    periodEnd.setHours(6, 0, 0, 0);
   }
 
-  return { periodStart, periodEnd, closingDay };
+  console.log(`Period boundaries: ${periodStart.toISOString()} to ${periodEnd.toISOString()}`);
+
+  return { periodStart, periodEnd, closingDay, isFirstClosing };
 }
 
 // ─────────────────────────────────────────────
@@ -103,48 +209,60 @@ export async function POST(req: NextRequest) {
     }
 
     /* ---------------- PERIOD BOUNDARIES ---------------- */
-    const { periodStart, periodEnd, closingDay } = calculatePeriodBoundaries(closingType, closingDate);
+    const { periodStart, periodEnd, closingDay, isFirstClosing } = 
+      await calculatePeriodBoundaries(closingType, closingDate, user.outletId || '');
 
+    console.log(`Closing ${closingType} for ${closingDay.toISOString()}`);
     console.log(`Period: ${periodStart.toISOString()} to ${periodEnd.toISOString()}`);
+    console.log(`Is first closing: ${isFirstClosing}`);
 
-    /* ---------------- PREVIOUS CLOSING ---------------- */
-    const previousClosing = await Closing.findOne({
-      outletId: user.outletId,
-      closingType,
-      closingDate: { $lt: closingDay },
-    })
-      .sort({ closingDate: -1 })
-      .lean();
+    /* ---------------- SEQUENTIAL ENFORCEMENT (Skip for first closing) ---------------- */
+    if (!isFirstClosing) {
+      const previousClosing = await Closing.findOne({
+        outletId: user.outletId,
+        closingType,
+        closingDate: { $lt: closingDay },
+      })
+        .sort({ closingDate: -1 })
+        .lean();
 
-    /* ---------------- SEQUENTIAL ENFORCEMENT ---------------- */
-    if (previousClosing) {
-      if (closingType === 'day') {
-        // For daily closing, ensure previous day is closed
-        const expectedPrev = new Date(closingDay);
-        expectedPrev.setDate(expectedPrev.getDate() - 1);
+      if (previousClosing) {
+        if (closingType === 'day') {
+          // For daily closing, ensure previous day is closed
+          const expectedPrev = new Date(closingDay);
+          expectedPrev.setDate(expectedPrev.getDate() - 1);
 
-        if (
-          new Date(previousClosing.closingDate).toDateString() !==
-          expectedPrev.toDateString()
-        ) {
-          return NextResponse.json(
-            { error: 'Previous day is not closed. Please close it first.' },
-            { status: 400 }
-          );
-        }
-      } else if (closingType === 'month') {
-        // For monthly closing, ensure previous month is closed
-        const expectedPrevMonth = new Date(closingDay.getFullYear(), closingDay.getMonth() - 1, 1);
-        const prevClosingMonth = new Date(previousClosing.closingDate);
-        
-        if (
-          prevClosingMonth.getFullYear() !== expectedPrevMonth.getFullYear() ||
-          prevClosingMonth.getMonth() !== expectedPrevMonth.getMonth()
-        ) {
-          return NextResponse.json(
-            { error: 'Previous month is not closed. Please close it first.' },
-            { status: 400 }
-          );
+          if (
+            new Date(previousClosing.closingDate).toDateString() !==
+            expectedPrev.toDateString()
+          ) {
+            return NextResponse.json(
+              { 
+                error: 'Previous day is not closed. Please close it first.',
+                expectedDate: expectedPrev.toISOString().split('T')[0],
+                lastClosedDate: new Date(previousClosing.closingDate).toISOString().split('T')[0]
+              },
+              { status: 400 }
+            );
+          }
+        } else if (closingType === 'month') {
+          // For monthly closing, ensure previous month is closed
+          const expectedPrevMonth = new Date(closingDay.getFullYear(), closingDay.getMonth() - 1, 1);
+          const prevClosingMonth = new Date(previousClosing.closingDate);
+          
+          if (
+            prevClosingMonth.getFullYear() !== expectedPrevMonth.getFullYear() ||
+            prevClosingMonth.getMonth() !== expectedPrevMonth.getMonth()
+          ) {
+            return NextResponse.json(
+              { 
+                error: 'Previous month is not closed. Please close it first.',
+                expectedMonth: `${expectedPrevMonth.getFullYear()}-${String(expectedPrevMonth.getMonth() + 1).padStart(2, '0')}`,
+                lastClosedMonth: `${prevClosingMonth.getFullYear()}-${String(prevClosingMonth.getMonth() + 1).padStart(2, '0')}`
+              },
+              { status: 400 }
+            );
+          }
         }
       }
     }
@@ -164,44 +282,87 @@ export async function POST(req: NextRequest) {
     }
 
     /* ---------------- OPENING BALANCES ---------------- */
-    const endOfPreviousPeriod = new Date(periodStart);
-    endOfPreviousPeriod.setMilliseconds(-1);
+    let openingCash = 0;
+    let openingBank = 0;
 
-    async function getOpeningBalance(subType: AccountSubType) {
-      const accounts = await Account.find({
+    if (isFirstClosing) {
+      // For first closing, calculate opening balance from ALL ledger entries before period start
+      // This captures any opening balances that were entered in the system
+      const periodStartMoment = new Date(periodStart);
+      periodStartMoment.setMilliseconds(-1); // One millisecond before period start
+
+      async function getOpeningBalance(subType: AccountSubType): Promise<number> {
+        const accounts = await Account.find({
+          outletId: user.outletId,
+          subType,
+          isActive: true,
+        }).select('_id');
+
+        if (!accounts.length) {
+          console.log(`No ${subType} accounts found for opening balance calculation`);
+          return 0;
+        }
+
+        // Get ALL ledger entries before the period start
+        const entries = await LedgerEntry.find({
+          outletId: user.outletId,
+          accountId: { $in: accounts.map(a => a._id) },
+          date: { $lte: periodStartMoment },
+        }).lean();
+
+        console.log(`Found ${entries.length} ledger entries for ${subType} before ${periodStartMoment.toISOString()}`);
+
+        // Calculate balance: Debits increase asset accounts (Cash/Bank), Credits decrease them
+        const balance = entries.reduce(
+          (sum, e) => sum + (e.debit || 0) - (e.credit || 0),
+          0
+        );
+
+        return balance;
+      }
+
+      openingCash = await getOpeningBalance(AccountSubType.CASH);
+      openingBank = await getOpeningBalance(AccountSubType.BANK);
+
+      console.log(`First closing - Opening balances from ledger:`);
+      console.log(`  Cash: ${openingCash} QAR (from ledger entries before ${periodStart.toISOString()})`);
+      console.log(`  Bank: ${openingBank} QAR (from ledger entries before ${periodStart.toISOString()})`);
+      console.log(`  Total Opening: ${openingCash + openingBank} QAR`);
+
+      // If no ledger entries found but expecting opening balance, log warning
+      if (openingCash === 0 && openingBank === 0) {
+        console.log('⚠️  No opening balances found in ledger. If you have opening balances, please ensure:');
+        console.log('   1. Opening balance ledger entries exist with dates before', periodStart.toISOString());
+        console.log('   2. Accounts are properly set up with subType CASH or BANK');
+        console.log('   3. Ledger entries are associated with correct account IDs');
+      }
+    } else {
+      // For subsequent closings, use previous closing's closing balances
+      const previousClosing = await Closing.findOne({
         outletId: user.outletId,
-        subType,
-        isActive: true,
-      }).select('_id');
+        closingType,
+        closingDate: { $lt: closingDay },
+      })
+        .sort({ closingDate: -1 })
+        .lean();
 
-      if (!accounts.length) return 0;
-
-      const entries = await LedgerEntry.find({
-        outletId: user.outletId,
-        accountId: { $in: accounts.map(a => a._id) },
-        date: { $lte: endOfPreviousPeriod },
-      }).lean();
-
-      return entries.reduce(
-        (sum, e) => sum + (e.debit || 0) - (e.credit || 0),
-        0
-      );
+      if (previousClosing) {
+        openingCash = previousClosing.closingCash || 0;
+        openingBank = previousClosing.closingBank || 0;
+        console.log(`Subsequent closing - Opening balances from previous closing:`);
+        console.log(`  Cash: ${openingCash} QAR`);
+        console.log(`  Bank: ${openingBank} QAR`);
+      }
     }
 
-    const openingCash = previousClosing
-      ? previousClosing.closingCash
-      : await getOpeningBalance(AccountSubType.CASH);
-
-    const openingBank = previousClosing
-      ? previousClosing.closingBank
-      : await getOpeningBalance(AccountSubType.BANK);
-
-    /* ---------------- SALES ---------------- */
+    /* ---------------- SALES (with late-night inclusion) ---------------- */
     const sales = await Sale.find({
       outletId: user.outletId,
       status: 'COMPLETED',
       saleDate: { $gte: periodStart, $lte: periodEnd },
     }).lean();
+
+    console.log(`Found ${sales.length} sales in period`);
 
     const cashSales = sales
       .filter(s => s.paymentMethod === 'CASH')
@@ -227,6 +388,8 @@ export async function POST(req: NextRequest) {
     );
 
     const salesCount = sales.length;
+
+    console.log(`Sales totals: Revenue=${totalRevenue}, Cash=${cashSales}, Bank=${bankSales}`);
 
     /* ---------------- CASH PAYMENTS ---------------- */
     const cashPurchases = await Purchase.find({
@@ -254,6 +417,8 @@ export async function POST(req: NextRequest) {
     );
 
     const cashPayments = cashPurchasePayments + cashExpensePayments;
+
+    console.log(`Cash payments: Purchases=${cashPurchasePayments}, Expenses=${cashExpensePayments}, Total=${cashPayments}`);
 
     /* ---------------- CASH CLOSING ---------------- */
     const closingCash = openingCash + cashSales - cashPayments;
@@ -285,11 +450,12 @@ export async function POST(req: NextRequest) {
 
     const bankPayments = bankPurchasePayments + bankExpensePayments;
 
-    console.log("Bank Sales:", bankSales, "Bank Payments:", bankPayments);
+    console.log(`Bank payments: Purchases=${bankPurchasePayments}, Expenses=${bankExpensePayments}, Total=${bankPayments}`);
 
     /* ---------------- BANK CLOSING ---------------- */
-    const bankMovement = bankSales - bankPayments;
-    const closingBank = openingBank + bankMovement;
+    const closingBank = openingBank + bankSales - bankPayments;
+
+    console.log(`Closing balances: Cash=${closingCash}, Bank=${closingBank}`);
 
     /* ---------------- TOTAL BALANCES ---------------- */
     const totalOpeningBalance = openingCash + openingBank;
@@ -298,6 +464,18 @@ export async function POST(req: NextRequest) {
     /* ---------------- PROFIT ---------------- */
     const totalExpenses = bankPayments + cashPayments;
     const netProfit = totalRevenue - totalExpenses;
+
+    /* ---------------- INVENTORY (Optional - calculate if needed) ---------------- */
+    const products = await Product.find({
+      outletId: user.outletId,
+      isActive: true,
+    }).select('currentStock costPrice').lean();
+
+    const closingStock = products.reduce((sum, p) => sum + (p.currentStock || 0), 0);
+    const stockValue = products.reduce(
+      (sum, p) => sum + (p.currentStock || 0) * (p.costPrice || 0),
+      0
+    );
 
     /* ---------------- CREATE CLOSING ---------------- */
     const closing = await Closing.create({
@@ -322,7 +500,6 @@ export async function POST(req: NextRequest) {
       bankPayments,
       closingBank,
 
-      // Add total balances
       totalOpeningBalance,
       totalClosingBalance,
 
@@ -330,15 +507,59 @@ export async function POST(req: NextRequest) {
       totalDiscount,
       totalTax,
 
+      openingStock: 0, // Can be calculated from previous closing if needed
+      closingStock,
+      stockValue,
+
       status: 'closed',
       closedBy: new mongoose.Types.ObjectId(user.userId),
       closedAt: new Date(),
-      notes,
+      notes: isFirstClosing 
+        ? `${notes || ''}\n\nNote: This is the first closing and includes all historical transactions from ${periodStart.toLocaleDateString()}.`.trim()
+        : notes,
 
       outletId: user.outletId ? new mongoose.Types.ObjectId(user.outletId) : undefined,
     });
 
-    return NextResponse.json({ success: true, closing });
+    console.log(`Closing created successfully: ${closing._id}`);
+
+    // Log activity (with proper error handling)
+    try {
+      await ActivityLog.create({
+        userId: user.userId,
+        outletId: user.outletId,
+        module: 'Closing',
+        actionType: 'CREATE',
+        description: isFirstClosing 
+          ? `First ${closingType} closing created for period ${periodStart.toLocaleDateString()} to ${periodEnd.toLocaleDateString()}`
+          : `${closingType.charAt(0).toUpperCase() + closingType.slice(1)} closing created for ${closingDay.toLocaleDateString()}`,
+        username: `${user.username|| ''} `.trim() || 'Unknown User',
+        resourceType: 'Closing',
+        resourceId: closing._id,
+        details: {
+          closingType,
+          closingDate: closingDay,
+          periodStart,
+          periodEnd,
+          isFirstClosing,
+          totalRevenue,
+          netProfit,
+        },
+        ipAddress: req.headers.get('x-forwarded-for') || 'unknown',
+        userAgent: req.headers.get('user-agent') || 'unknown',
+      });
+    } catch (activityLogError) {
+      // Log error but don't fail the closing
+      console.error('Failed to create activity log:', activityLogError);
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      closing,
+      message: isFirstClosing 
+        ? `First ${closingType} closing created successfully! Included all transactions from ${periodStart.toLocaleDateString()}.`
+        : `${closingType} closing created successfully!`
+    });
 
   } catch (err: any) {
     console.error('Closing error:', err);

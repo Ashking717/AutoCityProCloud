@@ -664,54 +664,41 @@ export default function NewSalePage() {
     };
   };
 
-  const handleSubmit = async () => {
-    if (cart.length === 0) {
-      toast.error("Cart is empty");
-      return;
+// Update your handleSubmit function in new/page.tsx
+
+const handleSubmit = async () => {
+  if (cart.length === 0) {
+    toast.error("Cart is empty");
+    return;
+  }
+
+  if (!selectedCustomer) {
+    toast.error("Please select a customer");
+    return;
+  }
+
+  setInvoiceCustomer(selectedCustomer);
+
+  const totals = calculateTotals();
+
+  const saleItems = cart.map((item) => {
+    let discountAmount = 0;
+    let discountPercentage = 0;
+
+    if (item.discountType === "percentage") {
+      discountPercentage = item.discount;
+      discountAmount =
+        (item.sellingPrice * item.quantity * item.discount) / 100;
+    } else {
+      discountAmount = item.discount;
+      discountPercentage =
+        item.sellingPrice * item.quantity > 0
+          ? (item.discount / (item.sellingPrice * item.quantity)) * 100
+          : 0;
     }
 
-    if (!selectedCustomer) {
-      toast.error("Please select a customer");
-      return;
-    }
-
-    setInvoiceCustomer(selectedCustomer);
-
-    const totals = calculateTotals();
-
-    const saleItems = cart.map((item) => {
-      let discountAmount = 0;
-      let discountPercentage = 0;
-
-      if (item.discountType === "percentage") {
-        discountPercentage = item.discount;
-        discountAmount =
-          (item.sellingPrice * item.quantity * item.discount) / 100;
-      } else {
-        discountAmount = item.discount;
-        discountPercentage =
-          item.sellingPrice * item.quantity > 0
-            ? (item.discount / (item.sellingPrice * item.quantity)) * 100
-            : 0;
-      }
-
-      if (item.isLabor) {
-        return {
-          name: item.productName,
-          sku: item.sku,
-          quantity: item.quantity,
-          unit: item.unit || "pcs",
-          unitPrice: item.sellingPrice,
-          taxRate: item.taxRate,
-          discount: discountPercentage,
-          discountAmount: discountAmount,
-          discountType: item.discountType,
-          isLabor: true,
-        };
-      }
-
+    if (item.isLabor) {
       return {
-        productId: item.productId,
         name: item.productName,
         sku: item.sku,
         quantity: item.quantity,
@@ -721,88 +708,131 @@ export default function NewSalePage() {
         discount: discountPercentage,
         discountAmount: discountAmount,
         discountType: item.discountType,
-        isLabor: false,
+        isLabor: true,
       };
+    }
+
+    return {
+      productId: item.productId,
+      name: item.productName,
+      sku: item.sku,
+      quantity: item.quantity,
+      unit: item.unit || "pcs",
+      unitPrice: item.sellingPrice,
+      taxRate: item.taxRate,
+      discount: discountPercentage,
+      discountAmount: discountAmount,
+      discountType: item.discountType,
+      isLabor: false,
+    };
+  });
+
+  // ✅ NEW: Prepare payment details array
+  const paymentDetails = payments
+    .filter(p => p.amount > 0) // Only include payments with amounts
+    .map(p => ({
+      method: p.method.toUpperCase(),
+      amount: Number(p.amount),
+      reference: p.reference || undefined,
+    }));
+
+  // Ensure we have at least one payment
+  if (paymentDetails.length === 0) {
+    paymentDetails.push({
+      method: "CASH",
+      amount: 0,
+      reference: undefined,
+    });
+  }
+
+  setLoading(true);
+
+  try {
+    const res = await fetch("/api/sales", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        customerId: selectedCustomer._id,
+        customerName: selectedCustomer.name,
+        items: saleItems,
+        
+        // ✅ NEW: Send payment details array
+        payments: paymentDetails,
+        
+        // Keep for backward compatibility
+        paymentMethod: paymentDetails[0].method,
+        amountPaid: totals.totalPaid,
+        
+        notes: "",
+        overallDiscount,
+        overallDiscountType,
+        overallDiscountAmount: totals.overallDiscountAmount,
+      }),
     });
 
-    setLoading(true);
+    if (res.ok) {
+      const data = await res.json();
+      toast.success(`Sale ${data.sale.invoiceNumber} created successfully!`);
 
-    try {
-      const res = await fetch("/api/sales", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          customerId: selectedCustomer._id,
-          customerName: selectedCustomer.name,
-          items: saleItems,
-          paymentMethod: payments[0].method,
-          amountPaid: totals.totalPaid,
-          notes: "",
-          overallDiscount,
-          overallDiscountType,
-          overallDiscountAmount: totals.overallDiscountAmount,
+      setInvoiceData({
+        invoiceNumber: data.sale.invoiceNumber,
+        saleDate: data.sale.saleDate,
+        items: cart.map((item) => {
+          let discountAmount = 0;
+          if (item.discountType === "percentage") {
+            discountAmount =
+              (item.sellingPrice * item.quantity * item.discount) / 100;
+          } else {
+            discountAmount = item.discount;
+          }
+
+          const itemSubtotal =
+            item.sellingPrice * item.quantity - discountAmount;
+          return {
+            name: item.productName,
+            quantity: item.quantity,
+            unitPrice: item.sellingPrice,
+            discount: discountAmount,
+            taxAmount: (itemSubtotal * item.taxRate) / 100,
+            total: item.total,
+            isLabor: item.isLabor,
+          };
         }),
+        subtotal: totals.subtotal,
+        totalDiscount: totals.totalDiscount + totals.overallDiscountAmount,
+        totalTax: totals.totalTax,
+        grandTotal: totals.total,
+        amountPaid: totals.totalPaid,
+        balanceDue: totals.total - totals.totalPaid,
+        
+        // ✅ Show all payment methods on invoice
+        paymentMethods: paymentDetails,
+        paymentMethod: paymentDetails[0].method, // Primary for display
+        
+        notes: "",
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        toast.success(`Sale ${data.sale.invoiceNumber} created successfully!`);
+      setShowInvoice(true);
 
-        setInvoiceData({
-          invoiceNumber: data.sale.invoiceNumber,
-          saleDate: data.sale.saleDate,
-          items: cart.map((item) => {
-            let discountAmount = 0;
-            if (item.discountType === "percentage") {
-              discountAmount =
-                (item.sellingPrice * item.quantity * item.discount) / 100;
-            } else {
-              discountAmount = item.discount;
-            }
+      setCart([]);
+      setSelectedCustomer(null);
+      setPayments([{ method: "cash", amount: 0 }]);
+      setOverallDiscount(0);
 
-            const itemSubtotal =
-              item.sellingPrice * item.quantity - discountAmount;
-            return {
-              name: item.productName,
-              quantity: item.quantity,
-              unitPrice: item.sellingPrice,
-              discount: discountAmount,
-              taxAmount: (itemSubtotal * item.taxRate) / 100,
-              total: item.total,
-              isLabor: item.isLabor,
-            };
-          }),
-          subtotal: totals.subtotal,
-          totalDiscount: totals.totalDiscount + totals.overallDiscountAmount,
-          totalTax: totals.totalTax,
-          grandTotal: totals.total,
-          amountPaid: totals.totalPaid,
-          balanceDue: totals.total - totals.totalPaid,
-          paymentMethod: payments[0].method.toUpperCase(),
-          notes: "",
-        });
-
-        setShowInvoice(true);
-
-        setCart([]);
-        setSelectedCustomer(null);
-        setPayments([{ method: "cash", amount: 0 }]);
-        setOverallDiscount(0);
-
-        fetchProducts();
-        fetchFrequentProducts();
-      } else {
-        const error = await res.json();
-        toast.error(error.error || "Failed to create sale");
-      }
-    } catch (error) {
-      console.error("Error creating sale:", error);
-      toast.error("Failed to create sale");
-    } finally {
-      setLoading(false);
+      fetchProducts();
+      fetchFrequentProducts();
+    } else {
+      const error = await res.json();
+      toast.error(error.error || "Failed to create sale");
     }
-  };
+  } catch (error) {
+    console.error("Error creating sale:", error);
+    toast.error("Failed to create sale");
+  } finally {
+    setLoading(false);
+  }
+};
   const findExactSkuMatch = (sku: string) => {
   return products.find(
     (p) => p.sku?.toLowerCase() === sku.toLowerCase()

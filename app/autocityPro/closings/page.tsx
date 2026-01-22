@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
+import ClosingPreview from "@/components/closings/ClosingPreview";
 import {
   Calendar,
   Lock,
@@ -29,6 +30,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Zap,
+  Info,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -88,6 +90,8 @@ export default function ClosingsPage() {
   const [isMobile, setIsMobile] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
 
   const [newClosing, setNewClosing] = useState({
     closingType: "day" as "day" | "month",
@@ -170,6 +174,9 @@ export default function ClosingsPage() {
   };
 
   const handleClose = async () => {
+    if (isClosing) return;
+    
+    setIsClosing(true);
     try {
       const res = await fetch("/api/closings", {
         method: "POST",
@@ -178,13 +185,16 @@ export default function ClosingsPage() {
         body: JSON.stringify(newClosing),
       });
 
+      const data = await res.json();
+
       if (res.ok) {
-        toast.success(
-          `${
-            newClosing.closingType === "day" ? "Day" : "Month"
-          } closed successfully!`
-        );
+        // Show success message from API (includes first closing info)
+        toast.success(data.message || `${
+          newClosing.closingType === "day" ? "Day" : "Month"
+        } closed successfully!`);
+        
         setShowCloseModal(false);
+        setShowPreview(false);
         setNewClosing({
           closingType: "day",
           closingDate: new Date().toISOString().split("T")[0],
@@ -192,12 +202,33 @@ export default function ClosingsPage() {
         });
         fetchClosings();
       } else {
-        const error = await res.json();
-        toast.error(error.error || "Failed to close period");
+        // Show detailed error message
+        toast.error(data.error || "Failed to close period");
+        
+        // If there's additional context in the error, show it
+        if (data.expectedDate || data.expectedMonth) {
+          setTimeout(() => {
+            toast.error(
+              `Please close ${data.expectedDate || data.expectedMonth} first`,
+              { duration: 5000 }
+            );
+          }, 100);
+        }
       }
     } catch (error) {
+      console.error("Closing error:", error);
       toast.error("Failed to close period");
+    } finally {
+      setIsClosing(false);
     }
+  };
+
+  const handleShowPreview = () => {
+    if (!newClosing.closingDate) {
+      toast.error("Please select a closing date");
+      return;
+    }
+    setShowPreview(true);
   };
 
   const handleLogout = async () => {
@@ -378,7 +409,7 @@ export default function ClosingsPage() {
                       Period Closings
                     </h1>
                     <p className="text-gray-400 text-sm">
-                      Comprehensive financial period management & ledger reconciliation
+                      Comprehensive financial period management with late-night support
                     </p>
                   </div>
                 </div>
@@ -399,6 +430,23 @@ export default function ClosingsPage() {
                     <Lock className="h-4 w-4 relative z-10 group-hover:scale-110 transition-transform" />
                     <span className="font-semibold relative z-10">Close Period</span>
                   </button>
+                </div>
+              </div>
+
+              {/* Info Banner */}
+              <div className="mb-8 p-4 bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 rounded-2xl">
+                <div className="flex items-start gap-3">
+                  <Info className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="text-sm font-bold text-blue-400 mb-1">
+                      Enhanced Period Closing
+                    </h3>
+                    <p className="text-xs text-blue-300/80 leading-relaxed">
+                      First closing automatically includes all historical transactions. 
+                      Late-night transactions (until 6:00 AM) are included in the previous day. 
+                      Use the preview feature to verify what will be included before closing.
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -896,10 +944,10 @@ export default function ClosingsPage() {
         <div className="md:hidden h-6" />
       </div>
 
-      {/* Close Period Modal */}
+      {/* Close Period Modal with Preview */}
       {showCloseModal && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="relative bg-[#0f0f0f] border border-red-500/20 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-300">
+          <div className="relative bg-[#0f0f0f] border border-red-500/20 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-300">
             {/* Modal Header */}
             <div className="relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-br from-red-600/20 via-red-500/10 to-transparent" />
@@ -914,12 +962,17 @@ export default function ClosingsPage() {
                         Close Period
                       </h2>
                       <p className="text-sm text-gray-500 mt-1">
-                        Lock financial transactions for this period
+                        {showPreview 
+                          ? "Review details before closing" 
+                          : "Configure period closing settings"}
                       </p>
                     </div>
                   </div>
                   <button
-                    onClick={() => setShowCloseModal(false)}
+                    onClick={() => {
+                      setShowCloseModal(false);
+                      setShowPreview(false);
+                    }}
                     className="p-2 text-gray-500 hover:text-white hover:bg-red-500/10 rounded-lg transition-all"
                   >
                     <XCircle className="h-6 w-6" />
@@ -930,89 +983,125 @@ export default function ClosingsPage() {
 
             {/* Modal Body */}
             <div className="p-6 space-y-5 max-h-[calc(90vh-200px)] overflow-y-auto">
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
-                  Closing Type
-                </label>
-                <select
-                  value={newClosing.closingType}
-                  onChange={(e) =>
-                    setNewClosing({
-                      ...newClosing,
-                      closingType: e.target.value as "day" | "month",
-                    })
-                  }
-                  className="w-full px-4 py-3 bg-[#1a1a1a] border border-red-500/20 rounded-xl focus:border-red-500/50 focus:ring-2 focus:ring-red-500/20 transition-all text-white font-medium"
-                >
-                  <option value="day">Daily Closing</option>
-                  <option value="month">Monthly Closing</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
-                  Closing Date
-                </label>
-                <input
-                  type="date"
-                  value={newClosing.closingDate}
-                  onChange={(e) =>
-                    setNewClosing({
-                      ...newClosing,
-                      closingDate: e.target.value,
-                    })
-                  }
-                  className="w-full px-4 py-3 bg-[#1a1a1a] border border-red-500/20 rounded-xl focus:border-red-500/50 focus:ring-2 focus:ring-red-500/20 transition-all text-white font-medium"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
-                  Notes
-                </label>
-                <textarea
-                  value={newClosing.notes}
-                  onChange={(e) =>
-                    setNewClosing({ ...newClosing, notes: e.target.value })
-                  }
-                  rows={4}
-                  className="w-full px-4 py-3 bg-[#1a1a1a] border border-red-500/20 rounded-xl focus:border-red-500/50 focus:ring-2 focus:ring-red-500/20 transition-all text-white resize-none font-medium"
-                  placeholder="Add notes or observations..."
-                />
-              </div>
-
-              {/* Warning */}
-              <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl">
-                <div className="flex gap-3">
-                  <AlertTriangle className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
+              {!showPreview ? (
+                <>
                   <div>
-                    <h4 className="text-sm font-bold text-amber-400 mb-2">
-                      Important Notice
-                    </h4>
-                    <ul className="text-xs text-amber-300/80 space-y-1.5">
-                      <li>• All transactions will be locked</li>
-                      <li>• Financial reports will be generated</li>
-                      <li>• Ledger entries will be balanced</li>
-                    </ul>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+                      Closing Type
+                    </label>
+                    <select
+                      value={newClosing.closingType}
+                      onChange={(e) =>
+                        setNewClosing({
+                          ...newClosing,
+                          closingType: e.target.value as "day" | "month",
+                        })
+                      }
+                      className="w-full px-4 py-3 bg-[#1a1a1a] border border-red-500/20 rounded-xl focus:border-red-500/50 focus:ring-2 focus:ring-red-500/20 transition-all text-white font-medium"
+                    >
+                      <option value="day">Daily Closing</option>
+                      <option value="month">Monthly Closing</option>
+                    </select>
                   </div>
-                </div>
-              </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+                      Closing Date
+                    </label>
+                    <input
+                      type="date"
+                      value={newClosing.closingDate}
+                      onChange={(e) =>
+                        setNewClosing({
+                          ...newClosing,
+                          closingDate: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-3 bg-[#1a1a1a] border border-red-500/20 rounded-xl focus:border-red-500/50 focus:ring-2 focus:ring-red-500/20 transition-all text-white font-medium"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+                      Notes
+                    </label>
+                    <textarea
+                      value={newClosing.notes}
+                      onChange={(e) =>
+                        setNewClosing({ ...newClosing, notes: e.target.value })
+                      }
+                      rows={4}
+                      className="w-full px-4 py-3 bg-[#1a1a1a] border border-red-500/20 rounded-xl focus:border-red-500/50 focus:ring-2 focus:ring-red-500/20 transition-all text-white resize-none font-medium"
+                      placeholder="Add notes or observations..."
+                    />
+                  </div>
+
+                  {/* Warning */}
+                  <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl">
+                    <div className="flex gap-3">
+                      <AlertTriangle className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <h4 className="text-sm font-bold text-amber-400 mb-2">
+                          Important Notice
+                        </h4>
+                        <ul className="text-xs text-amber-300/80 space-y-1.5">
+                          <li>• All transactions will be locked</li>
+                          <li>• Financial reports will be generated</li>
+                          <li>• Late-night transactions (until 6 AM) will be included</li>
+                          <li>• First closing includes all historical data</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Preview Component */}
+                  {user && (
+                    <ClosingPreview
+                      closingType={newClosing.closingType}
+                      closingDate={newClosing.closingDate}
+                      outletId={user.outletId}
+                    />
+                  )}
+                </>
+              )}
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-4 bg-[#141414] border-t border-red-500/10 flex justify-end gap-3">
+            <div className="px-6 py-4 bg-[#141414] border-t border-red-500/10 flex justify-between gap-3">
               <button
-                onClick={() => setShowCloseModal(false)}
+                onClick={() => {
+                  if (showPreview) {
+                    setShowPreview(false);
+                  } else {
+                    setShowCloseModal(false);
+                  }
+                }}
                 className="px-6 py-2.5 bg-[#1a1a1a] border border-red-500/20 text-gray-300 rounded-xl hover:text-white hover:bg-[#1f1f1f] hover:border-red-500/40 transition-all font-medium"
               >
-                Cancel
+                {showPreview ? "Back" : "Cancel"}
               </button>
-              <button
-                onClick={handleClose}
-                className="px-8 py-2.5 bg-gradient-to-br from-red-600 to-red-700 text-white rounded-xl hover:from-red-500 hover:to-red-600 transition-all font-semibold shadow-lg shadow-red-500/25"
-              >
-                Close Period
-              </button>
+              
+              <div className="flex gap-3">
+                {!showPreview && (
+                  <button
+                    onClick={handleShowPreview}
+                    className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition-all font-medium shadow-lg shadow-blue-500/25"
+                  >
+                    Preview
+                  </button>
+                )}
+                <button
+                  onClick={handleClose}
+                  disabled={isClosing}
+                  className={`px-8 py-2.5 bg-gradient-to-br from-red-600 to-red-700 text-white rounded-xl hover:from-red-500 hover:to-red-600 transition-all font-semibold shadow-lg shadow-red-500/25 ${
+                    isClosing ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
+                >
+                  {isClosing ? "Closing..." : "Close Period"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

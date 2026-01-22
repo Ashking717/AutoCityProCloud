@@ -1,4 +1,8 @@
 //app/lib/services/accountingService.ts
+// PRODUCTION VERSION - Updated 2026-01-22
+// Fix: skipCOGS flag now properly prevents COGS journal creation
+// Enhancement: Added detailed logging for debugging
+
 import mongoose from "mongoose";
 import Account, { IAccount } from "../models/Account";
 import Voucher from "../models/Voucher";
@@ -154,7 +158,7 @@ async function getAccountDetails(accountId: mongoose.Types.ObjectId) {
   };
 }
 
-/* ───────────────── SALE POSTING ───────────────── */
+/* ───────────────── SALE POSTING - UPDATED FOR MULTIPLE PAYMENTS ───────────────── */
 
 export async function postSaleToLedger(
   sale: any,
@@ -167,6 +171,9 @@ export async function postSaleToLedger(
   if (!outlet) throw new Error("Outlet not found");
 
   const sys = await getSystemAccounts(sale.outletId);
+  
+  console.log(`\n📊 Posting sale ${sale.invoiceNumber} to ledger`);
+  console.log(`   skipCOGS: ${options?.skipCOGS === true ? 'YES' : 'NO'}`);
 
   /* ───────── RECEIPT VOUCHER ───────── */
 
@@ -178,30 +185,49 @@ export async function postSaleToLedger(
     credit: number;
   }> = [];
 
-  let paymentAccountId = sys.cashAccount;
-
-  if (sale.paymentMethod === "BANK_TRANSFER" || sale.paymentMethod === "CARD") {
-    paymentAccountId = sys.bankAccount;
-  }
-
-  // Build receipt entries with full account details
-  if (sale.paymentMethod === "CREDIT") {
-    const arDetails = await getAccountDetails(sys.arAccount);
-    receiptEntries.push({
-      ...arDetails,
-      debit: sale.grandTotal,
-      credit: 0,
-    });
-  } else {
-    if (sale.amountPaid > 0) {
-      const paymentDetails = await getAccountDetails(paymentAccountId);
+  /* ───────── HANDLE MULTIPLE PAYMENTS ───────── */
+  
+  // Check if we have multiple payments (new format) or single payment (old format)
+  const hasMultiplePayments = sale.payments && Array.isArray(sale.payments) && sale.payments.length > 0;
+  
+  if (hasMultiplePayments) {
+    console.log(`   Processing ${sale.payments.length} payment method(s)`);
+    
+    // Group payments by account (in case same method is used multiple times)
+    const paymentsByAccount = new Map<string, number>();
+    
+    for (const payment of sale.payments) {
+      let paymentAccountId: mongoose.Types.ObjectId;
+      
+      // Determine account based on payment method
+      if (payment.method === "CREDIT") {
+        paymentAccountId = sys.arAccount;
+      } else if (payment.method === "BANK_TRANSFER" || payment.method === "CARD") {
+        paymentAccountId = sys.bankAccount;
+      } else {
+        paymentAccountId = sys.cashAccount;
+      }
+      
+      const accountKey = paymentAccountId.toString();
+      const currentAmount = paymentsByAccount.get(accountKey) || 0;
+      paymentsByAccount.set(accountKey, currentAmount + payment.amount);
+    }
+    
+    // Create debit entries for each payment account
+    for (const [accountIdStr, amount] of paymentsByAccount.entries()) {
+      const accountId = new mongoose.Types.ObjectId(accountIdStr);
+      const accountDetails = await getAccountDetails(accountId);
+      
       receiptEntries.push({
-        ...paymentDetails,
-        debit: sale.amountPaid,
+        ...accountDetails,
+        debit: amount,
         credit: 0,
       });
+      
+      console.log(`   ✓ DR ${accountDetails.accountName}: QAR ${amount.toFixed(2)}`);
     }
-
+    
+    // Add AR entry if there's a balance due
     if (sale.balanceDue > 0) {
       const arDetails = await getAccountDetails(sys.arAccount);
       receiptEntries.push({
@@ -209,24 +235,66 @@ export async function postSaleToLedger(
         debit: sale.balanceDue,
         credit: 0,
       });
+      console.log(`   ✓ DR ${arDetails.accountName} (Balance): QAR ${sale.balanceDue.toFixed(2)}`);
+    }
+    
+  } else {
+    // OLD LOGIC: Single payment method (for backward compatibility)
+    console.log(`   Processing single payment method: ${sale.paymentMethod}`);
+    
+    let paymentAccountId = sys.cashAccount;
+
+    if (sale.paymentMethod === "BANK_TRANSFER" || sale.paymentMethod === "CARD") {
+      paymentAccountId = sys.bankAccount;
+      console.log(`   → Using Bank Account (payment method: ${sale.paymentMethod})`);
+    } else {
+      console.log(`   → Using Cash Account (payment method: ${sale.paymentMethod})`);
+    }
+
+    if (sale.paymentMethod === "CREDIT") {
+      const arDetails = await getAccountDetails(sys.arAccount);
+      receiptEntries.push({
+        ...arDetails,
+        debit: sale.grandTotal,
+        credit: 0,
+      });
+    } else {
+      if (sale.amountPaid > 0) {
+        const paymentDetails = await getAccountDetails(paymentAccountId);
+        receiptEntries.push({
+          ...paymentDetails,
+          debit: sale.amountPaid,
+          credit: 0,
+        });
+      }
+
+      if (sale.balanceDue > 0) {
+        const arDetails = await getAccountDetails(sys.arAccount);
+        receiptEntries.push({
+          ...arDetails,
+          debit: sale.balanceDue,
+          credit: 0,
+        });
+      }
     }
   }
 
+  /* ───────── CREDIT ENTRIES (REVENUE) ───────── */
+  
   // Separate product sales and labor/service revenue
   const productItems = sale.items.filter((i: any) => !i.isLabor);
-const laborItems = sale.items.filter((i: any) => i.isLabor);
+  const laborItems = sale.items.filter((i: any) => i.isLabor);
 
-// NET amounts (after ALL discounts)
-const productRevenue = productItems.reduce(
-  (sum: number, item: any) => sum + (item.total || 0),
-  0
-);
+  // NET amounts (after ALL discounts)
+  const productRevenue = productItems.reduce(
+    (sum: number, item: any) => sum + (item.total || 0),
+    0
+  );
 
-const laborRevenue = laborItems.reduce(
-  (sum: number, item: any) => sum + (item.total || 0),
-  0
-);
-
+  const laborRevenue = laborItems.reduce(
+    (sum: number, item: any) => sum + (item.total || 0),
+    0
+  );
 
   // Credit Sales Revenue for products
   if (productRevenue > 0) {
@@ -235,8 +303,8 @@ const laborRevenue = laborItems.reduce(
       ...salesDetails,
       debit: 0,
       credit: sale.grandTotal - laborRevenue,
-
     });
+    console.log(`   ✓ CR ${salesDetails.accountName}: QAR ${(sale.grandTotal - laborRevenue).toFixed(2)}`);
   }
 
   // Credit Service Revenue for labor
@@ -252,7 +320,27 @@ const laborRevenue = laborItems.reduce(
       debit: 0,
       credit: laborRevenue,
     });
+    console.log(`   ✓ CR ${serviceDetails.accountName}: QAR ${laborRevenue.toFixed(2)}`);
   }
+
+  /* ───────── VERIFY BALANCED ENTRIES ───────── */
+  
+  const totalDebit = receiptEntries.reduce((sum, e) => sum + e.debit, 0);
+  const totalCredit = receiptEntries.reduce((sum, e) => sum + e.credit, 0);
+  
+  if (Math.abs(totalDebit - totalCredit) > 0.01) {
+    console.error("❌ Unbalanced voucher!");
+    console.error(`   Total Debit: QAR ${totalDebit.toFixed(2)}`);
+    console.error(`   Total Credit: QAR ${totalCredit.toFixed(2)}`);
+    console.error(`   Difference: QAR ${(totalDebit - totalCredit).toFixed(2)}`);
+    throw new Error(
+      `Unbalanced receipt voucher: DR=${totalDebit.toFixed(2)}, CR=${totalCredit.toFixed(2)}`
+    );
+  }
+  
+  console.log(`   ✅ Voucher balanced: DR=${totalDebit.toFixed(2)}, CR=${totalCredit.toFixed(2)}`);
+
+  /* ───────── CREATE RECEIPT VOUCHER ───────── */
 
   const receiptNo = await generateVoucherNumber("receipt", sale.outletId);
 
@@ -270,6 +358,8 @@ const laborRevenue = laborItems.reduce(
     outletId: sale.outletId,
     createdBy: userId,
   });
+
+  console.log(`   ✓ Receipt voucher created: ${receiptVoucher.voucherNumber}`);
 
   // ✅ Apply balance changes
   await applyVoucherBalances(receiptVoucher);
@@ -294,12 +384,23 @@ const laborRevenue = laborItems.reduce(
   }));
 
   await LedgerEntry.insertMany(ledgerDocs);
+  
+  console.log(`   ✓ Created ${ledgerDocs.length} ledger entries`);
 
   /* ───────── COGS ───────── */
+
+  // 🔥 CRITICAL FIX: Check skipCOGS flag BEFORE processing COGS
+  if (options?.skipCOGS === true) {
+    console.log('   ⏭️  Skipping COGS entry (skipCOGS=true)');
+    console.log(`✅ Sale posted to ledger successfully (revenue only)\n`);
+    return { voucherId: receiptVoucher._id, cogsVoucherId: null };
+  }
 
   const items = sale.items.filter((i: any) => !i.isLabor && i.costPrice > 0);
 
   if (!items.length) {
+    console.log('   ⏭️  No items with cost price, skipping COGS');
+    console.log(`✅ Sale posted to ledger successfully (revenue only)\n`);
     return { voucherId: receiptVoucher._id, cogsVoucherId: null };
   }
 
@@ -307,6 +408,8 @@ const laborRevenue = laborItems.reduce(
     (sum: number, i: any) => sum + i.costPrice * i.quantity,
     0
   );
+
+  console.log(`   📦 Processing COGS: QAR ${totalCOGS.toFixed(2)}`);
 
   const cogsDetails = await getAccountDetails(sys.cogsAccount);
   const inventoryDetails = await getAccountDetails(sys.inventoryAccount);
@@ -333,6 +436,8 @@ const laborRevenue = laborItems.reduce(
     createdBy: userId,
   });
 
+  console.log(`   ✓ COGS voucher created: ${cogsVoucher.voucherNumber}`);
+
   // ✅ Apply balance changes for COGS voucher
   await applyVoucherBalances(cogsVoucher);
 
@@ -355,6 +460,9 @@ const laborRevenue = laborItems.reduce(
   }));
 
   await LedgerEntry.insertMany(cogsLedgerDocs);
+  
+  console.log(`   ✓ Created ${cogsLedgerDocs.length} COGS ledger entries`);
+  console.log(`✅ Sale posted to ledger successfully (revenue + COGS)\n`);
 
   return {
     voucherId: receiptVoucher._id,
@@ -1313,6 +1421,9 @@ export async function reverseSaleVoucher(
   }
 ) {
   try {
+    console.log(`\n🔄 Reversing sale vouchers for ${sale.invoiceNumber}`);
+    console.log(`   Reverse COGS: ${options?.reverseCOGS === true ? 'YES' : 'NO'}`);
+    
     const reversalResults: any[] = [];
 
     // Reverse receipt voucher if exists
@@ -1375,6 +1486,8 @@ export async function reverseSaleVoucher(
 
         await LedgerEntry.insertMany(ledgerDocs);
 
+        console.log(`   ✓ Revenue voucher reversed: ${reversalVoucher[0].voucherNumber}`);
+
         reversalResults.push({
           type: "receipt",
           reversalVoucherId: reversalVoucher[0]._id,
@@ -1383,88 +1496,92 @@ export async function reverseSaleVoucher(
       }
     }
 
-// Reverse COGS voucher if exists (OPTIONAL)
-if (sale.cogsVoucherId && options?.reverseCOGS !== false) {
-  const cogsVoucherDoc = await Voucher.findById(
-    sale.cogsVoucherId
-  ).lean();
+    // Reverse COGS voucher if exists (OPTIONAL)
+    if (sale.cogsVoucherId && options?.reverseCOGS === true) {
+      const cogsVoucherDoc = await Voucher.findById(
+        sale.cogsVoucherId
+      ).lean();
 
-  if (cogsVoucherDoc) {
-    const cogsVoucher = cogsVoucherDoc as any;
+      if (cogsVoucherDoc) {
+        const cogsVoucher = cogsVoucherDoc as any;
 
-    // 🔁 Reverse debit / credit
-    const reversedCogsEntries = cogsVoucher.entries.map((e: any) => ({
-      accountId: e.accountId,
-      accountNumber: e.accountNumber,
-      accountName: e.accountName,
-      debit: e.credit,
-      credit: e.debit,
-    }));
+        // 🔁 Reverse debit / credit
+        const reversedCogsEntries = cogsVoucher.entries.map((e: any) => ({
+          accountId: e.accountId,
+          accountNumber: e.accountNumber,
+          accountName: e.accountName,
+          debit: e.credit,
+          credit: e.debit,
+        }));
 
-    const cogsReversalNumber = await generateVoucherNumber(
-      "journal",
-      sale.outletId
-    );
+        const cogsReversalNumber = await generateVoucherNumber(
+          "journal",
+          sale.outletId
+        );
 
-    // 📘 Create reversal journal voucher
-    const cogsReversalVoucher = await Voucher.create([
-      {
-        voucherNumber: cogsReversalNumber,
-        voucherType: "journal",
-        date: new Date(),
-        narration: `REVERSAL: ${cogsVoucher.narration} - ${reason}`,
-        entries: reversedCogsEntries,
-        totalDebit: cogsVoucher.totalCredit,
-        totalCredit: cogsVoucher.totalDebit,
-        status: "posted",
-        referenceType: "REVERSAL",
-        referenceId: sale._id,
-        outletId: sale.outletId,
-        createdBy: userId,
-      },
-    ]);
+        // 📘 Create reversal journal voucher
+        const cogsReversalVoucher = await Voucher.create([
+          {
+            voucherNumber: cogsReversalNumber,
+            voucherType: "journal",
+            date: new Date(),
+            narration: `REVERSAL: ${cogsVoucher.narration} - ${reason}`,
+            entries: reversedCogsEntries,
+            totalDebit: cogsVoucher.totalCredit,
+            totalCredit: cogsVoucher.totalDebit,
+            status: "posted",
+            referenceType: "REVERSAL",
+            referenceId: sale._id,
+            outletId: sale.outletId,
+            createdBy: userId,
+          },
+        ]);
 
-    // ✅ Apply balance changes
-    await applyVoucherBalances(cogsReversalVoucher[0]);
+        // ✅ Apply balance changes
+        await applyVoucherBalances(cogsReversalVoucher[0]);
 
-    // 📒 Create ledger entries (IMMUTABLE)
-    const cogsLedgerDocs = reversedCogsEntries.map((e: any) => ({
-      voucherId: cogsReversalVoucher[0]._id,
-      voucherNumber: cogsReversalVoucher[0].voucherNumber,
-      voucherType: "journal",
+        // 📒 Create ledger entries (IMMUTABLE)
+        const cogsLedgerDocs = reversedCogsEntries.map((e: any) => ({
+          voucherId: cogsReversalVoucher[0]._id,
+          voucherNumber: cogsReversalVoucher[0].voucherNumber,
+          voucherType: "journal",
 
-      accountId: e.accountId,
-      accountNumber: e.accountNumber,
-      accountName: e.accountName,
+          accountId: e.accountId,
+          accountNumber: e.accountNumber,
+          accountName: e.accountName,
 
-      debit: e.debit,
-      credit: e.credit,
+          debit: e.debit,
+          credit: e.credit,
 
-      narration: cogsReversalVoucher[0].narration,
-      date: new Date(),
+          narration: cogsReversalVoucher[0].narration,
+          date: new Date(),
 
-      referenceType: "REVERSAL",
-      referenceId: sale._id,
-      referenceNumber: sale.invoiceNumber,
+          referenceType: "REVERSAL",
+          referenceId: sale._id,
+          referenceNumber: sale.invoiceNumber,
 
-      isReversal: true,
-      reversalReason: reason,
+          isReversal: true,
+          reversalReason: reason,
 
-      outletId: sale.outletId,
-      createdBy: userId,
-    }));
+          outletId: sale.outletId,
+          createdBy: userId,
+        }));
 
-    await LedgerEntry.insertMany(cogsLedgerDocs);
+        await LedgerEntry.insertMany(cogsLedgerDocs);
 
-    reversalResults.push({
-      type: "cogs",
-      reversalVoucherId: cogsReversalVoucher[0]._id,
-      reversalVoucherNumber: cogsReversalVoucher[0].voucherNumber,
-    });
-  }
-}
+        console.log(`   ✓ COGS voucher reversed: ${cogsReversalVoucher[0].voucherNumber}`);
 
-    console.log(`✓ Sale vouchers reversed: ${reversalResults.length} vouchers`);
+        reversalResults.push({
+          type: "cogs",
+          reversalVoucherId: cogsReversalVoucher[0]._id,
+          reversalVoucherNumber: cogsReversalVoucher[0].voucherNumber,
+        });
+      }
+    } else if (sale.cogsVoucherId && options?.reverseCOGS === false) {
+      console.log(`   ⏭️  COGS voucher preserved (reverseCOGS=false)`);
+    }
+
+    console.log(`✅ Sale vouchers reversed: ${reversalResults.length} voucher(s)\n`);
 
     return { reversals: reversalResults };
   } catch (error) {

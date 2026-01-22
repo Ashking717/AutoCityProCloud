@@ -7,6 +7,13 @@ export enum PaymentMethod {
   CREDIT = 'CREDIT',
 }
 
+// ✅ NEW: Payment detail interface for multiple payment methods
+export interface IPaymentDetail {
+  method: PaymentMethod;
+  amount: number;
+  reference?: string;
+}
+
 export interface IReturnItem {
   productId?: mongoose.Types.ObjectId;
   productName: string;
@@ -57,10 +64,12 @@ export interface ISale extends Document {
   
   subtotal: number;
   totalDiscount: number;
-  totalVAT: number;  // NEW: 0 when VAT disabled
+  totalVAT: number;
   grandTotal: number;
   
-  paymentMethod: PaymentMethod;
+  // Payment fields
+  paymentMethod: PaymentMethod;  // Primary payment method (for backward compatibility)
+  payments?: IPaymentDetail[];   // ✅ NEW: Array of payment methods
   amountPaid: number;
   balanceDue: number;
   
@@ -78,12 +87,14 @@ export interface ISale extends Document {
   createdAt: Date;
   updatedAt: Date;
   
+  // Cancellation tracking
+  cancelledAt?: Date;
+  cancelledBy?: mongoose.Types.ObjectId;
+  
   // Virtual fields
   totalReturnedAmount: number;
   netSaleAmount: number;
   totalCOGS: number;
-  cancelledAt?: Date;               // ✅ ADD
-  cancelledBy?: mongoose.Types.ObjectId; // ✅ ADD
   
   // Methods
   canReturn(): boolean;
@@ -93,6 +104,24 @@ export interface ISale extends Document {
 export interface ISaleModel extends Model<ISale> {
   findWithReturns(query?: any): Promise<HydratedDocument<ISale>[]>;
 }
+
+// ✅ NEW: Payment detail schema
+const PaymentDetailSchema = new Schema<IPaymentDetail>({
+  method: {
+    type: String,
+    enum: Object.values(PaymentMethod),
+    required: true
+  },
+  amount: { 
+    type: Number, 
+    required: true, 
+    min: 0 
+  },
+  reference: { 
+    type: String, 
+    trim: true 
+  }
+}, { _id: false });
 
 const ReturnItemSchema = new Schema<IReturnItem>({
   productId: { type: Schema.Types.ObjectId, ref: 'Product' },
@@ -143,17 +172,24 @@ const SaleSchema = new Schema<ISale, ISaleModel>(
     customerId: { type: Schema.Types.ObjectId, ref: 'Customer', required: true, index: true },
     customerName: { type: String, required: true },
     items: [SaleItemSchema],
+    
+    // Financial totals
     subtotal: { type: Number, required: true, min: 0 },
     totalDiscount: { type: Number, default: 0, min: 0 },
     totalVAT: { type: Number, default: 0, min: 0 },
     grandTotal: { type: Number, required: true, min: 0 },
+    
+    // Payment information
     paymentMethod: {
       type: String,
       enum: Object.values(PaymentMethod),
       required: true
     },
+    payments: [PaymentDetailSchema],  // ✅ NEW: Multiple payment methods
     amountPaid: { type: Number, required: true, min: 0 },
     balanceDue: { type: Number, default: 0 },
+    
+    // Status and metadata
     status: {
       type: String,
       enum: ['DRAFT', 'COMPLETED', 'CANCELLED', 'REFUNDED'],
@@ -162,10 +198,18 @@ const SaleSchema = new Schema<ISale, ISaleModel>(
     saleDate: { type: Date, required: true, default: Date.now },
     notes: { type: String, trim: true },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    
+    // Returns
     returns: [ReturnSchema],
+    
+    // GL Integration
     voucherId: { type: Schema.Types.ObjectId, ref: 'Voucher' },
     cogsVoucherId: { type: Schema.Types.ObjectId, ref: 'Voucher' },
-    isPostedToGL: { type: Boolean, default: false, index: true }
+    isPostedToGL: { type: Boolean, default: false, index: true },
+    
+    // Cancellation tracking
+    cancelledAt: { type: Date },
+    cancelledBy: { type: Schema.Types.ObjectId, ref: 'User' }
   },
   {
     timestamps: true,
@@ -180,6 +224,7 @@ SaleSchema.index({ outletId: 1, saleDate: -1 });
 SaleSchema.index({ outletId: 1, status: 1 });
 SaleSchema.index({ outletId: 1, customerId: 1, saleDate: -1 });
 SaleSchema.index({ outletId: 1, isPostedToGL: 1 });
+SaleSchema.index({ outletId: 1, 'payments.method': 1 }); // ✅ NEW: Index for payment method queries
 
 // Virtuals
 SaleSchema.virtual('totalReturnedAmount').get(function (this: ISale) {
@@ -192,7 +237,6 @@ SaleSchema.virtual('totalReturnedAmount').get(function (this: ISale) {
 
   return Number(total.toFixed(2));
 });
-
 
 SaleSchema.virtual('netSaleAmount').get(function(this: ISale) {
   return this.grandTotal - this.totalReturnedAmount;
@@ -224,13 +268,28 @@ SaleSchema.methods.getRemainingReturnableAmount = function (
   return remaining > 0 ? Number(remaining.toFixed(2)) : 0;
 };
 
-
 // Pre-save validation
 SaleSchema.pre('save', function(next) {
+  // Validate returned amount
   const totalReturned = this.totalReturnedAmount;
   if (totalReturned > this.grandTotal) {
     return next(new Error('Total returned amount cannot exceed sale grand total'));
   }
+  
+  // ✅ NEW: Validate payment amounts if payments array exists
+  if (this.payments && this.payments.length > 0) {
+    const totalPayments = this.payments.reduce((sum, p) => sum + p.amount, 0);
+    const expectedTotal = this.amountPaid;
+    
+    // Allow small floating-point differences (0.01)
+    if (Math.abs(totalPayments - expectedTotal) > 0.01) {
+      console.warn(
+        `Payment mismatch: payments array sum (${totalPayments}) != amountPaid (${expectedTotal})`
+      );
+      // Note: We warn but don't fail, in case of rounding differences
+    }
+  }
+  
   next();
 });
 

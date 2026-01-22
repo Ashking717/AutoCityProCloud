@@ -1,352 +1,350 @@
 import { NextRequest, NextResponse } from 'next/server';
-import mongoose from 'mongoose';
+import { cookies } from 'next/headers';
 import { connectDB } from '@/lib/db/mongodb';
+import { verifyToken } from '@/lib/auth/jwt';
+import mongoose from 'mongoose';
+
 import Closing from '@/lib/models/Closing';
 import Sale from '@/lib/models/Sale';
 import Voucher from '@/lib/models/Voucher';
 import LedgerEntry from '@/lib/models/LedgerEntry';
 import ActivityLog from '@/lib/models/ActivityLog';
-import { cookies } from 'next/headers';
-import { verifyToken } from '@/lib/auth/jwt';
 import Product from '@/lib/models/ProductEnhanced';
+import Account, { AccountSubType } from '@/lib/models/Account';
+import Purchase from '@/lib/models/Purchase';
+import Expense from '@/lib/models/Expense';
 
-// Import User model to ensure it's registered for populate
-import User from '@/lib/models/User';
 
+// ─────────────────────────────────────────────
 // GET /api/closings
+// ─────────────────────────────────────────────
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
-    
-    const cookieStore = cookies();
-    const token = cookieStore.get('auth-token')?.value;
-    
+
+    const token = cookies().get('auth-token')?.value;
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
+
     const user = verifyToken(token);
     const { searchParams } = new URL(request.url);
-    
-    const query: any = {
-      outletId: user.outletId,
-    };
-    
+
+    const query: any = { outletId: user.outletId };
+
     const closingType = searchParams.get('closingType');
-    if (closingType) {
-      query.closingType = closingType;
-    }
-    
+    if (closingType) query.closingType = closingType;
+
     const status = searchParams.get('status');
-    if (status) {
-      query.status = status;
-    }
-    
+    if (status) query.status = status;
+
     const closings = await Closing.find(query)
       .populate('closedBy', 'firstName lastName')
       .populate('verifiedBy', 'firstName lastName')
       .sort({ closingDate: -1 })
       .limit(50)
       .lean();
-    
+
     return NextResponse.json({ closings });
   } catch (error: any) {
-    console.error('Error fetching closings:', error);
+    console.error('GET closings error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
+// ─────────────────────────────────────────────
+// Helper: Calculate Period Boundaries
+// ─────────────────────────────────────────────
+function calculatePeriodBoundaries(closingType: 'day' | 'month', closingDate: string) {
+  const closingDay = new Date(closingDate);
+  closingDay.setHours(0, 0, 0, 0);
+
+  let periodStart: Date;
+  let periodEnd: Date;
+
+  if (closingType === 'day') {
+    // Daily closing: same day
+    periodStart = new Date(closingDay);
+    periodEnd = new Date(closingDay);
+    periodEnd.setHours(23, 59, 59, 999);
+  } else {
+    // Monthly closing: entire month
+    periodStart = new Date(closingDay.getFullYear(), closingDay.getMonth(), 1);
+    periodStart.setHours(0, 0, 0, 0);
+    
+    periodEnd = new Date(closingDay.getFullYear(), closingDay.getMonth() + 1, 0);
+    periodEnd.setHours(23, 59, 59, 999);
+  }
+
+  return { periodStart, periodEnd, closingDay };
+}
+
+// ─────────────────────────────────────────────
 // POST /api/closings
-export async function POST(request: NextRequest) {
+// ─────────────────────────────────────────────
+export async function POST(req: NextRequest) {
   try {
     await connectDB();
-    
-    const cookieStore = cookies();
-    const token = cookieStore.get('auth-token')?.value;
-    
+
+    /* ---------------- AUTH ---------------- */
+    const token = cookies().get('auth-token')?.value;
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
+
     const user = verifyToken(token);
-    const body = await request.json();
-    
-    const { closingType, closingDate, notes } = body;
-    
+    const { closingType, closingDate, notes } = await req.json();
+
     if (!closingType || !closingDate) {
       return NextResponse.json(
         { error: 'Closing type and date are required' },
         { status: 400 }
       );
     }
-    
-    // Determine period
-    const date = new Date(closingDate);
-    let periodStart: Date;
-    let periodEnd: Date;
-    
-    if (closingType === 'day') {
-      periodStart = new Date(date.setHours(0, 0, 0, 0));
-      periodEnd = new Date(date.setHours(23, 59, 59, 999));
-    } else {
-      // Month closing
-      periodStart = new Date(date.getFullYear(), date.getMonth(), 1);
-      periodEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
-    }
-    
-    // Check if already closed
-    const existingClosing = await Closing.findOne({
-      outletId: user.outletId,
-      closingType,
-      closingDate: {
-        $gte: periodStart,
-        $lte: periodEnd,
-      },
-    });
-    
-    if (existingClosing) {
-      return NextResponse.json(
-        { error: `This ${closingType} has already been closed` },
-        { status: 400 }
-      );
-    }
-    
-    console.log('📊 Starting period closing process...');
-    
-    // ═══════════════════════════════════════════════════════════
-    // LEDGER VERIFICATION - Verify Trial Balance
-    // ═══════════════════════════════════════════════════════════
-    
-    const ledgerEntries = await LedgerEntry.find({
-      outletId: user.outletId,
-      date: { $gte: periodStart, $lte: periodEnd },
-    }).lean();
-    
-    const totalDebits = ledgerEntries.reduce((sum: number, entry: any) => sum + (entry.debit || 0), 0);
-    const totalCredits = ledgerEntries.reduce((sum: number, entry: any) => sum + (entry.credit || 0), 0);
-    const ledgerEntriesCount = ledgerEntries.length;
-    
-    // Check if trial balance is matched (within 0.01 tolerance for rounding)
-    const trialBalanceMatched = Math.abs(totalDebits - totalCredits) < 0.01;
-    
-    if (!trialBalanceMatched) {
-      console.warn(`⚠️ Trial balance mismatch: DR=${totalDebits}, CR=${totalCredits}`);
-    }
-    
-    console.log(`📖 Ledger entries verified: ${ledgerEntriesCount} entries`);
-    console.log(`✓ Total Debits: QAR ${totalDebits.toFixed(2)}`);
-    console.log(`✓ Total Credits: QAR ${totalCredits.toFixed(2)}`);
-    console.log(`✓ Trial Balance: ${trialBalanceMatched ? 'MATCHED ✓' : 'MISMATCH ⚠️'}`);
-    
-    // ═══════════════════════════════════════════════════════════
-    // SALES SUMMARY
-    // ═══════════════════════════════════════════════════════════
-    
-    const sales = await Sale.find({
-      outletId: user.outletId,
-      saleDate: { $gte: periodStart, $lte: periodEnd },
-      status: 'COMPLETED',
-    }).lean();
-    
-    const totalSales = sales.reduce((sum, s: any) => sum + (s.grandTotal || 0), 0);
-    const salesCount = sales.length;
-    const totalDiscount = sales.reduce((sum, s: any) => sum + (s.totalDiscount || 0), 0);
-    const totalTax = sales.reduce((sum, s: any) => sum + (s.totalTax || 0), 0);
-    const cashSales = sales
-      .filter((s: any) => s.paymentMethod === 'CASH')
-      .reduce((sum, s: any) => sum + (s.grandTotal || 0), 0);
-    
-    console.log(`💰 Sales Summary: ${salesCount} sales, Total: QAR ${totalSales.toFixed(2)}`);
-    
-    // ═══════════════════════════════════════════════════════════
-    // EXPENSES (from Payment Vouchers)
-    // ═══════════════════════════════════════════════════════════
-    
-    const expenseVouchers = await Voucher.find({
-      outletId: user.outletId,
-      voucherType: 'payment',
-      date: { $gte: periodStart, $lte: periodEnd },
-      status: { $in: ['posted', 'approved'] },
-      referenceType: 'PAYMENT', // Only expense payments
-    }).lean();
-    
-    const totalExpenses = expenseVouchers.reduce((sum, v: any) => sum + (v.totalDebit || 0), 0);
-    
-    console.log(`💸 Expenses: QAR ${totalExpenses.toFixed(2)}`);
-    
-    // ═══════════════════════════════════════════════════════════
-    // CASH RECEIPTS (from Receipt Vouchers)
-    // ═══════════════════════════════════════════════════════════
-    
-    const receiptVouchers = await Voucher.find({
-      outletId: user.outletId,
-      voucherType: 'receipt',
-      date: { $gte: periodStart, $lte: periodEnd },
-      status: { $in: ['posted', 'approved'] },
-    }).lean();
-    
-    const cashReceipts = receiptVouchers.reduce((sum, v: any) => sum + (v.totalCredit || 0), 0);
-    
-    console.log(`📥 Cash Receipts: QAR ${cashReceipts.toFixed(2)}`);
-    
-    // ═══════════════════════════════════════════════════════════
-    // INVENTORY VALUATION
-    // ═══════════════════════════════════════════════════════════
-    
-    const products = await Product.find({
-      outletId: user.outletId,
-      isActive: true,
-    }).lean();
-    
-    const stockValue = products.reduce(
-      (sum, p: any) => sum + (p.currentStock || 0) * (p.costPrice || 0),
-      0
-    );
-    
-    const closingStock = products.reduce((sum, p: any) => sum + (p.currentStock || 0), 0);
-    
-    console.log(`📦 Inventory: ${closingStock} units, Value: QAR ${stockValue.toFixed(2)}`);
-    
-    // ═══════════════════════════════════════════════════════════
-    // CASH FLOW CALCULATION
-    // ═══════════════════════════════════════════════════════════
-    
-    // Get opening cash from previous closing
+
+    /* ---------------- PERIOD BOUNDARIES ---------------- */
+    const { periodStart, periodEnd, closingDay } = calculatePeriodBoundaries(closingType, closingDate);
+
+    console.log(`Period: ${periodStart.toISOString()} to ${periodEnd.toISOString()}`);
+
+    /* ---------------- PREVIOUS CLOSING ---------------- */
     const previousClosing = await Closing.findOne({
       outletId: user.outletId,
       closingType,
-      closingDate: { $lt: periodStart },
+      closingDate: { $lt: closingDay },
     })
       .sort({ closingDate: -1 })
       .lean();
-    
-    const openingCash = (previousClosing as any)?.closingCash || 0;
-    
-    // Calculate closing cash
-    // Opening Cash + Cash Sales + Cash Receipts - Cash Payments (Expenses)
-    const closingCash = openingCash + cashSales + cashReceipts - totalExpenses;
-    
-    console.log(`💵 Cash Flow:`);
-    console.log(`   Opening: QAR ${openingCash.toFixed(2)}`);
-    console.log(`   + Sales: QAR ${cashSales.toFixed(2)}`);
-    console.log(`   + Receipts: QAR ${cashReceipts.toFixed(2)}`);
-    console.log(`   - Payments: QAR ${totalExpenses.toFixed(2)}`);
-    console.log(`   = Closing: QAR ${closingCash.toFixed(2)}`);
-    
-    // ═══════════════════════════════════════════════════════════
-    // PROFIT CALCULATION
-    // ═══════════════════════════════════════════════════════════
-    
-    const totalRevenue = totalSales;
-    const netProfit = totalRevenue - totalExpenses;
-    
-    console.log(`📊 Profit/Loss: QAR ${netProfit.toFixed(2)}`);
-    
-    // ═══════════════════════════════════════════════════════════
-    // VOUCHER IDS COLLECTION
-    // ═══════════════════════════════════════════════════════════
-    
-    const allVouchers = await Voucher.find({
+
+    /* ---------------- SEQUENTIAL ENFORCEMENT ---------------- */
+    if (previousClosing) {
+      if (closingType === 'day') {
+        // For daily closing, ensure previous day is closed
+        const expectedPrev = new Date(closingDay);
+        expectedPrev.setDate(expectedPrev.getDate() - 1);
+
+        if (
+          new Date(previousClosing.closingDate).toDateString() !==
+          expectedPrev.toDateString()
+        ) {
+          return NextResponse.json(
+            { error: 'Previous day is not closed. Please close it first.' },
+            { status: 400 }
+          );
+        }
+      } else if (closingType === 'month') {
+        // For monthly closing, ensure previous month is closed
+        const expectedPrevMonth = new Date(closingDay.getFullYear(), closingDay.getMonth() - 1, 1);
+        const prevClosingMonth = new Date(previousClosing.closingDate);
+        
+        if (
+          prevClosingMonth.getFullYear() !== expectedPrevMonth.getFullYear() ||
+          prevClosingMonth.getMonth() !== expectedPrevMonth.getMonth()
+        ) {
+          return NextResponse.json(
+            { error: 'Previous month is not closed. Please close it first.' },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
+    /* ---------------- CHECK FOR DUPLICATE ---------------- */
+    const existingClosing = await Closing.findOne({
       outletId: user.outletId,
-      date: { $gte: periodStart, $lte: periodEnd },
-      status: { $in: ['posted', 'approved'] },
-    })
-      .select('_id')
-      .lean();
-    
-    const voucherIds = allVouchers.map((v: any) => v._id.toString());
-    
-    // ═══════════════════════════════════════════════════════════
-    // CREATE CLOSING RECORD
-    // ═══════════════════════════════════════════════════════════
-    
+      closingType,
+      closingDate: closingDay,
+    });
+
+    if (existingClosing) {
+      return NextResponse.json(
+        { error: `This ${closingType} is already closed.` },
+        { status: 400 }
+      );
+    }
+
+    /* ---------------- OPENING BALANCES ---------------- */
+    const endOfPreviousPeriod = new Date(periodStart);
+    endOfPreviousPeriod.setMilliseconds(-1);
+
+    async function getOpeningBalance(subType: AccountSubType) {
+      const accounts = await Account.find({
+        outletId: user.outletId,
+        subType,
+        isActive: true,
+      }).select('_id');
+
+      if (!accounts.length) return 0;
+
+      const entries = await LedgerEntry.find({
+        outletId: user.outletId,
+        accountId: { $in: accounts.map(a => a._id) },
+        date: { $lte: endOfPreviousPeriod },
+      }).lean();
+
+      return entries.reduce(
+        (sum, e) => sum + (e.debit || 0) - (e.credit || 0),
+        0
+      );
+    }
+
+    const openingCash = previousClosing
+      ? previousClosing.closingCash
+      : await getOpeningBalance(AccountSubType.CASH);
+
+    const openingBank = previousClosing
+      ? previousClosing.closingBank
+      : await getOpeningBalance(AccountSubType.BANK);
+
+    /* ---------------- SALES ---------------- */
+    const sales = await Sale.find({
+      outletId: user.outletId,
+      status: 'COMPLETED',
+      saleDate: { $gte: periodStart, $lte: periodEnd },
+    }).lean();
+
+    const cashSales = sales
+      .filter(s => s.paymentMethod === 'CASH')
+      .reduce((sum, s) => sum + (s.amountPaid || s.grandTotal || 0), 0);
+
+    const bankSales = sales
+      .filter(s => s.paymentMethod === 'CARD' || s.paymentMethod === 'BANK_TRANSFER')
+      .reduce((sum, s) => sum + (s.amountPaid || s.grandTotal || 0), 0);
+
+    const totalRevenue = sales.reduce(
+      (sum, s) => sum + (s.grandTotal || 0),
+      0
+    );
+
+    const totalDiscount = sales.reduce(
+      (sum, s) => sum + (s.totalDiscount || 0),
+      0
+    );
+
+    const totalTax = sales.reduce(
+      (sum, s) => sum + (s.totalVAT || 0),
+      0
+    );
+
+    const salesCount = sales.length;
+
+    /* ---------------- CASH PAYMENTS ---------------- */
+    const cashPurchases = await Purchase.find({
+      outletId: user.outletId,
+      status: { $in: ['PAID', 'COMPLETED'] },
+      paymentMethod: { $in: ['CASH'] },
+      purchaseDate: { $gte: periodStart, $lte: periodEnd },
+    }).lean();
+
+    const cashPurchasePayments = cashPurchases.reduce(
+      (sum, p) => sum + (p.amountPaid || 0),
+      0
+    );
+
+    const cashExpenses = await Expense.find({
+      outletId: user.outletId,
+      status: { $in: ['PAID', 'PARTIALLY_PAID'] },
+      paymentMethod: { $in: ['CASH'] },
+      expenseDate: { $gte: periodStart, $lte: periodEnd },
+    }).lean();
+
+    const cashExpensePayments = cashExpenses.reduce(
+      (sum, e) => sum + (e.amountPaid || 0),
+      0
+    );
+
+    const cashPayments = cashPurchasePayments + cashExpensePayments;
+
+    /* ---------------- CASH CLOSING ---------------- */
+    const closingCash = openingCash + cashSales - cashPayments;
+
+    /* ---------------- BANK PAYMENTS ---------------- */
+    const bankPurchases = await Purchase.find({
+      outletId: user.outletId,
+      status: { $in: ['PAID', 'COMPLETED'] },
+      paymentMethod: { $in: ['CARD', 'BANK_TRANSFER'] },
+      purchaseDate: { $gte: periodStart, $lte: periodEnd },
+    }).lean();
+
+    const bankPurchasePayments = bankPurchases.reduce(
+      (sum, p) => sum + (p.amountPaid || 0),
+      0
+    );
+
+    const bankExpenses = await Expense.find({
+      outletId: user.outletId,
+      status: { $in: ['PAID', 'PARTIALLY_PAID'] },
+      paymentMethod: { $in: ['CARD', 'BANK_TRANSFER'] },
+      expenseDate: { $gte: periodStart, $lte: periodEnd },
+    }).lean();
+
+    const bankExpensePayments = bankExpenses.reduce(
+      (sum, e) => sum + (e.amountPaid || 0),
+      0
+    );
+
+    const bankPayments = bankPurchasePayments + bankExpensePayments;
+
+    console.log("Bank Sales:", bankSales, "Bank Payments:", bankPayments);
+
+    /* ---------------- BANK CLOSING ---------------- */
+    const bankMovement = bankSales - bankPayments;
+    const closingBank = openingBank + bankMovement;
+
+    /* ---------------- TOTAL BALANCES ---------------- */
+    const totalOpeningBalance = openingCash + openingBank;
+    const totalClosingBalance = closingCash + closingBank;
+
+    /* ---------------- PROFIT ---------------- */
+    const totalExpenses = bankPayments + cashPayments;
+    const netProfit = totalRevenue - totalExpenses;
+
+    /* ---------------- CREATE CLOSING ---------------- */
     const closing = await Closing.create({
       closingType,
-      closingDate: date,
+      closingDate: closingDay,
       periodStart,
       periodEnd,
-      
-      // Financial Metrics
-      totalSales,
-      totalPurchases: 0, // Can be calculated if needed
+
+      totalSales: totalRevenue,
       totalExpenses,
       totalRevenue,
       netProfit,
-      
-      // Cash Flow
+
       openingCash,
       cashSales,
-      cashReceipts,
-      cashPayments: totalExpenses,
+      cashReceipts: 0,
+      cashPayments,
       closingCash,
-      
-      // Sales Metrics
+
+      openingBank,
+      bankSales,
+      bankPayments,
+      closingBank,
+
+      // Add total balances
+      totalOpeningBalance,
+      totalClosingBalance,
+
       salesCount,
       totalDiscount,
       totalTax,
-      
-      // Inventory
-      openingStock: (previousClosing as any)?.closingStock || 0,
-      closingStock,
-      stockValue,
-      
-      // Ledger Integration
-      ledgerEntriesCount,
-      voucherIds,
-      trialBalanceMatched,
-      totalDebits,
-      totalCredits,
-      
-      // Status
+
       status: 'closed',
-      
-      // Audit Trail
-      closedBy: user.userId,
+      closedBy: new mongoose.Types.ObjectId(user.userId),
       closedAt: new Date(),
       notes,
-      
-      // Outlet
-      outletId: user.outletId,
+
+      outletId: user.outletId ? new mongoose.Types.ObjectId(user.outletId) : undefined,
     });
-    
-    // ═══════════════════════════════════════════════════════════
-    // ACTIVITY LOG
-    // ═══════════════════════════════════════════════════════════
-    
-    await ActivityLog.create({
-      userId: user.userId,
-      username: user.email,
-      actionType: 'create',
-      module: 'closings',
-      description: `Closed ${closingType} for ${date.toDateString()} - ${ledgerEntriesCount} ledger entries verified`,
-      metadata: {
-        closingId: closing._id.toString(),
-        totalRevenue,
-        netProfit,
-        trialBalanceMatched,
-        ledgerEntriesCount,
-      },
-      outletId: user.outletId,
-      timestamp: new Date(),
-    });
-    
-    console.log('✅ Closing completed successfully!');
-    console.log(`📋 Closing ID: ${closing._id}`);
-    
-    return NextResponse.json({ 
-      closing,
-      summary: {
-        ledgerEntriesCount,
-        trialBalanceMatched,
-        totalDebits,
-        totalCredits,
-        netProfit,
-        closingCash,
-      }
-    }, { status: 201 });
-    
-  } catch (error: any) {
-    console.error('❌ Error creating closing:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+
+    return NextResponse.json({ success: true, closing });
+
+  } catch (err: any) {
+    console.error('Closing error:', err);
+    return NextResponse.json(
+      { error: err.message || 'Closing failed' },
+      { status: 500 }
+    );
   }
 }

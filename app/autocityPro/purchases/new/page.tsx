@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
+import AddProductModal from "@/components/products/AddProductModal";
 import {
   Search,
   Plus,
@@ -51,6 +52,7 @@ export default function NewPurchasePage() {
   const [loading, setLoading] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
@@ -61,6 +63,12 @@ export default function NewPurchasePage() {
   const [showCart, setShowCart] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [editingItem, setEditingItem] = useState<string | null>(null);
+  
+  // Add Product Modal States
+  const [showAddProduct, setShowAddProduct] = useState(false);
+  const [showQuickAddCategory, setShowQuickAddCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [nextSKU, setNextSKU] = useState<string>("10001");
 
   const [newSupplier, setNewSupplier] = useState({
     name: "",
@@ -87,6 +95,8 @@ export default function NewPurchasePage() {
     fetchUser();
     fetchProducts();
     fetchSuppliers();
+    fetchCategories();
+    fetchNextSKU();
   }, []);
 
   const fetchUser = async () => {
@@ -101,12 +111,15 @@ export default function NewPurchasePage() {
     }
   };
 
+  // UPDATED: Fetch ALL products (no pagination for search)
   const fetchProducts = async () => {
     try {
-      const res = await fetch("/api/products", { credentials: "include" });
+      // Fetch with high limit to get all products for search
+      const res = await fetch("/api/products?limit=10000", { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
         setProducts(data.products || []);
+        console.log(`✓ Loaded ${data.products?.length || 0} products for search`);
       }
     } catch (error) {
       console.error("Failed to fetch products");
@@ -123,6 +136,34 @@ export default function NewPurchasePage() {
     } catch (error) {
       console.error("Failed to fetch suppliers");
     }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch("/api/categories", { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setCategories(data.categories || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch categories");
+    }
+  };
+
+  const fetchNextSKU = async () => {
+    try {
+      const res = await fetch("/api/products/next-sku", {
+        credentials: "include",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNextSKU(data.nextSKU);
+        return data.nextSKU;
+      }
+    } catch (error) {
+      console.error("Error fetching next SKU:", error);
+    }
+    return "10001";
   };
 
   const generateSupplierCode = (name: string) => {
@@ -168,6 +209,71 @@ export default function NewPurchasePage() {
       }
     } catch (error) {
       toast.error("Failed to add supplier");
+    }
+  };
+
+  // NEW: Handle Quick Add Category
+  const handleQuickAddCategory = async () => {
+    if (!newCategoryName.trim()) {
+      toast.error("Category name is required");
+      return;
+    }
+    try {
+      const res = await fetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ name: newCategoryName }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        toast.success("Category added successfully!");
+        const newCategoryWithCount = {
+          ...data.category,
+          productCount: 0,
+        };
+        setCategories([...categories, newCategoryWithCount]);
+        setNewCategoryName("");
+        setShowQuickAddCategory(false);
+      } else {
+        const error = await res.json();
+        toast.error(error.error || "Failed to add category");
+      }
+    } catch (error) {
+      toast.error("Failed to add category");
+    }
+  };
+
+  // NEW: Handle Add Product
+  const handleAddProduct = async (productData: any) => {
+    try {
+      const res = await fetch("/api/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(productData),
+      });
+
+      if (res.ok) {
+        const responseData = await res.json();
+        toast.success("Product added successfully!");
+        setShowAddProduct(false);
+        
+        // Refresh products list and next SKU
+        await fetchProducts();
+        await fetchNextSKU();
+        
+        // Optionally add the new product to cart
+        const newProduct = responseData.product;
+        if (newProduct) {
+          addToCart(newProduct);
+        }
+      } else {
+        const error = await res.json();
+        toast.error(error.error || "Failed to add product");
+      }
+    } catch (error) {
+      toast.error("Failed to add product");
     }
   };
 
@@ -220,21 +326,18 @@ export default function NewPurchasePage() {
     return { subtotal, totalTax, total, totalPaid: amountPaid };
   };
 
-  // NEW: Get effective payment method
+  // Get effective payment method
   const getEffectivePaymentMethod = () => {
     const totals = calculateTotals();
     
-    // If amount paid equals or exceeds total, it's not credit
     if (amountPaid >= totals.total) {
       return paymentMethod === 'credit' ? 'cash' : paymentMethod;
     }
     
-    // If amount paid is 0 and method is credit, it's full credit
     if (amountPaid === 0 && paymentMethod === 'credit') {
       return 'credit';
     }
     
-    // If amount paid > 0 but < total, it's partial payment
     if (amountPaid > 0 && amountPaid < totals.total) {
       return paymentMethod === 'credit' ? 'cash' : paymentMethod;
     }
@@ -242,7 +345,7 @@ export default function NewPurchasePage() {
     return paymentMethod;
   };
 
-  // NEW: Payment Warning Component
+  // Payment Warning Component
   const PaymentWarning = () => {
     const totals = calculateTotals();
     const hasPartialPayment = amountPaid > 0 && amountPaid < totals.total;
@@ -312,7 +415,6 @@ export default function NewPurchasePage() {
 
     const totals = calculateTotals();
     
-    // Validate amount paid
     if (amountPaid > totals.total) {
       toast.error(`Amount paid cannot exceed total (${formatCurrency(totals.total)})`);
       return;
@@ -357,7 +459,6 @@ export default function NewPurchasePage() {
       if (res.ok) {
         const data = await res.json();
         
-        // Show appropriate success message
         if (data.purchase.balanceDue > 0) {
           toast.success(
             `Purchase ${data.purchase.purchaseNumber} created! Balance due: ${formatCurrency(data.purchase.balanceDue)}`,
@@ -484,10 +585,23 @@ export default function NewPurchasePage() {
             <div className="lg:col-span-2 space-y-4 md:space-y-6">
               {/* Product Search */}
               <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl shadow-lg p-4 md:p-6">
-                <h2 className="text-lg font-bold text-white mb-4 flex items-center">
-                  <Search className="h-5 w-5 mr-2 text-[#E84545]" />
-                  Search Products
-                </h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-bold text-white flex items-center">
+                    <Search className="h-5 w-5 mr-2 text-[#E84545]" />
+                    Search Products
+                  </h2>
+                  <button
+                    onClick={async () => {
+                      await fetchNextSKU();
+                      setShowAddProduct(true);
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 bg-[#E84545]/10 border border-[#E84545]/30 text-[#E84545] rounded-lg hover:bg-[#E84545]/20 transition-all text-sm font-medium"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span className="hidden sm:inline">Add Product</span>
+                  </button>
+                </div>
+                
                 <div className="relative mb-4">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <input
@@ -505,6 +619,16 @@ export default function NewPurchasePage() {
                       <div className="col-span-2 text-center py-8">
                         <Search className="h-12 w-12 mx-auto mb-3 text-gray-600" />
                         <p className="text-gray-400">No products found</p>
+                        <button
+                          onClick={async () => {
+                            await fetchNextSKU();
+                            setShowAddProduct(true);
+                          }}
+                          className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-[#E84545]/10 border border-[#E84545]/30 text-[#E84545] rounded-lg hover:bg-[#E84545]/20 transition-all text-sm font-medium"
+                        >
+                          <Plus className="h-4 w-4" />
+                          Create New Product
+                        </button>
                       </div>
                     ) : (
                       filteredProducts.map((product) => (
@@ -622,32 +746,27 @@ export default function NewPurchasePage() {
                   <Users className="h-5 w-5 mr-2 text-[#E84545]" />
                   Supplier
                 </h2>
-                // In the supplier selection section, update the select onChange handler:
 
-<select
-  value={selectedSupplier?._id ? String(selectedSupplier._id) : ""}
-  onChange={(e) => {
-    const selectedId = e.target.value;
-
-    const supplier = suppliers.find(
-      (s) => s && s._id && String(s._id) === selectedId
-    );
-
-    setSelectedSupplier(supplier || null);
-  }}
-  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white"
->
-  <option value="">Select Supplier</option>
-
-  {suppliers
-    .filter((s) => s && s._id)
-    .map((supplier) => (
-      <option key={String(supplier._id)} value={String(supplier._id)}>
-        {supplier.name} - {supplier.phone}
-      </option>
-    ))}
-</select>
-
+                <select
+                  value={selectedSupplier?._id ? String(selectedSupplier._id) : ""}
+                  onChange={(e) => {
+                    const selectedId = e.target.value;
+                    const supplier = suppliers.find(
+                      (s) => s && s._id && String(s._id) === selectedId
+                    );
+                    setSelectedSupplier(supplier || null);
+                  }}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white mb-3"
+                >
+                  <option value="">Select Supplier</option>
+                  {suppliers
+                    .filter((s) => s && s._id)
+                    .map((supplier) => (
+                      <option key={String(supplier._id)} value={String(supplier._id)}>
+                        {supplier.name} - {supplier.phone}
+                      </option>
+                    ))}
+                </select>
 
                 {selectedSupplier && (
                   <div className="p-4 bg-white/5 rounded-xl border border-white/10 mb-3">
@@ -668,7 +787,7 @@ export default function NewPurchasePage() {
                 </button>
               </div>
 
-              {/* Payment - UPDATED */}
+              {/* Payment */}
               <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl shadow-lg p-4 md:p-6">
                 <h2 className="text-lg font-bold text-white mb-4 flex items-center">
                   <CreditCard className="h-5 w-5 mr-2 text-[#E84545]" />
@@ -684,7 +803,6 @@ export default function NewPurchasePage() {
                         const newMethod = e.target.value as any;
                         setPaymentMethod(newMethod);
                         
-                        // If switching to credit and amount paid > 0, show warning
                         if (newMethod === 'credit' && amountPaid > 0) {
                           toast('Tip: Leave "Amount Paid" as 0 for full credit purchase', {
                             icon: '💡',
@@ -715,7 +833,6 @@ export default function NewPurchasePage() {
                         onChange={(e) => {
                           const value = parseFloat(e.target.value) || 0;
                           
-                          // Prevent exceeding total
                           if (value > totals.total) {
                             toast.error('Amount cannot exceed total');
                             setAmountPaid(totals.total);
@@ -738,7 +855,6 @@ export default function NewPurchasePage() {
                       )}
                     </div>
                     
-                    {/* Quick amount buttons */}
                     {totals.total > 0 && (
                       <div className="grid grid-cols-4 gap-2 mt-2">
                         <button
@@ -771,14 +887,13 @@ export default function NewPurchasePage() {
                 </div>
               </div>
 
-              {/* Summary - UPDATED */}
+              {/* Summary */}
               <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl shadow-lg p-4 md:p-6">
                 <h2 className="text-lg font-bold text-white mb-4 flex items-center">
                   <Calculator className="h-5 w-5 mr-2 text-[#E84545]" />
                   Summary
                 </h2>
                 
-                {/* Payment Warning Component */}
                 <PaymentWarning />
                 
                 <div className="space-y-3">
@@ -827,6 +942,77 @@ export default function NewPurchasePage() {
             </div>
           </div>
         </div>
+
+        {/* Add Product Modal */}
+        <AddProductModal
+          show={showAddProduct}
+          onClose={() => setShowAddProduct(false)}
+          onAdd={handleAddProduct}
+          categories={categories}
+          nextSKU={nextSKU}
+          onQuickAddCategory={() => setShowQuickAddCategory(true)}
+        />
+
+        {/* Quick Add Category Modal */}
+        {showQuickAddCategory && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
+            <div className="bg-gradient-to-b from-[#050505] to-[#0A0A0A] rounded-2xl shadow-2xl max-w-md w-full border border-white/10">
+              <div className="flex justify-between items-center px-4 md:px-6 py-4 border-b border-white/5">
+                <h2 className="text-lg md:text-xl font-bold text-white flex items-center gap-2">
+                  <Package className="h-5 w-5 text-[#E84545]" />
+                  Quick Add Category
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowQuickAddCategory(false);
+                    setNewCategoryName("");
+                  }}
+                  className="text-gray-400 hover:text-white p-2 rounded-xl hover:bg-white/5 active:scale-95 transition-all"
+                >
+                  <X className="h-5 w-5 md:h-6 md:w-6" />
+                </button>
+              </div>
+              <div className="p-4 md:p-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
+                      Category Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                      placeholder="Enter category name"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          handleQuickAddCategory();
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row justify-end gap-3 mt-6">
+                  <button
+                    onClick={() => {
+                      setShowQuickAddCategory(false);
+                      setNewCategoryName("");
+                    }}
+                    className="px-4 py-2 border border-white/10 text-gray-300 rounded-xl hover:bg-white/5 transition-colors active:scale-95"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleQuickAddCategory}
+                    className="px-4 py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl hover:opacity-90 transition-opacity active:scale-95"
+                  >
+                    Add Category
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Mobile Cart Modal */}
         {isMobile && showCart && (

@@ -2,6 +2,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
+import AddProductModal from "@/components/products/AddProductModal";
+import EditProductModal from "@/components/products/EditProductModal";
 import {
   Search,
   Plus,
@@ -15,17 +17,13 @@ import {
   Tag,
   FileDown,
   ChevronLeft,
-  Menu,
   MoreVertical,
-  ChevronDown,
   AlertCircle,
-  TrendingDown,
   Zap,
   Box,
-  LucideGitPullRequestDraft,
   File,
 } from "lucide-react";
-import { CarMake, carMakesModels } from "@/lib/data/carData";
+import { CarMake } from "@/lib/data/carData";
 import toast from "react-hot-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -48,13 +46,11 @@ export default function ProductsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [productToDelete, setProductToDelete] = useState<any>(null);
-  const [isVehicle, setIsVehicle] = useState(false);
 
   // Keyboard navigation state
   const [selectedProductIndex, setSelectedProductIndex] = useState(-1);
   const productRefs = useRef<(HTMLDivElement | null)[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const addButtonRef = useRef<HTMLButtonElement>(null);
 
   // Filters
   const [filterCategory, setFilterCategory] = useState("");
@@ -66,7 +62,6 @@ export default function ProductsPage() {
   const [isMobile, setIsMobile] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showDynamicIsland, setShowDynamicIsland] = useState(true);
-  // ADD THESE NEW STATES:
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMoreProducts, setHasMoreProducts] = useState(true);
   const [totalProducts, setTotalProducts] = useState(0);
@@ -77,52 +72,8 @@ export default function ProductsPage() {
   const [showQuickAddCategory, setShowQuickAddCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [editingProduct, setEditingProduct] = useState<any>(null);
-  const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
 
-  const [nameSuggestions, setNameSuggestions] = useState<string[]>([]);
-  const [showNameSuggestions, setShowNameSuggestions] = useState(false);
-  const nameInputRef = useRef<HTMLInputElement>(null);
-  const suggestionRefs = useRef<(HTMLDivElement | null)[]>([]);
-
-  const [newProduct, setNewProduct] = useState<{
-    name: string;
-    description: string;
-    categoryId: string;
-    barcode: string;
-    unit: string;
-    costPrice: number;
-    sellingPrice: number;
-    taxRate: number;
-    currentStock: number;
-    minStock: number;
-    maxStock: number;
-    carMake: CarMake | "";
-    carModel: string;
-    variant: string;
-    yearFrom: string;
-    yearTo: string;
-    partNumber: string;
-    color: string;
-  }>({
-    name: "",
-    description: "",
-    categoryId: "",
-    barcode: "",
-    unit: "pcs",
-    costPrice: 0,
-    sellingPrice: 0,
-    taxRate: 0,
-    currentStock: 0,
-    minStock: 0,
-    maxStock: 1000,
-    carMake: "",
-    carModel: "",
-    variant: "",
-    yearFrom: "",
-    yearTo: "",
-    partNumber: "",
-    color: "",
-  });
+  const filteredProducts = products;
 
   // Helper function to format year range for display
   const formatYearRange = (
@@ -136,89 +87,9 @@ export default function ProductsPage() {
     return `${yearFrom}-${yearTo}`;
   };
 
-  // Common vehicle variants
-  const vehicleVariants = [
-    "Base",
-    "LX",
-    "EX",
-    "Sport",
-    "Limited",
-    "Premium",
-    "Touring",
-    "SE",
-    "LE",
-    "XLE",
-    "SR",
-    "TRD",
-    "GT",
-    "R/T",
-    "SXT",
-    "Gx",
-    "Gr",
-    "Gxr",
-    "Vx",
-    "Vxr",
-    "Gxr/Vxr",
-    "Vxs",
-    "Twin turbo",
-    "Platinium",
-    "Lx470",
-    "Lx570",
-    "Lx600",
-    "V8",
-    "V6",
-    "Standard",
-    "Platinum",
-    "FJ100",
-    "FJ200",
-    "Lc200",
-    "Lc300",
-    "Lx600",
-    "Z71",
-    "Z41",
-    "2500",
-    "1500",
-    "Single-door",
-    "Double-door",
-    "4x4",
-  ];
-
-  // Common vehicle colors
-  const vehicleColors = [
-    "White",
-    "Black",
-    "Gray",
-    "Silver",
-    "Red",
-    "Blue",
-    "Green",
-    "Brown",
-    "Yellow",
-    "Orange",
-    "Purple",
-    "Gold",
-    "Beige",
-    "Maroon",
-    "Navy",
-    "Burgundy",
-    "Teal",
-    "Champagne",
-    "Bronze",
-    "Pearl White",
-    "Metallic Black",
-    "Graphite Gray",
-    "Midnight Blue",
-    "Racing Red",
-    "Forest Green",
-  ];
-
-  // REPLACE WITH:
-  const filteredProducts = products; // Filtering now done server-side
-
   // Keyboard navigation handler
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      // Don't handle keyboard shortcuts when modals are open or in input fields
       if (
         showAddModal ||
         showEditModal ||
@@ -241,36 +112,31 @@ export default function ProductsPage() {
 
       switch (e.key) {
         case "/":
-          // Focus search (like GitHub)
           e.preventDefault();
           searchInputRef.current?.focus();
           break;
 
         case "n":
         case "N":
-          // New product (Shift+N or just N)
           if (!e.shiftKey || e.key === "N") {
             e.preventDefault();
-            setShowAddModal(true);
+            openAddModal();
           }
           break;
 
         case "f":
         case "F":
-          // Toggle filters
           e.preventDefault();
           setShowFilters((prev) => !prev);
           break;
 
         case "e":
         case "E":
-          // Export CSV
           e.preventDefault();
           downloadProductsCSV();
           break;
 
         case "ArrowDown":
-          // Navigate down through products
           e.preventDefault();
           setSelectedProductIndex((prev) => {
             const newIndex = Math.min(prev + 1, filteredProducts.length - 1);
@@ -280,7 +146,6 @@ export default function ProductsPage() {
           break;
 
         case "ArrowUp":
-          // Navigate up through products
           e.preventDefault();
           setSelectedProductIndex((prev) => {
             const newIndex = Math.max(prev - 1, 0);
@@ -290,7 +155,6 @@ export default function ProductsPage() {
           break;
 
         case "Enter":
-          // View selected product
           if (
             selectedProductIndex >= 0 &&
             selectedProductIndex < filteredProducts.length
@@ -301,23 +165,8 @@ export default function ProductsPage() {
           }
           break;
 
-        case "e":
-          // Edit selected product (when one is selected)
-          if (
-            selectedProductIndex >= 0 &&
-            selectedProductIndex < filteredProducts.length &&
-            !e.ctrlKey &&
-            !e.metaKey
-          ) {
-            e.preventDefault();
-            const product = filteredProducts[selectedProductIndex];
-            openEditModal(product);
-          }
-          break;
-
         case "Delete":
         case "Backspace":
-          // Delete selected product (with confirmation)
           if (
             selectedProductIndex >= 0 &&
             selectedProductIndex < filteredProducts.length
@@ -329,13 +178,11 @@ export default function ProductsPage() {
           break;
 
         case "Escape":
-          // Clear selection
           e.preventDefault();
           setSelectedProductIndex(-1);
           break;
 
         case "?":
-          // Show keyboard shortcuts (you could implement a help modal)
           e.preventDefault();
           toast.success(
             "Keyboard Shortcuts:\n" +
@@ -367,7 +214,6 @@ export default function ProductsPage() {
     filteredProducts,
   ]);
 
-  // Scroll to selected product
   const scrollToProduct = (index: number) => {
     if (index >= 0 && index < productRefs.current.length) {
       productRefs.current[index]?.scrollIntoView({
@@ -377,7 +223,6 @@ export default function ProductsPage() {
     }
   };
 
-  // Reset selection when filters change
   useEffect(() => {
     setSelectedProductIndex(-1);
   }, [searchTerm, filterCategory, filterMake, filterIsVehicle]);
@@ -386,7 +231,7 @@ export default function ProductsPage() {
     const loadData = async () => {
       try {
         await fetchUser();
-        await fetchProducts(1, false); // ← Add parameters
+        await fetchProducts(1, false);
         await fetchCategories();
         await fetchNextSKU();
       } finally {
@@ -406,7 +251,6 @@ export default function ProductsPage() {
     return () => window.removeEventListener("resize", checkIfMobile);
   }, []);
 
-  // ADD THIS NEW USEEFFECT after the initial one:
   useEffect(() => {
     setCurrentPage(1);
     fetchProducts(1, false);
@@ -417,20 +261,7 @@ export default function ProductsPage() {
       router.push("/autocityPro/login");
     }
   }, [userLoading, user, router]);
-  useEffect(() => {
-    if (highlightedIndex >= 0) {
-      suggestionRefs.current[highlightedIndex]?.scrollIntoView({
-        block: "nearest",
-        behavior: "smooth",
-      });
-    }
-  }, [highlightedIndex]);
 
-  // REPLACE WITH:
-  const generateNextSKU = (): string => {
-    return nextSKU; // Now comes from server
-  };
-  // ADD THIS NEW FUNCTION after generateNextSKU:
   const fetchNextSKU = async () => {
     try {
       const res = await fetch("/api/products/next-sku", {
@@ -439,7 +270,6 @@ export default function ProductsPage() {
       if (res.ok) {
         const data = await res.json();
         setNextSKU(data.nextSKU);
-        console.log("✓ Next SKU fetched:", data.nextSKU);
         return data.nextSKU;
       }
     } catch (error) {
@@ -462,7 +292,6 @@ export default function ProductsPage() {
     }
   };
 
-  // REPLACE WITH:
   const fetchProducts = async (page = 1, append = false) => {
     try {
       if (!append) {
@@ -502,10 +331,6 @@ export default function ProductsPage() {
         setTotalProducts(data.pagination.total);
         setHasMoreProducts(data.pagination.hasMore);
         setCurrentPage(page);
-
-        console.log("✓ Fetched products:", data.products?.length || 0);
-        console.log("✓ Total in DB:", data.pagination.total);
-        console.log("✓ Has more:", data.pagination.hasMore);
       } else {
         toast.error("Failed to load products");
         setProducts([]);
@@ -519,30 +344,10 @@ export default function ProductsPage() {
       setIsLoadingMore(false);
     }
   };
-  // ADD THIS NEW FUNCTION after fetchProducts:
+
   const loadMoreProducts = () => {
     if (!isLoadingMore && hasMoreProducts) {
       fetchProducts(currentPage + 1, true);
-    }
-  };
-  const fetchNameSuggestions = async (query: string) => {
-    if (query.length < 1) {
-      setNameSuggestions([]);
-      return;
-    }
-
-    try {
-      const res = await fetch(
-        `/api/products/suggestions?q=${encodeURIComponent(query)}`,
-        { credentials: "include" }
-      );
-
-      if (res.ok) {
-        const data = await res.json();
-        setNameSuggestions(data.suggestions || []);
-      }
-    } catch (err) {
-      console.error("Suggestion fetch failed:", err);
     }
   };
 
@@ -580,7 +385,6 @@ export default function ProductsPage() {
           productCount: 0,
         };
         setCategories([...categories, newCategoryWithCount]);
-        setNewProduct((prev) => ({ ...prev, categoryId: data.category._id }));
         setNewCategoryName("");
         setShowQuickAddCategory(false);
       } else {
@@ -591,58 +395,14 @@ export default function ProductsPage() {
       toast.error("Failed to add category");
     }
   };
-  // ADD THIS NEW FUNCTION before handleAddProduct:
+
   const openAddModal = async () => {
     await fetchNextSKU();
     setShowAddModal(true);
   };
-  const handleAddProduct = async () => {
-    if (!newProduct.name) {
-      toast.error("Product name is required");
-      return;
-    }
 
-    if (isVehicle && newProduct.yearFrom && newProduct.yearTo) {
-      if (parseInt(newProduct.yearFrom) > parseInt(newProduct.yearTo)) {
-        toast.error("Year 'From' must be less than or equal to 'To'");
-        return;
-      }
-    }
-
+  const handleAddProduct = async (productData: any) => {
     try {
-      const generatedSKU = generateNextSKU();
-      console.log("🔄 Creating product with SKU:", generatedSKU);
-
-      const productData: any = {
-        name: newProduct.name,
-        description: newProduct.description,
-        categoryId: newProduct.categoryId || undefined,
-        sku: generatedSKU,
-        barcode: newProduct.barcode || undefined,
-        unit: newProduct.unit,
-        costPrice: parseFloat(newProduct.costPrice as any) || 0,
-        sellingPrice: parseFloat(newProduct.sellingPrice as any) || 0,
-        taxRate: parseFloat(newProduct.taxRate as any) || 0,
-        currentStock: parseFloat(newProduct.currentStock as any) || 0,
-        minStock: parseFloat(newProduct.minStock as any) || 0,
-        maxStock: parseFloat(newProduct.maxStock as any) || 1000,
-      };
-
-      if (isVehicle && newProduct.carMake) {
-        productData.carMake = newProduct.carMake;
-        productData.carModel = newProduct.carModel;
-        productData.variant = newProduct.variant;
-        productData.yearFrom = newProduct.yearFrom
-          ? parseInt(newProduct.yearFrom)
-          : undefined;
-        productData.yearTo = newProduct.yearTo
-          ? parseInt(newProduct.yearTo)
-          : undefined;
-        productData.partNumber = newProduct.partNumber;
-        productData.color = newProduct.color;
-        productData.isVehicle = true;
-      }
-
       const res = await fetch("/api/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -652,77 +412,23 @@ export default function ProductsPage() {
 
       if (res.ok) {
         const responseData = await res.json();
-        console.log("✓ Product created successfully:", responseData);
-        toast.success(`Product added successfully! `);
-
+        toast.success("Product added successfully!");
         setShowAddModal(false);
-        resetNewProduct();
-
-        // Refresh products list from page 1 and get next SKU
         await fetchProducts(1, false);
         await fetchNextSKU();
-        console.log("✓ Products list refreshed");
       } else {
         const error = await res.json();
-        console.error("❌ Failed to create product:", error);
         toast.error(error.error || "Failed to add product");
       }
     } catch (error) {
-      console.error("❌ Error in handleAddProduct:", error);
       toast.error("Failed to add product");
     }
   };
-  const handleEditProduct = async () => {
-    if (!editingProduct) return;
-    if (!editingProduct.name || !editingProduct.sku) {
-      toast.error("Name and SKU are required");
-      return;
-    }
 
-    if (
-      editingProduct.isVehicle &&
-      editingProduct.yearFrom &&
-      editingProduct.yearTo
-    ) {
-      if (parseInt(editingProduct.yearFrom) > parseInt(editingProduct.yearTo)) {
-        toast.error("Year 'From' must be less than or equal to 'To'");
-        return;
-      }
-    }
+  const handleEditProduct = async (productData: any) => {
+    if (!editingProduct) return;
 
     try {
-      const productData: any = {
-        name: editingProduct.name,
-        description: editingProduct.description,
-        categoryId: editingProduct.categoryId || undefined,
-        sku: editingProduct.sku.toUpperCase(),
-        barcode: editingProduct.barcode || undefined,
-        unit: editingProduct.unit,
-        costPrice: parseFloat(editingProduct.costPrice as any) || 0,
-        sellingPrice: parseFloat(editingProduct.sellingPrice as any) || 0,
-        taxRate: parseFloat(editingProduct.taxRate as any) || 0,
-        currentStock: parseFloat(editingProduct.currentStock as any) || 0,
-        minStock: parseFloat(editingProduct.minStock as any) || 0,
-        maxStock: parseFloat(editingProduct.maxStock as any) || 1000,
-      };
-
-      if (editingProduct.isVehicle && editingProduct.carMake) {
-        productData.carMake = editingProduct.carMake;
-        productData.carModel = editingProduct.carModel;
-        productData.variant = editingProduct.variant;
-        productData.yearFrom = editingProduct.yearFrom
-          ? parseInt(editingProduct.yearFrom)
-          : undefined;
-        productData.yearTo = editingProduct.yearTo
-          ? parseInt(editingProduct.yearTo)
-          : undefined;
-        productData.partNumber = editingProduct.partNumber;
-        productData.color = editingProduct.color;
-        productData.isVehicle = true;
-      } else {
-        productData.isVehicle = false;
-      }
-
       const res = await fetch(`/api/products/${editingProduct._id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -734,7 +440,7 @@ export default function ProductsPage() {
         toast.success("Product updated successfully!");
         setShowEditModal(false);
         setEditingProduct(null);
-        await fetchProducts(1, false); // ← NEW
+        await fetchProducts(1, false);
       } else {
         const error = await res.json();
         toast.error(error.error || "Failed to update product");
@@ -754,7 +460,7 @@ export default function ProductsPage() {
       if (res.ok) {
         toast.success("Product deleted successfully!");
         setProductToDelete(null);
-        await fetchProducts(1, false); // ← NEW
+        await fetchProducts(1, false);
       } else {
         const error = await res.json();
         toast.error(error.error || "Failed to delete product");
@@ -765,44 +471,8 @@ export default function ProductsPage() {
   };
 
   const openEditModal = (product: any) => {
-    setEditingProduct({
-      ...product,
-      categoryId: product.category?._id || "",
-      costPrice: product.costPrice || 0,
-      sellingPrice: product.sellingPrice || 0,
-      taxRate: product.taxRate || 0,
-      currentStock: product.currentStock || 0,
-      minStock: product.minStock || 0,
-      maxStock: product.maxStock || 1000,
-      variant: product.variant || "",
-      color: product.color || "",
-    });
-    setIsVehicle(product.isVehicle || false);
+    setEditingProduct(product);
     setShowEditModal(true);
-  };
-
-  const resetNewProduct = () => {
-    setNewProduct({
-      name: "",
-      description: "",
-      categoryId: "",
-      barcode: "",
-      unit: "pcs",
-      costPrice: 0,
-      sellingPrice: 0,
-      taxRate: 0,
-      currentStock: 0,
-      minStock: 0,
-      maxStock: 1000,
-      carMake: "",
-      carModel: "",
-      variant: "",
-      yearFrom: "",
-      yearTo: "",
-      partNumber: "",
-      color: "",
-    });
-    setIsVehicle(false);
   };
 
   const availableMakes = [
@@ -820,13 +490,13 @@ export default function ProductsPage() {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     window.location.href = "/autocityPro/login";
   };
+
   const downloadProductsPDF = async () => {
     try {
       toast.loading("Preparing PDF export...");
 
       const PRIORITY_MAKES = ["toyota", "nissan", "lexus", "ford"];
 
-      // Fetch ALL products (export mode)
       const params = new URLSearchParams({ export: "true" });
 
       if (searchTerm) params.append("search", searchTerm);
@@ -853,18 +523,12 @@ export default function ProductsPage() {
         return;
       }
 
-      // ─────────────────────────────────────────────
-      // SORTING (OTHERS ALWAYS LAST)
-      // ─────────────────────────────────────────────
       const sortedProducts = [...allProducts].sort((a, b) => {
         const hasMakeA = !!a.carMake;
         const hasMakeB = !!b.carMake;
 
-        // 1️⃣ Products without carMake go LAST
         if (hasMakeA && !hasMakeB) return -1;
         if (!hasMakeA && hasMakeB) return 1;
-
-        // Both have no make → keep relative order
         if (!hasMakeA && !hasMakeB) return 0;
 
         const makeA = a.carMake.toLowerCase();
@@ -873,22 +537,16 @@ export default function ProductsPage() {
         const idxA = PRIORITY_MAKES.indexOf(makeA);
         const idxB = PRIORITY_MAKES.indexOf(makeB);
 
-        // 2️⃣ Both priority makes
         if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-
-        // 3️⃣ One priority make
         if (idxA !== -1) return -1;
         if (idxB !== -1) return 1;
 
-        // 4️⃣ Alphabetical by make
         if (makeA !== makeB) return makeA.localeCompare(makeB);
 
-        // 5️⃣ Same make → model
         const modelA = (a.carModel || "").toLowerCase();
         const modelB = (b.carModel || "").toLowerCase();
         if (modelA !== modelB) return modelA.localeCompare(modelB);
 
-        // 6️⃣ Same model → name
         return (a.name || "")
           .toLowerCase()
           .localeCompare((b.name || "").toLowerCase());
@@ -925,14 +583,11 @@ export default function ProductsPage() {
       sortedProducts.forEach((p) => {
         const hasMake = !!p.carMake;
 
-        // ───── OTHERS (ALWAYS LAST) ─────
         if (!hasMake) {
           if (!othersStarted) {
-            // Spacer rows
             rows.push(["", "", "", "", "", "", "", "", "", "", "", ""]);
             rows.push(["", "", "", "", "", "", "", "", "", "", "", ""]);
 
-            // OTHERS header (centered)
             rows.push([
               {
                 content: "OTHERS / GENERAL PRODUCTS",
@@ -968,7 +623,6 @@ export default function ProductsPage() {
           return;
         }
 
-        // ───── MAKE HEADER (CENTERED) ─────
         if (p.carMake !== lastMake) {
           rows.push([
             {
@@ -987,7 +641,6 @@ export default function ProductsPage() {
           lastModel = "";
         }
 
-        // ───── MODEL HEADER (LEFT) ─────
         if (p.carModel && p.carModel !== lastModel) {
           rows.push([
             {
@@ -1005,7 +658,6 @@ export default function ProductsPage() {
           lastModel = p.carModel;
         }
 
-        // ───── PRODUCT ROW ─────
         rows.push([
           p.sku || "",
           p.name || "",
@@ -1306,11 +958,11 @@ export default function ProductsPage() {
                 </button>
 
                 <button
-                  onClick={openAddModal} // ← NEW
-                  className="flex items-center space-x-2 rounded-xl px-4 py-2 bg-[#E84545] text-white hover:bg-[#cc3c3c] transition-colors..."
+                  onClick={openAddModal}
+                  className="flex items-center space-x-2 rounded-xl px-4 py-2 bg-[#E84545] text-white hover:bg-[#cc3c3c] transition-colors"
                 >
-                  <Plus className="h-5 w-5 " />
-                  <span className="font-weight-medium ">Add Product</span>
+                  <Plus className="h-5 w-5" />
+                  <span className="font-weight-medium">Add Product</span>
                 </button>
               </div>
             </div>
@@ -1879,6 +1531,7 @@ export default function ProductsPage() {
               </div>
             </div>
           </div>
+
           {/* Load More Button - Desktop */}
           {hasMoreProducts && !loading && (
             <div className="hidden md:flex justify-center py-8">
@@ -1956,7 +1609,7 @@ export default function ProductsPage() {
             <div className="space-y-3">
               <button
                 onClick={async () => {
-                  await fetchNextSKU(); // ← ADD THIS
+                  await fetchNextSKU();
                   setShowAddModal(true);
                   setShowMobileMenu(false);
                 }}
@@ -2003,1182 +1656,27 @@ export default function ProductsPage() {
       )}
 
       {/* Add Product Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-gradient-to-b from-[#050505] to-[#0A0A0A] rounded-2xl shadow-2xl max-w-2xl w-full my-8 border border-white/10 max-h-[90vh] overflow-hidden">
-            <div className="flex justify-between items-center px-4 md:px-6 py-4 border-b border-white/5 sticky top-0 bg-[#050505]/95 backdrop-blur-sm z-10">
-              <div>
-                <h2 className="text-lg md:text-xl font-bold text-white">
-                  Add New Product
-                </h2>
-                <p className="text-xs md:text-sm text-gray-400 mt-1">
-                  Next SKU: {nextSKU}
-                </p>
-              </div>
-              <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  resetNewProduct();
-                }}
-                className="text-gray-400 hover:text-white p-2 rounded-xl hover:bg-white/5 active:scale-95 transition-all"
-              >
-                <X className="h-5 w-5 md:h-6 md:w-6" />
-              </button>
-            </div>
+      <AddProductModal
+        show={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onAdd={handleAddProduct}
+        categories={categories}
+        nextSKU={nextSKU}
+        onQuickAddCategory={() => setShowQuickAddCategory(true)}
+      />
 
-            <div className="p-4 md:p-6 space-y-4 overflow-y-auto max-h-[calc(90vh-140px)]">
-              {/* Basic Info */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2 relative">
-                  <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                    Product Name *
-                  </label>
-
-                  <input
-                    type="text"
-                    value={newProduct.name}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setNewProduct({ ...newProduct, name: value });
-                      fetchNameSuggestions(value);
-                      setShowNameSuggestions(true);
-                      setHighlightedIndex(-1); // reset highlight on typing
-                    }}
-                    onKeyDown={(e) => {
-                      e.stopPropagation(); // 🔥 REQUIRED
-
-                      if (!showNameSuggestions || nameSuggestions.length === 0)
-                        return;
-
-                      switch (e.key) {
-                        case "ArrowDown":
-                          e.preventDefault();
-                          setHighlightedIndex((prev) =>
-                            prev < nameSuggestions.length - 1 ? prev + 1 : 0
-                          );
-                          break;
-
-                        case "ArrowUp":
-                          e.preventDefault();
-                          setHighlightedIndex((prev) =>
-                            prev > 0 ? prev - 1 : nameSuggestions.length - 1
-                          );
-                          break;
-
-                        case "Enter":
-                          if (highlightedIndex >= 0) {
-                            e.preventDefault();
-                            setNewProduct({
-                              ...newProduct,
-                              name: nameSuggestions[highlightedIndex],
-                            });
-                            setShowNameSuggestions(false);
-                            setHighlightedIndex(-1);
-                          }
-                          break;
-
-                        case "Escape":
-                          setShowNameSuggestions(false);
-                          setHighlightedIndex(-1);
-                          break;
-                      }
-                    }}
-                    onBlur={() => {
-                      setTimeout(() => {
-                        setShowNameSuggestions(false);
-                        setHighlightedIndex(-1);
-                      }, 150);
-                    }}
-                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                    placeholder="Product name"
-                    autoComplete="off"
-                  />
-
-                  {/* Suggestions dropdown */}
-                  {showNameSuggestions && nameSuggestions.length > 0 && (
-                    <div className="absolute z-50 w-full mt-1 bg-[#0A0A0A] border border-white/10 rounded-lg shadow-xl max-h-48 overflow-y-auto">
-                      <div className="max-h-48 overflow-y-auto">
-                        {nameSuggestions.map((name, index) => (
-                          <div
-                            key={index}
-                            ref={(el) => {
-                              suggestionRefs.current[index] = el;
-                            }}
-                            onMouseDown={(e) => {
-                              e.stopPropagation();
-                              setNewProduct({ ...newProduct, name });
-                              setShowNameSuggestions(false);
-                              setHighlightedIndex(-1);
-                            }}
-                            className={`px-3 py-2 text-sm cursor-pointer ${
-                              index === highlightedIndex
-                                ? "bg-[#E84545]/40 text-white"
-                                : "text-gray-200 hover:bg-[#E84545]/20"
-                            }`}
-                          >
-                            {name}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                    Description
-                  </label>
-                  <textarea
-                    value={newProduct.description}
-                    onChange={(e) =>
-                      setNewProduct({
-                        ...newProduct,
-                        description: e.target.value,
-                      })
-                    }
-                    rows={2}
-                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                    placeholder="Product description"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                    Category
-                  </label>
-                  <div className="flex gap-2">
-                    <select
-                      value={newProduct.categoryId}
-                      onChange={(e) =>
-                        setNewProduct({
-                          ...newProduct,
-                          categoryId: e.target.value,
-                        })
-                      }
-                      className="flex-1 px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                    >
-                      <option value="" className="text-[#050505]">
-                        Select Category
-                      </option>
-                      {categories.map((cat) => (
-                        <option
-                          key={cat._id}
-                          value={cat._id}
-                          className="text-[#050505]"
-                        >
-                          {cat.name}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={() => setShowQuickAddCategory(true)}
-                      className="px-3 py-2 bg-[#E84545]/10 border border-[#E84545]/30 rounded-lg hover:bg-[#E84545]/20 transition-colors text-white active:scale-95"
-                      title="Quick Add Category"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                    Barcode
-                  </label>
-                  <input
-                    type="text"
-                    value={newProduct.barcode}
-                    onChange={(e) =>
-                      setNewProduct({ ...newProduct, barcode: e.target.value })
-                    }
-                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                    placeholder="Barcode"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                    Unit
-                  </label>
-                  <select
-                    value={newProduct.unit}
-                    onChange={(e) =>
-                      setNewProduct({ ...newProduct, unit: e.target.value })
-                    }
-                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                  >
-                    <option value="pcs" className="text-[#050505]">
-                      Pieces
-                    </option>
-                    <option value="set" className="text-[#050505]">
-                      Set
-                    </option>
-                    <option value="kg" className="text-[#050505]">
-                      Kilogram
-                    </option>
-                    <option value="liter" className="text-[#050505]">
-                      Liter
-                    </option>
-                    <option value="meter" className="text-[#050505]">
-                      Meter
-                    </option>
-                    <option value="box" className="text-[#050505]">
-                      Box
-                    </option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Vehicle Toggle */}
-              <div className="flex items-center space-x-2 p-3 bg-[#E84545]/10 rounded-xl border border-[#E84545]/20">
-                <input
-                  type="checkbox"
-                  id="isVehicle"
-                  checked={isVehicle}
-                  onChange={(e) => setIsVehicle(e.target.checked)}
-                  className="h-4 w-4 text-[#E84545]"
-                />
-                <label
-                  htmlFor="isVehicle"
-                  className="text-xs md:text-sm font-medium text-white flex items-center cursor-pointer"
-                >
-                  <Car className="h-4 w-4 mr-2 text-[#E84545]" />
-                  This is a vehicle or vehicle part
-                </label>
-              </div>
-
-              {/* Vehicle Details */}
-              {isVehicle && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-[#E84545]/5 rounded-xl border border-[#E84545]/10">
-                  <div>
-                    <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                      Make *
-                    </label>
-                    <select
-                      value={newProduct.carMake}
-                      onChange={(e) =>
-                        setNewProduct({
-                          ...newProduct,
-                          carMake: e.target.value as CarMake | "",
-                          carModel: "",
-                        })
-                      }
-                      className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                    >
-                      <option value="" className="text-[#050505]">
-                        Select Make
-                      </option>
-                      {Object.keys(carMakesModels).map((make) => (
-                        <option
-                          key={make}
-                          value={make}
-                          className="text-[#050505]"
-                        >
-                          {make}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                      Model
-                    </label>
-                    <select
-                      value={newProduct.carModel}
-                      onChange={(e) =>
-                        setNewProduct({
-                          ...newProduct,
-                          carModel: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                      disabled={!newProduct.carMake}
-                    >
-                      <option value="" className="text-[#050505]">
-                        Select Model
-                      </option>
-                      {newProduct.carMake &&
-                        carMakesModels[newProduct.carMake]?.map(
-                          (model: string) => (
-                            <option
-                              key={model}
-                              value={model}
-                              className="text-[#050505]"
-                            >
-                              {model}
-                            </option>
-                          )
-                        )}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                      Variant
-                    </label>
-                    <select
-                      value={newProduct.variant}
-                      onChange={(e) =>
-                        setNewProduct({
-                          ...newProduct,
-                          variant: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                    >
-                      <option value="" className="text-[#050505]">
-                        Select Variant
-                      </option>
-                      {vehicleVariants.map((variant) => (
-                        <option
-                          key={variant}
-                          value={variant}
-                          className="text-[#050505]"
-                        >
-                          {variant}
-                        </option>
-                      ))}
-                      <option value="custom" className="text-[#050505]">
-                        Custom...
-                      </option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                      Color
-                    </label>
-                    <select
-                      value={newProduct.color}
-                      onChange={(e) =>
-                        setNewProduct({ ...newProduct, color: e.target.value })
-                      }
-                      className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                    >
-                      <option value="" className="text-[#050505]">
-                        Select Color
-                      </option>
-                      {vehicleColors.map((color) => (
-                        <option
-                          key={color}
-                          value={color}
-                          className="text-[#050505]"
-                        >
-                          {color}
-                        </option>
-                      ))}
-                      <option value="custom" className="text-[#050505]">
-                        Custom...
-                      </option>
-                    </select>
-                  </div>
-
-                  {newProduct.variant === "custom" && (
-                    <div className="md:col-span-2">
-                      <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                        Custom Variant
-                      </label>
-                      <input
-                        type="text"
-                        value={
-                          newProduct.variant === "custom"
-                            ? ""
-                            : newProduct.variant
-                        }
-                        onChange={(e) =>
-                          setNewProduct({
-                            ...newProduct,
-                            variant: e.target.value,
-                          })
-                        }
-                        className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                        placeholder="Enter custom variant"
-                      />
-                    </div>
-                  )}
-
-                  {newProduct.color === "custom" && (
-                    <div className="md:col-span-2">
-                      <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                        Custom Color
-                      </label>
-                      <input
-                        type="text"
-                        value={
-                          newProduct.color === "custom" ? "" : newProduct.color
-                        }
-                        onChange={(e) =>
-                          setNewProduct({
-                            ...newProduct,
-                            color: e.target.value,
-                          })
-                        }
-                        className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                        placeholder="Enter custom color"
-                      />
-                    </div>
-                  )}
-
-                  <div className="md:col-span-2">
-                    <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                      Year Range (Compatibility)
-                    </label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">
-                          From
-                        </label>
-                        <input
-                          type="number"
-                          value={newProduct.yearFrom}
-                          onChange={(e) =>
-                            setNewProduct({
-                              ...newProduct,
-                              yearFrom: e.target.value,
-                            })
-                          }
-                          className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                          placeholder="e.g., 2015"
-                          min="1900"
-                          max="2100"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">
-                          To
-                        </label>
-                        <input
-                          type="number"
-                          value={newProduct.yearTo}
-                          onChange={(e) =>
-                            setNewProduct({
-                              ...newProduct,
-                              yearTo: e.target.value,
-                            })
-                          }
-                          className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                          placeholder="e.g., 2020"
-                          min="1900"
-                          max="2100"
-                        />
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Leave "To" empty for current year onwards (e.g., 2018+)
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                      Part Number
-                    </label>
-                    <input
-                      type="text"
-                      value={newProduct.partNumber}
-                      onChange={(e) =>
-                        setNewProduct({
-                          ...newProduct,
-                          partNumber: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                      placeholder="Part number"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Pricing */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                    Cost Price
-                  </label>
-                  <input
-                    type="number"
-                    value={newProduct.costPrice}
-                    onChange={(e) =>
-                      setNewProduct({
-                        ...newProduct,
-                        costPrice: parseFloat(e.target.value),
-                      })
-                    }
-                    min="0"
-                    step="0.01"
-                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                    Selling Price
-                  </label>
-                  <input
-                    type="number"
-                    value={newProduct.sellingPrice}
-                    onChange={(e) =>
-                      setNewProduct({
-                        ...newProduct,
-                        sellingPrice: parseFloat(e.target.value),
-                      })
-                    }
-                    min="0"
-                    step="0.01"
-                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                    Tax Rate (%)
-                  </label>
-                  <input
-                    type="number"
-                    value={newProduct.taxRate}
-                    onChange={(e) =>
-                      setNewProduct({
-                        ...newProduct,
-                        taxRate: parseFloat(e.target.value),
-                      })
-                    }
-                    min="0"
-                    max="100"
-                    step="0.1"
-                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                  />
-                </div>
-              </div>
-
-              {/* Stock */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                    Current Stock
-                  </label>
-                  <input
-                    type="number"
-                    value={newProduct.currentStock}
-                    onChange={(e) =>
-                      setNewProduct({
-                        ...newProduct,
-                        currentStock: parseFloat(e.target.value),
-                      })
-                    }
-                    min="0"
-                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                    Min Stock
-                  </label>
-                  <input
-                    type="number"
-                    value={newProduct.minStock}
-                    onChange={(e) =>
-                      setNewProduct({
-                        ...newProduct,
-                        minStock: parseFloat(e.target.value),
-                      })
-                    }
-                    min="0"
-                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                  />
-                </div>
-                {/* <div>
-                  <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                    Max Stock
-                  </label>
-                  <input
-                    type="number"
-                    value={newProduct.maxStock}
-                    onChange={(e) =>
-                      setNewProduct({
-                        ...newProduct,
-                        maxStock: parseFloat(e.target.value),
-                      })
-                    }
-                    min="0"
-                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                  />
-                </div> */}
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row justify-end gap-3 px-4 md:px-6 py-4 border-t border-white/5 sticky bottom-0 bg-[#050505]/95 backdrop-blur-sm">
-              <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  resetNewProduct();
-                }}
-                className="px-4 py-2 border border-white/10 text-gray-300 rounded-xl hover:bg-white/5 transition-colors active:scale-95"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAddProduct}
-                className="px-4 py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl hover:opacity-90 transition-opacity active:scale-95"
-              >
-                Add Product
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       {/* Edit Product Modal */}
-      {showEditModal && editingProduct && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-gradient-to-b from-[#050505] to-[#0A0A0A] rounded-2xl shadow-2xl max-w-2xl w-full my-8 border border-white/10 max-h-[90vh] overflow-hidden">
-            <div className="flex justify-between items-center px-4 md:px-6 py-4 border-b border-white/5 sticky top-0 bg-[#050505]/95 backdrop-blur-sm z-10">
-              <h2 className="text-lg md:text-xl font-bold text-white">
-                Edit Product
-              </h2>
-              <button
-                onClick={() => {
-                  setShowEditModal(false);
-                  setEditingProduct(null);
-                }}
-                className="text-gray-400 hover:text-white p-2 rounded-xl hover:bg-white/5 active:scale-95 transition-all"
-              >
-                <X className="h-5 w-5 md:h-6 md:w-6" />
-              </button>
-            </div>
-
-            <div className="p-4 md:p-6 space-y-4 overflow-y-auto max-h-[calc(90vh-140px)]">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                    Product Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={editingProduct.name}
-                    onChange={(e) =>
-                      setEditingProduct({
-                        ...editingProduct,
-                        name: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                    Description
-                  </label>
-                  <textarea
-                    value={editingProduct.description}
-                    onChange={(e) =>
-                      setEditingProduct({
-                        ...editingProduct,
-                        description: e.target.value,
-                      })
-                    }
-                    rows={2}
-                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                    Category
-                  </label>
-                  <div className="flex gap-2">
-                    <select
-                      value={editingProduct.categoryId}
-                      onChange={(e) =>
-                        setEditingProduct({
-                          ...editingProduct,
-                          categoryId: e.target.value,
-                        })
-                      }
-                      className="flex-1 px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                    >
-                      <option value="" className="text-[#050505]">
-                        Select Category
-                      </option>
-                      {categories.map((cat) => (
-                        <option
-                          key={cat._id}
-                          value={cat._id}
-                          className="text-[#050505]"
-                        >
-                          {cat.name}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={() => setShowQuickAddCategory(true)}
-                      className="px-3 py-2 bg-[#E84545]/10 border border-[#E84545]/30 rounded-lg hover:bg-[#E84545]/20 transition-colors text-white active:scale-95"
-                      title="Quick Add Category"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                    SKU *
-                  </label>
-                  <input
-                    type="text"
-                    value={editingProduct.sku}
-                    onChange={(e) =>
-                      setEditingProduct({
-                        ...editingProduct,
-                        sku: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                    Barcode
-                  </label>
-                  <input
-                    type="text"
-                    value={editingProduct.barcode}
-                    onChange={(e) =>
-                      setEditingProduct({
-                        ...editingProduct,
-                        barcode: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                    Unit
-                  </label>
-                  <select
-                    value={editingProduct.unit}
-                    onChange={(e) =>
-                      setEditingProduct({
-                        ...editingProduct,
-                        unit: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                  >
-                    <option value="pcs" className="text-[#050505]">
-                      Pieces
-                    </option>
-                    <option value="kg" className="text-[#050505]">
-                      Kilogram
-                    </option>
-                    <option value="liter" className="text-[#050505]">
-                      Liter
-                    </option>
-                    <option value="meter" className="text-[#050505]">
-                      Meter
-                    </option>
-                    <option value="box" className="text-[#050505]">
-                      Box
-                    </option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2 p-3 bg-[#E84545]/10 rounded-xl border border-[#E84545]/20">
-                <input
-                  type="checkbox"
-                  id="editIsVehicle"
-                  checked={isVehicle}
-                  onChange={(e) => setIsVehicle(e.target.checked)}
-                  className="h-4 w-4 text-[#E84545]"
-                />
-                <label
-                  htmlFor="editIsVehicle"
-                  className="text-xs md:text-sm font-medium text-white flex items-center cursor-pointer"
-                >
-                  <Car className="h-4 w-4 mr-2 text-[#E84545]" />
-                  This is a vehicle or vehicle part
-                </label>
-              </div>
-
-              {isVehicle && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-[#E84545]/5 rounded-xl border border-[#E84545]/10">
-                  <div>
-                    <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                      Make *
-                    </label>
-                    <select
-                      value={editingProduct.carMake}
-                      onChange={(e) =>
-                        setEditingProduct({
-                          ...editingProduct,
-                          carMake: e.target.value as CarMake | "",
-                          carModel: "",
-                        })
-                      }
-                      className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                    >
-                      <option value="" className="text-[#050505]">
-                        Select Make
-                      </option>
-                      {Object.keys(carMakesModels).map((make) => (
-                        <option
-                          key={make}
-                          value={make}
-                          className="text-[#050505]"
-                        >
-                          {make}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                      Model
-                    </label>
-                    <select
-                      value={editingProduct.carModel}
-                      onChange={(e) =>
-                        setEditingProduct({
-                          ...editingProduct,
-                          carModel: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                      disabled={!editingProduct.carMake}
-                    >
-                      <option value="" className="text-[#050505]">
-                        Select Model
-                      </option>
-                      {editingProduct.carMake &&
-                        carMakesModels[editingProduct.carMake as CarMake]?.map(
-                          (model: string) => (
-                            <option
-                              key={model}
-                              value={model}
-                              className="text-[#050505]"
-                            >
-                              {model}
-                            </option>
-                          )
-                        )}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                      Variant
-                    </label>
-                    <select
-                      value={editingProduct.variant}
-                      onChange={(e) =>
-                        setEditingProduct({
-                          ...editingProduct,
-                          variant: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                    >
-                      <option value="" className="text-[#050505]">
-                        Select Variant
-                      </option>
-                      {vehicleVariants.map((variant) => (
-                        <option
-                          key={variant}
-                          value={variant}
-                          className="text-[#050505]"
-                        >
-                          {variant}
-                        </option>
-                      ))}
-                      <option value="custom" className="text-[#050505]">
-                        Custom...
-                      </option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                      Color
-                    </label>
-                    <select
-                      value={editingProduct.color}
-                      onChange={(e) =>
-                        setEditingProduct({
-                          ...editingProduct,
-                          color: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                    >
-                      <option value="" className="text-[#050505]">
-                        Select Color
-                      </option>
-                      {vehicleColors.map((color) => (
-                        <option
-                          key={color}
-                          value={color}
-                          className="text-[#050505]"
-                        >
-                          {color}
-                        </option>
-                      ))}
-                      <option value="custom" className="text-[#050505]">
-                        Custom...
-                      </option>
-                    </select>
-                  </div>
-
-                  {editingProduct.variant === "custom" && (
-                    <div className="md:col-span-2">
-                      <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                        Custom Variant
-                      </label>
-                      <input
-                        type="text"
-                        value={
-                          editingProduct.variant === "custom"
-                            ? ""
-                            : editingProduct.variant
-                        }
-                        onChange={(e) =>
-                          setEditingProduct({
-                            ...editingProduct,
-                            variant: e.target.value,
-                          })
-                        }
-                        className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                        placeholder="Enter custom variant"
-                      />
-                    </div>
-                  )}
-
-                  {editingProduct.color === "custom" && (
-                    <div className="md:col-span-2">
-                      <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                        Custom Color
-                      </label>
-                      <input
-                        type="text"
-                        value={
-                          editingProduct.color === "custom"
-                            ? ""
-                            : editingProduct.color
-                        }
-                        onChange={(e) =>
-                          setEditingProduct({
-                            ...editingProduct,
-                            color: e.target.value,
-                          })
-                        }
-                        className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                        placeholder="Enter custom color"
-                      />
-                    </div>
-                  )}
-
-                  <div className="md:col-span-2">
-                    <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                      Year Range (Compatibility)
-                    </label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">
-                          From
-                        </label>
-                        <input
-                          type="number"
-                          value={editingProduct.yearFrom}
-                          onChange={(e) =>
-                            setEditingProduct({
-                              ...editingProduct,
-                              yearFrom: e.target.value,
-                            })
-                          }
-                          className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                          placeholder="e.g., 2015"
-                          min="1900"
-                          max="2100"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">
-                          To
-                        </label>
-                        <input
-                          type="number"
-                          value={editingProduct.yearTo}
-                          onChange={(e) =>
-                            setEditingProduct({
-                              ...editingProduct,
-                              yearTo: e.target.value,
-                            })
-                          }
-                          className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                          placeholder="e.g., 2020"
-                          min="1900"
-                          max="2100"
-                        />
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Leave "To" empty for current year onwards (e.g., 2018+)
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                      Part Number
-                    </label>
-                    <input
-                      type="text"
-                      value={editingProduct.partNumber}
-                      onChange={(e) =>
-                        setEditingProduct({
-                          ...editingProduct,
-                          partNumber: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                      placeholder="Part number"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                    Cost Price
-                  </label>
-                  <input
-                    type="number"
-                    value={editingProduct.costPrice}
-                    onChange={(e) =>
-                      setEditingProduct({
-                        ...editingProduct,
-                        costPrice: parseFloat(e.target.value),
-                      })
-                    }
-                    min="0"
-                    step="0.01"
-                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                    Selling Price
-                  </label>
-                  <input
-                    type="number"
-                    value={editingProduct.sellingPrice}
-                    onChange={(e) =>
-                      setEditingProduct({
-                        ...editingProduct,
-                        sellingPrice: parseFloat(e.target.value),
-                      })
-                    }
-                    min="0"
-                    step="0.01"
-                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                    Tax Rate (%)
-                  </label>
-                  <input
-                    type="number"
-                    value={editingProduct.taxRate}
-                    onChange={(e) =>
-                      setEditingProduct({
-                        ...editingProduct,
-                        taxRate: parseFloat(e.target.value),
-                      })
-                    }
-                    min="0"
-                    max="100"
-                    step="0.1"
-                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                    Current Stock
-                  </label>
-                  <input
-                    type="number"
-                    value={editingProduct.currentStock}
-                    onChange={(e) =>
-                      setEditingProduct({
-                        ...editingProduct,
-                        currentStock: parseFloat(e.target.value),
-                      })
-                    }
-                    min="0"
-                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                    Min Stock
-                  </label>
-                  <input
-                    type="number"
-                    value={editingProduct.minStock}
-                    onChange={(e) =>
-                      setEditingProduct({
-                        ...editingProduct,
-                        minStock: parseFloat(e.target.value),
-                      })
-                    }
-                    min="0"
-                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                  />
-                </div>
-                {/* <div>
-                  <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                    Max Stock
-                  </label>
-                  <input
-                    type="number"
-                    value={editingProduct.maxStock}
-                    onChange={(e) =>
-                      setEditingProduct({
-                        ...editingProduct,
-                        maxStock: parseFloat(e.target.value),
-                      })
-                    }
-                    min="0"
-                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                  />
-                </div> */}
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row justify-end gap-3 px-4 md:px-6 py-4 border-t border-white/5 sticky bottom-0 bg-[#050505]/95 backdrop-blur-sm">
-              <button
-                onClick={() => {
-                  setShowEditModal(false);
-                  setEditingProduct(null);
-                }}
-                className="px-4 py-2 border border-white/10 text-gray-300 rounded-xl hover:bg-white/5 transition-colors active:scale-95"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleEditProduct}
-                className="px-4 py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl hover:opacity-90 transition-opacity active:scale-95"
-              >
-                Update Product
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <EditProductModal
+        show={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingProduct(null);
+        }}
+        onUpdate={handleEditProduct}
+        categories={categories}
+        product={editingProduct}
+        onQuickAddCategory={() => setShowQuickAddCategory(true)}
+      />
 
       {/* Quick Add Category Modal */}
       {showQuickAddCategory && (

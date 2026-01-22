@@ -49,6 +49,7 @@ import {
   subDays,
   subMonths,
   parseISO,
+  isValid,
 } from "date-fns";
 
 export default function SalesPage() {
@@ -600,10 +601,22 @@ export default function SalesPage() {
   };
 
   const handleViewDetails = (sale: any) => {
+  try {
+    // Validate sale object has required fields
+    if (!sale || !sale._id) {
+      toast.error("Invalid sale data");
+      return;
+    }
+
+    console.log("Opening details for sale:", sale._id);
     setSelectedSaleDetails(sale);
     setShowDetailsModal(true);
     setShowActions(null);
-  };
+  } catch (error) {
+    console.error("Error opening details modal:", error);
+    toast.error("Failed to open sale details");
+  }
+};
 
   const handleExportSales = async () => {
     try {
@@ -688,6 +701,21 @@ export default function SalesPage() {
       BANK_TRANSFER: "bg-purple-600/20 text-purple-400 border-purple-600/30",
       CREDIT: "bg-orange-600/20 text-orange-400 border-orange-600/30",
     };
+
+    // Safe date formatter
+const formatSafeDate = (dateString: string, formatString: string) => {
+  try {
+    const date = parseISO(dateString);
+    if (!isValid(date)) {
+      console.error("Invalid date:", dateString);
+      return "Invalid Date";
+    }
+    return format(date, formatString);
+  } catch (error) {
+    console.error("Date formatting error:", error, dateString);
+    return "Invalid Date";
+  }
+};
 
     return (
       <span
@@ -2099,7 +2127,7 @@ export default function SalesPage() {
                               QAR {item.unitPrice.toFixed(2)}
                             </td>
                             <td className="px-4 py-3 text-gray-300">
-                              {item.taxRate}% (QAR {item.taxAmount.toFixed(2)})
+                              {item.taxRate}% (QAR {(item.taxAmount || 0).toFixed(2)})
                             </td>
                             <td className="px-4 py-3 text-white font-medium">
                               QAR {item.total.toFixed(2)}
@@ -2138,7 +2166,7 @@ export default function SalesPage() {
                       <div className="flex justify-between">
                         <span className="text-gray-400">Tax:</span>
                         <span className="text-white">
-                          QAR {selectedSaleDetails.totalTax.toFixed(2)}
+                          QAR {(selectedSaleDetails.totalTax || 0).toFixed(2)}
                         </span>
                       </div>
                       <div className="flex justify-between">

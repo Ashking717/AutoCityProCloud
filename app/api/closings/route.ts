@@ -286,34 +286,100 @@ export async function POST(req: NextRequest) {
     let openingBank = 0;
 
     if (isFirstClosing) {
-      // For first closing, calculate opening balance from ALL ledger entries before period start
-      // This captures any opening balances that were entered in the system
-      const periodStartMoment = new Date(periodStart);
-      periodStartMoment.setMilliseconds(-1); // One millisecond before period start
-
+      // For first closing, calculate opening balance from ALL ledger entries up to and including
+      // the start of the period, excluding operational transactions
+      // Opening balance entries can be on the same day as first transaction - that's fine!
+      
       async function getOpeningBalance(subType: AccountSubType): Promise<number> {
+        console.log(`\n[DEBUG] Getting opening balance for subType: "${subType}"`);
+        
         const accounts = await Account.find({
           outletId: user.outletId,
-          subType,
+          subType: subType, // This will use the enum value directly (lowercase)
           isActive: true,
-        }).select('_id');
+        }).select('_id name code subType').lean();
+
+        console.log(`[DEBUG] Found ${accounts.length} accounts with subType="${subType}":`);
+        accounts.forEach(acc => {
+          console.log(`  - ${acc.name} (${acc.code})`);
+          console.log(`    ID: ${acc._id}`);
+          console.log(`    SubType: ${acc.subType}`);
+        });
 
         if (!accounts.length) {
-          console.log(`No ${subType} accounts found for opening balance calculation`);
+          console.log(`[DEBUG] No ${subType} accounts found for opening balance calculation`);
+          
+          // Debug: Check if ANY accounts exist for this outlet
+          const allAccounts = await Account.find({
+            outletId: user.outletId,
+            isActive: true
+          }).select('name code subType').lean();
+          console.log(`[DEBUG] Total active accounts for outlet: ${allAccounts.length}`);
+          if (allAccounts.length > 0) {
+            console.log('[DEBUG] Sample accounts:');
+            allAccounts.slice(0, 5).forEach(acc => {
+              console.log(`  - ${acc.name}: subType="${acc.subType}"`);
+            });
+          }
+          
           return 0;
         }
 
-        // Get ALL ledger entries before the period start
-        const entries = await LedgerEntry.find({
+        const accountIds = accounts.map(a => a._id);
+        console.log(`[DEBUG] Looking for ledger entries with:`);
+        console.log(`  outletId: ${user.outletId}`);
+        console.log(`  accountIds: [${accountIds.join(', ')}]`);
+        console.log(`  date <= ${periodStart.toISOString()}`);
+        
+        // Get ALL entries up to period start
+        const allEntriesUpToStart = await LedgerEntry.find({
           outletId: user.outletId,
-          accountId: { $in: accounts.map(a => a._id) },
-          date: { $lte: periodStartMoment },
+          accountId: { $in: accountIds },
+          date: { $lte: periodStart },
         }).lean();
 
-        console.log(`Found ${entries.length} ledger entries for ${subType} before ${periodStartMoment.toISOString()}`);
+        console.log(`[DEBUG] Found ${allEntriesUpToStart.length} ledger entries for ${subType} up to ${periodStart.toISOString()}`);
+
+        if (allEntriesUpToStart.length > 0) {
+          console.log('[DEBUG] Ledger entries found:');
+          allEntriesUpToStart.forEach((e, i) => {
+            console.log(`  ${i + 1}. Date: ${new Date(e.date).toISOString()}`);
+            console.log(`     AccountId: ${e.accountId}`);
+            console.log(`     Debit: ${e.debit}, Credit: ${e.credit}`);
+            console.log(`     Narration: ${e.narration}`);
+            console.log(`     Reference: ${e.referenceType}`);
+          });
+          
+          // Show details of opening entries
+          const openingEntries = allEntriesUpToStart.filter(e => 
+            e.referenceType === 'OPENING_BALANCE' || 
+            e.referenceType === 'ADJUSTMENT' ||
+            (e.narration && e.narration.toLowerCase().includes('opening balance'))
+          );
+          
+          if (openingEntries.length > 0) {
+            console.log(`  → Found ${openingEntries.length} opening balance entries for ${subType}`);
+          }
+        } else {
+          // Debug: Check if ledger entries exist at all for these accounts
+          const anyEntries = await LedgerEntry.find({
+            outletId: user.outletId,
+            accountId: { $in: accountIds }
+          }).limit(5).lean();
+          
+          console.log(`[DEBUG] Total ledger entries for these accounts (any date): ${anyEntries.length}`);
+          if (anyEntries.length > 0) {
+            console.log('[DEBUG] Sample entries (showing why they might be excluded):');
+            anyEntries.forEach(e => {
+              const entryDate = new Date(e.date);
+              console.log(`  - Date: ${entryDate.toISOString()} (${entryDate > periodStart ? 'AFTER' : 'BEFORE'} period start)`);
+              console.log(`    Amount: ${e.debit - e.credit}`);
+            });
+          }
+        }
 
         // Calculate balance: Debits increase asset accounts (Cash/Bank), Credits decrease them
-        const balance = entries.reduce(
+        const balance = allEntriesUpToStart.reduce(
           (sum, e) => sum + (e.debit || 0) - (e.credit || 0),
           0
         );
@@ -321,20 +387,21 @@ export async function POST(req: NextRequest) {
         return balance;
       }
 
-      openingCash = await getOpeningBalance(AccountSubType.CASH);
-      openingBank = await getOpeningBalance(AccountSubType.BANK);
+      openingCash = await getOpeningBalance(AccountSubType.CASH); // 'cash'
+      openingBank = await getOpeningBalance(AccountSubType.BANK); // 'bank'
 
       console.log(`First closing - Opening balances from ledger:`);
-      console.log(`  Cash: ${openingCash} QAR (from ledger entries before ${periodStart.toISOString()})`);
-      console.log(`  Bank: ${openingBank} QAR (from ledger entries before ${periodStart.toISOString()})`);
+      console.log(`  Cash: ${openingCash} QAR (from entries up to ${periodStart.toISOString()})`);
+      console.log(`  Bank: ${openingBank} QAR (from entries up to ${periodStart.toISOString()})`);
       console.log(`  Total Opening: ${openingCash + openingBank} QAR`);
 
       // If no ledger entries found but expecting opening balance, log warning
       if (openingCash === 0 && openingBank === 0) {
         console.log('⚠️  No opening balances found in ledger. If you have opening balances, please ensure:');
-        console.log('   1. Opening balance ledger entries exist with dates before', periodStart.toISOString());
+        console.log('   1. Opening balance ledger entries exist (can be on same day as first transaction)');
         console.log('   2. Accounts are properly set up with subType CASH or BANK');
         console.log('   3. Ledger entries are associated with correct account IDs');
+        console.log('   4. Check referenceType is OPENING_BALANCE or ADJUSTMENT');
       }
     } else {
       // For subsequent closings, use previous closing's closing balances
@@ -533,7 +600,7 @@ export async function POST(req: NextRequest) {
         description: isFirstClosing 
           ? `First ${closingType} closing created for period ${periodStart.toLocaleDateString()} to ${periodEnd.toLocaleDateString()}`
           : `${closingType.charAt(0).toUpperCase() + closingType.slice(1)} closing created for ${closingDay.toLocaleDateString()}`,
-        username: `${user.username|| ''} `.trim() || 'Unknown User',
+        username: `${user.username|| ''} ${user.username || ''}`.trim() || 'Unknown User',
         resourceType: 'Closing',
         resourceId: closing._id,
         details: {

@@ -434,7 +434,7 @@ export default function ClosingsPage() {
               </div>
 
               {/* Info Banner */}
-              <div className="mb-8 p-4 bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 rounded-2xl">
+              {/* <div className="mb-8 p-4 bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 rounded-2xl">
                 <div className="flex items-start gap-3">
                   <Info className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
                   <div>
@@ -448,7 +448,7 @@ export default function ClosingsPage() {
                     </p>
                   </div>
                 </div>
-              </div>
+              </div> */}
 
               {/* Summary Stats */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

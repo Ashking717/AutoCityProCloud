@@ -511,134 +511,179 @@ export default function OpeningBalancePage() {
                     </p>
                   </div>
                 ) : (
-                  <div className="md:hidden space-y-3">
-                    {entries.map((entry, index) => (
-                      <div
-                        key={index}
-                        className="bg-gradient-to-br from-[#0A0A0A] to-black border border-gray-800 rounded-xl p-4 hover:border-[#E84545] transition-colors"
-                      >
-                        <div className="flex justify-between items-start mb-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-2">
-                              {getAccountTypeIcon(entry.accountType)}
-                              <span className="text-sm font-semibold text-white">{entry.accountCode}</span>
-                              <span className={`px-2 py-1 text-xs font-semibold rounded-full capitalize ${
-                                entry.accountType === 'asset' ? 'bg-green-900/30 text-green-400 border border-green-800/50' :
-                                entry.accountType === 'liability' ? 'bg-red-900/30 text-red-400 border border-red-800/50' :
-                                entry.accountType === 'equity' ? 'bg-purple-900/30 text-purple-400 border border-purple-800/50' :
-                                entry.accountType === 'revenue' ? 'bg-blue-900/30 text-blue-400 border border-blue-800/50' :
-                                'bg-orange-900/30 text-orange-400 border border-orange-800/50'
-                              }`}>
-                                {entry.accountType}
-                              </span>
+                  <>
+                    {/* Mobile View */}
+                    <div className="md:hidden space-y-3">
+                      {entries.map((entry, index) => (
+                        <div
+                          key={index}
+                          className="bg-gradient-to-br from-[#0A0A0A] to-black border border-gray-800 rounded-xl p-4 hover:border-[#E84545] transition-colors"
+                        >
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex-1 min-w-0 mr-2">
+                              <label className="block text-xs text-white/60 mb-1">Select Account</label>
+                              <select
+                                value={entry.accountId}
+                                onChange={(e) => updateEntry(index, "accountId", e.target.value)}
+                                className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                              >
+                                <option value="">Choose account...</option>
+                                {availableAccounts.map((acc) => (
+                                  <option key={acc._id} value={acc._id}>
+                                    {acc.code || acc.accountNumber} - {acc.name || acc.accountName}
+                                  </option>
+                                ))}
+                                {entry.accountId && (
+                                  <option value={entry.accountId}>
+                                    {entry.accountCode} - {entry.accountName}
+                                  </option>
+                                )}
+                              </select>
                             </div>
-                            <p className="text-sm text-white truncate">{entry.accountName}</p>
+                            <button
+                              onClick={() => removeEntry(index)}
+                              className="p-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-red-400 hover:bg-red-900/20 transition-colors"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
                           </div>
-                          <button
-                            onClick={() => removeEntry(index)}
-                            className="p-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-red-400 hover:bg-red-900/20 transition-colors"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
 
-                        <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-800">
-                          <div>
-                            <span className="text-[10px] text-gray-500 uppercase block mb-1">Type</span>
-                            <p className="text-sm font-semibold text-gray-300 capitalize">
-                              {entry.accountType === "asset" || entry.accountType === "expense" ? "DEBIT" : "CREDIT"}
-                            </p>
-                          </div>
-                          <div>
-                            <span className="text-[10px] text-gray-500 uppercase block mb-1">Balance</span>
-                            <p className="text-lg font-bold text-white">QAR {entry.balance.toFixed(2)}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                          {entry.accountId && (
+                            <>
+                              <div className="flex items-center gap-2 mb-3">
+                                {getAccountTypeIcon(entry.accountType)}
+                                <span className={`px-2 py-1 text-xs font-semibold rounded-full capitalize ${
+                                  entry.accountType === 'asset' ? 'bg-green-900/30 text-green-400 border border-green-800/50' :
+                                  entry.accountType === 'liability' ? 'bg-red-900/30 text-red-400 border border-red-800/50' :
+                                  entry.accountType === 'equity' ? 'bg-purple-900/30 text-purple-400 border border-purple-800/50' :
+                                  entry.accountType === 'revenue' ? 'bg-blue-900/30 text-blue-400 border border-blue-800/50' :
+                                  'bg-orange-900/30 text-orange-400 border border-orange-800/50'
+                                }`}>
+                                  {entry.accountType}
+                                </span>
+                                <span className={`text-xs font-medium ${
+                                  entry.accountType === "asset" || entry.accountType === "expense" 
+                                    ? "text-green-400" 
+                                    : "text-red-400"
+                                }`}>
+                                  {entry.accountType === "asset" || entry.accountType === "expense" ? "DEBIT" : "CREDIT"}
+                                </span>
+                              </div>
 
-                {/* Desktop Table */}
-                {entries.length > 0 && (
-                  <div className="hidden md:block">
-                    <table className="min-w-full divide-y divide-gray-800">
-                      <thead>
-                        <tr className="bg-[#0A0A0A]">
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">Account</th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">Type</th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">Debit/Credit</th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">Balance</th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider"></th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-black divide-y divide-gray-800">
-                        {entries.map((entry, index) => (
-                          <tr key={index} className="hover:bg-gray-900 transition-colors">
-                            <td className="px-6 py-4">
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-medium text-white">{entry.accountCode}</span>
-                                  {entry.accountName && (
-                                    <span className="text-xs text-gray-500">({entry.accountName})</span>
-                                  )}
+                              <div>
+                                <label className="block text-xs text-white/60 mb-1">Balance Amount</label>
+                                <div className="relative">
+                                  <span className="absolute left-3 top-2.5 text-gray-400 text-sm">QAR</span>
+                                  <input
+                                    type="number"
+                                    value={entry.balance || ''}
+                                    onChange={(e) => updateEntry(index, "balance", parseFloat(e.target.value) || 0)}
+                                    step="0.01"
+                                    min="0"
+                                    className="w-full pl-14 pr-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                                    placeholder="0.00"
+                                  />
                                 </div>
                               </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full capitalize ${
-                                entry.accountType === 'asset' ? 'bg-green-900/30 text-green-400 border border-green-800/50' :
-                                entry.accountType === 'liability' ? 'bg-red-900/30 text-red-400 border border-red-800/50' :
-                                entry.accountType === 'equity' ? 'bg-purple-900/30 text-purple-400 border border-purple-800/50' :
-                                entry.accountType === 'revenue' ? 'bg-blue-900/30 text-blue-400 border border-blue-800/50' :
-                                'bg-orange-900/30 text-orange-400 border border-orange-800/50'
-                              }`}>
-                                {getAccountTypeIcon(entry.accountType)}
-                                <span>{entry.accountType}</span>
-                              </span>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className={`text-sm font-medium ${
-                                entry.accountType === "asset" || entry.accountType === "expense" 
-                                  ? "text-green-400" 
-                                  : "text-red-400"
-                              }`}>
-                                {entry.accountType === "asset" || entry.accountType === "expense" ? "DEBIT" : "CREDIT"}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="relative max-w-xs">
-                                <span className="absolute left-3 top-2 text-gray-400">QAR</span>
-                                <input
-                                  type="number"
-                                  value={entry.balance || ''}
-                                  onChange={(e) =>
-                                    updateEntry(
-                                      index,
-                                      "balance",
-                                      parseFloat(e.target.value) || 0
-                                    )
-                                  }
-                                  step="0.01"
-                                  min="0"
-                                  className="w-full pl-14 pr-3 py-2 bg-black border border-gray-800 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white"
-                                  placeholder="0.00"
-                                />
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <button
-                                onClick={() => removeEntry(index)}
-                                className="p-2 text-red-400 hover:bg-red-900/20 hover:text-red-300 rounded-lg transition-colors"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </td>
+                            </>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Desktop Table */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-800">
+                        <thead>
+                          <tr className="bg-[#0A0A0A]">
+                            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">Account</th>
+                            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">Type</th>
+                            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">Debit/Credit</th>
+                            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">Balance</th>
+                            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider"></th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody className="bg-black divide-y divide-gray-800">
+                          {entries.map((entry, index) => (
+                            <tr key={index} className="hover:bg-gray-900 transition-colors">
+                              <td className="px-6 py-4">
+                                <select
+                                  value={entry.accountId}
+                                  onChange={(e) => updateEntry(index, "accountId", e.target.value)}
+                                  className="w-full px-3 py-2 bg-black border border-gray-800 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white"
+                                >
+                                  <option value="">Select account...</option>
+                                  {availableAccounts.map((acc) => (
+                                    <option key={acc._id} value={acc._id}>
+                                      {acc.code || acc.accountNumber} - {acc.name || acc.accountName}
+                                    </option>
+                                  ))}
+                                  {entry.accountId && (
+                                    <option value={entry.accountId}>
+                                      {entry.accountCode} - {entry.accountName}
+                                    </option>
+                                  )}
+                                </select>
+                              </td>
+                              <td className="px-6 py-4">
+                                {entry.accountType && (
+                                  <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full capitalize ${
+                                    entry.accountType === 'asset' ? 'bg-green-900/30 text-green-400 border border-green-800/50' :
+                                    entry.accountType === 'liability' ? 'bg-red-900/30 text-red-400 border border-red-800/50' :
+                                    entry.accountType === 'equity' ? 'bg-purple-900/30 text-purple-400 border border-purple-800/50' :
+                                    entry.accountType === 'revenue' ? 'bg-blue-900/30 text-blue-400 border border-blue-800/50' :
+                                    'bg-orange-900/30 text-orange-400 border border-orange-800/50'
+                                  }`}>
+                                    {getAccountTypeIcon(entry.accountType)}
+                                    <span>{entry.accountType}</span>
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-6 py-4">
+                                {entry.accountType && (
+                                  <span className={`text-sm font-medium ${
+                                    entry.accountType === "asset" || entry.accountType === "expense" 
+                                      ? "text-green-400" 
+                                      : "text-red-400"
+                                  }`}>
+                                    {entry.accountType === "asset" || entry.accountType === "expense" ? "DEBIT" : "CREDIT"}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="relative max-w-xs">
+                                  <span className="absolute left-3 top-2 text-gray-400">QAR</span>
+                                  <input
+                                    type="number"
+                                    value={entry.balance || ''}
+                                    onChange={(e) =>
+                                      updateEntry(
+                                        index,
+                                        "balance",
+                                        parseFloat(e.target.value) || 0
+                                      )
+                                    }
+                                    step="0.01"
+                                    min="0"
+                                    className="w-full pl-14 pr-3 py-2 bg-black border border-gray-800 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white"
+                                    placeholder="0.00"
+                                  />
+                                </div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <button
+                                  onClick={() => removeEntry(index)}
+                                  className="p-2 text-red-400 hover:bg-red-900/20 hover:text-red-300 rounded-lg transition-colors"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
                 )}
               </div>
             </div>

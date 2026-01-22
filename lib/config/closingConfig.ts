@@ -5,13 +5,7 @@
  */
 
 export interface ClosingConfig {
-  /**
-   * Late night cutoff hour (24-hour format)
-   * Transactions up to this hour on the next day will be included in the previous day's closing
-   * Default: 6 (6:00 AM)
-   * 
-   * Example: If set to 6, a sale at 2:00 AM on Jan 23rd will be included in Jan 22nd closing
-   */
+  
   lateNightCutoffHour: number;
 
   /**
@@ -35,7 +29,7 @@ export interface ClosingConfig {
 }
 
 export const DEFAULT_CLOSING_CONFIG: ClosingConfig = {
-  lateNightCutoffHour: 6, // 6:00 AM
+  lateNightCutoffHour: 4, // 4:00 AM
   includeHistoricalDataInFirstClosing: true,
   enforceSequentialClosing: true,
   maxHistoricalDays: null,

@@ -1,7 +1,7 @@
 // File: app/autocityPro/purchases/new/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import AddProductModal from "@/components/products/AddProductModal";
@@ -13,13 +13,10 @@ import {
   X,
   ChevronLeft,
   Package,
-  DollarSign,
   CreditCard,
   Users,
-  FileText,
   CheckCircle,
   AlertCircle,
-  Minus,
   Edit2,
   Save,
   Calculator,
@@ -51,6 +48,7 @@ export default function NewPurchasePage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
+  const [productsLoading, setProductsLoading] = useState(true);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -111,18 +109,30 @@ export default function NewPurchasePage() {
     }
   };
 
-  // UPDATED: Fetch ALL products (no pagination for search)
+  // ✅ OPTIMIZED: Fetch ALL products for search mode
   const fetchProducts = async () => {
     try {
-      // Fetch with high limit to get all products for search
-      const res = await fetch("/api/products?limit=10000", { credentials: "include" });
+      setProductsLoading(true);
+      // Use searchMode flag to fetch all products (up to 5000)
+      const res = await fetch("/api/products?searchMode=true", { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
         setProducts(data.products || []);
-        console.log(`✓ Loaded ${data.products?.length || 0} products for search`);
+        console.log(`✓ Loaded ${data.products?.length || 0} products for search (Total: ${data.pagination?.total || 0})`);
+        
+        // Show info if there are more products than loaded
+        if (data.pagination?.total > data.products?.length) {
+          toast(`Loaded ${data.products?.length} of ${data.pagination.total} products. Use specific search terms for best results.`, {
+            icon: 'ℹ️',
+            duration: 4000,
+          });
+        }
       }
     } catch (error) {
       console.error("Failed to fetch products");
+      toast.error("Failed to load products");
+    } finally {
+      setProductsLoading(false);
     }
   };
 
@@ -212,7 +222,6 @@ export default function NewPurchasePage() {
     }
   };
 
-  // NEW: Handle Quick Add Category
   const handleQuickAddCategory = async () => {
     if (!newCategoryName.trim()) {
       toast.error("Category name is required");
@@ -244,7 +253,6 @@ export default function NewPurchasePage() {
     }
   };
 
-  // NEW: Handle Add Product
   const handleAddProduct = async (productData: any) => {
     try {
       const res = await fetch("/api/products", {
@@ -263,7 +271,7 @@ export default function NewPurchasePage() {
         await fetchProducts();
         await fetchNextSKU();
         
-        // Optionally add the new product to cart
+        // Add new product to cart
         const newProduct = responseData.product;
         if (newProduct) {
           addToCart(newProduct);
@@ -326,7 +334,6 @@ export default function NewPurchasePage() {
     return { subtotal, totalTax, total, totalPaid: amountPaid };
   };
 
-  // Get effective payment method
   const getEffectivePaymentMethod = () => {
     const totals = calculateTotals();
     
@@ -345,7 +352,6 @@ export default function NewPurchasePage() {
     return paymentMethod;
   };
 
-  // Payment Warning Component
   const PaymentWarning = () => {
     const totals = calculateTotals();
     const hasPartialPayment = amountPaid > 0 && amountPaid < totals.total;
@@ -434,14 +440,6 @@ export default function NewPurchasePage() {
 
     setLoading(true);
     try {
-      console.log('Creating purchase:', {
-        total: totals.total,
-        amountPaid,
-        balanceDue: totals.total - amountPaid,
-        selectedMethod: paymentMethod,
-        effectiveMethod: effectivePaymentMethod,
-      });
-      
       const res = await fetch("/api/purchases", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -485,13 +483,22 @@ export default function NewPurchasePage() {
     }
   };
 
-  const filteredProducts = searchTerm
-    ? products.filter((p) =>
-        p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.barcode?.includes(searchTerm)
+  // ✅ OPTIMIZED: Use useMemo for filtering large product lists
+  const filteredProducts = useMemo(() => {
+    if (!searchTerm || searchTerm.length < 2) return [];
+    
+    const lowerSearch = searchTerm.toLowerCase();
+    
+    return products
+      .filter((p) =>
+        p.name?.toLowerCase().includes(lowerSearch) ||
+        p.sku?.toLowerCase().includes(lowerSearch) ||
+        p.barcode?.toLowerCase().includes(lowerSearch) ||
+        p.carMake?.toLowerCase().includes(lowerSearch) ||
+        p.carModel?.toLowerCase().includes(lowerSearch)
       )
-    : [];
+      .slice(0, 50); // Limit to 50 results for performance
+  }, [products, searchTerm]);
 
   const totals = calculateTotals();
 
@@ -507,16 +514,6 @@ export default function NewPurchasePage() {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(amount);
-  };
-
-  const formatCompactCurrency = (amount: number) => {
-    if (amount >= 1000000) {
-      return `QR${(amount / 1000000).toFixed(1)}M`;
-    }
-    if (amount >= 10000) {
-      return `QR${(amount / 1000).toFixed(1)}K`;
-    }
-    return formatCurrency(amount);
   };
 
   return (
@@ -535,7 +532,7 @@ export default function NewPurchasePage() {
                 </button>
                 <div>
                   <h1 className="text-xl font-bold text-white">New Purchase</h1>
-                  <p className="text-xs text-white/60">{cart.length} items in cart</p>
+                  <p className="text-xs text-white/60">{cart.length} items • {products.length} products</p>
                 </div>
               </div>
               <button
@@ -562,7 +559,9 @@ export default function NewPurchasePage() {
                   <ShoppingCart className="h-8 w-8 text-[#E84545]" />
                   New Purchase
                 </h1>
-                <p className="text-white/90 mt-2">Create a new purchase order</p>
+                <p className="text-white/90 mt-2">
+                  Create a new purchase order • {products.length} products available
+                </p>
               </div>
               <div className="flex items-center gap-4">
                 <div className="bg-[#0A0A0A]/50 backdrop-blur-sm rounded-xl px-6 py-3 border border-white/10">
@@ -589,6 +588,9 @@ export default function NewPurchasePage() {
                   <h2 className="text-lg font-bold text-white flex items-center">
                     <Search className="h-5 w-5 mr-2 text-[#E84545]" />
                     Search Products
+                    {productsLoading && (
+                      <span className="ml-3 text-xs text-gray-400 animate-pulse">Loading...</span>
+                    )}
                   </h2>
                   <button
                     onClick={async () => {
@@ -608,17 +610,23 @@ export default function NewPurchasePage() {
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Search by name, SKU, or barcode..."
+                    placeholder="Type at least 2 characters to search..."
                     className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#E84545]/50 focus:border-[#E84545]/50"
+                    disabled={productsLoading}
                   />
+                  {searchTerm.length > 0 && searchTerm.length < 2 && (
+                    <p className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
+                      Type 1 more character...
+                    </p>
+                  )}
                 </div>
 
-                {searchTerm && (
+                {searchTerm.length >= 2 && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto">
                     {filteredProducts.length === 0 ? (
                       <div className="col-span-2 text-center py-8">
                         <Search className="h-12 w-12 mx-auto mb-3 text-gray-600" />
-                        <p className="text-gray-400">No products found</p>
+                        <p className="text-gray-400">No products found for "{searchTerm}"</p>
                         <button
                           onClick={async () => {
                             await fetchNextSKU();
@@ -631,32 +639,47 @@ export default function NewPurchasePage() {
                         </button>
                       </div>
                     ) : (
-                      filteredProducts.map((product) => (
-                        <div
-                          key={product._id}
-                          onClick={() => addToCart(product)}
-                          className="p-4 bg-white/5 border border-white/10 rounded-xl hover:border-[#E84545]/30 cursor-pointer transition-all active:scale-[0.98]"
-                        >
-                          <div className="flex justify-between items-start mb-2">
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-white truncate">{product.name}</h3>
-                              <p className="text-xs text-gray-400 mt-1">SKU: {product.sku}</p>
+                      <>
+                        {filteredProducts.map((product) => (
+                          <div
+                            key={product._id}
+                            onClick={() => addToCart(product)}
+                            className="p-4 bg-white/5 border border-white/10 rounded-xl hover:border-[#E84545]/30 cursor-pointer transition-all active:scale-[0.98]"
+                          >
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-semibold text-white truncate">{product.name}</h3>
+                                <p className="text-xs text-gray-400 mt-1">SKU: {product.sku}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                              <span className="text-[#E84545] font-bold">
+                                {formatCurrency(product.costPrice || product.sellingPrice)}
+                              </span>
+                              <span className="text-xs text-gray-500">Stock: {product.currentStock}</span>
                             </div>
                           </div>
-                          <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                            <span className="text-[#E84545] font-bold">
-                              {formatCurrency(product.costPrice || product.sellingPrice)}
-                            </span>
-                            <span className="text-xs text-gray-500">Stock: {product.currentStock}</span>
+                        ))}
+                        {filteredProducts.length >= 50 && (
+                          <div className="col-span-2 text-center py-3 text-xs text-gray-500">
+                            Showing first 50 results. Be more specific to narrow down.
                           </div>
-                        </div>
-                      ))
+                        )}
+                      </>
                     )}
+                  </div>
+                )}
+                
+                {searchTerm.length < 2 && !productsLoading && (
+                  <div className="text-center py-8">
+                    <Search className="h-12 w-12 mx-auto mb-3 text-gray-600" />
+                    <p className="text-gray-400">Start typing to search {products.length} products</p>
+                    <p className="text-xs text-gray-500 mt-1">Enter at least 2 characters</p>
                   </div>
                 )}
               </div>
 
-              {/* Desktop Cart */}
+              {/* Desktop Cart - keeping existing implementation */}
               <div className="hidden md:block bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl shadow-lg p-6">
                 <h2 className="text-lg font-bold text-white mb-4 flex items-center">
                   <ShoppingCart className="h-5 w-5 mr-2 text-[#E84545]" />
@@ -943,7 +966,7 @@ export default function NewPurchasePage() {
           </div>
         </div>
 
-        {/* Add Product Modal */}
+          {/* Add Product Modal */}
         <AddProductModal
           show={showAddProduct}
           onClose={() => setShowAddProduct(false)}

@@ -26,6 +26,8 @@ interface ClosingData {
   cashPayments: number;
   closingCash: number;
   salesCount: number;
+  purchasesCount?: number;
+  expensesCount?: number;
   totalDiscount: number;
   totalTax: number;
   openingStock: number;
@@ -248,7 +250,7 @@ export async function generateClosingPDF(data: PDFData): Promise<Blob> {
   yPosition += 40;
 
   // Financial Summary Section
-  checkAddPage(60);
+  checkAddPage(70);
   doc.setFillColor(COLORS.darkRed);
   doc.rect(margin, yPosition, contentWidth, 8, 'F');
   doc.setTextColor(COLORS.white);
@@ -258,13 +260,21 @@ export async function generateClosingPDF(data: PDFData): Promise<Blob> {
 
   yPosition += 12;
 
-  // Financial summary table
+  // Financial summary table with purchases separate from expenses
+  const totalCosts = closing.totalPurchases + closing.totalExpenses;
   const financialData = [
     ['Total Revenue', `QAR ${closing.totalRevenue.toLocaleString('en-QA', { minimumFractionDigits: 2 })}`],
+    ['', ''],
+    ['Total Purchases', `QAR ${closing.totalPurchases.toLocaleString('en-QA', { minimumFractionDigits: 2 })}`],
     ['Total Expenses', `QAR ${closing.totalExpenses.toLocaleString('en-QA', { minimumFractionDigits: 2 })}`],
+    ['Total Costs', `QAR ${totalCosts.toLocaleString('en-QA', { minimumFractionDigits: 2 })}`],
+    ['', ''],
     ['Net Profit/Loss', `QAR ${closing.netProfit.toLocaleString('en-QA', { minimumFractionDigits: 2 })}`],
     ['', ''],
     ['Sales Count', closing.salesCount.toString()],
+    ['Purchases Count', (closing.purchasesCount || 0).toString()],
+    ['Expenses Count', (closing.expensesCount || 0).toString()],
+    ['', ''],
     ['Total Discount', `QAR ${closing.totalDiscount.toLocaleString('en-QA', { minimumFractionDigits: 2 })}`],
     ['Total Tax', `QAR ${closing.totalTax.toLocaleString('en-QA', { minimumFractionDigits: 2 })}`],
   ];
@@ -283,14 +293,19 @@ export async function generateClosingPDF(data: PDFData): Promise<Blob> {
       1: { halign: 'right', cellWidth: contentWidth * 0.5 },
     },
     didParseCell: (data) => {
-      if (data.row.index === 2) {
+      if (data.row.index === 6) {
         // Net Profit row
         data.cell.styles.fillColor = closing.netProfit >= 0 ? [16, 185, 129] : [239, 68, 68];
         data.cell.styles.textColor = [255, 255, 255];
         data.cell.styles.fontStyle = 'bold';
-      } else if (data.row.index === 3) {
-        // Empty row
+      } else if (data.row.index === 4) {
+        // Total Costs row
+        data.cell.styles.fillColor = [243, 244, 246];
+        data.cell.styles.fontStyle = 'bold';
+      } else if ([1, 5, 7, 11].includes(data.row.index)) {
+        // Empty rows
         data.cell.styles.fillColor = [255, 255, 255];
+        data.cell.styles.minCellHeight = 3;
       }
     },
     margin: { left: margin, right: margin },
@@ -573,6 +588,57 @@ export async function generateClosingPDF(data: PDFData): Promise<Blob> {
     yPosition = (doc as any).lastAutoTable.finalY + 10;
   }
 
+  // Purchases List
+  if (purchases.length > 0) {
+    checkAddPage(60);
+    if ((doc as any).lastAutoTable && (doc as any).lastAutoTable.finalY + 60 > pageHeight - 20) {
+      doc.addPage();
+      yPosition = 20;
+    }
+
+    doc.setFillColor(COLORS.darkRed);
+    doc.rect(margin, yPosition, contentWidth, 8, 'F');
+    doc.setTextColor(COLORS.white);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('PURCHASES', margin + 5, yPosition + 6);
+
+    yPosition += 12;
+
+    const purchasesTableData = purchases.map((purchase) => [
+      purchase.voucherNumber,
+      new Date(purchase.date).toLocaleDateString('en-US'),
+      purchase.supplierName || '-',
+      `QAR ${purchase.amount.toLocaleString('en-QA', { minimumFractionDigits: 2 })}`,
+    ]);
+
+    autoTable(doc, {
+      startY: yPosition,
+      head: [['Voucher #', 'Date', 'Supplier', 'Amount']],
+      body: purchasesTableData,
+      theme: 'striped',
+      headStyles: {
+        fillColor: [147, 34, 34],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 10,
+      },
+      styles: {
+        fontSize: 9,
+        cellPadding: 3,
+      },
+      columnStyles: {
+        0: { cellWidth: 35 },
+        1: { cellWidth: 35 },
+        2: { cellWidth: 70 },
+        3: { halign: 'right', cellWidth: 40 },
+      },
+      margin: { left: margin, right: margin },
+    });
+
+    yPosition = (doc as any).lastAutoTable.finalY + 10;
+  }
+
   // Expenses List
   if (expenses.length > 0) {
     checkAddPage(60);
@@ -619,57 +685,6 @@ export async function generateClosingPDF(data: PDFData): Promise<Blob> {
         2: { cellWidth: 60 },
         3: { cellWidth: 25 },
         4: { halign: 'right', cellWidth: 25 },
-      },
-      margin: { left: margin, right: margin },
-    });
-
-    yPosition = (doc as any).lastAutoTable.finalY + 10;
-  }
-
-  // Purchases List
-  if (purchases.length > 0) {
-    checkAddPage(60);
-    if ((doc as any).lastAutoTable && (doc as any).lastAutoTable.finalY + 60 > pageHeight - 20) {
-      doc.addPage();
-      yPosition = 20;
-    }
-
-    doc.setFillColor(COLORS.darkRed);
-    doc.rect(margin, yPosition, contentWidth, 8, 'F');
-    doc.setTextColor(COLORS.white);
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('PURCHASES', margin + 5, yPosition + 6);
-
-    yPosition += 12;
-
-    const purchasesTableData = purchases.map((purchase) => [
-      purchase.voucherNumber,
-      new Date(purchase.date).toLocaleDateString('en-US'),
-      purchase.supplierName || '-',
-      `QAR ${purchase.amount.toLocaleString('en-QA', { minimumFractionDigits: 2 })}`,
-    ]);
-
-    autoTable(doc, {
-      startY: yPosition,
-      head: [['Voucher #', 'Date', 'Supplier', 'Amount']],
-      body: purchasesTableData,
-      theme: 'striped',
-      headStyles: {
-        fillColor: [147, 34, 34],
-        textColor: [255, 255, 255],
-        fontStyle: 'bold',
-        fontSize: 10,
-      },
-      styles: {
-        fontSize: 9,
-        cellPadding: 3,
-      },
-      columnStyles: {
-        0: { cellWidth: 35 },
-        1: { cellWidth: 35 },
-        2: { cellWidth: 70 },
-        3: { halign: 'right', cellWidth: 40 },
       },
       margin: { left: margin, right: margin },
     });

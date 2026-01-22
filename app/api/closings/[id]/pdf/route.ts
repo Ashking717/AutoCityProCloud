@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/mongodb';
 import Closing from '@/lib/models/Closing';
 import Sale from '@/lib/models/Sale';
-import Voucher from '@/lib/models/Voucher';
+import Purchase from '@/lib/models/Purchase';
+import Expense from '@/lib/models/Expense';
 import Product from '@/lib/models/ProductEnhanced';
 import Outlet from '@/lib/models/Outlet';
 import { cookies } from 'next/headers';
@@ -57,47 +58,43 @@ export async function GET(
         .lean();
     }
 
-    // Fetch expense vouchers
-    const expenseVouchers = await Voucher.find({
+    // Fetch purchases
+    const purchasesData = await Purchase.find({
       outletId: user.outletId,
-      voucherType: 'payment',
-      date: {
+      purchaseDate: {
         $gte: new Date(closing.periodStart),
         $lte: new Date(closing.periodEnd),
       },
-      status: { $in: ['posted', 'approved'] },
-      referenceType: 'PAYMENT',
+      status: { $in: ['PAID', 'COMPLETED'] },
     })
-      .select('voucherNumber date description totalDebit category')
+      .select('purchaseNumber purchaseDate supplierName amountPaid totalAmount')
       .lean();
 
-    const expenses = expenseVouchers.map((v: any) => ({
-      voucherNumber: v.voucherNumber,
-      date: v.date,
-      description: v.description || 'Expense',
-      amount: v.totalDebit || 0,
-      category: v.category || 'General',
+    const purchases = purchasesData.map((p: any) => ({
+      voucherNumber: p.purchaseNumber || 'N/A',
+      date: p.purchaseDate,
+      supplierName: p.supplierName || 'Unknown',
+      amount: p.amountPaid || p.totalAmount || 0,
     }));
 
-    // Fetch purchase vouchers
-    const purchaseVouchers = await Voucher.find({
+    // Fetch expenses
+    const expensesData = await Expense.find({
       outletId: user.outletId,
-      voucherType: 'payment',
-      date: {
+      expenseDate: {
         $gte: new Date(closing.periodStart),
         $lte: new Date(closing.periodEnd),
       },
-      status: { $in: ['posted', 'approved'] },
-      referenceType: 'PURCHASE',
+      status: { $in: ['PAID', 'PARTIALLY_PAID'] },
     })
-      .select('voucherNumber date supplierName totalDebit')
+      .select('expenseNumber expenseDate description category amountPaid totalAmount')
       .lean();
 
-    const purchases = purchaseVouchers.map((v: any) => ({
-      voucherNumber: v.voucherNumber,
-      date: v.date,
-      supplierName: v.supplierName || 'Unknown',
-      amount: v.totalDebit || 0,
+    const expenses = expensesData.map((e: any) => ({
+      voucherNumber: e.expenseNumber || 'N/A',
+      date: e.expenseDate,
+      description: e.description || 'Expense',
+      amount: e.amountPaid || e.totalAmount || 0,
+      category: e.category || 'General',
     }));
 
     // Fetch inventory data
@@ -125,28 +122,28 @@ export async function GET(
         periodStart: closing.periodStart,
         periodEnd: closing.periodEnd,
         status: closing.status,
-        totalSales: closing.totalSales,
-        totalPurchases: closing.totalPurchases,
-        totalExpenses: closing.totalExpenses,
-        totalRevenue: closing.totalRevenue,
-        netProfit: closing.netProfit,
-        openingCash: closing.openingCash,
+        totalSales: closing.totalSales || 0,
+        totalPurchases: closing.totalPurchases || 0,
+        totalExpenses: closing.totalExpenses || 0,
+        totalRevenue: closing.totalRevenue || 0,
+        netProfit: closing.netProfit || 0,
+        openingCash: closing.openingCash || 0,
         openingBank: closing.openingBank || 0,
-        cashSales: closing.cashSales,
-        cashReceipts: closing.cashReceipts,
-        cashPayments: closing.cashPayments,
-        closingCash: closing.closingCash,
+        cashSales: closing.cashSales || 0,
+        cashReceipts: closing.cashReceipts || 0,
+        cashPayments: closing.cashPayments || 0,
+        closingCash: closing.closingCash || 0,
         closingBank: closing.closingBank || 0,
         bankSales: closing.bankSales || 0,
         bankPayments: closing.bankPayments || 0,
         totalOpeningBalance: closing.totalOpeningBalance || 0,
         totalClosingBalance: closing.totalClosingBalance || 0,
-        salesCount: closing.salesCount,
-        totalDiscount: closing.totalDiscount,
-        totalTax: closing.totalTax,
-        openingStock: closing.openingStock,
-        closingStock: closing.closingStock,
-        stockValue: closing.stockValue,
+        salesCount: closing.salesCount || 0,
+        totalDiscount: closing.totalDiscount || 0,
+        totalTax: closing.totalTax || 0,
+        openingStock: closing.openingStock || 0,
+        closingStock: closing.closingStock || 0,
+        stockValue: closing.stockValue || 0,
         ledgerEntriesCount: closing.ledgerEntriesCount,
         trialBalanceMatched: closing.trialBalanceMatched,
         totalDebits: closing.totalDebits,

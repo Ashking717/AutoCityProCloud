@@ -286,16 +286,16 @@ export async function POST(req: NextRequest) {
     let openingBank = 0;
 
     if (isFirstClosing) {
-      // For first closing, calculate opening balance from ALL ledger entries up to and including
-      // the start of the period, excluding operational transactions
-      // Opening balance entries can be on the same day as first transaction - that's fine!
+      // For first closing, look for OPENING_BALANCE entries regardless of date
+      // Opening balances can be created at ANY time - before or after first transaction
+      // We identify them by referenceType, not by date
       
       async function getOpeningBalance(subType: AccountSubType): Promise<number> {
         console.log(`\n[DEBUG] Getting opening balance for subType: "${subType}"`);
         
         const accounts = await Account.find({
           outletId: user.outletId,
-          subType: subType, // This will use the enum value directly (lowercase)
+          subType: subType,
           isActive: true,
         }).select('_id name code subType').lean();
 
@@ -308,78 +308,65 @@ export async function POST(req: NextRequest) {
 
         if (!accounts.length) {
           console.log(`[DEBUG] No ${subType} accounts found for opening balance calculation`);
-          
-          // Debug: Check if ANY accounts exist for this outlet
-          const allAccounts = await Account.find({
-            outletId: user.outletId,
-            isActive: true
-          }).select('name code subType').lean();
-          console.log(`[DEBUG] Total active accounts for outlet: ${allAccounts.length}`);
-          if (allAccounts.length > 0) {
-            console.log('[DEBUG] Sample accounts:');
-            allAccounts.slice(0, 5).forEach(acc => {
-              console.log(`  - ${acc.name}: subType="${acc.subType}"`);
-            });
-          }
-          
           return 0;
         }
 
         const accountIds = accounts.map(a => a._id);
-        console.log(`[DEBUG] Looking for ledger entries with:`);
+        
+        // Strategy: Look for opening balance entries by referenceType
+        // These can be dated ANYTIME - we identify them by type, not date
+        console.log(`[DEBUG] Looking for OPENING_BALANCE entries (any date):`);
         console.log(`  outletId: ${user.outletId}`);
         console.log(`  accountIds: [${accountIds.join(', ')}]`);
-        console.log(`  date <= ${periodStart.toISOString()}`);
         
-        // Get ALL entries up to period start
-        const allEntriesUpToStart = await LedgerEntry.find({
+        const openingBalanceEntries = await LedgerEntry.find({
           outletId: user.outletId,
           accountId: { $in: accountIds },
-          date: { $lte: periodStart },
+          $or: [
+            { referenceType: 'OPENING_BALANCE' },
+            { referenceType: 'ADJUSTMENT', narration: /opening balance/i }
+          ]
         }).lean();
 
-        console.log(`[DEBUG] Found ${allEntriesUpToStart.length} ledger entries for ${subType} up to ${periodStart.toISOString()}`);
+        console.log(`[DEBUG] Found ${openingBalanceEntries.length} opening balance entries for ${subType}`);
 
-        if (allEntriesUpToStart.length > 0) {
-          console.log('[DEBUG] Ledger entries found:');
-          allEntriesUpToStart.forEach((e, i) => {
-            console.log(`  ${i + 1}. Date: ${new Date(e.date).toISOString()}`);
+        if (openingBalanceEntries.length > 0) {
+          console.log('[DEBUG] Opening balance entries:');
+          openingBalanceEntries.forEach((e, i) => {
+            console.log(`  ${i + 1}. Date: ${new Date(e.date).toISOString()} (creation date, not relevant)`);
             console.log(`     AccountId: ${e.accountId}`);
             console.log(`     Debit: ${e.debit}, Credit: ${e.credit}`);
+            console.log(`     Amount: ${e.debit - e.credit}`);
             console.log(`     Narration: ${e.narration}`);
             console.log(`     Reference: ${e.referenceType}`);
           });
-          
-          // Show details of opening entries
-          const openingEntries = allEntriesUpToStart.filter(e => 
-            e.referenceType === 'OPENING_BALANCE' || 
-            e.referenceType === 'ADJUSTMENT' ||
-            (e.narration && e.narration.toLowerCase().includes('opening balance'))
-          );
-          
-          if (openingEntries.length > 0) {
-            console.log(`  → Found ${openingEntries.length} opening balance entries for ${subType}`);
-          }
         } else {
-          // Debug: Check if ledger entries exist at all for these accounts
+          // Debug: Check if ANY entries exist for these accounts
           const anyEntries = await LedgerEntry.find({
             outletId: user.outletId,
             accountId: { $in: accountIds }
           }).limit(5).lean();
           
-          console.log(`[DEBUG] Total ledger entries for these accounts (any date): ${anyEntries.length}`);
+          console.log(`[DEBUG] Total ledger entries for these accounts: ${anyEntries.length}`);
           if (anyEntries.length > 0) {
-            console.log('[DEBUG] Sample entries (showing why they might be excluded):');
+            console.log('[DEBUG] Sample entries (none marked as OPENING_BALANCE):');
             anyEntries.forEach(e => {
-              const entryDate = new Date(e.date);
-              console.log(`  - Date: ${entryDate.toISOString()} (${entryDate > periodStart ? 'AFTER' : 'BEFORE'} period start)`);
+              console.log(`  - Date: ${new Date(e.date).toISOString()}`);
+              console.log(`    ReferenceType: ${e.referenceType || 'null'}`);
+              console.log(`    Narration: ${e.narration}`);
               console.log(`    Amount: ${e.debit - e.credit}`);
             });
           }
+          
+          console.log(`[DEBUG] ⚠️  No entries with referenceType='OPENING_BALANCE' found`);
+          console.log(`[DEBUG] Make sure opening balance entries have:`);
+          console.log(`  - referenceType: 'OPENING_BALANCE'`);
+          console.log(`  - OR referenceType: 'ADJUSTMENT' with narration containing 'opening balance'`);
         }
 
-        // Calculate balance: Debits increase asset accounts (Cash/Bank), Credits decrease them
-        const balance = allEntriesUpToStart.reduce(
+        // Calculate balance: Sum all opening balance entries
+        // Debits increase asset accounts (Cash/Bank), Credits decrease them
+        const balance = openingBalanceEntries.reduce(
           (sum, e) => sum + (e.debit || 0) - (e.credit || 0),
           0
         );
@@ -387,21 +374,22 @@ export async function POST(req: NextRequest) {
         return balance;
       }
 
-      openingCash = await getOpeningBalance(AccountSubType.CASH); // 'cash'
-      openingBank = await getOpeningBalance(AccountSubType.BANK); // 'bank'
+      openingCash = await getOpeningBalance(AccountSubType.CASH);
+      openingBank = await getOpeningBalance(AccountSubType.BANK);
 
       console.log(`First closing - Opening balances from ledger:`);
-      console.log(`  Cash: ${openingCash} QAR (from entries up to ${periodStart.toISOString()})`);
-      console.log(`  Bank: ${openingBank} QAR (from entries up to ${periodStart.toISOString()})`);
+      console.log(`  Cash: ${openingCash} QAR (from OPENING_BALANCE entries)`);
+      console.log(`  Bank: ${openingBank} QAR (from OPENING_BALANCE entries)`);
       console.log(`  Total Opening: ${openingCash + openingBank} QAR`);
 
       // If no ledger entries found but expecting opening balance, log warning
       if (openingCash === 0 && openingBank === 0) {
         console.log('⚠️  No opening balances found in ledger. If you have opening balances, please ensure:');
-        console.log('   1. Opening balance ledger entries exist (can be on same day as first transaction)');
-        console.log('   2. Accounts are properly set up with subType CASH or BANK');
-        console.log('   3. Ledger entries are associated with correct account IDs');
-        console.log('   4. Check referenceType is OPENING_BALANCE or ADJUSTMENT');
+        console.log('   1. Opening balance ledger entries have referenceType="OPENING_BALANCE"');
+        console.log('   2. OR referenceType="ADJUSTMENT" with narration containing "opening balance"');
+        console.log('   3. Accounts are properly set up with subType "cash" or "bank"');
+        console.log('   4. Ledger entries are associated with correct account IDs');
+        console.log('   Note: Opening balance entries can be dated anytime - date does not matter');
       }
     } else {
       // For subsequent closings, use previous closing's closing balances
@@ -456,7 +444,7 @@ export async function POST(req: NextRequest) {
 
     const salesCount = sales.length;
 
-    console.log(`Sales totals: Revenue=${totalRevenue}, Cash=${cashSales}, Bank=${bankSales}`);
+    console.log(`Sales: Count=${salesCount}, Revenue=${totalRevenue}, Cash=${cashSales}, Bank=${bankSales}`);
 
     /* ---------------- CASH PAYMENTS ---------------- */
     const cashPurchases = await Purchase.find({
@@ -470,6 +458,7 @@ export async function POST(req: NextRequest) {
       (sum, p) => sum + (p.amountPaid || 0),
       0
     );
+    const cashPurchaseCount = cashPurchases.length;
 
     const cashExpenses = await Expense.find({
       outletId: user.outletId,
@@ -482,10 +471,13 @@ export async function POST(req: NextRequest) {
       (sum, e) => sum + (e.amountPaid || 0),
       0
     );
+    const cashExpenseCount = cashExpenses.length;
 
     const cashPayments = cashPurchasePayments + cashExpensePayments;
 
-    console.log(`Cash payments: Purchases=${cashPurchasePayments}, Expenses=${cashExpensePayments}, Total=${cashPayments}`);
+    console.log(`Cash Purchases: Count=${cashPurchaseCount}, Amount=${cashPurchasePayments}`);
+    console.log(`Cash Expenses: Count=${cashExpenseCount}, Amount=${cashExpensePayments}`);
+    console.log(`Cash Total Payments: ${cashPayments}`);
 
     /* ---------------- CASH CLOSING ---------------- */
     const closingCash = openingCash + cashSales - cashPayments;
@@ -502,6 +494,7 @@ export async function POST(req: NextRequest) {
       (sum, p) => sum + (p.amountPaid || 0),
       0
     );
+    const bankPurchaseCount = bankPurchases.length;
 
     const bankExpenses = await Expense.find({
       outletId: user.outletId,
@@ -514,10 +507,13 @@ export async function POST(req: NextRequest) {
       (sum, e) => sum + (e.amountPaid || 0),
       0
     );
+    const bankExpenseCount = bankExpenses.length;
 
     const bankPayments = bankPurchasePayments + bankExpensePayments;
 
-    console.log(`Bank payments: Purchases=${bankPurchasePayments}, Expenses=${bankExpensePayments}, Total=${bankPayments}`);
+    console.log(`Bank Purchases: Count=${bankPurchaseCount}, Amount=${bankPurchasePayments}`);
+    console.log(`Bank Expenses: Count=${bankExpenseCount}, Amount=${bankExpensePayments}`);
+    console.log(`Bank Total Payments: ${bankPayments}`);
 
     /* ---------------- BANK CLOSING ---------------- */
     const closingBank = openingBank + bankSales - bankPayments;
@@ -528,8 +524,14 @@ export async function POST(req: NextRequest) {
     const totalOpeningBalance = openingCash + openingBank;
     const totalClosingBalance = closingCash + closingBank;
 
+    /* ---------------- SEPARATE TOTALS FOR PURCHASES AND EXPENSES ---------------- */
+    const totalPurchases = cashPurchasePayments + bankPurchasePayments;
+    const totalExpensesOnly = cashExpensePayments + bankExpensePayments;
+    const totalExpenses = totalPurchases + totalExpensesOnly; // Combined for profit calc
+
+    console.log(`Totals: Purchases=${totalPurchases}, Expenses=${totalExpensesOnly}, Combined=${totalExpenses}`);
+
     /* ---------------- PROFIT ---------------- */
-    const totalExpenses = bankPayments + cashPayments;
     const netProfit = totalRevenue - totalExpenses;
 
     /* ---------------- INVENTORY (Optional - calculate if needed) ---------------- */
@@ -552,19 +554,20 @@ export async function POST(req: NextRequest) {
       periodEnd,
 
       totalSales: totalRevenue,
-      totalExpenses,
+      totalPurchases, // Add total purchases separately
+      totalExpenses: totalExpensesOnly, // Only expenses, not including purchases
       totalRevenue,
       netProfit,
 
       openingCash,
       cashSales,
       cashReceipts: 0,
-      cashPayments,
+      cashPayments, // Includes both purchases and expenses
       closingCash,
 
       openingBank,
       bankSales,
-      bankPayments,
+      bankPayments, // Includes both purchases and expenses
       closingBank,
 
       totalOpeningBalance,
@@ -573,6 +576,9 @@ export async function POST(req: NextRequest) {
       salesCount,
       totalDiscount,
       totalTax,
+
+      purchasesCount: cashPurchaseCount + bankPurchaseCount,
+      expensesCount: cashExpenseCount + bankExpenseCount,
 
       openingStock: 0, // Can be calculated from previous closing if needed
       closingStock,
@@ -600,7 +606,7 @@ export async function POST(req: NextRequest) {
         description: isFirstClosing 
           ? `First ${closingType} closing created for period ${periodStart.toLocaleDateString()} to ${periodEnd.toLocaleDateString()}`
           : `${closingType.charAt(0).toUpperCase() + closingType.slice(1)} closing created for ${closingDay.toLocaleDateString()}`,
-        username: `${user.username|| ''} ${user.username || ''}`.trim() || 'Unknown User',
+        username: `${user.username || ''} `.trim() || 'Unknown User',
         resourceType: 'Closing',
         resourceId: closing._id,
         details: {

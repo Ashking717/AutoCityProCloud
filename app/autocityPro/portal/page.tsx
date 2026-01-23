@@ -91,6 +91,16 @@ export default function PurchasesPortalPage() {
       href: "/autocityPro/purchases",
       shortcut: "Ctrl+Shift+P",
     },
+    {
+      id: 6,
+      title: "Inventory Movements",
+      shortTitle: "Movements",
+      description: "Track inventory movements",
+      icon: Package,
+      gradient: "from-blue-500 to-cyan-600",
+      href: "/autocityPro/inventory-movements",
+      shortcut: "Ctrl+M",
+    }
   ]);
   const [stats, setStats] = useState({
     totalPurchases: 0,

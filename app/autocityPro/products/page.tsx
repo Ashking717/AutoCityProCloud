@@ -67,6 +67,9 @@ export default function ProductsPage() {
   const [totalProducts, setTotalProducts] = useState(0);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [nextSKU, setNextSKU] = useState<string>("10001");
+  
+  // Infinite scroll observer ref
+  const observerTarget = useRef<HTMLDivElement>(null);
 
   // Quick Add Category
   const [showQuickAddCategory, setShowQuickAddCategory] = useState(false);
@@ -251,6 +254,74 @@ export default function ProductsPage() {
     return () => window.removeEventListener("resize", checkIfMobile);
   }, []);
 
+  // Infinite scroll observer - FIXED VERSION
+  useEffect(() => {
+    // Wait until products are loaded and we have more to load
+    if (!hasMoreProducts || products.length === 0) {
+      console.log("Observer not needed:", { 
+        hasMoreProducts, 
+        productsLength: products.length 
+      });
+      return;
+    }
+
+    // Wait a tiny bit for the DOM to update after products render
+    const timeoutId = setTimeout(() => {
+      console.log("Setting up intersection observer", {
+        hasMoreProducts,
+        isLoadingMore,
+        loading,
+        currentPage,
+        productsLength: products.length,
+        observerTargetExists: !!observerTarget.current,
+      });
+
+      if (!observerTarget.current) {
+        console.error("❌ Observer target still not found after timeout!");
+        return;
+      }
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          const entry = entries[0];
+          console.log("Intersection observer triggered:", {
+            isIntersecting: entry.isIntersecting,
+            hasMoreProducts,
+            isLoadingMore,
+            loading,
+            currentPage,
+          });
+
+          if (entry.isIntersecting && hasMoreProducts && !isLoadingMore && !loading) {
+            console.log("✅ Loading more products...", {
+              currentPage,
+              nextPage: currentPage + 1,
+            });
+            loadMoreProducts();
+          }
+        },
+        {
+          threshold: 0.1,
+          rootMargin: "200px",
+        }
+      );
+
+      const currentTarget = observerTarget.current;
+      console.log("✅ Observer attached to target");
+      observer.observe(currentTarget);
+
+      // Cleanup function
+      return () => {
+        console.log("Cleaning up observer");
+        observer.unobserve(currentTarget);
+      };
+    }, 100); // Small delay to ensure DOM is ready
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [hasMoreProducts, isLoadingMore, loading, currentPage, products.length]);
+
   useEffect(() => {
     setCurrentPage(1);
     fetchProducts(1, false);
@@ -346,8 +417,21 @@ export default function ProductsPage() {
   };
 
   const loadMoreProducts = () => {
+    console.log("🔄 loadMoreProducts called", {
+      isLoadingMore,
+      hasMoreProducts,
+      currentPage,
+      nextPage: currentPage + 1,
+    });
+    
     if (!isLoadingMore && hasMoreProducts) {
+      console.log("✅ Fetching page:", currentPage + 1);
       fetchProducts(currentPage + 1, true);
+    } else {
+      console.log("❌ Blocked from fetching:", {
+        isLoadingMore,
+        hasMoreProducts,
+      });
     }
   };
 
@@ -1532,61 +1616,58 @@ export default function ProductsPage() {
             </div>
           </div>
 
-          {/* Load More Button - Desktop */}
-          {hasMoreProducts && !loading && (
-            <div className="hidden md:flex justify-center py-8">
-              <button
-                onClick={loadMoreProducts}
-                disabled={isLoadingMore}
-                className="flex items-center space-x-3 px-6 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 shadow-lg"
-              >
-                {isLoadingMore ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                    <span>Loading More...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Load More Products</span>
-                    <span className="text-sm opacity-80 bg-white/20 px-2 py-1 rounded">
-                      {products.length} of {totalProducts}
-                    </span>
-                  </>
-                )}
-              </button>
+          {/* Infinite Scroll Trigger - OUTSIDE products container */}
+          {!loading && hasMoreProducts && products.length > 0 && (
+            <div
+              ref={observerTarget}
+              className="flex justify-center py-12 min-h-[100px] bg-[rgba(255,0,0,0.05)]"
+            >
+              {isLoadingMore ? (
+                <div className="flex flex-col items-center justify-center gap-3">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#E84545]"></div>
+                  <p className="text-sm text-slate-400">
+                    Loading more products...
+                  </p>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <p className="text-slate-600 text-sm">
+                    Scroll down to load more...
+                  </p>
+                  <p className="text-slate-500 text-xs mt-1">
+                    Showing {products.length} of {totalProducts}
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Load More Button - Mobile */}
-          {hasMoreProducts && !loading && (
-            <div className="md:hidden flex justify-center py-6">
-              <button
-                onClick={loadMoreProducts}
-                disabled={isLoadingMore}
-                className="w-full mx-4 px-6 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {isLoadingMore ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                    <span>Loading...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Load More</span>
-                    <span className="text-sm opacity-80">
-                      ({products.length}/{totalProducts})
-                    </span>
-                  </>
-                )}
-              </button>
+          {/* All Products Loaded */}
+          {!loading && !hasMoreProducts && products.length > 0 && (
+            <div className="flex justify-center py-8">
+              <div className="text-center">
+                <p className="text-slate-500 text-lg">✓ All products loaded</p>
+                <p className="text-slate-600 text-sm mt-1">
+                  Showing all {products.length} products
+                </p>
+              </div>
             </div>
           )}
 
-          {/* Products Count Display */}
+          {/* Products Status Display */}
           {!loading && products.length > 0 && (
             <div className="text-center py-4 text-gray-400 text-sm border-t border-white/5">
-              Showing {products.length} of {totalProducts} products
-              {hasMoreProducts && " • Scroll down to load more"}
+              {hasMoreProducts ? (
+                <>
+                  Showing {products.length} of {totalProducts} products
+                  <span className="hidden md:inline">
+                    {" "}
+                    • Scroll down to load more
+                  </span>
+                </>
+              ) : (
+                <>All {products.length} products loaded</>
+              )}
             </div>
           )}
         </div>
@@ -1613,7 +1694,7 @@ export default function ProductsPage() {
                   setShowAddModal(true);
                   setShowMobileMenu(false);
                 }}
-                className="w-full p-4 bg-gradient-to-red from-[#E84545] to-[#cc3c3c] rounded-2xl text-white font-semibold hover:opacity-90 transition-all flex items-center justify-between active:scale-95"
+                className="w-full p-4 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] rounded-2xl text-white font-semibold hover:opacity-90 transition-all flex items-center justify-between active:scale-95"
               >
                 <span>Add Product</span>
                 <Plus className="h-5 w-5" />

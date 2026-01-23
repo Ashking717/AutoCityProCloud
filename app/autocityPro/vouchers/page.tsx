@@ -29,7 +29,8 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
-  Ban
+  Ban,
+  LucideBadgeAlert
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -99,7 +100,7 @@ export default function VouchersPage() {
   const getVoucherTypeIcon = (type: string) => {
     switch (type) {
       case 'payment': return <DollarSign className="h-4 w-4 text-red-400" />;
-      case 'receipt': return <DollarSign className="h-4 w-4 text-green-400" />;
+      case 'ledger-entries': return <LucideBadgeAlert className="h-4 w-4 text-green-400" />;
       case 'journal': return <BookOpen className="h-4 w-4 text-blue-400" />;
       case 'contra': return <ArrowLeftRight className="h-4 w-4 text-purple-400" />;
       default: return <FileText className="h-4 w-4 text-gray-400" />;
@@ -225,7 +226,7 @@ export default function VouchersPage() {
   
   const voucherTypes = [
     // { value: 'payment', label: 'Payment', color: 'red', href: '/autocityPro/vouchers/payment' },
-    // { value: 'receipt', label: 'Receipt', color: 'green', href: '/autocityPro/vouchers/receipt' },
+    { value: 'ledger entries', label: 'Ledger Entries', color: 'green', href: '/autocityPro/ledger-entries' },
     { value: 'journal', label: 'Journal', color: 'blue', href: '/autocityPro/vouchers/journal' },
     { value: 'contra', label: 'Contra', color: 'purple', href: '/autocityPro/vouchers/contra' },
   ];
@@ -438,8 +439,8 @@ export default function VouchersPage() {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="font-semibold text-white group-hover:text-red-400">{type.label} Voucher</h3>
-                    <p className="text-sm text-gray-500 mt-1">Create new</p>
+                    <h3 className="font-semibold text-white group-hover:text-red-400">{type.label} </h3>
+                    <p className="text-sm text-gray-500 mt-1"></p>
                   </div>
                   <div className={`p-3 rounded-xl bg-${type.color}-900/20 border border-${type.color}-800/50 group-hover:border-[#E84545] transition-all`}>
                     {getVoucherTypeIcon(type.value)}

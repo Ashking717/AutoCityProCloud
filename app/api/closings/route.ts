@@ -2,28 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { connectDB } from '@/lib/db/mongodb';
 import { verifyToken } from '@/lib/auth/jwt';
-import mongoose from 'mongoose';
 
 import Closing from '@/lib/models/Closing';
 import Sale from '@/lib/models/Sale';
-import Voucher from '@/lib/models/Voucher';
 import LedgerEntry from '@/lib/models/LedgerEntry';
-import ActivityLog from '@/lib/models/ActivityLog';
 import Product from '@/lib/models/ProductEnhanced';
 import Account, { AccountSubType } from '@/lib/models/Account';
 import Purchase from '@/lib/models/Purchase';
 import Expense from '@/lib/models/Expense';
 
-// Type for earliest transaction results
-interface EarliestTransaction {
-  saleDate?: Date;
-  purchaseDate?: Date;
-  expenseDate?: Date;
-}
+import { getClosingConfig } from '@/lib/config/closingConfig';
 
-// ─────────────────────────────────────────────
-// GET /api/closings
-// ─────────────────────────────────────────────
+/* =========================================================
+   GET /api/closings
+   ========================================================= */
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
@@ -58,21 +50,24 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// ─────────────────────────────────────────────
-// Helper: Get Earliest Transaction Date
-// ─────────────────────────────────────────────
-async function getEarliestTransactionDate(outletId: string): Promise<Date | null> {
-  const [earliestSale, earliestPurchase, earliestExpense] = await Promise.all([
+/* =========================================================
+   Helper: Earliest Transaction Date
+   ========================================================= */
+async function getEarliestTransactionDate(
+  outletId: string
+): Promise<Date | null> {
+
+  const [sale, purchase, expense] = await Promise.all([
     Sale.findOne({ outletId })
       .sort({ saleDate: 1 })
       .select('saleDate')
       .lean<{ saleDate: Date } | null>(),
-    
+
     Purchase.findOne({ outletId })
       .sort({ purchaseDate: 1 })
       .select('purchaseDate')
       .lean<{ purchaseDate: Date } | null>(),
-    
+
     Expense.findOne({ outletId })
       .sort({ expenseDate: 1 })
       .select('expenseDate')
@@ -80,119 +75,93 @@ async function getEarliestTransactionDate(outletId: string): Promise<Date | null
   ]);
 
   const dates: Date[] = [];
-  if (earliestSale?.saleDate) dates.push(new Date(earliestSale.saleDate));
-  if (earliestPurchase?.purchaseDate) dates.push(new Date(earliestPurchase.purchaseDate));
-  if (earliestExpense?.expenseDate) dates.push(new Date(earliestExpense.expenseDate));
 
-  if (dates.length === 0) return null;
+  if (sale?.saleDate) {
+    dates.push(new Date(sale.saleDate));
+  }
+
+  if (purchase?.purchaseDate) {
+    dates.push(new Date(purchase.purchaseDate));
+  }
+
+  if (expense?.expenseDate) {
+    dates.push(new Date(expense.expenseDate));
+  }
+
+  if (!dates.length) return null;
 
   return new Date(Math.min(...dates.map(d => d.getTime())));
 }
 
-// ─────────────────────────────────────────────
-// Helper: Calculate Period Boundaries
-// ─────────────────────────────────────────────
-interface PeriodBoundaries {
-  periodStart: Date;
-  periodEnd: Date;
-  closingDay: Date;
-  isFirstClosing: boolean;
-}
 
+/* =========================================================
+   Helper: Calculate Period Boundaries (NO OVERLAP)
+   ========================================================= */
 async function calculatePeriodBoundaries(
   closingType: 'day' | 'month',
   closingDate: string,
   outletId: string
-): Promise<PeriodBoundaries> {
+) {
+  const config = getClosingConfig(outletId);
+
   const closingDay = new Date(closingDate);
   closingDay.setHours(0, 0, 0, 0);
 
-  let periodStart: Date;
-  let periodEnd: Date;
-
-  // Check if this is the first closing ever for this outlet
   const previousClosing = await Closing.findOne({
     outletId,
     closingType,
     closingDate: { $lt: closingDay },
   })
     .sort({ closingDate: -1 })
-    .lean();
+    .lean<{ periodEnd: Date } | null>();
 
   const isFirstClosing = !previousClosing;
 
-  if (closingType === 'day') {
-    if (isFirstClosing) {
-      // FIRST CLOSING: Include all historical data
-      const earliestDate = await getEarliestTransactionDate(outletId);
+  let periodStart: Date;
+  let periodEnd: Date;
 
-      if (earliestDate) {
-        periodStart = new Date(earliestDate);
-        periodStart.setHours(0, 0, 0, 0);
-      } else {
-        // No historical data, start from today
-        periodStart = new Date(closingDay);
-        periodStart.setHours(0, 0, 0, 0);
-      }
-
-      console.log(`FIRST CLOSING: Including all data from ${periodStart.toISOString()}`);
-    } else {
-      // Subsequent closings: Start from day after previous closing
-      const prevClosingDate = new Date(previousClosing.closingDate);
-      periodStart = new Date(prevClosingDate);
-      periodStart.setDate(periodStart.getDate() + 1);
+  /* ---------- START ---------- */
+  if (isFirstClosing) {
+    if (config.includeHistoricalDataInFirstClosing) {
+      const earliest = await getEarliestTransactionDate(outletId);
+      periodStart = earliest ? new Date(earliest) : new Date(closingDay);
       periodStart.setHours(0, 0, 0, 0);
+    } else {
+      periodStart = new Date(closingDay);
     }
-
-    // End time: Include transactions up to 6 AM next day (for late night operations)
-    periodEnd = new Date(closingDay);
-    periodEnd.setDate(periodEnd.getDate() + 1);
-    periodEnd.setHours(6, 0, 0, 0); // 6 AM next day cutoff
   } else {
-    // Monthly closing
-    if (isFirstClosing) {
-      // FIRST MONTHLY CLOSING: Include all historical data
-      const earliestDate = await getEarliestTransactionDate(outletId);
-
-      if (earliestDate) {
-        periodStart = new Date(earliestDate);
-        periodStart.setHours(0, 0, 0, 0);
-      } else {
-        // No historical data, start from beginning of month
-        periodStart = new Date(closingDay.getFullYear(), closingDay.getMonth(), 1);
-        periodStart.setHours(0, 0, 0, 0);
-      }
-
-      console.log(`FIRST MONTHLY CLOSING: Including all data from ${periodStart.toISOString()}`);
-    } else {
-      // Subsequent monthly closings: Start from month after previous closing
-      const prevClosingDate = new Date(previousClosing.closingDate);
-      periodStart = new Date(
-        prevClosingDate.getFullYear(),
-        prevClosingDate.getMonth() + 1,
-        1
-      );
-      periodStart.setHours(0, 0, 0, 0);
-    }
-
-    // End of month + 6 hours buffer for late night operations
-    periodEnd = new Date(closingDay.getFullYear(), closingDay.getMonth() + 1, 1);
-    periodEnd.setHours(6, 0, 0, 0);
+    // 🔒 CRITICAL RULE: CONTIGUOUS PERIODS
+    periodStart = new Date(previousClosing!.periodEnd);
   }
 
-  console.log(`Period boundaries: ${periodStart.toISOString()} to ${periodEnd.toISOString()}`);
+  /* ---------- END ---------- */
+  if (closingType === 'day') {
+    periodEnd = new Date(closingDay);
+    periodEnd.setDate(periodEnd.getDate() + 1);
+    periodEnd.setHours(config.lateNightCutoffHour, 0, 0, 0);
+  } else {
+    periodEnd = new Date(
+      closingDay.getFullYear(),
+      closingDay.getMonth() + 1,
+      1
+    );
+    periodEnd.setHours(config.lateNightCutoffHour, 0, 0, 0);
+  }
+
+  if (periodStart >= periodEnd) {
+    throw new Error('Invalid closing period: overlap detected');
+  }
 
   return { periodStart, periodEnd, closingDay, isFirstClosing };
 }
 
-// ─────────────────────────────────────────────
-// POST /api/closings
-// ─────────────────────────────────────────────
+/* =========================================================
+   POST /api/closings
+   ========================================================= */
 export async function POST(req: NextRequest) {
   try {
     await connectDB();
 
-    /* ---------------- AUTH ---------------- */
     const token = cookies().get('auth-token')?.value;
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -208,430 +177,245 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    /* ---------------- PERIOD BOUNDARIES ---------------- */
-    const { periodStart, periodEnd, closingDay, isFirstClosing } = 
-      await calculatePeriodBoundaries(closingType, closingDate, user.outletId || '');
-
-    console.log(`Closing ${closingType} for ${closingDay.toISOString()}`);
-    console.log(`Period: ${periodStart.toISOString()} to ${periodEnd.toISOString()}`);
-    console.log(`Is first closing: ${isFirstClosing}`);
-
-    /* ---------------- SEQUENTIAL ENFORCEMENT (Skip for first closing) ---------------- */
-    if (!isFirstClosing) {
-      const previousClosing = await Closing.findOne({
-        outletId: user.outletId,
+    const { periodStart, periodEnd, closingDay } =
+      await calculatePeriodBoundaries(
         closingType,
-        closingDate: { $lt: closingDay },
-      })
-        .sort({ closingDate: -1 })
-        .lean();
+        closingDate,
+        user.outletId || ''
+      );
 
-      if (previousClosing) {
-        if (closingType === 'day') {
-          // For daily closing, ensure previous day is closed
-          const expectedPrev = new Date(closingDay);
-          expectedPrev.setDate(expectedPrev.getDate() - 1);
-
-          if (
-            new Date(previousClosing.closingDate).toDateString() !==
-            expectedPrev.toDateString()
-          ) {
-            return NextResponse.json(
-              { 
-                error: 'Previous day is not closed. Please close it first.',
-                expectedDate: expectedPrev.toISOString().split('T')[0],
-                lastClosedDate: new Date(previousClosing.closingDate).toISOString().split('T')[0]
-              },
-              { status: 400 }
-            );
-          }
-        } else if (closingType === 'month') {
-          // For monthly closing, ensure previous month is closed
-          const expectedPrevMonth = new Date(closingDay.getFullYear(), closingDay.getMonth() - 1, 1);
-          const prevClosingMonth = new Date(previousClosing.closingDate);
-          
-          if (
-            prevClosingMonth.getFullYear() !== expectedPrevMonth.getFullYear() ||
-            prevClosingMonth.getMonth() !== expectedPrevMonth.getMonth()
-          ) {
-            return NextResponse.json(
-              { 
-                error: 'Previous month is not closed. Please close it first.',
-                expectedMonth: `${expectedPrevMonth.getFullYear()}-${String(expectedPrevMonth.getMonth() + 1).padStart(2, '0')}`,
-                lastClosedMonth: `${prevClosingMonth.getFullYear()}-${String(prevClosingMonth.getMonth() + 1).padStart(2, '0')}`
-              },
-              { status: 400 }
-            );
-          }
-        }
-      }
-    }
-
-    /* ---------------- CHECK FOR DUPLICATE ---------------- */
-    const existingClosing = await Closing.findOne({
+    const exists = await Closing.findOne({
       outletId: user.outletId,
       closingType,
       closingDate: closingDay,
     });
-
-    if (existingClosing) {
+    if (exists) {
       return NextResponse.json(
-        { error: `This ${closingType} is already closed.` },
+        { error: 'This period is already closed' },
         { status: 400 }
       );
     }
 
-    /* ---------------- OPENING BALANCES ---------------- */
-    let openingCash = 0;
-    let openingBank = 0;
-
-    if (isFirstClosing) {
-      // For first closing, look for OPENING_BALANCE entries regardless of date
-      // Opening balances can be created at ANY time - before or after first transaction
-      // We identify them by referenceType, not by date
-      
-      async function getOpeningBalance(subType: AccountSubType): Promise<number> {
-        console.log(`\n[DEBUG] Getting opening balance for subType: "${subType}"`);
-        
-        const accounts = await Account.find({
-          outletId: user.outletId,
-          subType: subType,
-          isActive: true,
-        }).select('_id name code subType').lean();
-
-        console.log(`[DEBUG] Found ${accounts.length} accounts with subType="${subType}":`);
-        accounts.forEach(acc => {
-          console.log(`  - ${acc.name} (${acc.code})`);
-          console.log(`    ID: ${acc._id}`);
-          console.log(`    SubType: ${acc.subType}`);
-        });
-
-        if (!accounts.length) {
-          console.log(`[DEBUG] No ${subType} accounts found for opening balance calculation`);
-          return 0;
-        }
-
-        const accountIds = accounts.map(a => a._id);
-        
-        // Strategy: Look for opening balance entries by referenceType
-        // These can be dated ANYTIME - we identify them by type, not date
-        console.log(`[DEBUG] Looking for OPENING_BALANCE entries (any date):`);
-        console.log(`  outletId: ${user.outletId}`);
-        console.log(`  accountIds: [${accountIds.join(', ')}]`);
-        
-        const openingBalanceEntries = await LedgerEntry.find({
-          outletId: user.outletId,
-          accountId: { $in: accountIds },
-          $or: [
-            { referenceType: 'OPENING_BALANCE' },
-            { referenceType: 'ADJUSTMENT', narration: /opening balance/i }
-          ]
-        }).lean();
-
-        console.log(`[DEBUG] Found ${openingBalanceEntries.length} opening balance entries for ${subType}`);
-
-        if (openingBalanceEntries.length > 0) {
-          console.log('[DEBUG] Opening balance entries:');
-          openingBalanceEntries.forEach((e, i) => {
-            console.log(`  ${i + 1}. Date: ${new Date(e.date).toISOString()} (creation date, not relevant)`);
-            console.log(`     AccountId: ${e.accountId}`);
-            console.log(`     Debit: ${e.debit}, Credit: ${e.credit}`);
-            console.log(`     Amount: ${e.debit - e.credit}`);
-            console.log(`     Narration: ${e.narration}`);
-            console.log(`     Reference: ${e.referenceType}`);
-          });
-        } else {
-          // Debug: Check if ANY entries exist for these accounts
-          const anyEntries = await LedgerEntry.find({
-            outletId: user.outletId,
-            accountId: { $in: accountIds }
-          }).limit(5).lean();
-          
-          console.log(`[DEBUG] Total ledger entries for these accounts: ${anyEntries.length}`);
-          if (anyEntries.length > 0) {
-            console.log('[DEBUG] Sample entries (none marked as OPENING_BALANCE):');
-            anyEntries.forEach(e => {
-              console.log(`  - Date: ${new Date(e.date).toISOString()}`);
-              console.log(`    ReferenceType: ${e.referenceType || 'null'}`);
-              console.log(`    Narration: ${e.narration}`);
-              console.log(`    Amount: ${e.debit - e.credit}`);
-            });
-          }
-          
-          console.log(`[DEBUG] ⚠️  No entries with referenceType='OPENING_BALANCE' found`);
-          console.log(`[DEBUG] Make sure opening balance entries have:`);
-          console.log(`  - referenceType: 'OPENING_BALANCE'`);
-          console.log(`  - OR referenceType: 'ADJUSTMENT' with narration containing 'opening balance'`);
-        }
-
-        // Calculate balance: Sum all opening balance entries
-        // Debits increase asset accounts (Cash/Bank), Credits decrease them
-        const balance = openingBalanceEntries.reduce(
-          (sum, e) => sum + (e.debit || 0) - (e.credit || 0),
-          0
-        );
-
-        return balance;
-      }
-
-      openingCash = await getOpeningBalance(AccountSubType.CASH);
-      openingBank = await getOpeningBalance(AccountSubType.BANK);
-
-      console.log(`First closing - Opening balances from ledger:`);
-      console.log(`  Cash: ${openingCash} QAR (from OPENING_BALANCE entries)`);
-      console.log(`  Bank: ${openingBank} QAR (from OPENING_BALANCE entries)`);
-      console.log(`  Total Opening: ${openingCash + openingBank} QAR`);
-
-      // If no ledger entries found but expecting opening balance, log warning
-      if (openingCash === 0 && openingBank === 0) {
-        console.log('⚠️  No opening balances found in ledger. If you have opening balances, please ensure:');
-        console.log('   1. Opening balance ledger entries have referenceType="OPENING_BALANCE"');
-        console.log('   2. OR referenceType="ADJUSTMENT" with narration containing "opening balance"');
-        console.log('   3. Accounts are properly set up with subType "cash" or "bank"');
-        console.log('   4. Ledger entries are associated with correct account IDs');
-        console.log('   Note: Opening balance entries can be dated anytime - date does not matter');
-      }
-    } else {
-      // For subsequent closings, use previous closing's closing balances
-      const previousClosing = await Closing.findOne({
+    /* ---------- LEDGER HELPER ---------- */
+    async function ledgerBalance(subTypes: AccountSubType[], upto: Date) {
+      const accounts = await Account.find({
         outletId: user.outletId,
-        closingType,
-        closingDate: { $lt: closingDay },
-      })
-        .sort({ closingDate: -1 })
-        .lean();
+        subType: { $in: subTypes },
+        isActive: true,
+      }).select('_id').lean();
 
-      if (previousClosing) {
-        openingCash = previousClosing.closingCash || 0;
-        openingBank = previousClosing.closingBank || 0;
-        console.log(`Subsequent closing - Opening balances from previous closing:`);
-        console.log(`  Cash: ${openingCash} QAR`);
-        console.log(`  Bank: ${openingBank} QAR`);
-      }
+      const entries = await LedgerEntry.find({
+        outletId: user.outletId,
+        accountId: { $in: accounts.map(a => a._id) },
+        date: { $lte: upto },
+      }).lean();
+
+      return entries.reduce(
+        (s, e) => s + (e.debit || 0) - (e.credit || 0),
+        0
+      );
     }
 
-    /* ---------------- SALES (with late-night inclusion) ---------------- */
+    const openingCutoff = new Date(periodStart.getTime() - 1);
+
+    const openingCash = await ledgerBalance([AccountSubType.CASH], openingCutoff);
+    const openingBank = await ledgerBalance([AccountSubType.BANK], openingCutoff);
+
+    const closingCash = await ledgerBalance([AccountSubType.CASH], periodEnd);
+    const closingBank = await ledgerBalance([AccountSubType.BANK], periodEnd);
+    const accountsPayable = await ledgerBalance(
+      [AccountSubType.ACCOUNTS_PAYABLE],
+      periodEnd
+    );
+
+    /* ---------- LEDGER STATISTICS ---------- */
+    // Get all ledger entries within the period
+    const periodLedgerEntries = await LedgerEntry.find({
+      outletId: user.outletId,
+      date: { $gte: periodStart, $lte: periodEnd },
+    }).lean();
+
+    const ledgerEntriesCount = periodLedgerEntries.length;
+
+    // Calculate total debits and credits for the period
+    const totalDebits = periodLedgerEntries.reduce(
+      (sum, entry) => sum + (entry.debit || 0),
+      0
+    );
+
+    const totalCredits = periodLedgerEntries.reduce(
+      (sum, entry) => sum + (entry.credit || 0),
+      0
+    );
+
+    // Check if trial balance matches (debits should equal credits)
+    const trialBalanceMatched = Math.abs(totalDebits - totalCredits) < 0.01; // Allow for rounding errors
+
+    // Calculate cash movements from ledger
+    const cashAccounts = await Account.find({
+      outletId: user.outletId,
+      subType: AccountSubType.CASH,
+      isActive: true,
+    }).select('_id').lean();
+
+    const cashEntries = await LedgerEntry.find({
+      outletId: user.outletId,
+      accountId: { $in: cashAccounts.map(a => a._id) },
+      date: { $gte: periodStart, $lte: periodEnd },
+    }).lean();
+
+    const cashReceipts = cashEntries.reduce(
+      (sum, entry) => sum + (entry.debit || 0),
+      0
+    );
+
+    const cashPayments = cashEntries.reduce(
+      (sum, entry) => sum + (entry.credit || 0),
+      0
+    );
+
+    // Calculate bank movements from ledger
+    const bankAccounts = await Account.find({
+      outletId: user.outletId,
+      subType: AccountSubType.BANK,
+      isActive: true,
+    }).select('_id').lean();
+
+    const bankEntries = await LedgerEntry.find({
+      outletId: user.outletId,
+      accountId: { $in: bankAccounts.map(a => a._id) },
+      date: { $gte: periodStart, $lte: periodEnd },
+    }).lean();
+
+    const bankPayments = bankEntries.reduce(
+      (sum, entry) => sum + (entry.credit || 0),
+      0
+    );
+
+    /* ---------- DOCUMENT METRICS ---------- */
     const sales = await Sale.find({
       outletId: user.outletId,
       status: 'COMPLETED',
-      saleDate: { $gte: periodStart, $lte: periodEnd },
+      saleDate: { $gte: periodStart, $lt: periodEnd },
     }).lean();
 
-    console.log(`Found ${sales.length} sales in period`);
+    const purchases = await Purchase.find({
+      outletId: user.outletId,
+      status: { $in: ['PAID', 'COMPLETED'] },
+      purchaseDate: { $gte: periodStart, $lt: periodEnd },
+    }).lean();
+
+    const expenses = await Expense.find({
+      outletId: user.outletId,
+      status: { $in: ['PAID', 'PARTIALLY_PAID'] },
+      expenseDate: { $gte: periodStart, $lt: periodEnd },
+    }).lean();
+
+    const salesCount = sales.length;
+    const purchasesCount = purchases.length;
+    const expensesCount = expenses.length;
+
+    const totalRevenue = sales.reduce((s, x) => s + (x.grandTotal || 0), 0);
+    const totalDiscount = sales.reduce((s, x) => s + (x.totalDiscount || 0), 0);
+    const totalTax = sales.reduce((s, x) => s + (x.totalVAT || 0), 0);
 
     const cashSales = sales
       .filter(s => s.paymentMethod === 'CASH')
-      .reduce((sum, s) => sum + (s.amountPaid || s.grandTotal || 0), 0);
+      .reduce((s, x) => s + (x.amountPaid || 0), 0);
 
     const bankSales = sales
-      .filter(s => s.paymentMethod === 'CARD' || s.paymentMethod === 'BANK_TRANSFER')
-      .reduce((sum, s) => sum + (s.amountPaid || s.grandTotal || 0), 0);
+      .filter(s => s.paymentMethod !== 'CASH')
+      .reduce((s, x) => s + (x.amountPaid || 0), 0);
 
-    const totalRevenue = sales.reduce(
-      (sum, s) => sum + (s.grandTotal || 0),
-      0
-    );
+    const totalPurchases = purchases.reduce((s, x) => s + (x.amountPaid || 0), 0);
+    const totalExpensesOnly = expenses.reduce((s, x) => s + (x.amountPaid || 0), 0);
 
-    const totalDiscount = sales.reduce(
-      (sum, s) => sum + (s.totalDiscount || 0),
-      0
-    );
+    const netProfit = totalRevenue - (totalPurchases + totalExpensesOnly);
 
-    const totalTax = sales.reduce(
-      (sum, s) => sum + (s.totalVAT || 0),
-      0
-    );
-
-    const salesCount = sales.length;
-
-    console.log(`Sales: Count=${salesCount}, Revenue=${totalRevenue}, Cash=${cashSales}, Bank=${bankSales}`);
-
-    /* ---------------- CASH PAYMENTS ---------------- */
-    const cashPurchases = await Purchase.find({
+    /* ---------- INVENTORY ---------- */
+    const previousClosing = await Closing.findOne({
       outletId: user.outletId,
-      status: { $in: ['PAID', 'COMPLETED'] },
-      paymentMethod: { $in: ['CASH'] },
-      purchaseDate: { $gte: periodStart, $lte: periodEnd },
-    }).lean();
+      closingType,
+      closingDate: { $lt: closingDay },
+    })
+      .sort({ closingDate: -1 })
+      .lean();
 
-    const cashPurchasePayments = cashPurchases.reduce(
-      (sum, p) => sum + (p.amountPaid || 0),
-      0
-    );
-    const cashPurchaseCount = cashPurchases.length;
+    const openingStock = previousClosing?.closingStock ?? 0;
 
-    const cashExpenses = await Expense.find({
-      outletId: user.outletId,
-      status: { $in: ['PAID', 'PARTIALLY_PAID'] },
-      paymentMethod: { $in: ['CASH'] },
-      expenseDate: { $gte: periodStart, $lte: periodEnd },
-    }).lean();
-
-    const cashExpensePayments = cashExpenses.reduce(
-      (sum, e) => sum + (e.amountPaid || 0),
-      0
-    );
-    const cashExpenseCount = cashExpenses.length;
-
-    const cashPayments = cashPurchasePayments + cashExpensePayments;
-
-    console.log(`Cash Purchases: Count=${cashPurchaseCount}, Amount=${cashPurchasePayments}`);
-    console.log(`Cash Expenses: Count=${cashExpenseCount}, Amount=${cashExpensePayments}`);
-    console.log(`Cash Total Payments: ${cashPayments}`);
-
-    /* ---------------- CASH CLOSING ---------------- */
-    const closingCash = openingCash + cashSales - cashPayments;
-
-    /* ---------------- BANK PAYMENTS ---------------- */
-    const bankPurchases = await Purchase.find({
-      outletId: user.outletId,
-      status: { $in: ['PAID', 'COMPLETED'] },
-      paymentMethod: { $in: ['CARD', 'BANK_TRANSFER'] },
-      purchaseDate: { $gte: periodStart, $lte: periodEnd },
-    }).lean();
-
-    const bankPurchasePayments = bankPurchases.reduce(
-      (sum, p) => sum + (p.amountPaid || 0),
-      0
-    );
-    const bankPurchaseCount = bankPurchases.length;
-
-    const bankExpenses = await Expense.find({
-      outletId: user.outletId,
-      status: { $in: ['PAID', 'PARTIALLY_PAID'] },
-      paymentMethod: { $in: ['CARD', 'BANK_TRANSFER'] },
-      expenseDate: { $gte: periodStart, $lte: periodEnd },
-    }).lean();
-
-    const bankExpensePayments = bankExpenses.reduce(
-      (sum, e) => sum + (e.amountPaid || 0),
-      0
-    );
-    const bankExpenseCount = bankExpenses.length;
-
-    const bankPayments = bankPurchasePayments + bankExpensePayments;
-
-    console.log(`Bank Purchases: Count=${bankPurchaseCount}, Amount=${bankPurchasePayments}`);
-    console.log(`Bank Expenses: Count=${bankExpenseCount}, Amount=${bankExpensePayments}`);
-    console.log(`Bank Total Payments: ${bankPayments}`);
-
-    /* ---------------- BANK CLOSING ---------------- */
-    const closingBank = openingBank + bankSales - bankPayments;
-
-    console.log(`Closing balances: Cash=${closingCash}, Bank=${closingBank}`);
-
-    /* ---------------- TOTAL BALANCES ---------------- */
-    const totalOpeningBalance = openingCash + openingBank;
-    const totalClosingBalance = closingCash + closingBank;
-
-    /* ---------------- SEPARATE TOTALS FOR PURCHASES AND EXPENSES ---------------- */
-    const totalPurchases = cashPurchasePayments + bankPurchasePayments;
-    const totalExpensesOnly = cashExpensePayments + bankExpensePayments;
-    const totalExpenses = totalPurchases + totalExpensesOnly; // Combined for profit calc
-
-    console.log(`Totals: Purchases=${totalPurchases}, Expenses=${totalExpensesOnly}, Combined=${totalExpenses}`);
-
-    /* ---------------- PROFIT ---------------- */
-    const netProfit = totalRevenue - totalExpenses;
-
-    /* ---------------- INVENTORY (Optional - calculate if needed) ---------------- */
     const products = await Product.find({
       outletId: user.outletId,
       isActive: true,
     }).select('currentStock costPrice').lean();
 
-    const closingStock = products.reduce((sum, p) => sum + (p.currentStock || 0), 0);
+    const closingStock = products.reduce((s, p) => s + (p.currentStock || 0), 0);
     const stockValue = products.reduce(
-      (sum, p) => sum + (p.currentStock || 0) * (p.costPrice || 0),
+      (s, p) => s + (p.currentStock || 0) * (p.costPrice || 0),
       0
     );
 
-    /* ---------------- CREATE CLOSING ---------------- */
+    /* ---------- CREATE ---------- */
     const closing = await Closing.create({
+      outletId: user.outletId,
       closingType,
       closingDate: closingDay,
       periodStart,
       periodEnd,
 
-      totalSales: totalRevenue,
-      totalPurchases, // Add total purchases separately
-      totalExpenses: totalExpensesOnly, // Only expenses, not including purchases
-      totalRevenue,
-      netProfit,
-
       openingCash,
-      cashSales,
-      cashReceipts: 0,
-      cashPayments, // Includes both purchases and expenses
-      closingCash,
-
       openingBank,
-      bankSales,
-      bankPayments, // Includes both purchases and expenses
+      closingCash,
       closingBank,
 
-      totalOpeningBalance,
-      totalClosingBalance,
+      cashSales,
+      bankSales,
+      cashReceipts,
+      cashPayments,
+      bankPayments,
 
       salesCount,
+      purchasesCount,
+      expensesCount,
+
+      totalRevenue,
       totalDiscount,
       totalTax,
 
-      purchasesCount: cashPurchaseCount + bankPurchaseCount,
-      expensesCount: cashExpenseCount + bankExpenseCount,
+      totalPurchases,
+      totalExpenses: totalExpensesOnly,
+      netProfit,
 
-      openingStock: 0, // Can be calculated from previous closing if needed
+      totalOpeningBalance: openingCash + openingBank,
+      totalClosingBalance: closingCash + closingBank,
+
+      accountsPayable,
+
+      openingStock,
       closingStock,
       stockValue,
 
-      status: 'closed',
-      closedBy: new mongoose.Types.ObjectId(user.userId),
-      closedAt: new Date(),
-      notes: isFirstClosing 
-        ? `${notes || ''}\n\nNote: This is the first closing and includes all historical transactions from ${periodStart.toLocaleDateString()}.`.trim()
-        : notes,
+      // Ledger statistics
+      ledgerEntriesCount,
+      totalDebits,
+      totalCredits,
+      trialBalanceMatched,
 
-      outletId: user.outletId ? new mongoose.Types.ObjectId(user.outletId) : undefined,
+      status: 'closed',
+      closedBy: user.userId,
+      closedAt: new Date(),
+      notes,
     });
 
-    console.log(`Closing created successfully: ${closing._id}`);
-
-    // Log activity (with proper error handling)
-    try {
-      await ActivityLog.create({
-        userId: user.userId,
-        outletId: user.outletId,
-        module: 'Closing',
-        actionType: 'CREATE',
-        description: isFirstClosing 
-          ? `First ${closingType} closing created for period ${periodStart.toLocaleDateString()} to ${periodEnd.toLocaleDateString()}`
-          : `${closingType.charAt(0).toUpperCase() + closingType.slice(1)} closing created for ${closingDay.toLocaleDateString()}`,
-        username: `${user.username || ''} `.trim() || 'Unknown User',
-        resourceType: 'Closing',
-        resourceId: closing._id,
-        details: {
-          closingType,
-          closingDate: closingDay,
-          periodStart,
-          periodEnd,
-          isFirstClosing,
-          totalRevenue,
-          netProfit,
-        },
-        ipAddress: req.headers.get('x-forwarded-for') || 'unknown',
-        userAgent: req.headers.get('user-agent') || 'unknown',
-      });
-    } catch (activityLogError) {
-      // Log error but don't fail the closing
-      console.error('Failed to create activity log:', activityLogError);
-    }
-
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       closing,
-      message: isFirstClosing 
-        ? `First ${closingType} closing created successfully! Included all transactions from ${periodStart.toLocaleDateString()}.`
-        : `${closingType} closing created successfully!`
+      message: 'Period closed successfully (ledger-driven, no overlap, 3AM cutoff)',
+      ledgerStats: {
+        entries: ledgerEntriesCount,
+        debits: totalDebits,
+        credits: totalCredits,
+        balanced: trialBalanceMatched,
+      },
     });
 
   } catch (err: any) {

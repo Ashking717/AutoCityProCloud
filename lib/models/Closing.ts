@@ -11,46 +11,53 @@ export interface IClosing extends Document {
   periodEnd: Date;
 
   // Financial Metrics
-  totalSales: number;
   totalPurchases: number;
   totalExpenses: number;
   totalRevenue: number;
   netProfit: number;
 
-  // Cash & Bank Flow
+  // Cash & Bank (LEDGER-DRIVEN)
   openingCash: number;
   openingBank: number;
-
-  cashSales: number;
-  bankSales: number;
-
-  cashReceipts: number;
-  cashPayments: number;
-  bankPayments: number;
-
   closingCash: number;
   closingBank: number;
 
-  // Total Balances (Cash + Bank)
+  // Informational sales split (not used for balances)
+  cashSales: number;
+  bankSales: number;
+
+  // Ledger-derived cash/bank movements (for analysis only)
+  cashReceipts?: number;    // Total debits to cash accounts (from ledger)
+  cashPayments?: number;    // Total credits from cash accounts (from ledger)
+  bankPayments?: number;    // Total credits from bank accounts (from ledger)
+
+  // Total Balances
   totalOpeningBalance: number;
   totalClosingBalance: number;
 
   // Sales Metrics
   salesCount: number;
   totalDiscount: number;
-  totalTax: number; // VAT total
+  totalTax: number;
 
-  // Inventory
+  // Purchase & Expense Counts
+  purchasesCount: number;
+  expensesCount: number;
+
+  // Inventory (SNAPSHOT-DRIVEN)
   openingStock: number;
   closingStock: number;
   stockValue: number;
 
-  // Ledger Integration
-  ledgerEntriesCount?: number;
-  voucherIds?: string[];
-  trialBalanceMatched?: boolean;
-  totalDebits?: number;
-  totalCredits?: number;
+  // Ledger Integration & Statistics
+  ledgerEntriesCount?: number;      // Total ledger entries in period
+  voucherIds?: string[];            // Reference to source vouchers
+  trialBalanceMatched?: boolean;    // Whether debits = credits
+  totalDebits?: number;             // Total debits in period
+  totalCredits?: number;            // Total credits in period
+
+  // Accounts Payable (from ledger)
+  accountsPayable?: number;
 
   // Status
   status: 'pending' | 'closed' | 'locked';
@@ -86,7 +93,6 @@ export interface IClosingLean {
   periodStart: Date;
   periodEnd: Date;
 
-  totalSales: number;
   totalPurchases: number;
   totalExpenses: number;
   totalRevenue: number;
@@ -94,16 +100,15 @@ export interface IClosingLean {
 
   openingCash: number;
   openingBank: number;
+  closingCash: number;
+  closingBank: number;
 
   cashSales: number;
   bankSales: number;
 
-  cashReceipts: number;
-  cashPayments: number;
-  bankPayments: number;
-
-  closingCash: number;
-  closingBank: number;
+  cashReceipts?: number;
+  cashPayments?: number;
+  bankPayments?: number;
 
   totalOpeningBalance: number;
   totalClosingBalance: number;
@@ -111,6 +116,9 @@ export interface IClosingLean {
   salesCount: number;
   totalDiscount: number;
   totalTax: number;
+
+  purchasesCount: number;
+  expensesCount: number;
 
   openingStock: number;
   closingStock: number;
@@ -121,6 +129,8 @@ export interface IClosingLean {
   trialBalanceMatched?: boolean;
   totalDebits?: number;
   totalCredits?: number;
+
+  accountsPayable?: number;
 
   status: 'pending' | 'closed' | 'locked';
   closedBy: mongoose.Types.ObjectId;
@@ -170,25 +180,25 @@ const ClosingSchema = new Schema<IClosing, IClosingModel>(
     periodEnd: { type: Date, required: true },
 
     // Financial Metrics
-    totalSales: { type: Number, default: 0 },
     totalPurchases: { type: Number, default: 0 },
     totalExpenses: { type: Number, default: 0 },
     totalRevenue: { type: Number, default: 0 },
     netProfit: { type: Number, default: 0 },
 
-    // Cash & Bank Flow
+    // Cash & Bank (Ledger-driven balances)
     openingCash: { type: Number, default: 0 },
     openingBank: { type: Number, default: 0 },
+    closingCash: { type: Number, default: 0 },
+    closingBank: { type: Number, default: 0 },
 
+    // Informational (sales breakdown for reference)
     cashSales: { type: Number, default: 0 },
     bankSales: { type: Number, default: 0 },
 
-    cashReceipts: { type: Number, default: 0 },
-    cashPayments: { type: Number, default: 0 },
-    bankPayments: { type: Number, default: 0 },
-
-    closingCash: { type: Number, default: 0 },
-    closingBank: { type: Number, default: 0 },
+    // Ledger-derived movements (for analysis and transparency)
+    cashReceipts: { type: Number, default: 0 },   // Sum of debits to cash accounts
+    cashPayments: { type: Number, default: 0 },   // Sum of credits from cash accounts
+    bankPayments: { type: Number, default: 0 },   // Sum of credits from bank accounts
 
     // Total Balances
     totalOpeningBalance: { type: Number, default: 0 },
@@ -199,17 +209,24 @@ const ClosingSchema = new Schema<IClosing, IClosingModel>(
     totalDiscount: { type: Number, default: 0 },
     totalTax: { type: Number, default: 0 },
 
+    // Purchase & Expense Counts
+    purchasesCount: { type: Number, default: 0 },
+    expensesCount: { type: Number, default: 0 },
+
     // Inventory
     openingStock: { type: Number, default: 0 },
     closingStock: { type: Number, default: 0 },
     stockValue: { type: Number, default: 0 },
 
-    // Ledger Integration
+    // Ledger Integration & Statistics
     ledgerEntriesCount: { type: Number, default: 0 },
     voucherIds: [{ type: String }],
     trialBalanceMatched: { type: Boolean, default: false },
     totalDebits: { type: Number, default: 0 },
     totalCredits: { type: Number, default: 0 },
+
+    // Accounts Payable
+    accountsPayable: { type: Number, default: 0 },
 
     // Status
     status: {
@@ -239,12 +256,13 @@ ClosingSchema.index({ outletId: 1, closingDate: -1 });
 ClosingSchema.index({ outletId: 1, closingType: 1, closingDate: -1 });
 ClosingSchema.index({ outletId: 1, status: 1 });
 ClosingSchema.index({ periodStart: 1, periodEnd: 1 });
+ClosingSchema.index({ outletId: 1, trialBalanceMatched: 1 }); // New: for finding unbalanced closings
 
 /* =========================================================
    Virtuals
    ========================================================= */
 
-ClosingSchema.virtual('formattedDate').get(function (this: IClosing) {
+ClosingSchema.virtual('formattedDate').get(function () {
   return this.closingDate.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -252,17 +270,29 @@ ClosingSchema.virtual('formattedDate').get(function (this: IClosing) {
   });
 });
 
-ClosingSchema.virtual('profitMargin').get(function (this: IClosing) {
+ClosingSchema.virtual('profitMargin').get(function () {
   if (!this.totalRevenue) return 0;
   return (this.netProfit / this.totalRevenue) * 100;
 });
 
-ClosingSchema.virtual('trialBalanceDifference').get(function (this: IClosing) {
+ClosingSchema.virtual('trialBalanceDifference').get(function () {
   return Math.abs((this.totalDebits || 0) - (this.totalCredits || 0));
 });
 
-ClosingSchema.virtual('totalLiquidity').get(function (this: IClosing) {
+ClosingSchema.virtual('totalLiquidity').get(function () {
   return (this.closingCash || 0) + (this.closingBank || 0);
+});
+
+ClosingSchema.virtual('cashMovement').get(function () {
+  return (this.closingCash || 0) - (this.openingCash || 0);
+});
+
+ClosingSchema.virtual('bankMovement').get(function () {
+  return (this.closingBank || 0) - (this.openingBank || 0);
+});
+
+ClosingSchema.virtual('netMovement').get(function () {
+  return (this.totalClosingBalance || 0) - (this.totalOpeningBalance || 0);
 });
 
 /* =========================================================
@@ -310,6 +340,26 @@ ClosingSchema.statics.getPeriodSummary = async function (
     avgProfit: closings.length ? totalProfit / closings.length : 0,
   };
 };
+
+/* =========================================================
+   Pre-save Hook: Validation
+   ========================================================= */
+
+ClosingSchema.pre('save', function (next) {
+  // Validate that trial balance difference is within acceptable range
+  if (this.trialBalanceMatched === false) {
+    const difference = Math.abs((this.totalDebits || 0) - (this.totalCredits || 0));
+    if (difference > 0.01) {
+      console.warn(`Trial balance mismatch detected: ${difference.toFixed(2)} difference`);
+    }
+  }
+
+  // Ensure total balances are correctly calculated
+  this.totalOpeningBalance = (this.openingCash || 0) + (this.openingBank || 0);
+  this.totalClosingBalance = (this.closingCash || 0) + (this.closingBank || 0);
+
+  next();
+});
 
 /* =========================================================
    Export

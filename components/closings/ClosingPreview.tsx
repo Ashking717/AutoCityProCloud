@@ -13,6 +13,8 @@ import {
   Wallet,
   ShoppingCart,
   Receipt,
+  TrendingDown,
+  Package,
 } from "lucide-react";
 
 interface ClosingPreviewProps {
@@ -27,26 +29,18 @@ interface PreviewData {
   periodEnd: string;
   cutoffTime: string;
   
-  salesCount: number;
-  totalRevenue: number;
-  
-  cashSales: number;
-  bankSales: number;
-  
-  cashPayments: number;
-  bankPayments: number;
-  
   openingCash: number;
   openingBank: number;
   
   projectedClosingCash: number;
   projectedClosingBank: number;
   
-  lateNightTransactions: number;
-  historicalDaysIncluded: number | null;
+  totalRevenue: number;
+  totalPurchases: number;
+  totalExpenses: number;
   
-  warnings: string[];
-  infos: string[];
+  salesCount: number;
+  historicalDaysIncluded: number | null;
 }
 
 export default function ClosingPreview({
@@ -95,6 +89,10 @@ export default function ClosingPreview({
   if (!preview) {
     return null;
   }
+
+  // Calculate cash and bank movements
+  const cashMovement = preview.projectedClosingCash - preview.openingCash;
+  const bankMovement = preview.projectedClosingBank - preview.openingBank;
 
   return (
     <div className="space-y-4">
@@ -168,33 +166,16 @@ export default function ClosingPreview({
             </span>
           </div>
         </div>
-
-        {preview.lateNightTransactions > 0 && (
-          <div className="mt-3 p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 text-amber-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs text-amber-400 font-medium mb-1">
-                  Late-Night Transactions Detected
-                </p>
-                <p className="text-xs text-amber-300/70">
-                  {preview.lateNightTransactions} transaction(s) recorded after midnight
-                  will be included in this closing (before {preview.cutoffTime} cutoff).
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Financial Summary */}
+      {/* Business Activity Summary */}
       <div className="p-5 bg-[#1a1a1a] border border-red-500/20 rounded-2xl">
         <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-4 flex items-center gap-2">
-          <DollarSign className="h-4 w-4 text-emerald-400" />
-          Projected Totals
+          <TrendingUp className="h-4 w-4 text-emerald-400" />
+          Business Activity
         </h4>
 
-        <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="grid grid-cols-2 gap-3">
           <div className="p-3 bg-[#0f0f0f] rounded-xl">
             <div className="flex items-center gap-2 mb-2">
               <ShoppingCart className="h-3.5 w-3.5 text-blue-400" />
@@ -203,22 +184,56 @@ export default function ClosingPreview({
             <p className="text-2xl font-black text-white">{preview.salesCount}</p>
           </div>
 
-          <div className="p-3 bg-[#0f0f0f] rounded-xl">
+          <div className="p-3 bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 border border-emerald-500/20 rounded-xl">
             <div className="flex items-center gap-2 mb-2">
-              <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
+              <DollarSign className="h-3.5 w-3.5 text-emerald-400" />
               <span className="text-[10px] text-gray-500 font-bold uppercase">Revenue</span>
             </div>
-            <p className="text-xl font-black text-emerald-400">
+            <p className="text-lg font-black text-emerald-400">
               {preview.totalRevenue.toLocaleString("en-QA", {
                 minimumFractionDigits: 0,
               })}
             </p>
             <p className="text-[9px] text-gray-600 mt-0.5">QAR</p>
           </div>
-        </div>
 
-        {/* Cash Flow */}
+          <div className="p-3 bg-gradient-to-br from-orange-500/10 to-orange-600/5 border border-orange-500/20 rounded-xl">
+            <div className="flex items-center gap-2 mb-2">
+              <Package className="h-3.5 w-3.5 text-orange-400" />
+              <span className="text-[10px] text-gray-500 font-bold uppercase">Purchases</span>
+            </div>
+            <p className="text-lg font-black text-orange-400">
+              {preview.totalPurchases.toLocaleString("en-QA", {
+                minimumFractionDigits: 0,
+              })}
+            </p>
+            <p className="text-[9px] text-gray-600 mt-0.5">QAR</p>
+          </div>
+
+          <div className="p-3 bg-gradient-to-br from-red-500/10 to-red-600/5 border border-red-500/20 rounded-xl">
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingDown className="h-3.5 w-3.5 text-red-400" />
+              <span className="text-[10px] text-gray-500 font-bold uppercase">Expenses</span>
+            </div>
+            <p className="text-lg font-black text-red-400">
+              {preview.totalExpenses.toLocaleString("en-QA", {
+                minimumFractionDigits: 0,
+              })}
+            </p>
+            <p className="text-[9px] text-gray-600 mt-0.5">QAR</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Cash & Bank Balances */}
+      <div className="p-5 bg-[#1a1a1a] border border-red-500/20 rounded-2xl">
+        <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-4 flex items-center gap-2">
+          <Wallet className="h-4 w-4 text-blue-400" />
+          Cash & Bank Positions
+        </h4>
+
         <div className="grid grid-cols-2 gap-3">
+          {/* Cash */}
           <div className="p-4 bg-gradient-to-br from-blue-500/5 to-blue-600/5 border border-blue-500/20 rounded-xl">
             <div className="flex items-center gap-2 mb-3">
               <Wallet className="h-4 w-4 text-blue-400" />
@@ -233,20 +248,14 @@ export default function ClosingPreview({
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Sales</span>
-                <span className="text-emerald-400 font-semibold">
-                  +{preview.cashSales.toLocaleString("en-QA", { minimumFractionDigits: 0 })}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Payments</span>
-                <span className="text-red-400 font-semibold">
-                  -{preview.cashPayments.toLocaleString("en-QA", { minimumFractionDigits: 0 })}
+                <span className="text-gray-500">Movement</span>
+                <span className={`font-semibold ${cashMovement >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {cashMovement >= 0 ? '+' : ''}{cashMovement.toLocaleString("en-QA", { minimumFractionDigits: 0 })}
                 </span>
               </div>
               <div className="pt-2 border-t border-blue-500/20">
                 <div className="flex justify-between">
-                  <span className="text-blue-400 font-bold">Closing</span>
+                  <span className="text-blue-400 font-bold">Projected Closing</span>
                   <span className="text-blue-400 font-black text-sm">
                     {preview.projectedClosingCash.toLocaleString("en-QA", {
                       minimumFractionDigits: 0,
@@ -257,6 +266,7 @@ export default function ClosingPreview({
             </div>
           </div>
 
+          {/* Bank */}
           <div className="p-4 bg-gradient-to-br from-emerald-500/5 to-emerald-600/5 border border-emerald-500/20 rounded-xl">
             <div className="flex items-center gap-2 mb-3">
               <Receipt className="h-4 w-4 text-emerald-400" />
@@ -271,20 +281,14 @@ export default function ClosingPreview({
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Sales</span>
-                <span className="text-emerald-400 font-semibold">
-                  +{preview.bankSales.toLocaleString("en-QA", { minimumFractionDigits: 0 })}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Payments</span>
-                <span className="text-red-400 font-semibold">
-                  -{preview.bankPayments.toLocaleString("en-QA", { minimumFractionDigits: 0 })}
+                <span className="text-gray-500">Movement</span>
+                <span className={`font-semibold ${bankMovement >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {bankMovement >= 0 ? '+' : ''}{bankMovement.toLocaleString("en-QA", { minimumFractionDigits: 0 })}
                 </span>
               </div>
               <div className="pt-2 border-t border-emerald-500/20">
                 <div className="flex justify-between">
-                  <span className="text-emerald-400 font-bold">Closing</span>
+                  <span className="text-emerald-400 font-bold">Projected Closing</span>
                   <span className="text-emerald-400 font-black text-sm">
                     {preview.projectedClosingBank.toLocaleString("en-QA", {
                       minimumFractionDigits: 0,
@@ -300,7 +304,7 @@ export default function ClosingPreview({
         <div className="mt-3 p-4 bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/30 rounded-xl">
           <div className="flex justify-between items-center">
             <span className="text-xs font-bold text-purple-400 uppercase tracking-wide">
-              Total Closing Balance
+              Total Projected Closing Balance
             </span>
             <span className="text-2xl font-black text-purple-400">
               {(preview.projectedClosingCash + preview.projectedClosingBank).toLocaleString(
@@ -314,46 +318,6 @@ export default function ClosingPreview({
           </p>
         </div>
       </div>
-
-      {/* Warnings */}
-      {preview.warnings.length > 0 && (
-        <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-2xl">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <h5 className="text-sm font-bold text-amber-400 mb-2">Warnings</h5>
-              <ul className="space-y-1.5">
-                {preview.warnings.map((warning, index) => (
-                  <li key={index} className="text-xs text-amber-300/80 flex items-start gap-2">
-                    <span className="text-amber-400 mt-0.5">•</span>
-                    <span>{warning}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Info Messages */}
-      {preview.infos.length > 0 && (
-        <div className="p-4 bg-blue-500/5 border border-blue-500/20 rounded-2xl">
-          <div className="flex items-start gap-3">
-            <Info className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <h5 className="text-sm font-bold text-blue-400 mb-2">Information</h5>
-              <ul className="space-y-1.5">
-                {preview.infos.map((info, index) => (
-                  <li key={index} className="text-xs text-blue-300/80 flex items-start gap-2">
-                    <span className="text-blue-400 mt-0.5">•</span>
-                    <span>{info}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Success Indicator */}
       <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-2xl">

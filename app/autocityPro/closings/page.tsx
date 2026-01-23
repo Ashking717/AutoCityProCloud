@@ -17,20 +17,15 @@ import {
   Eye,
   Download,
   RefreshCw,
-  Plus,
   MoreVertical,
-  ChevronLeft,
   Filter,
   X,
   BarChart3,
-  Shield,
   Clock,
-  ChevronRight,
   Wallet,
   ArrowUpRight,
-  ArrowDownRight,
   Zap,
-  Info,
+  Search,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -87,6 +82,7 @@ export default function ClosingsPage() {
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [filterType, setFilterType] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [isMobile, setIsMobile] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -175,7 +171,7 @@ export default function ClosingsPage() {
 
   const handleClose = async () => {
     if (isClosing) return;
-    
+
     setIsClosing(true);
     try {
       const res = await fetch("/api/closings", {
@@ -188,11 +184,13 @@ export default function ClosingsPage() {
       const data = await res.json();
 
       if (res.ok) {
-        // Show success message from API (includes first closing info)
-        toast.success(data.message || `${
-          newClosing.closingType === "day" ? "Day" : "Month"
-        } closed successfully!`);
-        
+        toast.success(
+          data.message ||
+            `${
+              newClosing.closingType === "day" ? "Day" : "Month"
+            } closed successfully!`
+        );
+
         setShowCloseModal(false);
         setShowPreview(false);
         setNewClosing({
@@ -202,10 +200,8 @@ export default function ClosingsPage() {
         });
         fetchClosings();
       } else {
-        // Show detailed error message
         toast.error(data.error || "Failed to close period");
-        
-        // If there's additional context in the error, show it
+
         if (data.expectedDate || data.expectedMonth) {
           setTimeout(() => {
             toast.error(
@@ -265,6 +261,7 @@ export default function ClosingsPage() {
   const clearFilters = () => {
     setFilterType("all");
     setFilterStatus("all");
+    setSearchQuery("");
   };
 
   const downloadClosingsCSV = () => {
@@ -353,6 +350,22 @@ export default function ClosingsPage() {
     }
   };
 
+  const filteredClosings = closings.filter((closing) => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      closing.closingType.toLowerCase().includes(query) ||
+      closing.status.toLowerCase().includes(query) ||
+      new Date(closing.closingDate)
+        .toLocaleDateString()
+        .toLowerCase()
+        .includes(query) ||
+      `${closing.closedBy?.firstName} ${closing.closedBy?.lastName}`
+        .toLowerCase()
+        .includes(query)
+    );
+  });
+
   return (
     <MainLayout user={user} onLogout={handleLogout}>
       <div className="min-h-screen bg-[#0a0a0a]">
@@ -365,7 +378,7 @@ export default function ClosingsPage() {
                   Period Closings
                 </h1>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  {closings.length} records
+                  {filteredClosings.length} records
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -388,14 +401,12 @@ export default function ClosingsPage() {
 
         {/* Desktop Header */}
         <div className="hidden md:block relative overflow-hidden">
-          {/* Background Effects */}
           <div className="absolute inset-0 bg-gradient-to-br from-red-950/40 via-[#0a0a0a] to-[#0a0a0a]" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-red-900/20 via-transparent to-transparent" />
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMtMy4zMTQgMC02IDIuNjg2LTYgNnMyLjY4NiA2IDYgNiA2LTIuNjg2IDYtNi0yLjY4Ni02LTYtNnoiIHN0cm9rZT0iIzk5MTgxOCIgc3Ryb2tlLXdpZHRoPSIuNSIgb3BhY2l0eT0iLjEiLz48L2c+PC9zdmc+')] opacity-20" />
-          
+
           <div className="relative px-8 py-16">
             <div className="max-w-7xl mx-auto">
-              {/* Header Content */}
               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-12">
                 <div className="flex items-center gap-5">
                   <div className="relative">
@@ -409,7 +420,8 @@ export default function ClosingsPage() {
                       Period Closings
                     </h1>
                     <p className="text-gray-400 text-sm">
-                      Comprehensive financial period management with late-night support
+                      Comprehensive financial period management & ledger
+                      verification
                     </p>
                   </div>
                 </div>
@@ -428,27 +440,12 @@ export default function ClosingsPage() {
                   >
                     <div className="absolute inset-0 bg-white/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
                     <Lock className="h-4 w-4 relative z-10 group-hover:scale-110 transition-transform" />
-                    <span className="font-semibold relative z-10">Close Period</span>
+                    <span className="font-semibold relative z-10">
+                      Close Period
+                    </span>
                   </button>
                 </div>
               </div>
-
-              {/* Info Banner */}
-              {/* <div className="mb-8 p-4 bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 rounded-2xl">
-                <div className="flex items-start gap-3">
-                  <Info className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <h3 className="text-sm font-bold text-blue-400 mb-1">
-                      Enhanced Period Closing
-                    </h3>
-                    <p className="text-xs text-blue-300/80 leading-relaxed">
-                      First closing automatically includes all historical transactions. 
-                      Late-night transactions (until 6:00 AM) are included in the previous day. 
-                      Use the preview feature to verify what will be included before closing.
-                    </p>
-                  </div>
-                </div>
-              </div> */}
 
               {/* Summary Stats */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -530,7 +527,9 @@ export default function ClosingsPage() {
                         <BarChart3 className="h-5 w-5 text-purple-400" />
                       </div>
                       <div className="flex items-center gap-1 px-2 py-0.5 bg-purple-500/10 rounded-full">
-                        <span className="text-[10px] font-semibold text-purple-400 uppercase tracking-wide">Avg</span>
+                        <span className="text-[10px] font-semibold text-purple-400 uppercase tracking-wide">
+                          Avg
+                        </span>
                       </div>
                     </div>
                     <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-1">
@@ -558,11 +557,27 @@ export default function ClosingsPage() {
 
         <div className="px-4 md:px-8 pt-[140px] md:pt-8 pb-8">
           <div className="max-w-7xl mx-auto">
-            {/* Desktop Filters */}
+            {/* Desktop Filters & Search */}
             <div className="hidden md:block mb-8">
               <div className="p-6 bg-[#141414] border border-red-500/10 rounded-2xl">
-                <div className="grid grid-cols-2 gap-6">
-                  <div>
+                <div className="grid grid-cols-12 gap-4">
+                  <div className="col-span-4">
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                      Search Closings
+                    </label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search by date, type, status..."
+                        className="w-full pl-10 pr-4 py-3 bg-[#1a1a1a] border border-red-500/20 rounded-xl focus:border-red-500/50 focus:ring-2 focus:ring-red-500/20 transition-all text-white placeholder:text-gray-600"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="col-span-3">
                     <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
                       Period Type
                     </label>
@@ -577,13 +592,17 @@ export default function ClosingsPage() {
                               : "bg-[#1a1a1a] text-gray-400 hover:text-white hover:bg-[#1f1f1f] border border-red-500/10 hover:border-red-500/30"
                           }`}
                         >
-                          {type === "all" ? "All Periods" : type === "day" ? "Daily" : "Monthly"}
+                          {type === "all"
+                            ? "All"
+                            : type === "day"
+                            ? "Daily"
+                            : "Monthly"}
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  <div>
+                  <div className="col-span-3">
                     <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
                       Status
                     </label>
@@ -598,10 +617,21 @@ export default function ClosingsPage() {
                               : "bg-[#1a1a1a] text-gray-400 hover:text-white hover:bg-[#1f1f1f] border border-red-500/10 hover:border-red-500/30"
                           }`}
                         >
-                          {status === "all" ? "All Status" : status.charAt(0).toUpperCase() + status.slice(1)}
+                          {status === "all"
+                            ? "All"
+                            : status.charAt(0).toUpperCase() + status.slice(1)}
                         </button>
                       ))}
                     </div>
+                  </div>
+
+                  <div className="col-span-2 flex items-end">
+                    <button
+                      onClick={clearFilters}
+                      className="w-full px-4 py-3 bg-[#1a1a1a] border border-red-500/20 text-gray-400 rounded-xl hover:text-white hover:border-red-500/40 transition-all font-medium"
+                    >
+                      Clear All
+                    </button>
                   </div>
                 </div>
               </div>
@@ -615,14 +645,18 @@ export default function ClosingsPage() {
                     <div className="absolute inset-0 bg-red-500/20 blur-xl rounded-full animate-pulse" />
                     <RefreshCw className="relative h-12 w-12 text-red-500 animate-spin" />
                   </div>
-                  <p className="text-gray-400 text-lg mt-6 font-medium">Loading closings...</p>
+                  <p className="text-gray-400 text-lg mt-6 font-medium">
+                    Loading closings...
+                  </p>
                 </div>
               ) : closings.length === 0 ? (
                 <div className="col-span-full flex flex-col items-center justify-center py-24">
                   <div className="p-6 bg-[#141414] border border-red-500/10 rounded-2xl mb-6">
                     <BookOpen className="h-16 w-16 text-gray-700" />
                   </div>
-                  <p className="text-gray-300 text-xl font-semibold mb-2">No closings found</p>
+                  <p className="text-gray-300 text-xl font-semibold mb-2">
+                    No closings found
+                  </p>
                   <p className="text-gray-500 text-sm mb-6">
                     Start managing your financial periods
                   </p>
@@ -635,19 +669,18 @@ export default function ClosingsPage() {
                 </div>
               ) : (
                 closings.map((closing) => {
-                  const totalOpeningBalance = closing.totalOpeningBalance ?? 
-                    (closing.openingCash + closing.openingBank);
-                  const totalClosingBalance = closing.totalClosingBalance ?? 
-                    (closing.closingCash + closing.closingBank);
+                  const totalOpeningBalance =
+                    closing.totalOpeningBalance ??
+                    closing.openingCash + closing.openingBank;
+                  const totalClosingBalance =
+                    closing.totalClosingBalance ??
+                    closing.closingCash + closing.closingBank;
 
                   return (
-                    <div
-                      key={closing._id}
-                      className="group relative"
-                    >
+                    <div key={closing._id} className="group relative">
                       {/* Glow Effect */}
                       <div className="absolute inset-0 bg-gradient-to-br from-red-500/0 via-red-500/5 to-red-500/0 opacity-0 group-hover:opacity-100 rounded-2xl blur-xl transition-all duration-500" />
-                      
+
                       <div className="relative bg-[#141414] border border-red-500/10 group-hover:border-red-500/30 rounded-2xl overflow-hidden transition-all duration-300">
                         {/* Card Header */}
                         <div className="relative p-5 bg-gradient-to-br from-[#1a1a1a] to-[#141414] border-b border-red-500/10">
@@ -658,10 +691,15 @@ export default function ClosingsPage() {
                               </div>
                               <div>
                                 <h3 className="text-base font-bold text-white">
-                                  {closing.closingType === "day" ? "Daily" : "Monthly"} Closing
+                                  {closing.closingType === "day"
+                                    ? "Daily"
+                                    : "Monthly"}{" "}
+                                  Closing
                                 </h3>
                                 <p className="text-xs text-gray-500 mt-0.5">
-                                  {new Date(closing.closingDate).toLocaleDateString("en-US", {
+                                  {new Date(
+                                    closing.closingDate
+                                  ).toLocaleDateString("en-US", {
                                     year: "numeric",
                                     month: "short",
                                     day: "numeric",
@@ -707,6 +745,17 @@ export default function ClosingsPage() {
                                 })}
                               </span>
                             </div>
+                            <div className="flex justify-between items-center p-3 bg-[#1a1a1a] rounded-xl">
+                              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                                Purchases
+                              </span>
+                              <span className="text-lg font-bold text-red-400">
+                                {closing.totalPurchases.toLocaleString("en-QA", {
+                                  minimumFractionDigits: 0,
+                                })}
+                              </span>
+                            </div>
+
 
                             <div className="relative p-4 bg-gradient-to-br from-red-500/5 to-red-600/5 rounded-xl border border-red-500/20">
                               <div className="flex justify-between items-center">
@@ -725,7 +774,9 @@ export default function ClosingsPage() {
                                   })}
                                 </span>
                               </div>
-                              <p className="text-[10px] text-gray-600 mt-1">QAR</p>
+                              <p className="text-[10px] text-gray-600 mt-1">
+                                QAR
+                              </p>
                             </div>
                           </div>
 
@@ -737,19 +788,21 @@ export default function ClosingsPage() {
                                 Total Balance
                               </h4>
                             </div>
-                            
+
                             <div className="space-y-2">
                               <div className="flex justify-between items-center">
-                                <span className="text-xs text-gray-500">Opening</span>
+                                <span className="text-xs text-gray-500">
+                                  Opening
+                                </span>
                                 <span className="text-sm font-semibold text-gray-400">
                                   {totalOpeningBalance.toLocaleString("en-QA", {
                                     minimumFractionDigits: 0,
                                   })}
                                 </span>
                               </div>
-                              
+
                               <div className="h-px bg-gradient-to-r from-transparent via-purple-500/20 to-transparent" />
-                              
+
                               <div className="flex justify-between items-center">
                                 <span className="text-xs font-bold text-purple-400 uppercase">
                                   Closing
@@ -777,34 +830,44 @@ export default function ClosingsPage() {
                                 <div className="flex justify-between text-xs">
                                   <span className="text-gray-600">Open</span>
                                   <span className="text-gray-400 font-medium">
-                                    {closing.openingCash.toLocaleString("en-QA", {
-                                      minimumFractionDigits: 0,
-                                    })}
+                                    {closing.openingCash.toLocaleString(
+                                      "en-QA",
+                                      {
+                                        minimumFractionDigits: 0,
+                                      }
+                                    )}
                                   </span>
                                 </div>
                                 <div className="flex justify-between text-xs">
-                                  <span className="text-gray-600">Sales</span>
-                                  <span className="text-emerald-400 font-medium">
-                                    +{closing.cashSales.toLocaleString("en-QA", {
-                                      minimumFractionDigits: 0,
-                                    })}
+                                  <span className="text-gray-600">
+                                    Movement
                                   </span>
-                                </div>
-                                <div className="flex justify-between text-xs">
-                                  <span className="text-gray-600">Pay</span>
-                                  <span className="text-red-400 font-medium">
-                                    -{closing.cashPayments.toLocaleString("en-QA", {
-                                      minimumFractionDigits: 0,
-                                    })}
+                                  <span
+                                    className={`font-semibold ${
+                                      closing.closingCash -
+                                        closing.openingCash >=
+                                      0
+                                        ? "text-emerald-400"
+                                        : "text-red-400"
+                                    }`}
+                                  >
+                                    {(
+                                      closing.closingCash - closing.openingCash
+                                    ).toLocaleString("en-QA")}
                                   </span>
                                 </div>
                                 <div className="pt-1.5 border-t border-blue-500/10">
                                   <div className="flex justify-between text-xs">
-                                    <span className="text-blue-400 font-bold">Close</span>
                                     <span className="text-blue-400 font-bold">
-                                      {closing.closingCash.toLocaleString("en-QA", {
-                                        minimumFractionDigits: 0,
-                                      })}
+                                      Close
+                                    </span>
+                                    <span className="text-blue-400 font-bold">
+                                      {closing.closingCash.toLocaleString(
+                                        "en-QA",
+                                        {
+                                          minimumFractionDigits: 0,
+                                        }
+                                      )}
                                     </span>
                                   </div>
                                 </div>
@@ -823,34 +886,44 @@ export default function ClosingsPage() {
                                 <div className="flex justify-between text-xs">
                                   <span className="text-gray-600">Open</span>
                                   <span className="text-gray-400 font-medium">
-                                    {closing.openingBank.toLocaleString("en-QA", {
-                                      minimumFractionDigits: 0,
-                                    })}
+                                    {closing.openingBank.toLocaleString(
+                                      "en-QA",
+                                      {
+                                        minimumFractionDigits: 0,
+                                      }
+                                    )}
                                   </span>
                                 </div>
                                 <div className="flex justify-between text-xs">
-                                  <span className="text-gray-600">Sales</span>
-                                  <span className="text-emerald-400 font-medium">
-                                    +{(closing.bankSales ?? 0).toLocaleString("en-QA", {
-                                      minimumFractionDigits: 0,
-                                    })}
+                                  <span className="text-gray-600">
+                                    Movement
                                   </span>
-                                </div>
-                                <div className="flex justify-between text-xs">
-                                  <span className="text-gray-600">Pay</span>
-                                  <span className="text-red-400 font-medium">
-                                    -{(closing.bankPayments ?? 0).toLocaleString("en-QA", {
-                                      minimumFractionDigits: 0,
-                                    })}
+                                  <span
+                                    className={`font-semibold ${
+                                      closing.closingBank -
+                                        closing.openingBank >=
+                                      0
+                                        ? "text-emerald-400"
+                                        : "text-red-400"
+                                    }`}
+                                  >
+                                    {(
+                                      closing.closingBank - closing.openingBank
+                                    ).toLocaleString("en-QA")}
                                   </span>
                                 </div>
                                 <div className="pt-1.5 border-t border-emerald-500/10">
                                   <div className="flex justify-between text-xs">
-                                    <span className="text-emerald-400 font-bold">Close</span>
                                     <span className="text-emerald-400 font-bold">
-                                      {closing.closingBank.toLocaleString("en-QA", {
-                                        minimumFractionDigits: 0,
-                                      })}
+                                      Close
+                                    </span>
+                                    <span className="text-emerald-400 font-bold">
+                                      {closing.closingBank.toLocaleString(
+                                        "en-QA",
+                                        {
+                                          minimumFractionDigits: 0,
+                                        }
+                                      )}
                                     </span>
                                   </div>
                                 </div>
@@ -861,16 +934,28 @@ export default function ClosingsPage() {
                           {/* Metrics Grid */}
                           <div className="grid grid-cols-3 gap-2">
                             <div className="p-3 bg-[#1a1a1a] rounded-lg text-center">
-                              <p className="text-[10px] text-gray-600 font-medium uppercase mb-1">Sales</p>
-                              <p className="text-lg font-bold text-white">{closing.salesCount}</p>
+                              <p className="text-[10px] text-gray-600 font-medium uppercase mb-1">
+                                Sales
+                              </p>
+                              <p className="text-lg font-bold text-white">
+                                {closing.salesCount}
+                              </p>
                             </div>
                             <div className="p-3 bg-[#1a1a1a] rounded-lg text-center">
-                              <p className="text-[10px] text-gray-600 font-medium uppercase mb-1">Disc</p>
-                              <p className="text-lg font-bold text-white">{closing.totalDiscount.toFixed(0)}</p>
+                              <p className="text-[10px] text-gray-600 font-medium uppercase mb-1">
+                                Disc
+                              </p>
+                              <p className="text-lg font-bold text-white">
+                                {closing.totalDiscount.toFixed(0)}
+                              </p>
                             </div>
                             <div className="p-3 bg-[#1a1a1a] rounded-lg text-center">
-                              <p className="text-[10px] text-gray-600 font-medium uppercase mb-1">Tax</p>
-                              <p className="text-lg font-bold text-white">{closing.totalTax.toFixed(0)}</p>
+                              <p className="text-[10px] text-gray-600 font-medium uppercase mb-1">
+                                Tax
+                              </p>
+                              <p className="text-lg font-bold text-white">
+                                {closing.totalTax.toFixed(0)}
+                              </p>
                             </div>
                           </div>
 
@@ -886,7 +971,9 @@ export default function ClosingsPage() {
                               {closing.trialBalanceMatched && (
                                 <div className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 rounded-full">
                                   <CheckCircle className="h-3 w-3 text-emerald-400" />
-                                  <span className="text-[10px] font-bold text-emerald-400 uppercase">Balanced</span>
+                                  <span className="text-[10px] font-bold text-emerald-400 uppercase">
+                                    Balanced
+                                  </span>
                                 </div>
                               )}
                             </div>
@@ -908,15 +995,24 @@ export default function ClosingsPage() {
                           <div className="pt-3 border-t border-red-500/10">
                             <div className="flex items-center justify-between text-[10px] text-gray-600 mb-3">
                               <span>
-                                By {closing.closedBy?.firstName} {closing.closedBy?.lastName}
+                                By {closing.closedBy?.firstName}{" "}
+                                {closing.closedBy?.lastName}
                               </span>
-                              <span>{new Date(closing.closedAt).toLocaleDateString()}</span>
+                              <span>
+                                {new Date(
+                                  closing.closedAt
+                                ).toLocaleDateString()}
+                              </span>
                             </div>
 
                             {/* Actions */}
                             <div className="grid grid-cols-2 gap-2">
                               <button
-                                onClick={() => router.push(`/autocityPro/closings/${closing._id}`)}
+                                onClick={() =>
+                                  router.push(
+                                    `/autocityPro/closings/${closing._id}`
+                                  )
+                                }
                                 className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#1a1a1a] border border-red-500/20 text-gray-300 rounded-xl hover:bg-red-500/10 hover:text-white hover:border-red-500/40 transition-all duration-300 font-medium"
                               >
                                 <Eye className="h-3.5 w-3.5" />
@@ -962,8 +1058,8 @@ export default function ClosingsPage() {
                         Close Period
                       </h2>
                       <p className="text-sm text-gray-500 mt-1">
-                        {showPreview 
-                          ? "Review details before closing" 
+                        {showPreview
+                          ? "Review details before closing"
                           : "Configure period closing settings"}
                       </p>
                     </div>
@@ -1047,7 +1143,10 @@ export default function ClosingsPage() {
                         <ul className="text-xs text-amber-300/80 space-y-1.5">
                           <li>• All transactions will be locked</li>
                           <li>• Financial reports will be generated</li>
-                          <li>• Late-night transactions (until 6 AM) will be included</li>
+                          <li>
+                            • Late-night transactions (until 6 AM) will be
+                            included
+                          </li>
                           <li>• First closing includes all historical data</li>
                         </ul>
                       </div>
@@ -1082,7 +1181,7 @@ export default function ClosingsPage() {
               >
                 {showPreview ? "Back" : "Cancel"}
               </button>
-              
+
               <div className="flex gap-3">
                 {!showPreview && (
                   <button

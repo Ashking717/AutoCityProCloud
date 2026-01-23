@@ -46,6 +46,15 @@ import {
   Filler,
 } from 'chart.js';
 import toast from 'react-hot-toast';
+import {
+  formatTime,
+  formatDate,
+  formatDateTime,
+  getRelativeTime,
+  getCurrentDateInTimezone,
+  getTimezoneOffset,
+  QATAR_TIMEZONE,
+} from '@/lib/utils/timezone';
 
 ChartJS.register(
   CategoryScale,
@@ -158,6 +167,7 @@ export default function DashboardPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [showDynamicIsland, setShowDynamicIsland] = useState(true);
+  const [currentTime, setCurrentTime] = useState<Date>(getCurrentDateInTimezone());
   const hasFetched = useRef(false);
 
   const stats = dashboardData?.stats || defaultStats;
@@ -165,6 +175,15 @@ export default function DashboardPage() {
   const salesTrend = dashboardData?.salesTrend || defaultSalesTrend;
   const topProducts = dashboardData?.topProducts || [];
   const recentActivity = dashboardData?.recentActivity || [];
+
+  // Update current time every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(getCurrentDateInTimezone());
+    }, 60000); // Update every minute
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Mobile detection
   useEffect(() => {
@@ -200,7 +219,10 @@ export default function DashboardPage() {
       if (!analyticsRes.ok) throw new Error(`Failed to fetch analytics: ${analyticsRes.status}`);
       const data = await analyticsRes.json();
       setDashboardData(data);
-      setLastUpdated(new Date());
+      
+      // Set last updated time in local timezone
+      setLastUpdated(getCurrentDateInTimezone());
+      
       if (showLoading) setLoading(false);
       else setRefreshing(false);
     } catch (error: any) {
@@ -225,9 +247,8 @@ export default function DashboardPage() {
   }, [fetchDashboardData]);
 
   useEffect(() => {
-  fetchDashboardData();
-}, [period]);
-
+    fetchDashboardData();
+  }, [period]);
 
   const handleLogout = async () => {
     try {
@@ -543,7 +564,7 @@ export default function DashboardPage() {
             {lastUpdated && (
               <div className="flex items-center gap-1.5 text-xs text-white/40">
                 <Clock className="h-3 w-3" />
-                <span>Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                <span>Updated {formatTime(lastUpdated)} ({getTimezoneOffset()})</span>
               </div>
             )}
           </div>
@@ -597,7 +618,7 @@ export default function DashboardPage() {
                   {lastUpdated && (
                     <span className="flex items-center gap-1 text-xs text-white/60">
                       <Clock className="h-3 w-3" />
-                      Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {formatDateTime(lastUpdated)} ({getTimezoneOffset()})
                     </span>
                   )}
                 </div>
@@ -813,7 +834,7 @@ export default function DashboardPage() {
                         <div className="flex items-center gap-2 mt-1 text-[10px] md:text-xs text-gray-500">
                           <span>{activity.user}</span>
                           <span>•</span>
-                          <span>{activity.timestamp}</span>
+                          <span>{getRelativeTime(activity.timestamp)}</span>
                         </div>
                       </div>
                     </div>

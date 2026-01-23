@@ -1,7 +1,7 @@
 //components/ui/InvoicePrint.tsx
-'use client';
+"use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 
 interface InvoiceItem {
   name: string;
@@ -84,8 +84,8 @@ export default function InvoicePrint({
     const fetchData = async () => {
       try {
         const [outletRes, customerRes] = await Promise.all([
-          fetch(`/api/outlets/${outletId}`, { credentials: 'include' }),
-          fetch(`/api/customers/${customerId}`, { credentials: 'include' }),
+          fetch(`/api/outlets/${outletId}`, { credentials: "include" }),
+          fetch(`/api/customers/${customerId}`, { credentials: "include" }),
         ]);
 
         if (outletRes.ok) {
@@ -98,7 +98,7 @@ export default function InvoicePrint({
           setCustomer(data.customer);
         }
       } catch (err) {
-        console.error('Failed to load invoice data', err);
+        console.error("Failed to load invoice data", err);
       } finally {
         setLoading(false);
       }
@@ -117,13 +117,12 @@ export default function InvoicePrint({
 
   if (!outlet || !customer) return null;
 
-  const currency = outlet.settings?.currency || 'QAR';
+  const currency = outlet.settings?.currency || "QAR";
   const taxRate = outlet.settings?.taxRate || 0;
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
       <div className="bg-white w-full max-w-4xl shadow-lg overflow-auto max-h-screen">
-        
         {/* Actions */}
         <div className="flex justify-end gap-2 p-4 print:hidden border-b">
           <button
@@ -141,21 +140,30 @@ export default function InvoicePrint({
         </div>
 
         {/* Invoice Content */}
-        <div className="p-12 print:p-8" style={{ fontFamily: "'Courier New', Courier, monospace" }}>
-          
+        <div
+          className="p-12 print:p-8"
+          style={{ fontFamily: "'Courier New', Courier, monospace" }}
+        >
           {/* Header */}
           <div className="flex justify-between items-start mb-8">
             <div>
               <div className="text-xs font-bold tracking-tighter text-gray-700 mb-1">
                 ///////////////////////////////////////////////////////////////////
               </div>
-              <h1 className="text-5xl font-bold tracking-wider" style={{ fontWeight: 'bolder' }}>
+              <h1
+                className="text-5xl font-bold tracking-wider"
+                style={{ fontWeight: "bolder" }}
+              >
                 invoice
               </h1>
             </div>
-            
+
             <div className="w-32 h-32 rounded-full bg-gray-400 flex items-center justify-center overflow-hidden">
-              <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
+              <img
+                src="/logo.png"
+                alt="Logo"
+                className="w-full h-full object-cover"
+              />
             </div>
           </div>
 
@@ -166,7 +174,8 @@ export default function InvoicePrint({
               {outlet.address?.street && <p>{outlet.address.street}</p>}
               {outlet.address?.city && (
                 <p>
-                  {outlet.address.city}, {outlet.address.state} {outlet.address.postalCode}
+                  {outlet.address.city}, {outlet.address.state}{" "}
+                  {outlet.address.postalCode}
                 </p>
               )}
               {outlet.contact?.phone && <p>Phone: {outlet.contact.phone}</p>}
@@ -180,7 +189,11 @@ export default function InvoicePrint({
               </div>
               <div className="flex justify-end gap-8 mb-1">
                 <span className="font-bold">INVOICE DATE</span>
-                <span>{new Date(invoice.saleDate).toLocaleDateString('en-GB').replace(/\//g, '/')}</span>
+                <span>
+                  {new Date(invoice.saleDate)
+                    .toLocaleDateString("en-GB")
+                    .replace(/\//g, "/")}
+                </span>
               </div>
               {invoice.poNumber && (
                 <div className="flex justify-end gap-8 mb-1">
@@ -200,17 +213,26 @@ export default function InvoicePrint({
               {customer.address?.street && <p>{customer.address.street}</p>}
               {customer.address?.city && (
                 <p>
-                  {customer.address.city}, {customer.address.state} {customer.address.postalCode}
+                  {customer.address.city}, {customer.address.state}{" "}
+                  {customer.address.postalCode}
                 </p>
               )}
               {customer.vehicleRegistrationNumber && (
                 <p>Vehicle: {customer.vehicleRegistrationNumber}</p>
               )}
-              {(customer.vehicleMake || customer.vehicleModel || customer.vehicleYear || customer.vehicleColor) && (
+              {(customer.vehicleMake ||
+                customer.vehicleModel ||
+                customer.vehicleYear ||
+                customer.vehicleColor) && (
                 <p>
-                  {[customer.vehicleMake, customer.vehicleModel, customer.vehicleYear, customer.vehicleColor]
+                  {[
+                    customer.vehicleMake,
+                    customer.vehicleModel,
+                    customer.vehicleYear,
+                    customer.vehicleColor,
+                  ]
                     .filter(Boolean)
-                    .join(' • ')}
+                    .join(" • ")}
                 </p>
               )}
             </div>
@@ -220,17 +242,35 @@ export default function InvoicePrint({
           <table className="w-full text-sm mb-8 border-collapse border-2 border-black">
             <thead>
               <tr className="border-b-2 border-black">
-                <th className="text-left py-3 px-3 border-r border-black" style={{ width: '80px' }}>QTY</th>
-                <th className="text-left py-3 px-3 border-r border-black">DESCRIPTION</th>
-                <th className="text-right py-3 px-3 border-r border-black" style={{ width: '150px' }}>UNIT PRICE</th>
-                <th className="text-right py-3 px-3" style={{ width: '150px' }}>AMOUNT</th>
+                <th
+                  className="text-left py-3 px-3 border-r border-black"
+                  style={{ width: "80px" }}
+                >
+                  QTY
+                </th>
+                <th className="text-left py-3 px-3 border-r border-black">
+                  DESCRIPTION
+                </th>
+                <th
+                  className="text-right py-3 px-3 border-r border-black"
+                  style={{ width: "150px" }}
+                >
+                  UNIT PRICE
+                </th>
+                <th className="text-right py-3 px-3" style={{ width: "150px" }}>
+                  AMOUNT
+                </th>
               </tr>
             </thead>
             <tbody>
               {invoice.items.map((item, i) => (
                 <tr key={i} className="border-b border-black">
-                  <td className="py-3 px-3 border-r border-black">{item.quantity}</td>
-                  <td className="py-3 px-3 border-r border-black">{item.name}</td>
+                  <td className="py-3 px-3 border-r border-black">
+                    {item.quantity}
+                  </td>
+                  <td className="py-3 px-3 border-r border-black">
+                    {item.name}
+                  </td>
                   <td className="py-3 px-3 text-right border-r border-black">
                     {currency} {item.unitPrice.toFixed(2)}
                   </td>
@@ -244,21 +284,27 @@ export default function InvoicePrint({
 
           {/* Totals */}
           <div className="flex justify-end mb-8">
-            <div className="text-sm" style={{ width: '300px' }}>
+            <div className="text-sm" style={{ width: "300px" }}>
               <div className="flex justify-between py-2">
                 <span>Subtotal</span>
-                <span>{currency} {invoice.subtotal.toFixed(2)}</span>
+                <span>
+                  {currency} {invoice.subtotal.toFixed(2)}
+                </span>
               </div>
               {invoice.totalDiscount && invoice.totalDiscount > 0 && (
                 <div className="flex justify-between py-2">
                   <span>Discount</span>
-                  <span>- {currency} {invoice.totalDiscount.toFixed(2)}</span>
+                  <span>
+                    - {currency} {invoice.totalDiscount.toFixed(2)}
+                  </span>
                 </div>
               )}
               {taxRate > 0 && (
                 <div className="flex justify-between py-2">
                   <span>Tax ({taxRate}%)</span>
-                  <span>{currency} {invoice.totalTax.toFixed(2)}</span>
+                  <span>
+                    {currency} {invoice.totalTax.toFixed(2)}
+                  </span>
                 </div>
               )}
               <div className="flex justify-between py-2 border-b-2 border-black">
@@ -270,24 +316,28 @@ export default function InvoicePrint({
 
           {/* Grand Total */}
           <div className="flex justify-end mb-12">
-            <div className="border-4 border-black px-6 py-4 text-2xl font-bold flex justify-between" style={{ width: '400px' }}>
+            <div
+              className="border-4 border-black px-6 py-4 text-2xl font-bold flex justify-between"
+              style={{ width: "400px" }}
+            >
               <span>TOTAL</span>
-              <span>{currency}.{invoice.grandTotal.toFixed(2)}</span>
+              <span>
+                {currency}.{invoice.grandTotal.toFixed(2)}
+              </span>
             </div>
           </div>
 
           {/* Signature */}
-          <div className="flex justify-end mb-12">
-            <div className="text-4xl" style={{ fontFamily: 'cursive' }}>
-              Auto City
-            </div>
+          <div className="flex justify-end mr-30 mb-12">
+            <img src="/seal.png" alt="Seal" className="h-40 w-40 rotate-[15deg] opacity-80" />
           </div>
 
           {/* Footer */}
           <div className="text-sm leading-relaxed">
             <p>Thank you for your business!</p>
             <p className="text-gray-600 mt-4">
-              For any queries, contact us at {outlet.contact?.phone || 'N/A'} or {outlet.contact?.email || 'N/A'}
+              For any queries, contact us at {outlet.contact?.phone || "N/A"} or{" "}
+              {outlet.contact?.email || "N/A"}
             </p>
           </div>
         </div>

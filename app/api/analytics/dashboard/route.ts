@@ -1,4 +1,4 @@
-// app/api/analytics/dashboard/route.ts - WITH FIXED PROFIT CALCULATION
+// app/api/analytics/dashboard/route.ts - WITH FIXED TIMESTAMPS
 import { NextRequest, NextResponse } from 'next/server';
 import Sale from '@/lib/models/Sale';
 import Customer from '@/lib/models/Customer';
@@ -57,12 +57,16 @@ export async function GET(request: NextRequest) {
       getPercentageChanges(outletObjectId, period, now)
     ]);
     
-    // Format recent activity
+    // ✅ FIXED: Format recent activity with ISO timestamp
     const formattedActivity = recentActivityData.map((activity: any) => ({
       id: activity._id.toString(),
       description: activity.description || 'No description',
       user: activity.username || 'Unknown',
-      timestamp: format(activity.timestamp, 'MMM d, h:mm a'),
+      // ✅ CRITICAL FIX: Return ISO string instead of formatted string
+      // The frontend timezone utility will handle the display formatting
+      timestamp: activity.timestamp instanceof Date 
+        ? activity.timestamp.toISOString() 
+        : new Date(activity.timestamp).toISOString(),
       type: activity.actionType || 'info'
     }));
     
@@ -88,6 +92,7 @@ export async function GET(request: NextRequest) {
     }, { status: 500 });
   }
 }
+
 // Helper function to get dashboard statistics with FIXED profit calculation
 async function getDashboardStats(outletId: mongoose.Types.ObjectId, period: string, now: Date) {
   const { startDate, endDate } = getDateRange(period, now);

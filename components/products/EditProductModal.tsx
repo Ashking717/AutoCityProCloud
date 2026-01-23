@@ -66,6 +66,7 @@ const vehicleColors = [
   "Red",
   "Blue",
   "Green",
+  "Chrome",
   "Brown",
   "Yellow",
   "Orange",

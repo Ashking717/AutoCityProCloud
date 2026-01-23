@@ -5,6 +5,8 @@ import Category from '@/lib/models/Category';
 import ActivityLog from '@/lib/models/ActivityLog';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth/jwt';
+import { handleStockEdit, handleStockEditWithDifferenceOnly } from '@/lib/services/StockAdjustmentHandler';
+import mongoose  from 'mongoose';
 
 // GET /api/products/[id]
 export async function GET(
@@ -38,8 +40,6 @@ export async function GET(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
-
-
 
 // DELETE /api/products/[id]
 export async function DELETE(
@@ -103,6 +103,12 @@ export async function PUT(
     const user = verifyToken(token);
     const body = await request.json();
     
+    // Get existing product first to compare stock changes
+    const existingProduct = await Product.findById(params.id);
+    if (!existingProduct) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
+    
     // Handle both nested and flat structure
     const updateData: any = {};
     
@@ -124,7 +130,6 @@ export async function PUT(
       updateData.isVehicle = !!body.make;
     }
     
-    // Handle carMake (preferred field name)
     if (body.carMake !== undefined) {
       updateData.carMake = body.carMake;
       updateData.isVehicle = !!body.carMake;
@@ -136,7 +141,7 @@ export async function PUT(
     
     if (body.carModel !== undefined) updateData.carModel = body.carModel;
     
-    // CHANGED: Handle year range instead of single year
+    // Handle year range
     if (body.yearFrom !== undefined) {
       updateData.yearFrom = body.yearFrom ? parseInt(body.yearFrom) : undefined;
     }
@@ -149,8 +154,8 @@ export async function PUT(
       updateData.carMake = undefined;
       updateData.carModel = undefined;
       updateData.variant = undefined;
-      updateData.yearFrom = undefined;  // CHANGED
-      updateData.yearTo = undefined;    // CHANGED
+      updateData.yearFrom = undefined;
+      updateData.yearTo = undefined;
       updateData.color = undefined;
       updateData.vin = undefined;
       updateData.isVehicle = false;
@@ -167,23 +172,31 @@ export async function PUT(
       if (body.taxRate !== undefined) updateData.taxRate = body.taxRate;
     }
     
+    // 🔥 CRITICAL: Track stock changes BEFORE updating
+    let stockChanged = false;
+    let oldStock = existingProduct.currentStock || 0;
+    let newStock = oldStock;
+    
     // Stock fields (nested or flat)
     if (body.stock) {
-      if (body.stock.currentStock !== undefined) updateData.currentStock = body.stock.currentStock;
+      if (body.stock.currentStock !== undefined) {
+        newStock = body.stock.currentStock;
+        updateData.currentStock = newStock;
+        stockChanged = newStock !== oldStock;
+      }
       if (body.stock.minStock !== undefined) updateData.minStock = body.stock.minStock;
       if (body.stock.maxStock !== undefined) updateData.maxStock = body.stock.maxStock;
     } else {
-      if (body.currentStock !== undefined) updateData.currentStock = body.currentStock;
+      if (body.currentStock !== undefined) {
+        newStock = body.currentStock;
+        updateData.currentStock = newStock;
+        stockChanged = newStock !== oldStock;
+      }
       if (body.minStock !== undefined) updateData.minStock = body.minStock;
       if (body.maxStock !== undefined) updateData.maxStock = body.maxStock;
     }
     
     // Validate required fields
-    const existingProduct = await Product.findById(params.id);
-    if (!existingProduct) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
-    }
-    
     if (!updateData.name || !updateData.sku || updateData.costPrice === undefined || updateData.sellingPrice === undefined) {
       return NextResponse.json(
         { error: 'Missing required fields: name, sku, costPrice, sellingPrice' },
@@ -215,6 +228,7 @@ export async function PUT(
       }
     }
     
+    // Update the product
     const product = await Product.findOneAndUpdate(
       { _id: params.id, outletId: user.outletId },
       { $set: updateData },
@@ -225,21 +239,79 @@ export async function PUT(
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
     
-    // CHANGED: Create detailed activity log with year range
+    // 🔥 HANDLE STOCK ADJUSTMENTS
+    let stockAdjustmentResult = null;
+    
+    if (stockChanged) {
+      console.log(`\n🔄 Stock change detected for ${product.name} (${product.sku})`);
+      console.log(`   Old stock: ${oldStock} → New stock: ${newStock}`);
+      
+      try {
+        // Choose one of the two methods:
+        
+        // METHOD 1: Reverse original entry and create new one (keeps clean history)
+        stockAdjustmentResult = await handleStockEdit({
+          productId: product._id,
+          productName: product.name,
+          sku: product.sku,
+          oldStock,
+          newStock,
+          costPrice: product.costPrice,
+          outletId: user.outletId || product.outletId,
+          userId: new mongoose.Types.ObjectId(user.userId),
+          reason: body.adjustmentReason || 'Stock correction via product edit',
+        });
+        
+        // METHOD 2: Just create adjustment for the difference (simpler, shows all adjustments)
+        // Uncomment this and comment out METHOD 1 if you prefer this approach
+        /*
+        stockAdjustmentResult = await handleStockEditWithDifferenceOnly({
+          productId: product._id,
+          productName: product.name,
+          sku: product.sku,
+          oldStock,
+          newStock,
+          costPrice: product.costPrice,
+          outletId: user.outletId,
+          userId: user.userId,
+          reason: body.adjustmentReason || 'Stock correction via product edit',
+        });
+        */
+        
+        console.log('✅ Stock adjustment completed successfully');
+      } catch (adjustmentError) {
+        console.error('❌ Error handling stock adjustment:', adjustmentError);
+        // Don't fail the entire update, just log the error
+        return NextResponse.json({
+          product,
+          warning: 'Product updated but stock adjustment failed',
+          error: adjustmentError instanceof Error ? adjustmentError.message : 'Unknown error',
+        }, { status: 207 }); // 207 Multi-Status
+      }
+    }
+    
+    // Create activity log
     const yearRangeStr = product.yearFrom && product.yearTo ? `, ${product.yearFrom}-${product.yearTo}` : 
                         product.yearFrom ? `, ${product.yearFrom}+` : 
                         product.yearTo ? `, Up to ${product.yearTo}` : '';
     
-    const logDescription = `Updated product: ${product.name} (${product.sku})${
-      product.isVehicle ? 
-      ` [Vehicle: ${product.carMake || ''}${product.carModel ? ` ${product.carModel}` : ''}${product.variant ? ` ${product.variant}` : ''}${product.color ? `, ${product.color}` : ''}${yearRangeStr}]` : ''
-    }${
-      updateData.currentStock !== undefined ? ` | Stock: ${product.currentStock}` : ''
-    }${
-      updateData.costPrice !== undefined ? ` | Cost: QAR ${product.costPrice}` : ''
-    }${
-      updateData.sellingPrice !== undefined ? ` | Price: QAR ${product.sellingPrice}` : ''
-    }`;
+    let logDescription = `Updated product: ${product.name} (${product.sku})`;
+    
+    if (product.isVehicle) {
+      logDescription += ` [Vehicle: ${product.carMake || ''}${product.carModel ? ` ${product.carModel}` : ''}${product.variant ? ` ${product.variant}` : ''}${product.color ? `, ${product.color}` : ''}${yearRangeStr}]`;
+    }
+    
+    if (stockChanged) {
+      logDescription += ` | Stock: ${oldStock} → ${newStock} (${newStock - oldStock > 0 ? '+' : ''}${newStock - oldStock})`;
+    }
+    
+    if (updateData.costPrice !== undefined) {
+      logDescription += ` | Cost: QAR ${product.costPrice}`;
+    }
+    
+    if (updateData.sellingPrice !== undefined) {
+      logDescription += ` | Price: QAR ${product.sellingPrice}`;
+    }
     
     await ActivityLog.create({
       userId: user.userId,
@@ -251,8 +323,8 @@ export async function PUT(
       timestamp: new Date(),
     });
     
-    // CHANGED: Console logging with year range
-    console.log(`✓ Product updated: ${product.name} (SKU: ${product.sku})`);
+    // Console logging
+    console.log(`\n✓ Product updated: ${product.name} (SKU: ${product.sku})`);
     if (product.isVehicle) {
       console.log(`   Type: Vehicle`);
       console.log(`   Make: ${product.carMake || ''}${product.carModel ? ` ${product.carModel}` : ''}${product.variant ? ` ${product.variant}` : ''}`);
@@ -265,9 +337,14 @@ export async function PUT(
       }
     }
     
+    if (stockChanged) {
+      console.log(`   Stock adjusted: ${oldStock} → ${newStock}`);
+    }
+    
     return NextResponse.json({ 
       product,
       message: 'Product updated successfully',
+      stockAdjustment: stockAdjustmentResult,
     });
   } catch (error: any) {
     console.error('Error updating product:', error);

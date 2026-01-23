@@ -1,5 +1,6 @@
 // app/api/ledgers/[accountId]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import { connectDB } from '@/lib/db/mongodb';
 import Account from '@/lib/models/Account';
 import LedgerEntry from '@/lib/models/LedgerEntry';
@@ -12,80 +13,65 @@ export async function GET(
 ) {
   try {
     await connectDB();
-    
-    const cookieStore = cookies();
-    const token = cookieStore.get('auth-token')?.value;
-    
+
+    /* ───────── AUTH ───────── */
+    const token = cookies().get('auth-token')?.value;
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
+
     const user = verifyToken(token);
+
+    if (!mongoose.Types.ObjectId.isValid(params.accountId)) {
+      return NextResponse.json({ error: 'Invalid accountId' }, { status: 400 });
+    }
+
     const { searchParams } = new URL(request.url);
-    
-    // Parse date range
+
+    /* ───────── DATE RANGE ───────── */
     const fromDateStr = searchParams.get('fromDate');
     const toDateStr = searchParams.get('toDate');
-    
-    const fromDate = fromDateStr 
-      ? new Date(fromDateStr) 
-      : new Date(new Date().getFullYear(), 0, 1); // Jan 1st of current year
-    
-    const toDate = toDateStr 
-      ? new Date(toDateStr) 
-      : new Date(); // Today
-    
-    // Set time to start and end of day
+
+    const fromDate = fromDateStr
+      ? new Date(fromDateStr)
+      : new Date(new Date().getFullYear(), 0, 1);
+
+    const toDate = toDateStr ? new Date(toDateStr) : new Date();
+
     fromDate.setHours(0, 0, 0, 0);
     toDate.setHours(23, 59, 59, 999);
-    
-    console.log('📊 Fetching ledger:');
-    console.log(`   Account: ${params.accountId}`);
-    console.log(`   Date Range: ${fromDate.toLocaleDateString()} to ${toDate.toLocaleDateString()}`);
-    
-    // Get account details
-    const accountRaw = await Account.findOne({
+
+    /* ───────── LOAD ACCOUNT ───────── */
+    const accountRaw = (await Account.findOne({
       _id: params.accountId,
       outletId: user.outletId,
-    }).lean() as any;
-    
+      isActive: true,
+    }).lean()) as any;
+
     if (!accountRaw) {
       return NextResponse.json({ error: 'Account not found' }, { status: 404 });
     }
-    
-    // Map account fields for frontend
+
     const account = {
-      ...accountRaw,
+      _id: accountRaw._id,
       accountNumber: accountRaw.code || accountRaw.accountNumber,
       accountName: accountRaw.name || accountRaw.accountName,
       accountType: (accountRaw.type || accountRaw.accountType || '').toLowerCase(),
     };
-    
-    console.log(`   Account: ${account.accountNumber} - ${account.accountName}`);
-    
-    // Get opening balance (entries before fromDate)
-    const entriesBeforeRange = await LedgerEntry.find({
+
+    /* ───────── OPENING BALANCE ───────── */
+    const entriesBefore = await LedgerEntry.find({
       accountId: params.accountId,
       outletId: user.outletId,
       date: { $lt: fromDate },
     }).lean();
-    
-    const totalDebitBefore = entriesBeforeRange.reduce((sum: number, e: any) => sum + (e.debit || 0), 0);
-    const totalCreditBefore = entriesBeforeRange.reduce((sum: number, e: any) => sum + (e.credit || 0), 0);
-    
-    // Calculate opening balance based on account type
-const accountType = (accountRaw.type || accountRaw.accountType || '').toLowerCase();
-    let openingBalance = 0;
 
-    if (accountType === 'asset' || accountType === 'expense') {
-      openingBalance = totalDebitBefore - totalCreditBefore;
-    } else {
-      openingBalance = totalCreditBefore - totalDebitBefore;
-    }
-    
-    console.log(`   Opening Balance: QAR ${openingBalance.toFixed(2)}`);
-    
-    // Get ledger entries within date range
+    const openingBalance = entriesBefore.reduce(
+      (sum: number, e: any) => sum + (e.debit || 0) - (e.credit || 0),
+      0
+    );
+
+    /* ───────── PERIOD ENTRIES ───────── */
     const entries = await LedgerEntry.find({
       accountId: params.accountId,
       outletId: user.outletId,
@@ -93,25 +79,20 @@ const accountType = (accountRaw.type || accountRaw.accountType || '').toLowerCas
     })
       .sort({ date: 1, createdAt: 1 })
       .lean();
-    
-    console.log(`   Found ${entries.length} entries`);
-    
-    // Build ledger with running balance
-    const ledgerEntries: any[] = [];
+
     let runningBalance = openingBalance;
-    
-    entries.forEach((entry: any) => {
+    let totalDebit = 0;
+    let totalCredit = 0;
+
+    const ledgerEntries = entries.map((entry: any) => {
       const debit = entry.debit || 0;
       const credit = entry.credit || 0;
-      
-      // Update running balance based on account type
-      if (accountType === 'asset' || accountType === 'expense') {
-        runningBalance += (debit - credit);
-      } else {
-        runningBalance += (credit - debit);
-      }
-      
-      ledgerEntries.push({
+
+      runningBalance += debit - credit;
+      totalDebit += debit;
+      totalCredit += credit;
+
+      return {
         _id: entry._id,
         date: entry.date,
         voucherType: entry.voucherType,
@@ -125,28 +106,19 @@ const accountType = (accountRaw.type || accountRaw.accountType || '').toLowerCas
         credit,
         balance: runningBalance,
         createdAt: entry.createdAt,
-      });
+      };
     });
-    
-    // Calculate summary
-    const totalDebit = ledgerEntries.reduce((sum, e) => sum + e.debit, 0);
-    const totalCredit = ledgerEntries.reduce((sum, e) => sum + e.credit, 0);
-    const closingBalance = runningBalance;
-    
+
+    /* ───────── SUMMARY ───────── */
     const summary = {
       openingBalance,
       totalDebit,
       totalCredit,
-      closingBalance,
+      closingBalance: runningBalance,
       transactionCount: ledgerEntries.length,
-      netChange: closingBalance - openingBalance,
+      netChange: runningBalance - openingBalance,
     };
-    
-    console.log('   Summary:');
-    console.log(`   - Total Debits: QAR ${totalDebit.toFixed(2)}`);
-    console.log(`   - Total Credits: QAR ${totalCredit.toFixed(2)}`);
-    console.log(`   - Closing Balance: QAR ${closingBalance.toFixed(2)}`);
-    
+
     return NextResponse.json({
       account,
       ledgerEntries,
@@ -156,9 +128,11 @@ const accountType = (accountRaw.type || accountRaw.accountType || '').toLowerCas
         to: toDate,
       },
     });
-    
   } catch (error: any) {
-    console.error('❌ Error fetching account ledger:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('❌ Ledger API error:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch ledger' },
+      { status: 500 }
+    );
   }
 }

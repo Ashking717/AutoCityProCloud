@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import Account from '@/lib/models/Account';
-import Voucher from '@/lib/models/Voucher';
+import LedgerEntry from '@/lib/models/LedgerEntry';
 import Outlet from '@/lib/models/Outlet';
 import { connectDB } from '@/lib/db/mongodb';
 
@@ -33,57 +33,21 @@ export async function GET(req: Request) {
     const to = new Date(toDate);
 
     /* ----------------------------------------------------
-       1️⃣ LOAD OUTLET (NAME FOR AUDIT)
+       1️⃣ LOAD OUTLET
     ---------------------------------------------------- */
-    const outlet = await Outlet.findById(outletId)
-      .select('name')
-      .lean();
-
+    const outlet = await Outlet.findById(outletId).select('name').lean();
     if (!outlet) {
-      return NextResponse.json(
-        { error: 'Outlet not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Outlet not found' }, { status: 404 });
     }
 
-    const outletName = outlet.name;
-
     /* ----------------------------------------------------
-       2️⃣ LOAD ACCOUNTS (OUTLET-SCOPED)
+       2️⃣ LOAD ACCOUNTS
     ---------------------------------------------------- */
-    type AccountDoc = {
-      _id: mongoose.Types.ObjectId | string;
-      code: string;
-      name: string;
-      type: string;
-      subType?: string;
-    };
-
-    const rawAccounts = await Account.find({
+    const accounts = await Account.find({
       outletId,
       isActive: true,
     }).lean();
 
-    const accounts: AccountDoc[] = rawAccounts.map((acc: any) => ({
-      _id: acc._id,
-      code: acc.code,
-      name: acc.name,
-      type: acc.type,
-      subType: acc.subType,
-    }));
-
-    /* ----------------------------------------------------
-       3️⃣ LOAD VOUCHERS ONCE (POSTED / APPROVED ONLY)
-    ---------------------------------------------------- */
-    const vouchers = await Voucher.find({
-      outletId,
-      status: { $in: ['posted', 'approved'] },
-      date: { $lte: to },
-    }).lean();
-
-    /* ----------------------------------------------------
-       4️⃣ INITIALIZE TRIAL BALANCE MAP
-    ---------------------------------------------------- */
     type TBRow = {
       accountId: string;
       accountCode: string;
@@ -99,58 +63,65 @@ export async function GET(req: Request) {
     const tbMap = new Map<string, TBRow>();
 
     for (const acc of accounts) {
-      tbMap.set(acc._id.toString(), {
-        accountId: acc._id.toString(),
-        accountCode: acc.code,
-        accountName: acc.name,
-        accountType: acc.type,
-        accountGroup: acc.subType,
-        openingBalance: 0,
-        periodDebit: 0,
-        periodCredit: 0,
-        closingBalance: 0,
-      });
-    }
+  const accountId = (acc._id as mongoose.Types.ObjectId).toString();
 
-   /* ----------------------------------------------------
-   5️⃣ PROCESS VOUCHERS (SINGLE PASS) — FIXED
----------------------------------------------------- */
-for (const voucher of vouchers) {
-  for (const entry of voucher.entries) {
-    const key = entry.accountId.toString();
-
-    let row = tbMap.get(key);
-
-    // 🔴 FIX: NEVER skip valid accounting entries
-    if (!row) {
-      row = {
-        accountId: key,
-        accountCode: entry.accountNumber || '',
-        accountName: entry.accountName || 'Unknown Account',
-        accountType: 'unknown', // fallback
-        openingBalance: 0,
-        periodDebit: 0,
-        periodCredit: 0,
-        closingBalance: 0,
-      };
-      tbMap.set(key, row);
-    }
-
-    const debit = entry.debit || 0;
-    const credit = entry.credit || 0;
-
-    if (voucher.date < from) {
-      row.openingBalance += debit - credit;
-    } else {
-      row.periodDebit += debit;
-      row.periodCredit += credit;
-    }
-  }
+  tbMap.set(accountId, {
+    accountId,
+    accountCode: acc.code,
+    accountName: acc.name,
+    accountType: acc.type,
+    accountGroup: acc.subType,
+    openingBalance: 0,
+    periodDebit: 0,
+    periodCredit: 0,
+    closingBalance: 0,
+  });
 }
 
+    /* ----------------------------------------------------
+       3️⃣ LOAD LEDGER ENTRIES (SINGLE SOURCE OF TRUTH)
+    ---------------------------------------------------- */
+    const ledgerEntries = await LedgerEntry.find({
+      outletId,
+      date: { $lte: to },
+    }).lean();
 
     /* ----------------------------------------------------
-       6️⃣ FINALIZE ROWS & TOTALS
+       4️⃣ PROCESS LEDGER ENTRIES
+    ---------------------------------------------------- */
+    for (const entry of ledgerEntries) {
+      const key = entry.accountId.toString();
+
+      let row = tbMap.get(key);
+
+      // 🔒 Ensure ALL ledger entries are counted
+      if (!row) {
+        row = {
+          accountId: key,
+          accountCode: entry.accountNumber || '',
+          accountName: entry.accountName || 'Unknown Account',
+          accountType: 'unknown',
+          openingBalance: 0,
+          periodDebit: 0,
+          periodCredit: 0,
+          closingBalance: 0,
+        };
+        tbMap.set(key, row);
+      }
+
+      const debit = entry.debit || 0;
+      const credit = entry.credit || 0;
+
+      if (entry.date < from) {
+        row.openingBalance += debit - credit;
+      } else {
+        row.periodDebit += debit;
+        row.periodCredit += credit;
+      }
+    }
+
+    /* ----------------------------------------------------
+       5️⃣ FINALIZE & TOTALS
     ---------------------------------------------------- */
     let totalDebit = 0;
     let totalCredit = 0;
@@ -179,7 +150,7 @@ for (const voucher of vouchers) {
     }
 
     /* ----------------------------------------------------
-       7️⃣ SORT (ACCOUNTING ORDER)
+       6️⃣ SORT (ACCOUNTING ORDER)
     ---------------------------------------------------- */
     const typeOrder: Record<string, number> = {
       asset: 1,
@@ -197,34 +168,29 @@ for (const voucher of vouchers) {
     });
 
     /* ----------------------------------------------------
-       8️⃣ BALANCE CHECK
+       7️⃣ BALANCE CHECK
     ---------------------------------------------------- */
     const difference = Math.abs(totalDebit - totalCredit);
-    const isBalanced = difference < 0.01;
 
     /* ----------------------------------------------------
-       9️⃣ RESPONSE (AUDIT-READY)
+       8️⃣ RESPONSE
     ---------------------------------------------------- */
     return NextResponse.json({
       success: true,
       report: {
         name: 'Trial Balance',
-        outletName,
-        period: {
-          from: fromDate,
-          to: toDate,
-        },
+        outletName: outlet.name,
+        period: { from: fromDate, to: toDate },
         generatedAt: new Date(),
       },
       totals: {
         totalDebit: Number(totalDebit.toFixed(2)),
         totalCredit: Number(totalCredit.toFixed(2)),
         difference: Number(difference.toFixed(2)),
-        isBalanced,
+        isBalanced: difference < 0.01,
       },
       accounts: results,
     });
-
   } catch (error) {
     console.error('Trial Balance API error:', error);
     return NextResponse.json(

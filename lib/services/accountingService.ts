@@ -1044,7 +1044,7 @@ export async function postInventoryAdjustmentToLedger(
     const costPrice = Number(adjustment.costPrice) || 0;
     const totalValue = quantity * costPrice;
 
-    if (totalValue <= 0) {
+    if (totalValue === 0) {
       console.warn(
         "⚠️ Inventory adjustment has zero value, skipping ledger entry"
       );

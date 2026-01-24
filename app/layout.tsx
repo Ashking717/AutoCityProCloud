@@ -130,7 +130,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" style={{ backgroundColor: '#000000' }}>
       <head>
         {/* JSON-LD Structured Data for SEO */}
         <script
@@ -142,12 +142,29 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         
-        {/* Theme Color - Matches brand color */}
-        <meta name="theme-color" content="#E84545" />
-        <meta name="msapplication-TileColor" content="#E84545" />
+        {/* Theme Color - Black for login page consistency */}
+        <meta name="theme-color" content="#000000" />
+        <meta name="msapplication-TileColor" content="#000000" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        
+        {/* Prevent white background on overscroll */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          html, body {
+            background-color: #000000;
+            overscroll-behavior: none;
+            -webkit-overflow-scrolling: touch;
+          }
+          
+          /* iOS Safari specific fix */
+          @supports (-webkit-touch-callout: none) {
+            html, body {
+              min-height: 100vh;
+              min-height: -webkit-fill-available;
+            }
+          }
+        `}} />
       </head>
-      <body className={inter.className}>
+      <body className={`${inter.className} bg-black`} style={{ backgroundColor: '#000000' }}>
         <Toaster position="top-right" />
         {children}
       </body>

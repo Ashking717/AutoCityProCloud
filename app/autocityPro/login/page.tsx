@@ -70,6 +70,7 @@ export default function LoginPage() {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -119,206 +120,460 @@ export default function LoginPage() {
   };
 
   return (
-    <div className={`min-h-screen bg-[#050505] flex items-center justify-center px-4 ${isRTL ? 'rtl' : 'ltr'}`}>
+    <div className="min-h-screen bg-black text-white flex items-center justify-center p-4 relative overflow-hidden" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Custom Styles */}
       <style jsx global>{`
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=SF+Pro+Display:wght@400;500;600;700;800&display=swap');
         
-        .ltr {
-          direction: ltr;
-          font-family: 'Outfit', sans-serif;
+        * {
+          -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+          font-family: ${lang === 'ar' ? "'Cairo', -apple-system, BlinkMacSystemFont, sans-serif" : "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif"};
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
         }
 
-        .rtl {
-          direction: rtl;
-          font-family: 'Tajawal', sans-serif;
+        .ios-card {
+          background: rgba(28, 28, 30, 0.95);
+          backdrop-filter: blur(40px) saturate(180%);
+          border: 0.5px solid rgba(255, 255, 255, 0.08);
         }
 
-        .glass {
-          background: rgba(255, 255, 255, 0.03);
-          backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.05);
+        .ios-input {
+          background: rgba(58, 58, 60, 0.4);
+          backdrop-filter: blur(10px);
+          border: 0.5px solid rgba(255, 255, 255, 0.06);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .noise::before {
-          content: '';
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          pointer-events: none;
-          z-index: 1000;
-          opacity: 0.015;
-          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+        .ios-input:focus {
+          background: rgba(58, 58, 60, 0.6);
+          border-color: rgba(255, 59, 48, 0.5);
+          box-shadow: 0 0 0 4px rgba(255, 59, 48, 0.1);
+        }
+
+        .ios-button {
+          background: linear-gradient(180deg, #FF453A 0%, #E8463B 100%);
+          box-shadow: 0 4px 12px rgba(255, 59, 48, 0.3),
+                      0 1px 3px rgba(0, 0, 0, 0.4);
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .ios-button:active {
+          transform: scale(0.98);
+          box-shadow: 0 2px 6px rgba(255, 59, 48, 0.2),
+                      0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .ios-button:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .glow-red {
+          box-shadow: 0 0 60px rgba(255, 59, 48, 0.3),
+                      0 0 120px rgba(255, 59, 48, 0.15);
+        }
+
+        .animate-float {
+          animation: float 8s ease-in-out infinite;
+        }
+
+        @keyframes float {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(30px, -30px) scale(1.1); }
+          66% { transform: translate(-20px, 20px) scale(0.9); }
+        }
+
+        .animate-pulse-glow {
+          animation: pulse-glow 3s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+          0%, 100% { opacity: 0.4; transform: scale(1); }
+          50% { opacity: 0.8; transform: scale(1.1); }
+        }
+
+        .text-gradient {
+          background: linear-gradient(135deg, #FF453A 0%, #FF6B6B 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
         }
 
         input::placeholder {
           color: #6b7280;
         }
 
-        .rtl input {
-          text-align: right;
+        /* Custom checkbox styling */
+        input[type="checkbox"] {
+          appearance: none;
+          -webkit-appearance: none;
+          width: 20px;
+          height: 20px;
+          border-radius: 6px;
+          border: 2px solid rgba(255, 255, 255, 0.2);
+          background: rgba(58, 58, 60, 0.4);
+          cursor: pointer;
+          position: relative;
+          transition: all 0.2s;
         }
 
-        .rtl input::placeholder {
-          text-align: right;
+        input[type="checkbox"]:checked {
+          background: linear-gradient(180deg, #FF453A 0%, #E8463B 100%);
+          border-color: #FF453A;
+        }
+
+        input[type="checkbox"]:checked::after {
+          content: '';
+          position: absolute;
+          left: 6px;
+          top: 2px;
+          width: 4px;
+          height: 9px;
+          border: solid white;
+          border-width: 0 2px 2px 0;
+          transform: rotate(45deg);
+        }
+
+        input[type="checkbox"]:focus {
+          outline: none;
+          box-shadow: 0 0 0 4px rgba(255, 59, 48, 0.1);
         }
       `}</style>
 
-      <div className="noise" />
-
-      {/* Background Elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-1/4 -right-1/4 w-[800px] h-[800px] rounded-full opacity-10 bg-[#E84545] blur-[150px]" />
-        <div className="absolute -bottom-1/4 -left-1/4 w-[600px] h-[600px] rounded-full opacity-5 bg-[#E84545] blur-[150px]" />
-        <div 
-          className="absolute inset-0 opacity-[0.02]"
-          style={{
-            backgroundImage: `
-              linear-gradient(to right, #E84545 1px, transparent 1px),
-              linear-gradient(to bottom, #E84545 1px, transparent 1px)
-            `,
-            backgroundSize: '80px 80px'
-          }}
-        />
+      {/* Animated Background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -left-40 w-96 h-96 bg-gradient-to-br from-red-600 to-red-800 rounded-full filter blur-3xl opacity-30 animate-float" />
+        <div className="absolute -bottom-40 -right-40 w-[500px] h-[500px] bg-gradient-to-tl from-red-500 to-red-700 rounded-full filter blur-3xl opacity-25 animate-float" style={{ animationDelay: '2s' }} />
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-red-600/10 to-red-800/10 rounded-full filter blur-3xl animate-pulse-glow" />
+        
+        <div className="absolute inset-0" style={{
+          backgroundImage: 'linear-gradient(rgba(255, 59, 48, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 59, 48, 0.03) 1px, transparent 1px)',
+          backgroundSize: '50px 50px'
+        }} />
       </div>
 
-      {/* Language Toggle - Top Right */}
-      <div className="absolute top-6 right-6 z-10">
-        <button
-          onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-white/10 hover:border-[#E84545]/50 transition-colors bg-black/20 backdrop-blur-sm"
-        >
-          <Globe className="w-4 h-4 text-[#E84545]" />
-          <span className="text-sm font-medium text-white">{lang === 'en' ? 'العربية' : 'English'}</span>
-        </button>
-      </div>
+      {/* Language Toggle */}
+      <button
+        onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
+        className="absolute top-6 right-6 z-50 flex items-center gap-2 px-4 py-2.5 rounded-full ios-card hover:bg-white/5 transition-all active:scale-95"
+      >
+        <Globe className="w-4 h-4 text-red-500" />
+        <span className="text-sm font-medium">{lang === 'en' ? 'العربية' : 'English'}</span>
+      </button>
 
-      <div className="relative z-10 max-w-md w-full">
-        {/* Logo and Title */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center justify-center mb-6 hover:opacity-80 transition-opacity cursor-pointer">
-            <Image
-              src="/login.png"
-              alt="Auto City Qatar"
-              width={300}
-              height={150}
-              className="object-contain cursor-pointer"
-              priority
-            />
-          </Link>
-          <h1 className="text-3xl font-bold text-white mb-2">{t.title}</h1>
-          <p className="text-gray-500">{t.subtitle}</p>
-        </div>
-
-        {/* Login Form */}
-        <div className="glass rounded-2xl p-8">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-white mb-1">{t.signIn}</h2>
-            <p className="text-gray-500 text-sm">{t.signInDesc}</p>
+      {/* Main Content */}
+      <div className="w-full max-w-md lg:max-w-5xl relative z-10">
+        {/* Desktop Layout */}
+        <div className="hidden lg:grid lg:grid-cols-2 lg:gap-12 lg:items-center">
+          {/* Left Side - Branding */}
+          <div className="text-center lg:text-left space-y-6">
+            <Link href="/" className="inline-block hover:opacity-80 transition-opacity">
+              <Image
+                src="/login.png"
+                alt="Auto City Qatar"
+                width={400}
+                height={200}
+                className="object-contain"
+                priority
+              />
+            </Link>
+            <div>
+              <h1 className="text-5xl lg:text-6xl font-bold mb-4 tracking-tight">
+                <span className=" text-red-600">{t.title}</span>
+              </h1>
+              <p className="text-gray-400 text-lg font-medium tracking-wide mb-6">{t.subtitle}</p>
+              <p className="text-gray-500 text-sm max-w-md">
+                {t.support}
+              </p>
+            </div>
+            
+            {/* Decorative Elements */}
+            <div className="hidden lg:flex gap-4 pt-8">
+              {/* <div className="flex-1 p-4 rounded-2xl ios-card ">
+                <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center mb-3">
+                  <Lock className="w-5 h-5 text-red-500 flex place-items-center justify-center" />
+                </div>
+                <h3 className="flex justify-center font-semibold text-sm mb-1">Secure Access</h3>
+                <p className="flex justify-center text-xs text-gray-500">Enterprise-grade security</p>
+              </div> */}
+              {/* <div className="flex-1 p-4 rounded-2xl ios-card">
+                <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center mb-3">
+                  <Globe className="w-5 h-5 text-red-500" />
+                </div>
+                <h3 className="font-semibold text-sm mb-1">Multi-language</h3>
+                <p className="text-xs text-gray-500">English & Arabic support</p>
+              </div> */}
+            </div>
           </div>
-          
-          {error && (
-            <div className="bg-[#E84545]/10 border border-[#E84545]/30 text-[#E84545] px-4 py-3 rounded-lg mb-4 text-sm">
-              {error}
-            </div>
-          )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label htmlFor="identifier" className="block text-sm font-medium text-gray-300 mb-2">
-                {t.identifier}
-              </label>
-              <div className="relative">
-                <User className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-500`} />
-                <input
-                  id="identifier"
-                  type="text"
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                  className={`${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} w-full py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:ring-2 focus:ring-[#E84545] focus:border-transparent transition-all`}
-                  placeholder={t.identifierPlaceholder}
-                  required
-                  autoComplete="username"
-                />
+          {/* Right Side - Login Form */}
+          <div className="ios-card rounded-3xl p-8 shadow-2xl">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold mb-1">{t.signIn}</h2>
+              <p className="text-gray-400 text-sm">{t.signInDesc}</p>
+            </div>
+
+            {error && (
+              <div className="mb-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 backdrop-blur-sm">
+                <p className="text-red-400 text-sm font-medium">{error}</p>
               </div>
-            </div>
+            )}
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
-                {t.password}
-              </label>
-              <div className="relative">
-                <Lock className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-500`} />
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className={`${isRTL ? 'pr-10 pl-10' : 'pl-10 pr-10'} w-full py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:ring-2 focus:ring-[#E84545] focus:border-transparent transition-all`}
-                  placeholder={t.passwordPlaceholder}
-                  required
-                  autoComplete="current-password"
-                />
+            <div className="space-y-5">
+              {/* Username/Email Input */}
+              <div>
+                <label htmlFor="identifier-desktop" className="block text-sm font-semibold mb-2 text-gray-300">
+                  {t.identifier}
+                </label>
+                <div className="relative">
+                  <User className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5`} />
+                  <input
+                    id="identifier-desktop"
+                    type="text"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSubmit(e)}
+                    className={`${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} w-full py-4 ios-input rounded-2xl text-white placeholder-gray-500 focus:outline-none text-base`}
+                    placeholder={t.identifierPlaceholder}
+                    required
+                    autoComplete="username"
+                  />
+                </div>
+              </div>
+
+              {/* Password Input */}
+              <div>
+                <label htmlFor="password-desktop" className="block text-sm font-semibold mb-2 text-gray-300">
+                  {t.password}
+                </label>
+                <div className="relative">
+                  <Lock className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5`} />
+                  <input
+                    id="password-desktop"
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSubmit(e)}
+                    className={`${isRTL ? 'pr-12 pl-12' : 'pl-12 pr-12'} w-full py-4 ios-input rounded-2xl text-white placeholder-gray-500 focus:outline-none text-base`}
+                    placeholder={t.passwordPlaceholder}
+                    required
+                    autoComplete="current-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className={`absolute ${isRTL ? 'left-4' : 'right-4'} top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors active:scale-95`}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Remember Me & Forgot Password */}
+              <div className="flex items-center justify-between">
+                <label htmlFor="remember-desktop" className="flex items-center cursor-pointer group">
+                  <input
+                    id="remember-desktop"
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="cursor-pointer"
+                  />
+                  <span className={`${isRTL ? 'mr-3' : 'ml-3'} text-sm font-medium text-gray-300 group-hover:text-white transition-colors`}>
+                    {t.rememberMe}
+                  </span>
+                </label>
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className={`absolute ${isRTL ? 'left-3' : 'right-3'} top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors`}
+                  onClick={() => setShowForgotPassword(true)}
+                  className="text-sm font-semibold text-red-500 hover:text-red-400 transition-colors active:scale-95"
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5" />
-                  ) : (
-                    <Eye className="h-5 w-5" />
-                  )}
+                  {t.forgotPassword}
                 </button>
               </div>
-            </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember"
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-gray-600 bg-white/5 text-[#E84545] focus:ring-[#E84545] focus:ring-offset-0"
-                />
-                <label htmlFor="remember" className={`${isRTL ? 'mr-2' : 'ml-2'} block text-sm text-gray-400`}>
-                  {t.rememberMe}
-                </label>
-              </div>
+              {/* Sign In Button */}
               <button
-                type="button"
-                onClick={() => setShowForgotPassword(true)}
-                className="text-sm text-[#E84545] hover:text-[#ff6b6b] transition-colors"
+                onClick={handleSubmit}
+                disabled={loading}
+                className="w-full py-4 rounded-2xl ios-button text-white font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] transition-all"
               >
-                {t.forgotPassword}
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    {t.signingIn}
+                  </span>
+                ) : (
+                  t.signInButton
+                )}
               </button>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-[#E84545] text-white py-3 rounded-lg font-semibold hover:bg-[#cc3c3c] transition-all disabled:bg-[#E84545]/50 disabled:cursor-not-allowed mt-6"
-            >
-              {loading ? t.signingIn : t.signInButton}
-            </button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <Link 
-              href="/" 
-              className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-[#E84545] transition-colors"
-            >
-              <ArrowLeft className={`h-4 w-4 ${isRTL ? 'rotate-180' : ''}`} />
-              {t.backToHome}
-            </Link>
+            {/* Back to Home */}
+            <div className="mt-6 text-center">
+              <Link
+                href="/"
+                className="inline-flex items-center gap-2 text-sm font-medium text-gray-400 hover:text-red-500 transition-colors active:scale-95"
+              >
+                <ArrowLeft className={`w-4 h-4 ${isRTL ? 'rotate-180' : ''}`} />
+                {t.backToHome}
+              </Link>
+            </div>
           </div>
         </div>
 
-        {/* Footer */}
-        <p className="text-center text-gray-600 text-sm mt-8">
-          {t.support}
-        </p>
+        {/* Mobile Layout */}
+        <div className="lg:hidden">
+          {/* Logo Section */}
+          <div className="text-center mb-8">
+            <Link href="/" className="inline-block mb-6 hover:opacity-80 transition-opacity">
+              <Image
+                src="/login.png"
+                alt="Auto City Qatar"
+                width={300}
+                height={150}
+                className="object-contain"
+                priority
+              />
+            </Link>
+            <h1 className="text-4xl font-bold mb-2 tracking-tight">
+              <span className="text-gradient">{t.title}</span>
+            </h1>
+            <p className="text-gray-400 text-sm font-medium tracking-wide">{t.subtitle}</p>
+          </div>
+
+          {/* Login Card */}
+          <div className="ios-card rounded-3xl p-8 shadow-2xl">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold mb-1">{t.signIn}</h2>
+              <p className="text-gray-400 text-sm">{t.signInDesc}</p>
+            </div>
+
+            {error && (
+              <div className="mb-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 backdrop-blur-sm">
+                <p className="text-red-400 text-sm font-medium">{error}</p>
+              </div>
+            )}
+
+            <div className="space-y-5">
+              {/* Username/Email Input */}
+              <div>
+                <label htmlFor="identifier-mobile" className="block text-sm font-semibold mb-2 text-gray-300">
+                  {t.identifier}
+                </label>
+                <div className="relative">
+                  <User className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5`} />
+                  <input
+                    id="identifier-mobile"
+                    type="text"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSubmit(e)}
+                    className={`${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} w-full py-4 ios-input rounded-2xl text-white placeholder-gray-500 focus:outline-none text-base`}
+                    placeholder={t.identifierPlaceholder}
+                    required
+                    autoComplete="username"
+                  />
+                </div>
+              </div>
+
+              {/* Password Input */}
+              <div>
+                <label htmlFor="password-mobile" className="block text-sm font-semibold mb-2 text-gray-300">
+                  {t.password}
+                </label>
+                <div className="relative">
+                  <Lock className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5`} />
+                  <input
+                    id="password-mobile"
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSubmit(e)}
+                    className={`${isRTL ? 'pr-12 pl-12' : 'pl-12 pr-12'} w-full py-4 ios-input rounded-2xl text-white placeholder-gray-500 focus:outline-none text-base`}
+                    placeholder={t.passwordPlaceholder}
+                    required
+                    autoComplete="current-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className={`absolute ${isRTL ? 'left-4' : 'right-4'} top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors active:scale-95`}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Remember Me & Forgot Password */}
+              <div className="flex items-center justify-between">
+                <label htmlFor="remember-mobile" className="flex items-center cursor-pointer group">
+                  <input
+                    id="remember-mobile"
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="cursor-pointer"
+                  />
+                  <span className={`${isRTL ? 'mr-3' : 'ml-3'} text-sm font-medium text-gray-300 group-hover:text-white transition-colors`}>
+                    {t.rememberMe}
+                  </span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(true)}
+                  className="text-sm font-semibold text-red-500 hover:text-red-400 transition-colors active:scale-95"
+                >
+                  {t.forgotPassword}
+                </button>
+              </div>
+
+              {/* Sign In Button */}
+              <button
+                onClick={handleSubmit}
+                disabled={loading}
+                className="w-full py-4 rounded-2xl ios-button text-white font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] transition-all"
+              >
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    {t.signingIn}
+                  </span>
+                ) : (
+                  t.signInButton
+                )}
+              </button>
+            </div>
+
+            {/* Back to Home */}
+            <div className="mt-6 text-center">
+              <Link
+                href="/"
+                className="inline-flex items-center gap-2 text-sm font-medium text-gray-400 hover:text-red-500 transition-colors active:scale-95"
+              >
+                <ArrowLeft className={`w-4 h-4 ${isRTL ? 'rotate-180' : ''}`} />
+                {t.backToHome}
+              </Link>
+            </div>
+          </div>
+
+          {/* Footer Support Text */}
+          <p className="text-center text-xs text-gray-500 mt-6 font-medium">
+            {t.support}
+          </p>
+        </div>
       </div>
 
       {/* Forgot Password Modal */}
@@ -351,8 +606,7 @@ function ForgotPasswordModal({
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     setError('');
     setLoading(true);
 
@@ -380,34 +634,42 @@ function ForgotPasswordModal({
   };
 
   return (
-    <div className={`fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 ${isRTL ? 'rtl' : 'ltr'}`}>
-      <div className="glass rounded-2xl max-w-md w-full p-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir={isRTL ? 'rtl' : 'ltr'}>
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-black/80 backdrop-blur-xl"
+        onClick={onClose}
+      />
+
+      {/* Modal */}
+      <div className="relative w-full max-w-md ios-card rounded-3xl p-8 shadow-2xl transform transition-all">
         {!success ? (
           <>
-            <h3 className="text-2xl font-bold text-white mb-2">{t.resetPassword}</h3>
-            <p className="text-gray-400 mb-6 text-sm">
-              {t.resetDesc}
-            </p>
+            <div className="mb-6">
+              <h3 className="text-2xl font-bold mb-2">{t.resetPassword}</h3>
+              <p className="text-gray-400 text-sm">{t.resetDesc}</p>
+            </div>
 
             {error && (
-              <div className="bg-[#E84545]/10 border border-[#E84545]/30 text-[#E84545] px-4 py-3 rounded-lg mb-4 text-sm">
-                {error}
+              <div className="mb-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/20">
+                <p className="text-red-400 text-sm font-medium">{error}</p>
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-5">
               <div>
-                <label htmlFor="reset-email" className="block text-sm font-medium text-gray-300 mb-2">
+                <label htmlFor="reset-email" className="block text-sm font-semibold mb-2 text-gray-300">
                   {t.emailAddress}
                 </label>
                 <div className="relative">
-                  <Mail className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-500`} />
+                  <Mail className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5`} />
                   <input
                     id="reset-email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className={`${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} w-full py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:ring-2 focus:ring-[#E84545] focus:border-transparent transition-all`}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+                    className={`${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} w-full py-4 ios-input rounded-2xl text-white placeholder-gray-500 focus:outline-none text-base`}
                     placeholder={t.emailPlaceholder}
                     required
                     dir="ltr"
@@ -415,45 +677,57 @@ function ForgotPasswordModal({
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-3 pt-2">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 px-4 py-3 border border-white/10 text-gray-300 rounded-lg hover:bg-white/5 transition-colors"
+                  className="flex-1 py-4 rounded-2xl bg-white/5 hover:bg-white/10 text-white font-semibold transition-all active:scale-95"
                 >
                   {t.cancel}
                 </button>
                 <button
-                  type="submit"
+                  onClick={handleSubmit}
                   disabled={loading}
-                  className="flex-1 bg-[#E84545] text-white py-3 rounded-lg font-semibold hover:bg-[#cc3c3c] transition-all disabled:bg-[#E84545]/50"
+                  className="flex-1 py-4 rounded-2xl ios-button text-white font-semibold disabled:opacity-50 active:scale-95 transition-all"
                 >
-                  {loading ? t.sending : t.sendResetLink}
+                  {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      {t.sending}
+                    </span>
+                  ) : (
+                    t.sendResetLink
+                  )}
                 </button>
               </div>
-            </form>
+            </div>
           </>
         ) : (
           <>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-[#E84545]/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Mail className="w-8 h-8 text-[#E84545]" />
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-500/20 mb-4">
+                <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
               </div>
-              <h3 className="text-2xl font-bold text-white mb-2">{t.checkEmail}</h3>
-              <p className="text-gray-400 mb-2">
+              <h3 className="text-2xl font-bold mb-2">{t.checkEmail}</h3>
+              <p className="text-gray-400 text-sm mb-4">
                 {t.resetSent}
               </p>
-              <p className="text-white font-medium mb-4" dir="ltr">{email}</p>
-              <p className="text-sm text-gray-500 mb-6">
+              <p className="text-white font-medium mb-4 px-4 py-2 rounded-xl bg-white/5" dir="ltr">
+                {email}
+              </p>
+              <p className="text-gray-500 text-xs">
                 {t.spamNote}
               </p>
-              <button
-                onClick={onClose}
-                className="w-full bg-[#E84545] text-white py-3 rounded-lg font-semibold hover:bg-[#cc3c3c] transition-all"
-              >
-                {t.backToLogin}
-              </button>
             </div>
+
+            <button
+              onClick={onClose}
+              className="w-full py-4 rounded-2xl ios-button text-white font-semibold active:scale-95 transition-all"
+            >
+              {t.backToLogin}
+            </button>
           </>
         )}
       </div>

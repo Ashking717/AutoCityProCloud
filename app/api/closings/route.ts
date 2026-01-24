@@ -224,6 +224,35 @@ export async function POST(req: NextRequest) {
       return entries.reduce((sum, e) => sum + (e.debit || 0), 0);
     }
 
+        async function sumNetAmountInPeriod(
+      accountType: AccountType,
+      subTypes: AccountSubType[],
+      start: Date,
+      end: Date
+    ): Promise<number> {
+      const accounts = await Account.find({
+        outletId: user.outletId,
+        type: accountType,
+        subType: { $in: subTypes },
+        isActive: true,
+      }).select('_id').lean();
+    
+      if (!accounts.length) return 0;
+    
+      const entries = await LedgerEntry.find({
+        outletId: user.outletId,
+        accountId: { $in: accounts.map(a => a._id) },
+        date: { $gte: start, $lte: end },
+      }).lean();
+    
+      // ✅ CREDIT increases revenue, DEBIT reduces revenue
+      return entries.reduce(
+        (sum, e) => sum + (e.credit || 0) - (e.debit || 0),
+        0
+      );
+    }
+    
+
     // Get sum of credits to specific account types in a period
     async function sumCreditsInPeriod(
       accountType: AccountType,
@@ -274,12 +303,13 @@ export async function POST(req: NextRequest) {
     /* ========================================
        REVENUE - Net of Discounts
        ======================================== */
-    let totalRevenue = await sumCreditsInPeriod(
-      AccountType.REVENUE,
-      [AccountSubType.SALES_REVENUE, AccountSubType.SERVICE_REVENUE],
-      periodStart,
-      periodEnd
-    );
+    let totalRevenue = await sumNetAmountInPeriod(
+  AccountType.REVENUE,
+  [AccountSubType.SALES_REVENUE, AccountSubType.SERVICE_REVENUE],
+  periodStart,
+  periodEnd
+);
+
 
     // Fallback: If no ledger revenue found, calculate from sales
     if (totalRevenue === 0 && sales.length > 0) {

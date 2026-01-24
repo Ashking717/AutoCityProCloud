@@ -560,45 +560,49 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
         </div>
       </div>
 
-      {/* Mobile Bottom Navigation Bar */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[#050505]/95 backdrop-blur-xl border-t border-white/10 shadow-2xl z-50">
-        <div className="flex justify-around items-stretch h-16">
-          {/* Primary navigation items */}
-          {primaryMobileNavItems.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <button
-                key={item.href}
-                onClick={() => handleNavigate(item.href)}
-                className={`flex flex-col items-center justify-center flex-1 relative transition-all ${
-                  isActive ? 'text-[#E84545]' : 'text-gray-400 active:bg-white/5'
-                }`}
-              >
-                {isActive && (
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-1 bg-gradient-to-r from-transparent via-[#E84545] to-transparent rounded-b-full"></div>
-                )}
-                <div className={`p-2 rounded-xl transition-all ${isActive ? 'bg-[#E84545]/10 scale-110' : ''}`}>
-                  <item.icon className="h-5 w-5" strokeWidth={isActive ? 2.5 : 2} />
-                </div>
-                <span className={`text-[9px] font-medium mt-0.5 ${isActive ? 'font-semibold' : ''}`}>
-                  {item.name}
-                </span>
-              </button>
-            );
-          })}
-          
-          {/* More Menu Button */}
-          <button
-            onClick={() => setShowMobileMenu(true)}
-            className="flex flex-col items-center justify-center flex-1 relative text-gray-400 active:bg-white/5 transition-all"
-          >
-            <div className="p-2 rounded-xl">
-              <Grid3x3 className="h-5 w-5" strokeWidth={2} />
-            </div>
-            <span className="text-[9px] font-medium mt-0.5">
-              More
-            </span>
-          </button>
+      {/* Apple-style Mobile Bottom Navigation Bar */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 pointer-events-none">
+        <div className="pointer-events-auto bg-black/80 backdrop-blur-2xl border-t border-white/10 safe-area-bottom">
+          <div className="flex justify-around items-center px-2 pt-2 pb-1">
+            {/* Primary navigation items */}
+            {primaryMobileNavItems.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <button
+                  key={item.href}
+                  onClick={() => handleNavigate(item.href)}
+                  className="flex flex-col items-center justify-center flex-1 relative py-1 px-1 active:scale-95 transition-transform touch-manipulation"
+                >
+                  <div className={`p-2 rounded-2xl transition-all ${isActive ? 'bg-red-500/15' : ''}`}>
+                    <item.icon 
+                      className={`h-6 w-6 transition-colors ${isActive ? 'text-red-500' : 'text-gray-400'}`}
+                      strokeWidth={isActive ? 2.5 : 2}
+                    />
+                  </div>
+                  <span className={`text-[10px] font-medium mt-0.5 transition-colors ${isActive ? 'text-red-500' : 'text-gray-400'}`}>
+                    {item.name}
+                  </span>
+                </button>
+              );
+            })}
+            
+            {/* More Menu Button */}
+            <button
+              onClick={() => setShowMobileMenu(true)}
+              className="flex flex-col items-center justify-center flex-1 relative py-1 px-1 active:scale-95 transition-transform touch-manipulation"
+            >
+              <div className="p-2 rounded-2xl">
+                <Grid3x3 className="h-6 w-6 text-gray-400" strokeWidth={2} />
+              </div>
+              <span className="text-[10px] font-medium mt-0.5 text-gray-400">
+                More
+              </span>
+            </button>
+          </div>
+          {/* Home indicator */}
+          <div className="flex justify-center pb-1">
+            <div className="w-32 h-1 bg-white/20 rounded-full"></div>
+          </div>
         </div>
       </div>
 
@@ -619,7 +623,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
               </div>
               <button
                 onClick={() => setShowMobileMenu(false)}
-                className="p-2 hover:bg-white/10 rounded-xl transition-colors"
+                className="p-2 hover:bg-white/10 rounded-xl transition-colors active:scale-95"
               >
                 <ChevronDown className="h-5 w-5 text-gray-400" />
               </button>
@@ -674,24 +678,20 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
                         <button
                           key={item.href}
                           onClick={() => handleNavigate(item.href)}
-                          className={`w-full flex items-center space-x-3 px-3 py-3 text-sm rounded-xl transition-all ${
+                          className={`w-full flex items-center space-x-3 px-3 py-3 text-sm rounded-xl transition-all active:scale-98 ${
                             isActive
                               ? "bg-gradient-to-r from-[#E84545]/20 to-[#cc3c3c]/20 text-white ring-1 ring-[#E84545]/30"
                               : "text-gray-300 active:bg-white/10"
                           }`}
                         >
-                          <div className={`p-2 rounded-lg ${isActive ? 'bg-[#E84545]/20' : 'bg-white/5'}`}>
+                                                    <div className={`p-2 rounded-lg ${isActive ? 'bg-[#E84545]/20' : 'bg-white/5'}`}>
                             <item.icon
-                              className={`h-5 w-5 ${
-                                isActive ? "text-[#E84545]" : "text-gray-400"
-                              }`}
+                              className={`h-5 w-5 ${isActive ? 'text-[#E84545]' : 'text-gray-400'}`}
                             />
                           </div>
-                          <span className={`font-medium flex-1 text-left ${isActive ? 'font-semibold' : ''}`}>
-                            {item.name}
-                          </span>
+                          <span className="font-medium">{item.name}</span>
                           {isActive && (
-                            <div className="w-2 h-2 rounded-full bg-[#E84545]"></div>
+                            <div className="ml-auto w-2 h-2 bg-[#E84545] rounded-full"></div>
                           )}
                         </button>
                       );
@@ -701,160 +701,164 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
               ))}
             </div>
 
-            {/* Menu Footer with Logout */}
-            <div className="p-4 border-t border-white/10 bg-[#0A0A0A]">
+            {/* Menu Footer */}
+            <div className="border-t border-white/10 p-4">
+              <button
+                onClick={() => {
+                  setShowHelp(true);
+                  setShowMobileMenu(false);
+                }}
+                className="w-full flex items-center justify-center space-x-2 py-3 text-sm rounded-xl bg-white/5 active:bg-white/10 transition-all"
+              >
+                <Keyboard className="h-5 w-5 text-gray-400" />
+                <span className="font-medium text-gray-300">Keyboard Shortcuts</span>
+              </button>
+              
               <button
                 onClick={onLogout}
-                className="w-full flex items-center justify-center space-x-3 px-4 py-3 text-sm text-white bg-gradient-to-r from-[#E84545] to-[#cc3c3c] rounded-xl active:opacity-80 transition-all font-medium shadow-lg"
+                className="w-full flex items-center justify-center space-x-2 py-3 text-sm rounded-xl bg-[#E84545]/10 active:bg-[#E84545]/20 text-[#E84545] mt-2 transition-all"
               >
                 <LogOut className="h-5 w-5" />
-                <span>Logout</span>
+                <span className="font-medium">Logout</span>
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Add padding for mobile bottom bar */}
-      <div className="md:hidden h-16"></div>
-
       {/* Keyboard Shortcuts Modal */}
       {showHelp && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#0A0A0A] border border-white/10 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[80vh] overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="relative w-full max-w-2xl bg-[#050505] rounded-2xl border border-white/10 shadow-2xl max-h-[85vh] overflow-hidden">
             {/* Modal Header */}
-            <div className="px-6 py-4 bg-gradient-to-r from-[#E84545]/10 to-[#cc3c3c]/10 border-b border-white/10 flex items-center justify-between">
+            <div className="flex items-center justify-between p-6 border-b border-white/10 bg-gradient-to-r from-[#E84545]/5 to-transparent">
               <div className="flex items-center space-x-3">
-                <div className="p-2 bg-[#E84545]/20 rounded-lg">
-                  <Keyboard className="h-6 w-6 text-[#E84545]" />
+                <div className="p-2 bg-[#E84545]/10 rounded-xl">
+                  <Keyboard className="h-5 w-5 text-[#E84545]" />
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-white">Keyboard Shortcuts</h3>
-                  <p className="text-sm text-gray-400">Speed up your workflow with these shortcuts</p>
+                  <p className="text-sm text-gray-400">
+                    Quickly navigate and perform actions
+                  </p>
                 </div>
               </div>
               <button
                 onClick={() => setShowHelp(false)}
-                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                className="p-2 hover:bg-white/10 rounded-xl transition-colors"
               >
-                <X className="h-5 w-5 text-gray-400 hover:text-white" />
+                <X className="h-5 w-5 text-gray-400" />
               </button>
             </div>
 
-            {/* Modal Content */}
+            {/* Shortcuts Content */}
             <div className="p-6 overflow-y-auto max-h-[60vh]">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Navigation Shortcuts */}
-                <div className="space-y-4">
-                  <h4 className="text-lg font-semibold text-white border-b border-white/10 pb-2">
+                {/* Navigation */}
+                <div>
+                  <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">
                     Navigation
                   </h4>
                   <div className="space-y-2">
                     {[
-                      { key: "Ctrl + 1", label: "Dashboard" },
-                      { key: "Ctrl + 2", label: "New Sale" },
-                      { key: "Ctrl + 3", label: "Sales" },
-                      { key: "Ctrl + 4", label: "Products" },
-                      { key: "Ctrl + 6", label: "Stock" },
-                      { key: "Ctrl + 7", label: "Customers" },
-                      { key: "Ctrl + 9", label: "Vouchers" },
-                      { key: "Ctrl + A", label: "Accounts" },
-                      { key: "Ctrl + L", label: "Ledgers" },
-                      { key: "Ctrl + ,", label: "Settings" },
-                      { key: "Ctrl + O", label: "Outlets" },
-                      { key: "Ctrl + U", label: "Users" },
-                      { key: "Alt + H", label: "Dashboard" },
-                      { key: "Alt + N", label: "New Sale" },
+                      { combo: "Ctrl + 1", desc: "Dashboard" },
+                      { combo: "Ctrl + 2", desc: "New Sale" },
+                      { combo: "Ctrl + 3", desc: "Sales" },
+                      { combo: "Ctrl + 4", desc: "Products" },
+                      { combo: "Ctrl + 5", desc: "Categories" },
+                      { combo: "Ctrl + 6", desc: "Stock" },
+                      { combo: "Ctrl + 7", desc: "Customers" },
+                      { combo: "Ctrl + 8", desc: "Portal" },
+                      { combo: "Ctrl + 9", desc: "Vouchers" },
+                      { combo: "Ctrl + A", desc: "Accounts" },
+                      { combo: "Ctrl + L", desc: "Ledgers" },
+                      { combo: "Alt + H", desc: "Dashboard" },
+                      { combo: "Alt + N", desc: "New Sale" },
                     ].map((shortcut, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
-                        <span className="text-gray-300">{shortcut.label}</span>
-                        <kbd className="px-3 py-1.5 bg-[#E84545]/20 text-[#E84545] rounded-lg text-sm font-mono border border-[#E84545]/30">
-                          {shortcut.key}
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between p-3 rounded-lg hover:bg-white/5 transition-colors"
+                      >
+                        <span className="text-sm text-gray-300">
+                          {shortcut.desc}
+                        </span>
+                        <kbd className="px-2 py-1 bg-white/5 rounded text-xs font-mono border border-white/10 text-gray-400">
+                          {shortcut.combo}
                         </kbd>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* Reports & Actions */}
-                <div className="space-y-4">
-                  <h4 className="text-lg font-semibold text-white border-b border-white/10 pb-2">
-                    Reports & Actions
+                {/* Actions & Reports */}
+                <div>
+                  <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">
+                    Actions & Reports
                   </h4>
                   <div className="space-y-2">
                     {[
-                      { key: "Ctrl + Shift + S", label: "Sales Report" },
-                      { key: "Ctrl + Shift + B", label: "Balance Sheet" },
-                      { key: "Ctrl + Shift + T", label: "Stock Report" },
-                      { key: "Ctrl + Shift + D", label: "Daybook" },
-                      { key: "Ctrl + Shift + F", label: "Cash Flow" },
-                      { key: "Ctrl + Alt + L", label: "Activity Logs" },
-                      { key: "Ctrl + M", label: "Day & Month Closing" },
-                      { key: "Ctrl + Q", label: "Logout" },
+                      { combo: "Ctrl + Q", desc: "Logout" },
+                      { combo: "Ctrl + ,", desc: "Settings" },
+                      { combo: "Ctrl + M", desc: "Day & Month Closing" },
+                      { combo: "Ctrl + O", desc: "Outlets" },
+                      { combo: "Ctrl + U", desc: "Users" },
+                      { combo: "Ctrl + Shift + S", desc: "Sales Reports" },
+                      { combo: "Ctrl + Shift + B", desc: "Balance Sheet" },
+                      { combo: "Ctrl + Shift + T", desc: "Stock Reports" },
+                      { combo: "Ctrl + Shift + D", desc: "Daybook" },
+                      { combo: "Ctrl + Shift + F", desc: "Cash Flow" },
+                      { combo: "Ctrl + Alt + L", desc: "Activity Logs" },
                     ].map((shortcut, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
-                        <span className="text-gray-300">{shortcut.label}</span>
-                        <kbd className="px-3 py-1.5 bg-[#E84545]/20 text-[#E84545] rounded-lg text-sm font-mono border border-[#E84545]/30">
-                          {shortcut.key}
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between p-3 rounded-lg hover:bg-white/5 transition-colors"
+                      >
+                        <span className="text-sm text-gray-300">
+                          {shortcut.desc}
+                        </span>
+                        <kbd className="px-2 py-1 bg-white/5 rounded text-xs font-mono border border-white/10 text-gray-400">
+                          {shortcut.combo}
                         </kbd>
                       </div>
                     ))}
                   </div>
 
-                  {/* General */}
-                  <div className="pt-4">
-                    <h4 className="text-lg font-semibold text-white border-b border-white/10 pb-2">
-                      General
-                    </h4>
-                    <div className="space-y-2 pt-2">
-                      <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
-                        <span className="text-gray-300">Show/Hide Shortcuts</span>
-                        <kbd className="px-3 py-1.5 bg-[#E84545]/20 text-[#E84545] rounded-lg text-sm font-mono border border-[#E84545]/30">
-                          ?
+                  <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mt-6 mb-3">
+                    Global
+                  </h4>
+                  <div className="space-y-2">
+                    {[
+                      { combo: "?", desc: "Show/Hide this dialog" },
+                      { combo: "Esc", desc: "Close dialog/menu" },
+                    ].map((shortcut, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between p-3 rounded-lg hover:bg-white/5 transition-colors"
+                      >
+                        <span className="text-sm text-gray-300">
+                          {shortcut.desc}
+                        </span>
+                        <kbd className="px-2 py-1 bg-white/5 rounded text-xs font-mono border border-white/10 text-gray-400">
+                          {shortcut.combo}
                         </kbd>
                       </div>
-                      <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
-                        <span className="text-gray-300">Close Modal</span>
-                        <kbd className="px-3 py-1.5 bg-[#E84545]/20 text-[#E84545] rounded-lg text-sm font-mono border border-[#E84545]/30">
-                          Esc
-                        </kbd>
-                      </div>
-                    </div>
+                    ))}
                   </div>
-                </div>
-              </div>
-
-              {/* Tips Section */}
-              <div className="mt-8 pt-6 border-t border-white/10">
-                <div className="flex items-center space-x-3 text-sm text-gray-400">
-                  <HelpCircle className="h-5 w-5" />
-                  <p>
-                    <span className="text-[#E84545] font-semibold">Tip:</span> Press{" "}
-                    <kbd className="px-2 py-1 mx-1 bg-white/10 rounded text-sm">?</kbd> anytime
-                    to open this menu. Press <kbd className="px-2 py-1 mx-1 bg-white/10 rounded text-sm">Esc</kbd> to
-                    close.
-                  </p>
                 </div>
               </div>
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-4 bg-[#050505] border-t border-white/10 flex justify-between items-center">
-              <p className="text-sm text-gray-400">
-                Current outlet: <span className="text-white font-medium">{user?.outletName || 'Default'}</span>
+            <div className="p-4 border-t border-white/10 bg-black/50 text-center">
+              <p className="text-xs text-gray-500">
+                Press <kbd className="px-1.5 py-0.5 bg-white/5 rounded text-xs font-mono border border-white/10">Esc</kbd> or click outside to close
               </p>
-              <button
-                onClick={() => setShowHelp(false)}
-                className="px-4 py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-lg hover:opacity-90 transition-opacity font-medium"
-              >
-                Close
-              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Custom Scrollbar Styles */}
+      {/* Custom Scrollbar Styles + iOS Safe Area */}
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;
@@ -869,6 +873,32 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
           background: rgba(232, 69, 69, 0.5);
+        }
+        
+        /* iOS Safe Area Support */
+        .safe-area-bottom {
+          padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        /* Prevent overscroll */
+        body {
+          overscroll-behavior-y: none;
+        }
+
+        /* Touch improvements */
+        .touch-manipulation {
+          -webkit-tap-highlight-color: transparent;
+          -webkit-touch-callout: none;
+          user-select: none;
+        }
+
+        /* Active scale */
+        .active\\:scale-98:active {
+          transform: scale(0.98);
+        }
+
+        .active\\:scale-95:active {
+          transform: scale(0.95);
         }
       `}</style>
     </>

@@ -6,12 +6,15 @@ import { verifyToken } from '@/lib/auth/jwt';
 
 import Closing from '@/lib/models/Closing';
 import Sale from '@/lib/models/Sale';
+import Purchase from '@/lib/models/Purchase';
+import Expense from '@/lib/models/Expense';
 import Account, { AccountSubType, AccountType } from '@/lib/models/Account';
 import LedgerEntry from '@/lib/models/LedgerEntry';
 import { getClosingConfig } from '@/lib/config/closingConfig';
 
 /* =========================================================
-   PREVIEW CLOSING WITH COGS (NO OVERLAP, 3AM CUTOFF)
+   PREVIEW CLOSING - CASH BASIS ACCOUNTING
+   Only PAID purchases and expenses are included
    ========================================================= */
 
 export async function GET(request: NextRequest) {
@@ -206,13 +209,28 @@ export async function GET(request: NextRequest) {
       periodEnd
     );
 
-    /* ---------------- REVENUE (from Ledger) ---------------- */
-    const totalRevenue = await sumCreditsInPeriod(
+    /* ---------------- SALES (for reference) ---------------- */
+    const sales = await Sale.find({
+      outletId: user.outletId,
+      status: 'COMPLETED',
+      saleDate: { $gte: periodStart, $lt: periodEnd },
+    }).lean();
+
+    const totalDiscount = sales.reduce((s, x) => s + (x.totalDiscount || 0), 0);
+    const totalTax = sales.reduce((s, x) => s + (x.totalVAT || 0), 0);
+
+    /* ---------------- REVENUE (from Ledger - net of discounts) ---------------- */
+    let totalRevenue = await sumCreditsInPeriod(
       AccountType.REVENUE,
       [AccountSubType.SALES_REVENUE, AccountSubType.SERVICE_REVENUE],
       periodStart,
       periodEnd
     );
+
+    // Fallback to sales grandTotal if ledger revenue is 0
+    if (totalRevenue === 0 && sales.length > 0) {
+      totalRevenue = sales.reduce((s, x) => s + (x.grandTotal || 0), 0);
+    }
 
     /* ---------------- COGS (from Ledger) ---------------- */
     const totalCOGS = await sumDebitsInPeriod(
@@ -222,32 +240,54 @@ export async function GET(request: NextRequest) {
       periodEnd
     );
 
-    /* ---------------- PURCHASES (from Ledger) ---------------- */
-    const totalPurchases = await sumDebitsInPeriod(
-      AccountType.ASSET,
-      [AccountSubType.INVENTORY],
-      periodStart,
-      periodEnd
+    /* ---------------- PURCHASES (from Purchase Model - ONLY PAID) ---------------- */
+    const allPurchases = await Purchase.find({
+      outletId: user.outletId,
+      purchaseDate: { $gte: periodStart, $lte: periodEnd },
+    }).lean();
+
+    // Only include PAID purchases
+    const paidPurchases = allPurchases.filter(
+      p => p.status === 'PAID' || (p.amountPaid && p.amountPaid > 0)
     );
 
-    /* ---------------- EXPENSES (from Ledger) ---------------- */
-    const totalExpenses = await sumDebitsInPeriod(
-      AccountType.EXPENSE,
-      [AccountSubType.OPERATING_EXPENSE, AccountSubType.ADMIN_EXPENSE],
-      periodStart,
-      periodEnd
+    const totalPurchases = paidPurchases.reduce(
+      (sum, p) => sum + (p.amountPaid || 0),
+      0
+    );
+
+    // Track unpaid for info
+    const unpaidPurchases = allPurchases.filter(
+      p => (!p.amountPaid || p.amountPaid === 0) && p.status !== 'PAID'
+    );
+
+    const unpaidPurchasesTotal = unpaidPurchases.reduce(
+      (sum, p) => sum + (p.grandTotal || 0),
+      0
+    );
+
+    /* ---------------- EXPENSES (from Expense Model - ONLY PAID) ---------------- */
+    const allExpenses = await Expense.find({
+      outletId: user.outletId,
+      expenseDate: { $gte: periodStart, $lte: periodEnd },
+    }).lean();
+
+    // Only include PAID expenses
+    const paidExpenses = allExpenses.filter(
+      e => e.status === 'PAID' || (e.amountPaid && e.amountPaid > 0)
+    );
+
+    const totalExpenses = paidExpenses.reduce(
+      (sum, e) => sum + (e.amountPaid || 0),
+      0
     );
 
     /* ---------------- PROFIT CALCULATIONS ---------------- */
     const grossProfit = totalRevenue - totalCOGS;
     const netProfit = totalRevenue - (totalCOGS + totalPurchases + totalExpenses);
 
-    /* ---------------- SALES COUNT (for reference) ---------------- */
-    const sales = await Sale.find({
-      outletId: user.outletId,
-      status: 'COMPLETED',
-      saleDate: { $gte: periodStart, $lt: periodEnd },
-    }).lean();
+    const grossProfitMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
+    const netProfitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
     /* ---------------- RESPONSE ---------------- */
     return NextResponse.json({
@@ -264,24 +304,35 @@ export async function GET(request: NextRequest) {
       totalOpeningBalance: openingCash + openingBank,
       totalClosingBalance: projectedClosingCash + projectedClosingBank,
 
-      // Revenue & Costs (from Ledger)
+      // Revenue (net of discounts)
       totalRevenue,
+      totalDiscount,
+      totalTax,
+
+      // Costs (ONLY PAID)
       totalCOGS,
       totalPurchases,
       totalExpenses,
 
-      // Profit (calculated)
+      // Profit
       grossProfit,
       netProfit,
-      grossProfitMargin: totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0,
-      netProfitMargin: totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0,
+      grossProfitMargin,
+      netProfitMargin,
 
       // Metrics
       salesCount: sales.length,
+      paidPurchasesCount: paidPurchases.length,
+      unpaidPurchasesCount: unpaidPurchases.length,
+      paidExpensesCount: paidExpenses.length,
       historicalDaysIncluded,
+
+      // Credit info
+      unpaidPurchasesTotal,
       
       // Source indicator
-      dataSource: 'ledger',
+      dataSource: 'cash-basis',
+      note: 'Only PAID purchases and expenses are included. Unpaid purchases are tracked separately.',
     });
 
   } catch (error: any) {

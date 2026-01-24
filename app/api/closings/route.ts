@@ -5,6 +5,8 @@ import { verifyToken } from '@/lib/auth/jwt';
 
 import Closing from '@/lib/models/Closing';
 import Sale from '@/lib/models/Sale';
+import Purchase from '@/lib/models/Purchase';
+import Expense from '@/lib/models/Expense';
 import LedgerEntry from '@/lib/models/LedgerEntry';
 import Product from '@/lib/models/ProductEnhanced';
 import Account, { AccountSubType, AccountType } from '@/lib/models/Account';
@@ -126,7 +128,12 @@ async function calculatePeriodBoundaries(
 
 /* =========================================================
    POST /api/closings - LEDGER-DRIVEN WITH PROPER PROFIT
-   Formula: Net Profit = Sales - (COGS + Purchases + Expenses)
+   
+   CRITICAL: Only include PAID purchases in the calculation
+   - Purchases on credit (amountPaid = 0) should NOT be included
+   - Only purchases where actual payment was made
+   
+   Formula: Net Profit = Revenue - (COGS + Purchases + Expenses)
    ========================================================= */
 export async function POST(req: NextRequest) {
   try {
@@ -243,6 +250,47 @@ export async function POST(req: NextRequest) {
     }
 
     /* ========================================
+       SALES METRICS (needed first for revenue calculation)
+       ======================================== */
+    const sales = await Sale.find({
+      outletId: user.outletId,
+      status: 'COMPLETED',
+      saleDate: { $gte: periodStart, $lt: periodEnd },
+    }).lean();
+
+    const salesCount = sales.length;
+    const totalDiscount = sales.reduce((s, x) => s + (x.totalDiscount || 0), 0);
+    const totalTax = sales.reduce((s, x) => s + (x.totalVAT || 0), 0);
+
+    // Sales by payment method (for informational purposes)
+    const cashSales = sales
+      .filter(s => s.paymentMethod === 'CASH')
+      .reduce((s, x) => s + (x.amountPaid || 0), 0);
+
+    const bankSales = sales
+      .filter(s => s.paymentMethod !== 'CASH')
+      .reduce((s, x) => s + (x.amountPaid || 0), 0);
+
+    /* ========================================
+       REVENUE - Net of Discounts
+       ======================================== */
+    let totalRevenue = await sumCreditsInPeriod(
+      AccountType.REVENUE,
+      [AccountSubType.SALES_REVENUE, AccountSubType.SERVICE_REVENUE],
+      periodStart,
+      periodEnd
+    );
+
+    // Fallback: If no ledger revenue found, calculate from sales
+    if (totalRevenue === 0 && sales.length > 0) {
+      totalRevenue = sales.reduce((s, x) => s + (x.grandTotal || 0), 0);
+      console.warn(
+        'No revenue found in ledger. Using sales grandTotal. ' +
+        'Ensure sales are creating ledger entries with revenue account.'
+      );
+    }
+
+    /* ========================================
        CASH & BANK BALANCES (from Ledger)
        ======================================== */
     const openingCutoff = new Date(periodStart.getTime() - 1);
@@ -306,16 +354,6 @@ export async function POST(req: NextRequest) {
     );
 
     /* ========================================
-       REVENUE (from Ledger - Credits to Sales/Revenue)
-       ======================================== */
-    const totalRevenue = await sumCreditsInPeriod(
-      AccountType.REVENUE,
-      [AccountSubType.SALES_REVENUE, AccountSubType.SERVICE_REVENUE],
-      periodStart,
-      periodEnd
-    );
-
-    /* ========================================
        COGS (from Ledger - Debits to COGS)
        This is the cost of goods that were SOLD
        ======================================== */
@@ -327,61 +365,72 @@ export async function POST(req: NextRequest) {
     );
 
     /* ========================================
-       PURCHASES (from Ledger - Debits to Inventory)
-       This is inventory BOUGHT in the period
+       PURCHASES (ONLY PAID PURCHASES)
+       
+       CRITICAL: Only include purchases where payment was actually made
+       - Status = 'PAID' OR
+       - amountPaid > 0
+       
+       Purchases on credit (COMPLETED but amountPaid = 0) should NOT be included
+       because no cash has left the business yet
        ======================================== */
-    const totalPurchases = await sumDebitsInPeriod(
-      AccountType.ASSET,
-      [AccountSubType.INVENTORY],
-      periodStart,
-      periodEnd
+    const allPurchases = await Purchase.find({
+      outletId: user.outletId,
+      purchaseDate: { $gte: periodStart, $lte: periodEnd },
+    }).lean();
+
+    // Filter to only PAID purchases (where actual payment was made)
+    const paidPurchases = allPurchases.filter(
+      p => p.status === 'PAID' || (p.amountPaid && p.amountPaid > 0)
+    );
+
+    const totalPurchases = paidPurchases.reduce(
+      (sum, p) => sum + (p.amountPaid || 0),
+      0
+    );
+
+    const purchasesCount = paidPurchases.length;
+
+    // Track unpaid purchases for reference
+    const unpaidPurchases = allPurchases.filter(
+      p => (!p.amountPaid || p.amountPaid === 0) && p.status !== 'PAID'
+    );
+    const unpaidPurchasesTotal = unpaidPurchases.reduce(
+      (sum, p) => sum + (p.grandTotal || 0),
+      0
     );
 
     /* ========================================
-       EXPENSES (from Ledger - Debits to Expense accounts)
-       Excluding COGS which we already calculated
+       EXPENSES (ONLY PAID EXPENSES)
        ======================================== */
-    const expenseSubTypes = [
-      AccountSubType.OPERATING_EXPENSE,
-      AccountSubType.ADMIN_EXPENSE,
-    ];
+    const allExpenses = await Expense.find({
+      outletId: user.outletId,
+      expenseDate: { $gte: periodStart, $lte: periodEnd },
+    }).lean();
 
-    const totalExpenses = await sumDebitsInPeriod(
-      AccountType.EXPENSE,
-      expenseSubTypes,
-      periodStart,
-      periodEnd
+    // Filter to only PAID expenses
+    const paidExpenses = allExpenses.filter(
+      e => e.status === 'PAID' || (e.amountPaid && e.amountPaid > 0)
     );
+
+    const totalExpenses = paidExpenses.reduce(
+      (sum, e) => sum + (e.amountPaid || 0),
+      0
+    );
+
+    const expensesCount = paidExpenses.length;
 
     /* ========================================
        PROFIT CALCULATION
+       
+       Revenue is NET of discounts (from grandTotal)
+       Only PAID purchases and expenses are deducted
+       
        Gross Profit = Revenue - COGS
-       Net Profit = Revenue - (COGS + Purchases + Expenses)
+       Net Profit = Revenue - (COGS + Paid Purchases + Paid Expenses)
        ======================================== */
     const grossProfit = totalRevenue - totalCOGS;
     const netProfit = totalRevenue - (totalCOGS + totalPurchases + totalExpenses);
-
-    /* ========================================
-       SALES METRICS (for reference only)
-       ======================================== */
-    const sales = await Sale.find({
-      outletId: user.outletId,
-      status: 'COMPLETED',
-      saleDate: { $gte: periodStart, $lt: periodEnd },
-    }).lean();
-
-    const salesCount = sales.length;
-    const totalDiscount = sales.reduce((s, x) => s + (x.totalDiscount || 0), 0);
-    const totalTax = sales.reduce((s, x) => s + (x.totalVAT || 0), 0);
-
-    // Sales by payment method (for informational purposes)
-    const cashSales = sales
-      .filter(s => s.paymentMethod === 'CASH')
-      .reduce((s, x) => s + (x.amountPaid || 0), 0);
-
-    const bankSales = sales
-      .filter(s => s.paymentMethod !== 'CASH')
-      .reduce((s, x) => s + (x.amountPaid || 0), 0);
 
     /* ========================================
        LEDGER STATISTICS
@@ -455,18 +504,18 @@ export async function POST(req: NextRequest) {
 
       // Sales Metrics (for reference)
       salesCount,
-      totalDiscount,
+      totalDiscount,  // Tracked separately for reporting
       totalTax,
 
-      // Revenue (from Ledger)
+      // Revenue (NET of discounts)
       totalRevenue,
 
-      // Costs (from Ledger)
-      totalCOGS,
-      totalPurchases,
-      totalExpenses,
+      // Costs (ONLY PAID transactions)
+      totalCOGS,        // From ledger COGS entries
+      totalPurchases,   // Only PAID purchases
+      totalExpenses,    // Only PAID expenses
 
-      // Profit (calculated)
+      // Profit (calculated from net revenue and paid costs)
       grossProfit,
       netProfit,
 
@@ -488,6 +537,10 @@ export async function POST(req: NextRequest) {
       totalCredits,
       trialBalanceMatched,
 
+      // Counts (only paid transactions)
+      purchasesCount,
+      expensesCount,
+
       // Metadata
       status: 'closed',
       closedBy: user.userId,
@@ -498,20 +551,37 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       closing,
-      message: 'Period closed successfully (Ledger-driven: Profit = Sales - COGS - Purchases - Expenses)',
+      message: 'Period closed successfully (Cash Basis Accounting)',
       profitBreakdown: {
         revenue: totalRevenue,
+        revenueNote: 'Net of discounts (from grandTotal)',
+        discounts: totalDiscount,
         cogs: totalCOGS,
         purchases: totalPurchases,
+        purchasesNote: 'Only PAID purchases included',
         expenses: totalExpenses,
+        expensesNote: 'Only PAID expenses included',
         grossProfit,
         netProfit,
+        formula: 'Net Profit = Revenue - (COGS + Paid Purchases + Paid Expenses)',
       },
       ledgerStats: {
         entries: ledgerEntriesCount,
         debits: totalDebits,
         credits: totalCredits,
         balanced: trialBalanceMatched,
+      },
+      transactionCounts: {
+        sales: salesCount,
+        paidPurchases: purchasesCount,
+        unpaidPurchases: unpaidPurchases.length,
+        paidExpenses: expensesCount,
+      },
+      creditInfo: {
+        unpaidPurchasesCount: unpaidPurchases.length,
+        unpaidPurchasesTotal,
+        accountsPayable,
+        note: 'Unpaid purchases are tracked in Accounts Payable but not deducted from profit until paid',
       },
     });
 

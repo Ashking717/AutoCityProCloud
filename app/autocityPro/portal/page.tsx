@@ -100,7 +100,17 @@ export default function PurchasesPortalPage() {
       gradient: "from-blue-500 to-cyan-600",
       href: "/autocityPro/inventory-movements",
       shortcut: "Ctrl+M",
-    }
+    },
+    {
+    id: 7,
+    title: "Activity Logs",
+    shortTitle: "Activity",
+    description: "View system activity logs",
+    icon: ClipboardList,
+    gradient: "from-indigo-500 to-purple-600",
+    href: "/autocityPro/activity-logs",
+    shortcut: "Ctrl+L",
+  }
   ]);
   const [stats, setStats] = useState({
     totalPurchases: 0,

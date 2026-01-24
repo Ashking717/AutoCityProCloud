@@ -11,16 +11,10 @@ import {
   Trash2, 
   ArrowLeftRight, 
   AlertCircle, 
-  Info, 
-  ChevronDown, 
-  ChevronUp, 
   DollarSign,
-  X,
-  MoreVertical,
-  Search,
-  Filter,
-  RefreshCw,
-  Download
+  Zap,
+  Building2,
+  Wallet,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -38,10 +32,15 @@ export default function ContraVoucherPage() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [cashBankAccounts, setCashBankAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showHelp, setShowHelp] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showDynamicIsland, setShowDynamicIsland] = useState(true);
+  const [showQuickVoucher, setShowQuickVoucher] = useState(true);
+  
+  // Quick Voucher State
+  const [quickVoucherType, setQuickVoucherType] = useState<'withdrawal' | 'deposit'>('withdrawal');
+  const [quickAmount, setQuickAmount] = useState('');
+  const [selectedBankAccount, setSelectedBankAccount] = useState('');
+  const [selectedCashAccount, setSelectedCashAccount] = useState('');
   
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -101,11 +100,87 @@ export default function ContraVoucherPage() {
           a.accountName.toLowerCase().includes('bank')
         );
         setCashBankAccounts(cashBank);
+        
+        // Auto-select first bank and cash account
+        const bankAcc = cashBank.find((a: any) => a.accountName.toLowerCase().includes('bank'));
+        const cashAcc = cashBank.find((a: any) => a.accountName.toLowerCase().includes('cash') && !a.accountName.toLowerCase().includes('bank'));
+        
+        if (bankAcc) setSelectedBankAccount(bankAcc._id);
+        if (cashAcc) setSelectedCashAccount(cashAcc._id);
       }
     } catch (error) {
       console.error('Failed to fetch accounts');
       toast.error('Failed to load accounts');
     }
+  };
+  
+  const handleQuickVoucher = () => {
+    if (!quickAmount || parseFloat(quickAmount) <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+    
+    if (!selectedBankAccount || !selectedCashAccount) {
+      toast.error('Please select both bank and cash accounts');
+      return;
+    }
+    
+    const amount = parseFloat(quickAmount);
+    const bankAccount = cashBankAccounts.find(a => a._id === selectedBankAccount);
+    const cashAccount = cashBankAccounts.find(a => a._id === selectedCashAccount);
+    
+    if (!bankAccount || !cashAccount) {
+      toast.error('Invalid accounts selected');
+      return;
+    }
+    
+    let newEntries: VoucherEntry[];
+    let narration: string;
+    
+    if (quickVoucherType === 'withdrawal') {
+      // Withdrawal from bank = Cash debit, Bank credit
+      narration = 'Withdrawal from bank';
+      newEntries = [
+        {
+          accountId: cashAccount._id,
+          accountName: cashAccount.accountName,
+          debit: amount,
+          credit: 0,
+          narration: narration,
+        },
+        {
+          accountId: bankAccount._id,
+          accountName: bankAccount.accountName,
+          debit: 0,
+          credit: amount,
+          narration: narration,
+        },
+      ];
+    } else {
+      // Deposit to bank = Bank debit, Cash credit
+      narration = 'Deposit to bank';
+      newEntries = [
+        {
+          accountId: bankAccount._id,
+          accountName: bankAccount.accountName,
+          debit: amount,
+          credit: 0,
+          narration: narration,
+        },
+        {
+          accountId: cashAccount._id,
+          accountName: cashAccount.accountName,
+          debit: 0,
+          credit: amount,
+          narration: narration,
+        },
+      ];
+    }
+    
+    setEntries(newEntries);
+    setFormData({ ...formData, narration });
+    setShowQuickVoucher(false);
+    toast.success('Quick Entry created! Review and post.');
   };
   
   const updateEntry = (index: number, field: keyof VoucherEntry, value: any) => {
@@ -222,7 +297,7 @@ export default function ContraVoucherPage() {
       
       if (res.ok) {
         const data = await res.json();
-        toast.success(`Contra voucher ${status === 'draft' ? 'saved' : 'posted'} successfully!`);
+        toast.success(`Voucher ${status === 'draft' ? 'saved' : 'posted'} successfully!`);
         router.push(`/autocityPro/vouchers/${data.voucher._id}`);
       } else {
         const error = await res.json();
@@ -243,33 +318,6 @@ export default function ContraVoucherPage() {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     window.location.href = '/autocityPro/login';
   };
-  
-  const exampleTransactions = [
-    {
-      description: 'Cash deposited to bank account',
-      debit: 'Bank Account',
-      credit: 'Cash Account',
-      amount: 'QAR 5,000'
-    },
-    {
-      description: 'Withdrawal from bank to cash',
-      debit: 'Cash Account',
-      credit: 'Bank Account',
-      amount: 'QAR 2,000'
-    },
-    {
-      description: 'Transfer between bank accounts',
-      debit: 'New Bank Account',
-      credit: 'Old Bank Account',
-      amount: 'QAR 10,000'
-    },
-    {
-      description: 'Petty cash replenishment',
-      debit: 'Petty Cash',
-      credit: 'Main Cash',
-      amount: 'QAR 500'
-    }
-  ];
   
   return (
     <MainLayout user={user} onLogout={handleLogout}>
@@ -319,16 +367,8 @@ export default function ContraVoucherPage() {
                 </button>
                 <div>
                   <h1 className="text-xl font-bold text-white">Contra Voucher</h1>
-                  <p className="text-xs text-white/60">Transfer between accounts</p>
+                  <p className="text-xs text-white/60">Cash & Bank Transfer</p>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowHelp(!showHelp)}
-                  className="p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
-                >
-                  <Info className="h-4 w-4" />
-                </button>
               </div>
             </div>
             
@@ -434,82 +474,145 @@ export default function ContraVoucherPage() {
                   )}
                 </div>
               </div>
-              <p className="text-xs text-slate-400 mb-1">Balance Status</p>
+              <p className="text-xs text-slate-400 mb-1">Status</p>
               <p className={`text-lg md:text-xl font-bold ${
                 isBalanced ? 'text-green-400' : 'text-red-400'
               }`}>
-                {isBalanced ? '✓ Balanced' : '✗ Unbalanced'}
+                {isBalanced ? '✓ OK' : '✗ Error'}
               </p>
             </div>
           </div>
 
-          {/* How it works section - Mobile */}
-          <div className="md:hidden mb-6">
-            <button
-              onClick={() => setShowHelp(!showHelp)}
-              className="w-full flex items-center justify-between p-4 bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-xl hover:border-[#E84545]/30 transition-all active:scale-[0.98]"
-            >
-              <div className="flex items-center space-x-3">
-                <Info className="h-5 w-5 text-[#E84545]" />
-                <span className="text-white font-medium">How it works?</span>
-              </div>
-              {showHelp ? (
-                <ChevronUp className="h-5 w-5 text-white/60" />
-              ) : (
-                <ChevronDown className="h-5 w-5 text-white/60" />
-              )}
-            </button>
-            
-            {showHelp && (
-              <div className="mt-2 bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-xl p-4 animate-in slide-in-from-top duration-300">
-                <div className="space-y-4">
+          {/* Quick Voucher Section */}
+          {showQuickVoucher && (
+            <div className="bg-gradient-to-br from-[#E84545]/10 via-[#0A0A0A] to-[#050505] border border-[#E84545]/30 rounded-2xl p-6 mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-[#E84545] rounded-xl">
+                    <Zap className="h-5 w-5 text-white" />
+                  </div>
                   <div>
-                    <h3 className="text-sm font-semibold text-white mb-2">Contra Voucher Basics</h3>
-                    <p className="text-xs text-slate-300">
-                      Transfer between cash and bank accounts only. Debit receiving account, credit giving account.
-                    </p>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-2">
-                    {exampleTransactions.slice(0, 2).map((example, index) => (
-                      <div key={index} className="p-3 bg-white/5 rounded-lg border border-white/10">
-                        <p className="text-xs text-white mb-1">{example.description}</p>
-                        <div className="flex justify-between text-[10px] text-slate-400">
-                          <span>Debit: {example.debit.split(' ')[0]}</span>
-                          <span>{example.amount}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  <div className="p-3 bg-[#E84545]/10 rounded-lg border border-[#E84545]/20">
-                    <p className="text-xs text-[#E84545]">
-                      <strong>Rule:</strong> Only Cash & Bank Accounts
-                    </p>
+                    <h2 className="text-lg font-bold text-white">Quick Voucher</h2>
+                    <p className="text-xs text-slate-400">Fast cash/bank transfer</p>
                   </div>
                 </div>
               </div>
-            )}
-          </div>
-
-          {/* Information Banner */}
-          <div className="bg-[#E84545]/10 border-l-4 border-[#E84545] p-4 md:p-6 mb-6 rounded-xl border border-[#E84545]/20 active:scale-[0.98] transition-all">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 md:h-6 md:w-6 text-[#E84545] flex-shrink-0 mt-0.5" />
-              <div>
-                <h3 className="text-base md:text-lg font-semibold text-white">
-                  Contra Voucher Rules
-                </h3>
-                <p className="text-sm text-slate-300 mt-1">
-                  Only for transfers between cash and bank accounts. Debits must equal credits. Example: Transfer from Bank to Cash (Bank credit, Cash debit).
-                </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Type Selection */}
+                <div className="col-span-full">
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Transaction Type</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => setQuickVoucherType('withdrawal')}
+                      className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
+                        quickVoucherType === 'withdrawal'
+                          ? 'border-[#E84545] bg-[#E84545]/10'
+                          : 'border-white/10 bg-white/5 hover:border-white/20'
+                      }`}
+                    >
+                      <Wallet className="h-5 w-5 text-[#E84545]" />
+                      <div className="text-left">
+                        <p className="text-sm font-semibold text-white">Withdrawal</p>
+                        <p className="text-xs text-slate-400">From Bank</p>
+                      </div>
+                    </button>
+                    
+                    <button
+                      onClick={() => setQuickVoucherType('deposit')}
+                      className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
+                        quickVoucherType === 'deposit'
+                          ? 'border-[#E84545] bg-[#E84545]/10'
+                          : 'border-white/10 bg-white/5 hover:border-white/20'
+                      }`}
+                    >
+                      <Building2 className="h-5 w-5 text-[#E84545]" />
+                      <div className="text-left">
+                        <p className="text-sm font-semibold text-white">Deposit</p>
+                        <p className="text-xs text-slate-400">To Bank</p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Bank Account */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Bank Account</label>
+                  <select
+                    value={selectedBankAccount}
+                    onChange={(e) => setSelectedBankAccount(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white"
+                  >
+                    <option value="" className="text-slate-800">Select Bank Account</option>
+                    {cashBankAccounts
+                      .filter(a => a.accountName.toLowerCase().includes('bank'))
+                      .map(acc => (
+                        <option key={acc._id} value={acc._id} className="text-slate-800">
+                          {acc.accountCode} - {acc.accountName}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                
+                {/* Cash Account */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Cash Account</label>
+                  <select
+                    value={selectedCashAccount}
+                    onChange={(e) => setSelectedCashAccount(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white"
+                  >
+                    <option value="" className="text-slate-800">Select Cash Account</option>
+                    {cashBankAccounts
+                      .filter(a => a.accountName.toLowerCase().includes('cash') && !a.accountName.toLowerCase().includes('bank'))
+                      .map(acc => (
+                        <option key={acc._id} value={acc._id} className="text-slate-800">
+                          {acc.accountCode} - {acc.accountName}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                
+                {/* Amount */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Amount (QAR)</label>
+                  <input
+                    type="number"
+                    value={quickAmount}
+                    onChange={(e) => setQuickAmount(e.target.value)}
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    className="w-full px-3 py-2.5 bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white text-right text-lg font-semibold"
+                  />
+                </div>
+                
+                {/* Create Button */}
+                <div className="flex items-end">
+                  <button
+                    onClick={handleQuickVoucher}
+                    className="w-full px-4 py-2.5 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-lg hover:opacity-90 transition-all active:scale-95 font-semibold"
+                  >
+                    Create Quick Voucher
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
+
+          {!showQuickVoucher && (
+            <button
+              onClick={() => setShowQuickVoucher(true)}
+              className="w-full mb-6 px-4 py-3 bg-gradient-to-r from-[#E84545]/20 to-[#cc3c3c]/20 border border-[#E84545]/30 text-white rounded-xl hover:from-[#E84545]/30 hover:to-[#cc3c3c]/30 transition-all active:scale-95 flex items-center justify-center gap-2"
+            >
+              <Zap className="h-5 w-5" />
+              <span className="font-semibold">Show Quick Voucher</span>
+            </button>
+          )}
           
           {/* Basic Information */}
           <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 md:p-6 mb-6">
-            <h2 className="text-lg font-semibold text-white mb-4">Basic Information</h2>
+            <h2 className="text-lg font-semibold text-white mb-4">Voucher Details</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">
@@ -542,7 +645,7 @@ export default function ContraVoucherPage() {
                   type="text"
                   value={formData.narration}
                   onChange={(e) => setFormData({ ...formData, narration: e.target.value })}
-                  placeholder="Transfer description"
+                  placeholder="e.g., Withdrawal from bank"
                   className="w-full px-3 py-2.5 bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white"
                 />
               </div>
@@ -554,7 +657,7 @@ export default function ContraVoucherPage() {
             <div className="px-4 py-4 border-b border-white/10 flex justify-between items-center">
               <div>
                 <h2 className="text-lg font-semibold text-white">Entries</h2>
-                <p className="text-xs text-slate-400 mt-1">Cash & Bank Accounts Only</p>
+                <p className="text-xs text-slate-400 mt-1">Cash & Bank Only</p>
               </div>
               <button
                 onClick={addEntry}
@@ -573,7 +676,6 @@ export default function ContraVoucherPage() {
                       onClick={() => removeEntry(index)}
                       className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-colors"
                       disabled={entries.length <= 2}
-                      title={entries.length <= 2 ? "Minimum 2 entries required" : "Remove entry"}
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -740,7 +842,6 @@ export default function ContraVoucherPage() {
                           onClick={() => removeEntry(index)}
                           className="p-2 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           disabled={entries.length <= 2}
-                          title={entries.length <= 2 ? "At least 2 entries required" : "Remove entry"}
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -777,31 +878,6 @@ export default function ContraVoucherPage() {
                   </tr>
                 </tbody>
               </table>
-            </div>
-          </div>
-          
-          {/* Common Contra Types - Desktop Only */}
-          <div className="hidden md:block bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-6 mb-6">
-            <h3 className="text-lg font-semibold text-white mb-4">Common Contra Transactions</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {exampleTransactions.map((example, index) => (
-                <div key={index} className="p-4 bg-white/5 rounded-xl border border-white/10 hover:border-[#E84545]/30 transition-colors">
-                  <h4 className="text-sm font-medium text-white mb-2">{example.description}</h4>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div>
-                      <span className="text-[#E84545]">Debit:</span>
-                      <p className="text-slate-300 mt-1">{example.debit}</p>
-                    </div>
-                    <div>
-                      <span className="text-slate-400">Credit:</span>
-                      <p className="text-slate-300 mt-1">{example.credit}</p>
-                    </div>
-                  </div>
-                  <div className="mt-3 text-right">
-                    <span className="text-sm font-semibold text-white">{example.amount}</span>
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
           

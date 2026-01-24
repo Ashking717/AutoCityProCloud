@@ -59,9 +59,9 @@ export default function SalesReportPage() {
   }, []);
   
   const formatCompactCurrency = (amount: number) => {
-    if (amount >= 1000000) return `₹${(amount / 1000000).toFixed(1)}M`;
-    if (amount >= 10000) return `₹${(amount / 1000).toFixed(1)}K`;
-    return `₹${amount.toFixed(0)}`;
+    if (amount >= 1000000) return `QR.${(amount / 1000000).toFixed(1)}M`;
+    if (amount >= 10000) return `QR.${(amount / 1000).toFixed(1)}K`;
+    return `QR.${amount.toFixed(0)}`;
   };
   
   const fetchUser = async () => {
@@ -340,7 +340,7 @@ export default function SalesReportPage() {
                 {formatCompactCurrency(summary.totalRevenue)}
               </p>
               <p className="text-xs text-slate-500 mt-1">
-                ₹{summary.totalRevenue.toLocaleString()}
+                QR.{summary.totalRevenue.toLocaleString()}
               </p>
             </div>
 
@@ -376,7 +376,7 @@ export default function SalesReportPage() {
               </div>
               <p className="text-xs text-slate-400 mb-1">Avg Order Value</p>
               <p className="text-base md:text-xl font-bold text-[#E84545] truncate">
-                ₹{summary.averageOrderValue.toFixed(0)}
+                QR.{summary.averageOrderValue.toFixed(0)}
               </p>
               <p className="text-xs text-slate-500 mt-1">Per order</p>
             </div>
@@ -427,12 +427,12 @@ export default function SalesReportPage() {
                       </div>
                       <div className="bg-gradient-to-br from-yellow-400/10 to-[#050505] border border-yellow-400/20 rounded-xl p-4">
                         <p className="text-xs md:text-sm text-slate-400 mb-1">Total Discount</p>
-                        <p className="text-xl md:text-2xl font-bold text-yellow-400">₹{summary.totalDiscount.toLocaleString()}</p>
+                        <p className="text-xl md:text-2xl font-bold text-yellow-400">QR.{summary.totalDiscount.toLocaleString()}</p>
                         <p className="text-xs text-slate-500 mt-1">Given</p>
                       </div>
                       <div className="bg-gradient-to-br from-blue-400/10 to-[#050505] border border-blue-400/20 rounded-xl p-4">
                         <p className="text-xs md:text-sm text-slate-400 mb-1">Total Tax</p>
-                        <p className="text-xl md:text-2xl font-bold text-blue-400">₹{summary.totalTax.toLocaleString()}</p>
+                        <p className="text-xl md:text-2xl font-bold text-blue-400">QR.{summary.totalTax.toLocaleString()}</p>
                         <p className="text-xs text-slate-500 mt-1">Collected</p>
                       </div>
                     </div>
@@ -505,7 +505,7 @@ export default function SalesReportPage() {
                             <div>
                               <span className="text-xs text-slate-500">Total Amount</span>
                               <p className="text-sm md:text-base font-bold text-[#E84545]">
-                                ₹{(sale.grandTotal || 0).toLocaleString()}
+                                QR.{(sale.grandTotal || 0).toLocaleString()}
                               </p>
                             </div>
                             <button className="text-xs text-white/60 hover:text-[#E84545] font-semibold flex items-center gap-1 active:scale-95 transition-all">
@@ -545,7 +545,7 @@ export default function SalesReportPage() {
                                 <p className="text-sm md:text-base font-bold text-white truncate">{productName}</p>
                               </div>
                               <div className="text-right">
-                                <p className="text-sm md:text-base font-bold text-white">₹{data.revenue.toLocaleString()}</p>
+                                <p className="text-sm md:text-base font-bold text-white">QR.{data.revenue.toLocaleString()}</p>
                               </div>
                             </div>
                             
@@ -556,7 +556,7 @@ export default function SalesReportPage() {
                               </div>
                               <div>
                                 <span className="text-[10px] text-slate-500 uppercase block mb-1">Profit</span>
-                                <p className="text-sm font-semibold text-green-400">₹{data.profit.toLocaleString()}</p>
+                                <p className="text-sm font-semibold text-green-400">QR.{data.profit.toLocaleString()}</p>
                               </div>
                             </div>
                           </div>
@@ -591,7 +591,7 @@ export default function SalesReportPage() {
                                 <p className="text-sm md:text-base font-bold text-white truncate">{customerName}</p>
                               </div>
                               <div className="text-right">
-                                <p className="text-sm md:text-base font-bold text-white">₹{data.revenue.toLocaleString()}</p>
+                                <p className="text-sm md:text-base font-bold text-white">QR.{data.revenue.toLocaleString()}</p>
                               </div>
                             </div>
                             
@@ -602,7 +602,7 @@ export default function SalesReportPage() {
                               </div>
                               <div>
                                 <span className="text-[10px] text-slate-500 uppercase block mb-1">Avg Order Value</span>
-                                <p className="text-sm font-semibold text-[#E84545]">₹{(data.revenue / data.count).toFixed(0)}</p>
+                                <p className="text-sm font-semibold text-[#E84545]">QR.{(data.revenue / data.count).toFixed(0)}</p>
                               </div>
                             </div>
                           </div>

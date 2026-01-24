@@ -311,7 +311,7 @@ export default function StockReportPage() {
                 </div>
               </div>
               <p className="text-xs text-slate-400 mb-1">Stock Value</p>
-              <p className="text-base md:text-xl font-bold text-white">₹{(summary.totalStockValue / 1000).toFixed(1)}K</p>
+              <p className="text-base md:text-xl font-bold text-white">QR.{(summary.totalStockValue / 1000).toFixed(1)}K</p>
               <p className="text-xs text-slate-500 mt-1">Total inventory</p>
             </div>
 
@@ -416,7 +416,7 @@ export default function StockReportPage() {
                       <DollarSign className="h-5 w-5 text-[#E84545]" />
                       <span className="text-sm text-slate-400">Total Inventory Value</span>
                     </div>
-                    <p className="text-2xl md:text-3xl font-bold text-white">₹{summary.totalStockValue.toLocaleString()}</p>
+                    <p className="text-2xl md:text-3xl font-bold text-white">QR.{summary.totalStockValue.toLocaleString()}</p>
                   </div>
                 </div>
               )}
@@ -469,11 +469,11 @@ export default function StockReportPage() {
                               </div>
                               <div>
                                 <p className="text-xs text-slate-500 mb-1">Cost Price</p>
-                                <p className="text-sm md:text-base font-semibold text-white">₹{(product.costPrice || 0).toFixed(2)}</p>
+                                <p className="text-sm md:text-base font-semibold text-white">QR.{(product.costPrice || 0).toFixed(2)}</p>
                               </div>
                               <div>
                                 <p className="text-xs text-slate-500 mb-1">Value</p>
-                                <p className="text-sm md:text-base font-semibold text-[#E84545]">₹{stockValue.toFixed(2)}</p>
+                                <p className="text-sm md:text-base font-semibold text-[#E84545]">QR.{stockValue.toFixed(2)}</p>
                               </div>
                             </div>
 
@@ -542,7 +542,7 @@ export default function StockReportPage() {
                             </div>
                             <div>
                               <span className="text-[10px] text-slate-500 uppercase block mb-1">Value</span>
-                              <p className="text-sm font-semibold text-[#E84545]">₹{data.value.toFixed(2)}</p>
+                              <p className="text-sm font-semibold text-[#E84545]">QR.{data.value.toFixed(2)}</p>
                             </div>
                           </div>
                         </div>

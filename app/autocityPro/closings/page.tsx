@@ -26,6 +26,11 @@ import {
   ArrowUpRight,
   Zap,
   Search,
+  Package,
+  Receipt,
+  TrendingDown,
+  Database,
+  Shield,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -36,11 +41,20 @@ interface ClosingData {
   periodStart: string;
   periodEnd: string;
   status: "closed" | "locked" | "pending";
-  totalSales: number;
+  
+  // Revenue
+  totalRevenue: number;
+  
+  // Costs
+  totalCOGS: number;
   totalPurchases: number;
   totalExpenses: number;
-  totalRevenue: number;
+  
+  // Profit
+  grossProfit: number;
   netProfit: number;
+  
+  // Cash & Bank
   openingCash: number;
   cashSales: number;
   cashReceipts: number;
@@ -50,8 +64,11 @@ interface ClosingData {
   bankPayments: number;
   openingBank: number;
   closingBank: number;
+  bankReceipts: number;
+  
   totalOpeningBalance?: number;
   totalClosingBalance?: number;
+  
   salesCount: number;
   totalDiscount: number;
   totalTax: number;
@@ -275,9 +292,11 @@ export default function ClosingsPage() {
       "Type",
       "Status",
       "Revenue",
+      "COGS",
+      "Purchases",
       "Expenses",
-      "Profit",
-      "Cash Sales",
+      "Gross Profit",
+      "Net Profit",
       "Closed By",
     ];
     const rows = closings.map((c) => [
@@ -285,9 +304,11 @@ export default function ClosingsPage() {
       c.closingType,
       c.status,
       c.totalRevenue,
+      c.totalCOGS || 0,
+      c.totalPurchases,
       c.totalExpenses,
+      c.grossProfit || 0,
       c.netProfit,
-      c.cashSales,
       `${c.closedBy?.firstName} ${c.closedBy?.lastName}`,
     ]);
 
@@ -420,8 +441,7 @@ export default function ClosingsPage() {
                       Period Closings
                     </h1>
                     <p className="text-gray-400 text-sm">
-                      Comprehensive financial period management & ledger
-                      verification
+                      Ledger-driven accounting with COGS tracking
                     </p>
                   </div>
                 </div>
@@ -501,7 +521,7 @@ export default function ClosingsPage() {
                       <ArrowUpRight className="h-4 w-4 text-emerald-400" />
                     </div>
                     <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-1">
-                      Total Profit
+                      Total Net Profit
                     </p>
                     <p
                       className={`text-3xl font-bold tracking-tight ${
@@ -533,7 +553,7 @@ export default function ClosingsPage() {
                       </div>
                     </div>
                     <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-1">
-                      Avg Profit
+                      Avg Net Profit
                     </p>
                     <p
                       className={`text-3xl font-bold tracking-tight ${
@@ -675,6 +695,7 @@ export default function ClosingsPage() {
                   const totalClosingBalance =
                     closing.totalClosingBalance ??
                     closing.closingCash + closing.closingBank;
+                  const totalCosts = (closing.totalCOGS || 0) + closing.totalPurchases + closing.totalExpenses;
 
                   return (
                     <div key={closing._id} className="group relative">
@@ -722,12 +743,15 @@ export default function ClosingsPage() {
 
                         {/* Card Body */}
                         <div className="p-5 space-y-4">
-                          {/* Financial Summary */}
+                          {/* Revenue Section */}
                           <div className="space-y-2">
-                            <div className="flex justify-between items-center p-3 bg-[#1a1a1a] rounded-xl">
-                              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                                Revenue
-                              </span>
+                            <div className="flex justify-between items-center p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
+                              <div className="flex items-center gap-2">
+                                <DollarSign className="h-4 w-4 text-emerald-400" />
+                                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                                  Revenue
+                                </span>
+                              </div>
                               <span className="text-lg font-bold text-emerald-400">
                                 {closing.totalRevenue.toLocaleString("en-QA", {
                                   minimumFractionDigits: 0,
@@ -735,33 +759,85 @@ export default function ClosingsPage() {
                               </span>
                             </div>
 
-                            <div className="flex justify-between items-center p-3 bg-[#1a1a1a] rounded-xl">
-                              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                                Expenses
-                              </span>
-                              <span className="text-lg font-bold text-red-400">
-                                {closing.totalExpenses.toLocaleString("en-QA", {
-                                  minimumFractionDigits: 0,
-                                })}
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center p-3 bg-[#1a1a1a] rounded-xl">
-                              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                                Purchases
-                              </span>
-                              <span className="text-lg font-bold text-red-400">
-                                {closing.totalPurchases.toLocaleString("en-QA", {
-                                  minimumFractionDigits: 0,
-                                })}
-                              </span>
+                            {/* Cost Breakdown */}
+                            <div className="p-3 bg-[#1a1a1a] rounded-xl space-y-2">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Receipt className="h-3.5 w-3.5 text-gray-500" />
+                                <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">
+                                  Costs
+                                </span>
+                              </div>
+                              
+                              {closing.totalCOGS > 0 && (
+                                <div className="flex justify-between items-center">
+                                  <span className="text-xs text-gray-600">COGS</span>
+                                  <span className="text-sm font-semibold text-gray-400">
+                                    {closing.totalCOGS.toLocaleString("en-QA", {
+                                      minimumFractionDigits: 0,
+                                    })}
+                                  </span>
+                                </div>
+                              )}
+                              
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs text-gray-600">Purchases</span>
+                                <span className="text-sm font-semibold text-gray-400">
+                                  {closing.totalPurchases.toLocaleString("en-QA", {
+                                    minimumFractionDigits: 0,
+                                  })}
+                                </span>
+                              </div>
+                              
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs text-gray-600">Expenses</span>
+                                <span className="text-sm font-semibold text-gray-400">
+                                  {closing.totalExpenses.toLocaleString("en-QA", {
+                                    minimumFractionDigits: 0,
+                                  })}
+                                </span>
+                              </div>
+                              
+                              <div className="pt-2 border-t border-red-500/10">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-xs font-bold text-red-400">Total Costs</span>
+                                  <span className="text-sm font-bold text-red-400">
+                                    {totalCosts.toLocaleString("en-QA", {
+                                      minimumFractionDigits: 0,
+                                    })}
+                                  </span>
+                                </div>
+                              </div>
                             </div>
 
+                            {/* Gross Profit */}
+                            {closing.grossProfit !== undefined && closing.totalCOGS > 0 && (
+                              <div className="flex justify-between items-center p-3 bg-blue-500/5 border border-blue-500/20 rounded-xl">
+                                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                                  Gross Profit
+                                </span>
+                                <span className={`text-base font-bold ${
+                                  closing.grossProfit >= 0 ? 'text-blue-400' : 'text-red-400'
+                                }`}>
+                                  {closing.grossProfit.toLocaleString("en-QA", {
+                                    minimumFractionDigits: 0,
+                                  })}
+                                </span>
+                              </div>
+                            )}
 
+                            {/* Net Profit */}
                             <div className="relative p-4 bg-gradient-to-br from-red-500/5 to-red-600/5 rounded-xl border border-red-500/20">
                               <div className="flex justify-between items-center">
-                                <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">
-                                  Net Profit
-                                </span>
+                                <div className="flex items-center gap-2">
+                                  {closing.netProfit >= 0 ? (
+                                    <TrendingUp className="h-4 w-4 text-emerald-400" />
+                                  ) : (
+                                    <TrendingDown className="h-4 w-4 text-red-400" />
+                                  )}
+                                  <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">
+                                    Net Profit
+                                  </span>
+                                </div>
                                 <span
                                   className={`text-2xl font-black ${
                                     closing.netProfit >= 0
@@ -775,7 +851,7 @@ export default function ClosingsPage() {
                                 </span>
                               </div>
                               <p className="text-[10px] text-gray-600 mt-1">
-                                QAR
+                                = Revenue - (COGS + Purchases + Expenses)
                               </p>
                             </div>
                           </div>
@@ -963,14 +1039,14 @@ export default function ClosingsPage() {
                           {closing.ledgerEntriesCount && (
                             <div className="flex items-center justify-between p-3 bg-purple-500/5 rounded-xl border border-purple-500/20">
                               <div className="flex items-center gap-2">
-                                <BookOpen className="h-3.5 w-3.5 text-purple-400" />
+                                <Database className="h-3.5 w-3.5 text-purple-400" />
                                 <span className="text-xs font-medium text-purple-400">
                                   {closing.ledgerEntriesCount} Ledger Entries
                                 </span>
                               </div>
                               {closing.trialBalanceMatched && (
                                 <div className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 rounded-full">
-                                  <CheckCircle className="h-3 w-3 text-emerald-400" />
+                                  <Shield className="h-3 w-3 text-emerald-400" />
                                   <span className="text-[10px] font-bold text-emerald-400 uppercase">
                                     Balanced
                                   </span>
@@ -1142,11 +1218,9 @@ export default function ClosingsPage() {
                         </h4>
                         <ul className="text-xs text-amber-300/80 space-y-1.5">
                           <li>• All transactions will be locked</li>
-                          <li>• Financial reports will be generated</li>
-                          <li>
-                            • Late-night transactions (until 6 AM) will be
-                            included
-                          </li>
+                          <li>• Financial reports will be generated from ledger</li>
+                          <li>• Profit = Revenue - (COGS + Purchases + Expenses)</li>
+                          <li>• Late-night transactions (until 6 AM) will be included</li>
                           <li>• First closing includes all historical data</li>
                         </ul>
                       </div>

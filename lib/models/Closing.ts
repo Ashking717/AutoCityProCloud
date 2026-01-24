@@ -10,11 +10,15 @@ export interface IClosing extends Document {
   periodStart: Date;
   periodEnd: Date;
 
-  // Financial Metrics
-  totalPurchases: number;
-  totalExpenses: number;
-  totalRevenue: number;
-  netProfit: number;
+  // Financial Metrics (LEDGER-DRIVEN)
+  totalRevenue: number;         // From ledger: Credits to SALES_REVENUE
+  totalCOGS: number;            // From ledger: Debits to COST_OF_GOODS_SOLD
+  totalPurchases: number;       // From ledger: Debits to INVENTORY
+  totalExpenses: number;        // From ledger: Debits to EXPENSE accounts (excluding COGS)
+  
+  // Profit Metrics
+  grossProfit: number;          // Revenue - COGS
+  netProfit: number;            // Revenue - (COGS + Purchases + Expenses)
 
   // Cash & Bank (LEDGER-DRIVEN)
   openingCash: number;
@@ -29,6 +33,7 @@ export interface IClosing extends Document {
   // Ledger-derived cash/bank movements (for analysis only)
   cashReceipts?: number;    // Total debits to cash accounts (from ledger)
   cashPayments?: number;    // Total credits from cash accounts (from ledger)
+  bankReceipts?: number;    // Total debits to bank accounts (from ledger)
   bankPayments?: number;    // Total credits from bank accounts (from ledger)
 
   // Total Balances
@@ -93,9 +98,11 @@ export interface IClosingLean {
   periodStart: Date;
   periodEnd: Date;
 
+  totalRevenue: number;
+  totalCOGS: number;
   totalPurchases: number;
   totalExpenses: number;
-  totalRevenue: number;
+  grossProfit: number;
   netProfit: number;
 
   openingCash: number;
@@ -108,6 +115,7 @@ export interface IClosingLean {
 
   cashReceipts?: number;
   cashPayments?: number;
+  bankReceipts?: number;
   bankPayments?: number;
 
   totalOpeningBalance: number;
@@ -151,9 +159,13 @@ export interface IClosingLean {
 export interface IPeriodSummary {
   totalClosings: number;
   totalRevenue: number;
+  totalCOGS: number;
+  totalPurchases: number;
   totalExpenses: number;
-  totalProfit: number;
-  avgProfit: number;
+  totalGrossProfit: number;
+  totalNetProfit: number;
+  avgGrossProfit: number;
+  avgNetProfit: number;
 }
 
 /* =========================================================
@@ -179,10 +191,14 @@ const ClosingSchema = new Schema<IClosing, IClosingModel>(
     periodStart: { type: Date, required: true },
     periodEnd: { type: Date, required: true },
 
-    // Financial Metrics
+    // Financial Metrics (LEDGER-DRIVEN)
+    totalRevenue: { type: Number, default: 0 },
+    totalCOGS: { type: Number, default: 0 },
     totalPurchases: { type: Number, default: 0 },
     totalExpenses: { type: Number, default: 0 },
-    totalRevenue: { type: Number, default: 0 },
+    
+    // Profit Metrics
+    grossProfit: { type: Number, default: 0 },
     netProfit: { type: Number, default: 0 },
 
     // Cash & Bank (Ledger-driven balances)
@@ -198,6 +214,7 @@ const ClosingSchema = new Schema<IClosing, IClosingModel>(
     // Ledger-derived movements (for analysis and transparency)
     cashReceipts: { type: Number, default: 0 },   // Sum of debits to cash accounts
     cashPayments: { type: Number, default: 0 },   // Sum of credits from cash accounts
+    bankReceipts: { type: Number, default: 0 },   // Sum of debits to bank accounts
     bankPayments: { type: Number, default: 0 },   // Sum of credits from bank accounts
 
     // Total Balances
@@ -256,7 +273,7 @@ ClosingSchema.index({ outletId: 1, closingDate: -1 });
 ClosingSchema.index({ outletId: 1, closingType: 1, closingDate: -1 });
 ClosingSchema.index({ outletId: 1, status: 1 });
 ClosingSchema.index({ periodStart: 1, periodEnd: 1 });
-ClosingSchema.index({ outletId: 1, trialBalanceMatched: 1 }); // New: for finding unbalanced closings
+ClosingSchema.index({ outletId: 1, trialBalanceMatched: 1 }); // For finding unbalanced closings
 
 /* =========================================================
    Virtuals
@@ -270,6 +287,17 @@ ClosingSchema.virtual('formattedDate').get(function () {
   });
 });
 
+ClosingSchema.virtual('grossProfitMargin').get(function () {
+  if (!this.totalRevenue) return 0;
+  return ((this.grossProfit || 0) / this.totalRevenue) * 100;
+});
+
+ClosingSchema.virtual('netProfitMargin').get(function () {
+  if (!this.totalRevenue) return 0;
+  return (this.netProfit / this.totalRevenue) * 100;
+});
+
+// Legacy support - maps to netProfitMargin
 ClosingSchema.virtual('profitMargin').get(function () {
   if (!this.totalRevenue) return 0;
   return (this.netProfit / this.totalRevenue) * 100;
@@ -293,6 +321,10 @@ ClosingSchema.virtual('bankMovement').get(function () {
 
 ClosingSchema.virtual('netMovement').get(function () {
   return (this.totalClosingBalance || 0) - (this.totalOpeningBalance || 0);
+});
+
+ClosingSchema.virtual('totalCosts').get(function () {
+  return (this.totalCOGS || 0) + (this.totalPurchases || 0) + (this.totalExpenses || 0);
 });
 
 /* =========================================================
@@ -330,19 +362,24 @@ ClosingSchema.statics.getPeriodSummary = async function (
     closingDate: { $gte: startDate, $lte: endDate },
   }).lean<IClosingLean[]>();
 
-  const totalProfit = closings.reduce((s, c) => s + (c.netProfit || 0), 0);
+  const totalGrossProfit = closings.reduce((s, c) => s + (c.grossProfit || 0), 0);
+  const totalNetProfit = closings.reduce((s, c) => s + (c.netProfit || 0), 0);
 
   return {
     totalClosings: closings.length,
     totalRevenue: closings.reduce((s, c) => s + (c.totalRevenue || 0), 0),
+    totalCOGS: closings.reduce((s, c) => s + (c.totalCOGS || 0), 0),
+    totalPurchases: closings.reduce((s, c) => s + (c.totalPurchases || 0), 0),
     totalExpenses: closings.reduce((s, c) => s + (c.totalExpenses || 0), 0),
-    totalProfit,
-    avgProfit: closings.length ? totalProfit / closings.length : 0,
+    totalGrossProfit,
+    totalNetProfit,
+    avgGrossProfit: closings.length ? totalGrossProfit / closings.length : 0,
+    avgNetProfit: closings.length ? totalNetProfit / closings.length : 0,
   };
 };
 
 /* =========================================================
-   Pre-save Hook: Validation
+   Pre-save Hook: Validation & Auto-calculation
    ========================================================= */
 
 ClosingSchema.pre('save', function (next) {
@@ -357,6 +394,22 @@ ClosingSchema.pre('save', function (next) {
   // Ensure total balances are correctly calculated
   this.totalOpeningBalance = (this.openingCash || 0) + (this.openingBank || 0);
   this.totalClosingBalance = (this.closingCash || 0) + (this.closingBank || 0);
+
+  // Auto-calculate profit if not set (for backwards compatibility)
+  if (this.totalRevenue > 0) {
+    // Calculate gross profit if COGS exists
+    if (this.totalCOGS !== undefined && this.grossProfit === 0) {
+      this.grossProfit = this.totalRevenue - this.totalCOGS;
+    }
+    
+    // Calculate net profit
+    if (this.netProfit === 0) {
+      const cogs = this.totalCOGS || 0;
+      const purchases = this.totalPurchases || 0;
+      const expenses = this.totalExpenses || 0;
+      this.netProfit = this.totalRevenue - (cogs + purchases + expenses);
+    }
+  }
 
   next();
 });

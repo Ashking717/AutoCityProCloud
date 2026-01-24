@@ -113,46 +113,88 @@ export async function GET(
       value: (p.currentStock || 0) * (p.costPrice || 0),
     }));
 
-    // Prepare PDF data with all fields
+    // Enrich closing data with calculated fields
+    const enrichedClosing = {
+      _id: closing._id.toString(),
+      closingType: closing.closingType,
+      closingDate: closing.closingDate,
+      periodStart: closing.periodStart,
+      periodEnd: closing.periodEnd,
+      status: closing.status,
+      
+      // Revenue
+      totalRevenue: closing.totalRevenue || 0,
+      
+      // Costs
+      totalCOGS: closing.totalCOGS ?? 0,
+      totalPurchases: closing.totalPurchases || 0,
+      totalExpenses: closing.totalExpenses || 0,
+      totalCosts: (closing.totalCOGS ?? 0) + (closing.totalPurchases || 0) + (closing.totalExpenses || 0),
+      
+      // Profit
+      grossProfit: closing.grossProfit ?? (closing.totalRevenue - (closing.totalCOGS ?? 0)),
+      netProfit: closing.netProfit || 0,
+      
+      // Margins
+      grossProfitMargin: closing.totalRevenue > 0 
+        ? ((closing.grossProfit ?? (closing.totalRevenue - (closing.totalCOGS ?? 0))) / closing.totalRevenue) * 100 
+        : 0,
+      netProfitMargin: closing.totalRevenue > 0 
+        ? ((closing.netProfit || 0) / closing.totalRevenue) * 100 
+        : 0,
+      
+      // Cash & Bank
+      openingCash: closing.openingCash || 0,
+      openingBank: closing.openingBank || 0,
+      cashSales: closing.cashSales || 0,
+      cashReceipts: closing.cashReceipts || 0,
+      cashPayments: closing.cashPayments || 0,
+      closingCash: closing.closingCash || 0,
+      closingBank: closing.closingBank || 0,
+      bankSales: closing.bankSales || 0,
+      bankReceipts: closing.bankReceipts || 0,
+      bankPayments: closing.bankPayments || 0,
+      
+      // Balances
+      totalOpeningBalance: closing.totalOpeningBalance || 0,
+      totalClosingBalance: closing.totalClosingBalance || 0,
+      
+      // Movements
+      cashMovement: (closing.closingCash || 0) - (closing.openingCash || 0),
+      bankMovement: (closing.closingBank || 0) - (closing.openingBank || 0),
+      netMovement: (closing.totalClosingBalance || 0) - (closing.totalOpeningBalance || 0),
+      
+      // Metrics
+      salesCount: closing.salesCount || 0,
+      purchasesCount: closing.purchasesCount || 0,
+      expensesCount: closing.expensesCount || 0,
+      totalDiscount: closing.totalDiscount || 0,
+      totalTax: closing.totalTax || 0,
+      
+      // Inventory
+      openingStock: closing.openingStock || 0,
+      closingStock: closing.closingStock || 0,
+      stockValue: closing.stockValue || 0,
+      stockChange: (closing.closingStock || 0) - (closing.openingStock || 0),
+      
+      // Ledger Stats
+      ledgerEntriesCount: closing.ledgerEntriesCount,
+      trialBalanceMatched: closing.trialBalanceMatched,
+      totalDebits: closing.totalDebits,
+      totalCredits: closing.totalCredits,
+      
+      // Liabilities
+      accountsPayable: closing.accountsPayable,
+      
+      // Audit
+      closedBy: closing.closedBy,
+      closedAt: closing.closedAt,
+      notes: closing.notes,
+    };
+
+    // Prepare PDF data
     const pdfData = {
-      closing: {
-        _id: closing._id.toString(),
-        closingType: closing.closingType,
-        closingDate: closing.closingDate,
-        periodStart: closing.periodStart,
-        periodEnd: closing.periodEnd,
-        status: closing.status,
-        totalPurchases: closing.totalPurchases || 0,
-        totalExpenses: closing.totalExpenses || 0,
-        totalRevenue: closing.totalRevenue || 0,
-        netProfit: closing.netProfit || 0,
-        openingCash: closing.openingCash || 0,
-        openingBank: closing.openingBank || 0,
-        cashSales: closing.cashSales || 0,
-        cashReceipts: closing.cashReceipts || 0,
-        cashPayments: closing.cashPayments || 0,
-        closingCash: closing.closingCash || 0,
-        closingBank: closing.closingBank || 0,
-        bankSales: closing.bankSales || 0,
-        bankPayments: closing.bankPayments || 0,
-        totalOpeningBalance: closing.totalOpeningBalance || 0,
-        totalClosingBalance: closing.totalClosingBalance || 0,
-        salesCount: closing.salesCount || 0,
-        purchasesCount: closing.purchasesCount || 0,
-        expensesCount: closing.expensesCount || 0,
-        totalDiscount: closing.totalDiscount || 0,
-        totalTax: closing.totalTax || 0,
-        openingStock: closing.openingStock || 0,
-        closingStock: closing.closingStock || 0,
-        stockValue: closing.stockValue || 0,
-        ledgerEntriesCount: closing.ledgerEntriesCount,
-        trialBalanceMatched: closing.trialBalanceMatched,
-        totalDebits: closing.totalDebits,
-        totalCredits: closing.totalCredits,
-        closedBy: closing.closedBy,
-        closedAt: closing.closedAt,
-        notes: closing.notes,
-      },
+      closing: enrichedClosing,
       sales: sales.map((s: any) => ({
         invoiceNumber: s.invoiceNumber,
         saleDate: s.saleDate,

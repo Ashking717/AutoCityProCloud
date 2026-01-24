@@ -7,9 +7,7 @@ import Closing from '@/lib/models/Closing';
 import Sale from '@/lib/models/Sale';
 import LedgerEntry from '@/lib/models/LedgerEntry';
 import Product from '@/lib/models/ProductEnhanced';
-import Account, { AccountSubType } from '@/lib/models/Account';
-import Purchase from '@/lib/models/Purchase';
-import Expense from '@/lib/models/Expense';
+import Account, { AccountSubType, AccountType } from '@/lib/models/Account';
 
 import { getClosingConfig } from '@/lib/config/closingConfig';
 
@@ -56,43 +54,14 @@ export async function GET(request: NextRequest) {
 async function getEarliestTransactionDate(
   outletId: string
 ): Promise<Date | null> {
+  // Get earliest ledger entry date
+  const earliestEntry = await LedgerEntry.findOne({ outletId })
+    .sort({ date: 1 })
+    .select('date')
+    .lean<{ date: Date } | null>();
 
-  const [sale, purchase, expense] = await Promise.all([
-    Sale.findOne({ outletId })
-      .sort({ saleDate: 1 })
-      .select('saleDate')
-      .lean<{ saleDate: Date } | null>(),
-
-    Purchase.findOne({ outletId })
-      .sort({ purchaseDate: 1 })
-      .select('purchaseDate')
-      .lean<{ purchaseDate: Date } | null>(),
-
-    Expense.findOne({ outletId })
-      .sort({ expenseDate: 1 })
-      .select('expenseDate')
-      .lean<{ expenseDate: Date } | null>(),
-  ]);
-
-  const dates: Date[] = [];
-
-  if (sale?.saleDate) {
-    dates.push(new Date(sale.saleDate));
-  }
-
-  if (purchase?.purchaseDate) {
-    dates.push(new Date(purchase.purchaseDate));
-  }
-
-  if (expense?.expenseDate) {
-    dates.push(new Date(expense.expenseDate));
-  }
-
-  if (!dates.length) return null;
-
-  return new Date(Math.min(...dates.map(d => d.getTime())));
+  return earliestEntry?.date ? new Date(earliestEntry.date) : null;
 }
-
 
 /* =========================================================
    Helper: Calculate Period Boundaries (NO OVERLAP)
@@ -156,7 +125,8 @@ async function calculatePeriodBoundaries(
 }
 
 /* =========================================================
-   POST /api/closings
+   POST /api/closings - LEDGER-DRIVEN WITH PROPER PROFIT
+   Formula: Net Profit = Sales - (COGS + Purchases + Expenses)
    ========================================================= */
 export async function POST(req: NextRequest) {
   try {
@@ -196,13 +166,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    /* ---------- LEDGER HELPER ---------- */
+    /* ========================================
+       LEDGER HELPER FUNCTIONS
+       ======================================== */
+    
+    // Get account balance from ledger entries up to a date
     async function ledgerBalance(subTypes: AccountSubType[], upto: Date) {
       const accounts = await Account.find({
         outletId: user.outletId,
         subType: { $in: subTypes },
         isActive: true,
       }).select('_id').lean();
+
+      if (accounts.length === 0) return 0;
 
       const entries = await LedgerEntry.find({
         outletId: user.outletId,
@@ -216,6 +192,59 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Get sum of debits to specific account types in a period
+    async function sumDebitsInPeriod(
+      accountType: AccountType,
+      subTypes: AccountSubType[],
+      start: Date,
+      end: Date
+    ) {
+      const accounts = await Account.find({
+        outletId: user.outletId,
+        type: accountType,
+        subType: { $in: subTypes },
+        isActive: true,
+      }).select('_id').lean();
+
+      if (accounts.length === 0) return 0;
+
+      const entries = await LedgerEntry.find({
+        outletId: user.outletId,
+        accountId: { $in: accounts.map(a => a._id) },
+        date: { $gte: start, $lte: end },
+      }).lean();
+
+      return entries.reduce((sum, e) => sum + (e.debit || 0), 0);
+    }
+
+    // Get sum of credits to specific account types in a period
+    async function sumCreditsInPeriod(
+      accountType: AccountType,
+      subTypes: AccountSubType[],
+      start: Date,
+      end: Date
+    ) {
+      const accounts = await Account.find({
+        outletId: user.outletId,
+        type: accountType,
+        subType: { $in: subTypes },
+        isActive: true,
+      }).select('_id').lean();
+
+      if (accounts.length === 0) return 0;
+
+      const entries = await LedgerEntry.find({
+        outletId: user.outletId,
+        accountId: { $in: accounts.map(a => a._id) },
+        date: { $gte: start, $lte: end },
+      }).lean();
+
+      return entries.reduce((sum, e) => sum + (e.credit || 0), 0);
+    }
+
+    /* ========================================
+       CASH & BANK BALANCES (from Ledger)
+       ======================================== */
     const openingCutoff = new Date(periodStart.getTime() - 1);
 
     const openingCash = await ledgerBalance([AccountSubType.CASH], openingCutoff);
@@ -223,35 +252,15 @@ export async function POST(req: NextRequest) {
 
     const closingCash = await ledgerBalance([AccountSubType.CASH], periodEnd);
     const closingBank = await ledgerBalance([AccountSubType.BANK], periodEnd);
+    
     const accountsPayable = await ledgerBalance(
       [AccountSubType.ACCOUNTS_PAYABLE],
       periodEnd
     );
 
-    /* ---------- LEDGER STATISTICS ---------- */
-    // Get all ledger entries within the period
-    const periodLedgerEntries = await LedgerEntry.find({
-      outletId: user.outletId,
-      date: { $gte: periodStart, $lte: periodEnd },
-    }).lean();
-
-    const ledgerEntriesCount = periodLedgerEntries.length;
-
-    // Calculate total debits and credits for the period
-    const totalDebits = periodLedgerEntries.reduce(
-      (sum, entry) => sum + (entry.debit || 0),
-      0
-    );
-
-    const totalCredits = periodLedgerEntries.reduce(
-      (sum, entry) => sum + (entry.credit || 0),
-      0
-    );
-
-    // Check if trial balance matches (debits should equal credits)
-    const trialBalanceMatched = Math.abs(totalDebits - totalCredits) < 0.01; // Allow for rounding errors
-
-    // Calculate cash movements from ledger
+    /* ========================================
+       CASH & BANK MOVEMENTS (from Ledger)
+       ======================================== */
     const cashAccounts = await Account.find({
       outletId: user.outletId,
       subType: AccountSubType.CASH,
@@ -274,7 +283,6 @@ export async function POST(req: NextRequest) {
       0
     );
 
-    // Calculate bank movements from ledger
     const bankAccounts = await Account.find({
       outletId: user.outletId,
       subType: AccountSubType.BANK,
@@ -287,38 +295,86 @@ export async function POST(req: NextRequest) {
       date: { $gte: periodStart, $lte: periodEnd },
     }).lean();
 
+    const bankReceipts = bankEntries.reduce(
+      (sum, entry) => sum + (entry.debit || 0),
+      0
+    );
+
     const bankPayments = bankEntries.reduce(
       (sum, entry) => sum + (entry.credit || 0),
       0
     );
 
-    /* ---------- DOCUMENT METRICS ---------- */
+    /* ========================================
+       REVENUE (from Ledger - Credits to Sales/Revenue)
+       ======================================== */
+    const totalRevenue = await sumCreditsInPeriod(
+      AccountType.REVENUE,
+      [AccountSubType.SALES_REVENUE, AccountSubType.SERVICE_REVENUE],
+      periodStart,
+      periodEnd
+    );
+
+    /* ========================================
+       COGS (from Ledger - Debits to COGS)
+       This is the cost of goods that were SOLD
+       ======================================== */
+    const totalCOGS = await sumDebitsInPeriod(
+      AccountType.EXPENSE,
+      [AccountSubType.COGS],
+      periodStart,
+      periodEnd
+    );
+
+    /* ========================================
+       PURCHASES (from Ledger - Debits to Inventory)
+       This is inventory BOUGHT in the period
+       ======================================== */
+    const totalPurchases = await sumDebitsInPeriod(
+      AccountType.ASSET,
+      [AccountSubType.INVENTORY],
+      periodStart,
+      periodEnd
+    );
+
+    /* ========================================
+       EXPENSES (from Ledger - Debits to Expense accounts)
+       Excluding COGS which we already calculated
+       ======================================== */
+    const expenseSubTypes = [
+      AccountSubType.OPERATING_EXPENSE,
+      AccountSubType.ADMIN_EXPENSE,
+    ];
+
+    const totalExpenses = await sumDebitsInPeriod(
+      AccountType.EXPENSE,
+      expenseSubTypes,
+      periodStart,
+      periodEnd
+    );
+
+    /* ========================================
+       PROFIT CALCULATION
+       Gross Profit = Revenue - COGS
+       Net Profit = Revenue - (COGS + Purchases + Expenses)
+       ======================================== */
+    const grossProfit = totalRevenue - totalCOGS;
+    const netProfit = totalRevenue - (totalCOGS + totalPurchases + totalExpenses);
+
+    /* ========================================
+       SALES METRICS (for reference only)
+       ======================================== */
     const sales = await Sale.find({
       outletId: user.outletId,
       status: 'COMPLETED',
       saleDate: { $gte: periodStart, $lt: periodEnd },
     }).lean();
 
-    const purchases = await Purchase.find({
-      outletId: user.outletId,
-      status: { $in: ['PAID', 'COMPLETED'] },
-      purchaseDate: { $gte: periodStart, $lt: periodEnd },
-    }).lean();
-
-    const expenses = await Expense.find({
-      outletId: user.outletId,
-      status: { $in: ['PAID', 'PARTIALLY_PAID'] },
-      expenseDate: { $gte: periodStart, $lt: periodEnd },
-    }).lean();
-
     const salesCount = sales.length;
-    const purchasesCount = purchases.length;
-    const expensesCount = expenses.length;
-
-    const totalRevenue = sales.reduce((s, x) => s + (x.grandTotal || 0), 0);
     const totalDiscount = sales.reduce((s, x) => s + (x.totalDiscount || 0), 0);
     const totalTax = sales.reduce((s, x) => s + (x.totalVAT || 0), 0);
 
+    // Sales by payment method (for informational purposes)
     const cashSales = sales
       .filter(s => s.paymentMethod === 'CASH')
       .reduce((s, x) => s + (x.amountPaid || 0), 0);
@@ -327,12 +383,31 @@ export async function POST(req: NextRequest) {
       .filter(s => s.paymentMethod !== 'CASH')
       .reduce((s, x) => s + (x.amountPaid || 0), 0);
 
-    const totalPurchases = purchases.reduce((s, x) => s + (x.amountPaid || 0), 0);
-    const totalExpensesOnly = expenses.reduce((s, x) => s + (x.amountPaid || 0), 0);
+    /* ========================================
+       LEDGER STATISTICS
+       ======================================== */
+    const periodLedgerEntries = await LedgerEntry.find({
+      outletId: user.outletId,
+      date: { $gte: periodStart, $lte: periodEnd },
+    }).lean();
 
-    const netProfit = totalRevenue - (totalPurchases + totalExpensesOnly);
+    const ledgerEntriesCount = periodLedgerEntries.length;
 
-    /* ---------- INVENTORY ---------- */
+    const totalDebits = periodLedgerEntries.reduce(
+      (sum, entry) => sum + (entry.debit || 0),
+      0
+    );
+
+    const totalCredits = periodLedgerEntries.reduce(
+      (sum, entry) => sum + (entry.credit || 0),
+      0
+    );
+
+    const trialBalanceMatched = Math.abs(totalDebits - totalCredits) < 0.01;
+
+    /* ========================================
+       INVENTORY
+       ======================================== */
     const previousClosing = await Closing.findOne({
       outletId: user.outletId,
       closingType,
@@ -354,7 +429,9 @@ export async function POST(req: NextRequest) {
       0
     );
 
-    /* ---------- CREATE ---------- */
+    /* ========================================
+       CREATE CLOSING RECORD
+       ======================================== */
     const closing = await Closing.create({
       outletId: user.outletId,
       closingType,
@@ -362,44 +439,56 @@ export async function POST(req: NextRequest) {
       periodStart,
       periodEnd,
 
+      // Cash & Bank Balances (from Ledger)
       openingCash,
       openingBank,
       closingCash,
       closingBank,
 
-      cashSales,
-      bankSales,
+      // Cash & Bank Movements (from Ledger)
+      cashSales, // Informational only
+      bankSales, // Informational only
       cashReceipts,
       cashPayments,
+      bankReceipts,
       bankPayments,
 
+      // Sales Metrics (for reference)
       salesCount,
-      purchasesCount,
-      expensesCount,
-
-      totalRevenue,
       totalDiscount,
       totalTax,
 
+      // Revenue (from Ledger)
+      totalRevenue,
+
+      // Costs (from Ledger)
+      totalCOGS,
       totalPurchases,
-      totalExpenses: totalExpensesOnly,
+      totalExpenses,
+
+      // Profit (calculated)
+      grossProfit,
       netProfit,
 
+      // Total Balances
       totalOpeningBalance: openingCash + openingBank,
       totalClosingBalance: closingCash + closingBank,
 
+      // Liabilities
       accountsPayable,
 
+      // Inventory
       openingStock,
       closingStock,
       stockValue,
 
-      // Ledger statistics
+      // Ledger Statistics
       ledgerEntriesCount,
       totalDebits,
       totalCredits,
       trialBalanceMatched,
 
+      // Metadata
       status: 'closed',
       closedBy: user.userId,
       closedAt: new Date(),
@@ -409,7 +498,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       closing,
-      message: 'Period closed successfully (ledger-driven, no overlap, 3AM cutoff)',
+      message: 'Period closed successfully (Ledger-driven: Profit = Sales - COGS - Purchases - Expenses)',
+      profitBreakdown: {
+        revenue: totalRevenue,
+        cogs: totalCOGS,
+        purchases: totalPurchases,
+        expenses: totalExpenses,
+        grossProfit,
+        netProfit,
+      },
       ledgerStats: {
         entries: ledgerEntriesCount,
         debits: totalDebits,

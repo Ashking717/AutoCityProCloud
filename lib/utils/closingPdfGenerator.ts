@@ -14,11 +14,22 @@ interface ClosingData {
   periodEnd: string;
   status: string;
 
+  // Revenue
+  totalRevenue: number;
+  
+  // Costs
+  totalCOGS: number;
   totalPurchases: number;
   totalExpenses: number;
-  totalRevenue: number;
+  totalCosts: number;
+  
+  // Profit
+  grossProfit: number;
   netProfit: number;
+  grossProfitMargin: number;
+  netProfitMargin: number;
 
+  // Cash & Bank
   openingCash: number;
   openingBank: number;
   closingCash: number;
@@ -27,14 +38,20 @@ interface ClosingData {
   cashSales: number;
   bankSales?: number;
 
-  // Legacy / informational only (ledger-driven system)
+  // Movements (from ledger)
   cashReceipts?: number;
   cashPayments?: number;
+  bankReceipts?: number;
   bankPayments?: number;
+  cashMovement?: number;
+  bankMovement?: number;
+  netMovement?: number;
 
+  // Balances
   totalOpeningBalance?: number;
   totalClosingBalance?: number;
 
+  // Metrics
   salesCount: number;
   purchasesCount?: number;
   expensesCount?: number;
@@ -42,22 +59,26 @@ interface ClosingData {
   totalDiscount: number;
   totalTax: number;
 
+  // Inventory
   openingStock: number;
   closingStock: number;
   stockValue: number;
+  stockChange?: number;
 
+  // Liabilities
   accountsPayable?: number;
 
+  // Ledger Stats
   ledgerEntriesCount?: number;
   trialBalanceMatched?: boolean;
   totalDebits?: number;
   totalCredits?: number;
 
+  // Audit
   closedBy: {
     firstName: string;
     lastName: string;
   };
-
   closedAt: string;
   notes?: string;
 }
@@ -118,6 +139,8 @@ const COLORS = {
   red: '#EF4444',
   blue: '#3B82F6',
   amber: '#F59E0B',
+  orange: '#F97316',
+  purple: '#8B5CF6',
 };
 
 /* =========================================================
@@ -229,7 +252,7 @@ export async function generateClosingPDF(data: PDFData): Promise<Blob> {
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Ledger-Driven Accounting`, pageWidth / 2, 49, { align: 'center' });
+  doc.text(`Ledger-Driven Accounting System`, pageWidth / 2, 49, { align: 'center' });
 
   yPosition = 65;
 
@@ -295,7 +318,7 @@ export async function generateClosingPDF(data: PDFData): Promise<Blob> {
 
   /* ================= EXECUTIVE SUMMARY ================= */
 
-  checkAddPage(80);
+  checkAddPage(100);
   doc.setFillColor(COLORS.primary);
   doc.rect(margin, yPosition, contentWidth, 8, 'F');
   doc.setTextColor(COLORS.white);
@@ -305,42 +328,58 @@ export async function generateClosingPDF(data: PDFData): Promise<Blob> {
 
   yPosition += 12;
 
-  const profitMargin =
-    closing.totalRevenue > 0
-      ? ((closing.netProfit / closing.totalRevenue) * 100).toFixed(1)
-      : '0.0';
+  const executiveSummaryRows = [
+    [
+      'Total Revenue',
+      formatCurrency(closing.totalRevenue),
+      `${closing.salesCount} sales`,
+    ],
+  ];
+
+  // Add COGS and Gross Profit if COGS exists
+  if (closing.totalCOGS > 0) {
+    executiveSummaryRows.push(
+      [
+        'Cost of Goods Sold',
+        formatCurrency(closing.totalCOGS),
+        'From ledger entries',
+      ],
+      [
+        'Gross Profit',
+        formatCurrency(closing.grossProfit),
+        `${closing.grossProfitMargin.toFixed(1)}% margin`,
+      ]
+    );
+  }
+
+  executiveSummaryRows.push(
+    [
+      'Total Costs',
+      formatCurrency(closing.totalCosts),
+      `COGS + Purchases + Expenses`,
+    ],
+    [
+      'Net Profit / Loss',
+      formatCurrency(closing.netProfit),
+      `${closing.netProfitMargin.toFixed(1)}% margin`,
+    ],
+    [
+      'Cash Position',
+      formatCurrency(closing.closingCash),
+      `From ${formatCurrency(closing.openingCash)}`,
+    ],
+    [
+      'Bank Position',
+      formatCurrency(closing.closingBank),
+      `From ${formatCurrency(closing.openingBank)}`,
+    ]
+  );
 
   autoTable(doc, {
     startY: yPosition,
     theme: 'grid',
     head: [['Metric', 'Amount', 'Details']],
-    body: [
-      [
-        'Total Revenue',
-        formatCurrency(closing.totalRevenue),
-        `${closing.salesCount} sales`,
-      ],
-      [
-        'Total Costs',
-        formatCurrency(closing.totalPurchases + closing.totalExpenses),
-        `Purchases + Expenses`,
-      ],
-      [
-        'Net Profit / Loss',
-        formatCurrency(closing.netProfit),
-        `${profitMargin}% margin`,
-      ],
-      [
-        'Cash Position',
-        formatCurrency(closing.closingCash),
-        `From ${formatCurrency(closing.openingCash)}`,
-      ],
-      [
-        'Bank Position',
-        formatCurrency(closing.closingBank),
-        `From ${formatCurrency(closing.openingBank)}`,
-      ],
-    ],
+    body: executiveSummaryRows,
     styles: { fontSize: 10, cellPadding: 3 },
     headStyles: {
       fillColor: [147, 34, 34],
@@ -353,7 +392,15 @@ export async function generateClosingPDF(data: PDFData): Promise<Blob> {
       2: { fontSize: 9, textColor: [75, 85, 99] },
     },
     didParseCell: (data) => {
-      if (data.row.index === 2 && data.section === 'body') {
+      // Highlight Gross Profit if exists
+      if (closing.totalCOGS > 0 && data.row.index === 2 && data.section === 'body') {
+        data.cell.styles.fillColor = [59, 130, 246]; // Blue
+        data.cell.styles.textColor = [255, 255, 255];
+        data.cell.styles.fontStyle = 'bold';
+      }
+      // Highlight Net Profit
+      const netProfitIndex = closing.totalCOGS > 0 ? 4 : 2;
+      if (data.row.index === netProfitIndex && data.section === 'body') {
         data.cell.styles.fillColor =
           closing.netProfit >= 0 ? [16, 185, 129] : [239, 68, 68];
         data.cell.styles.textColor = [255, 255, 255];
@@ -365,71 +412,76 @@ export async function generateClosingPDF(data: PDFData): Promise<Blob> {
 
   yPosition = (doc as any).lastAutoTable.finalY + 10;
 
-  /* ================= FINANCIAL BREAKDOWN ================= */
+  /* ================= PROFIT & LOSS STATEMENT ================= */
 
-  checkAddPage(90);
+  checkAddPage(120);
   doc.setFillColor(COLORS.primary);
   doc.rect(margin, yPosition, contentWidth, 8, 'F');
   doc.setTextColor(COLORS.white);
   doc.setFont('helvetica', 'bold');
-  doc.text('FINANCIAL BREAKDOWN', margin + 5, yPosition + 6);
+  doc.text('PROFIT & LOSS STATEMENT', margin + 5, yPosition + 6);
 
   yPosition += 12;
 
-  const totalCosts = closing.totalPurchases + closing.totalExpenses;
+  const plRows = [
+    [
+      'Revenue',
+      formatCurrency(closing.totalRevenue),
+      closing.salesCount.toString(),
+      '100.0%',
+    ],
+  ];
+
+  // Add COGS section if exists
+  if (closing.totalCOGS > 0) {
+    plRows.push(
+      [
+        'Less: Cost of Goods Sold',
+        `(${formatCurrency(closing.totalCOGS)})`,
+        '-',
+        closing.totalRevenue > 0
+          ? `${((closing.totalCOGS / closing.totalRevenue) * 100).toFixed(1)}%`
+          : '0.0%',
+      ],
+      [
+        'Gross Profit',
+        formatCurrency(closing.grossProfit),
+        '-',
+        `${closing.grossProfitMargin.toFixed(1)}%`,
+      ]
+    );
+  }
+
+  plRows.push(
+    [
+      'Less: Purchases',
+      `(${formatCurrency(closing.totalPurchases)})`,
+      String(closing.purchasesCount ?? 0),
+      closing.totalRevenue > 0
+        ? `${((closing.totalPurchases / closing.totalRevenue) * 100).toFixed(1)}%`
+        : '0.0%',
+    ],
+    [
+      'Less: Operating Expenses',
+      `(${formatCurrency(closing.totalExpenses)})`,
+      String(closing.expensesCount ?? 0),
+      closing.totalRevenue > 0
+        ? `${((closing.totalExpenses / closing.totalRevenue) * 100).toFixed(1)}%`
+        : '0.0%',
+    ],
+    [
+      'Net Profit / Loss',
+      formatCurrency(closing.netProfit),
+      '-',
+      `${closing.netProfitMargin.toFixed(1)}%`,
+    ]
+  );
 
   autoTable(doc, {
     startY: yPosition,
     theme: 'striped',
     head: [['Category', 'Amount', 'Count', '% of Revenue']],
-    body: [
-      [
-        'Revenue',
-        formatCurrency(closing.totalRevenue),
-        closing.salesCount.toString(),
-        '100.0%',
-      ],
-      [
-        'Purchases',
-        formatCurrency(closing.totalPurchases),
-        String(closing.purchasesCount ?? 0),
-        closing.totalRevenue > 0
-          ? `${((closing.totalPurchases / closing.totalRevenue) * 100).toFixed(1)}%`
-          : '0.0%',
-      ],
-      [
-        'Expenses',
-        formatCurrency(closing.totalExpenses),
-        String(closing.expensesCount ?? 0),
-        closing.totalRevenue > 0
-          ? `${((closing.totalExpenses / closing.totalRevenue) * 100).toFixed(1)}%`
-          : '0.0%',
-      ],
-      [
-        'Total Costs',
-        formatCurrency(totalCosts),
-        '-',
-        closing.totalRevenue > 0
-          ? `${((totalCosts / closing.totalRevenue) * 100).toFixed(1)}%`
-          : '0.0%',
-      ],
-      [
-        'Discounts Given',
-        formatCurrency(closing.totalDiscount),
-        '-',
-        closing.totalRevenue > 0
-          ? `${((closing.totalDiscount / closing.totalRevenue) * 100).toFixed(1)}%`
-          : '0.0%',
-      ],
-      [
-        'Tax Collected',
-        formatCurrency(closing.totalTax),
-        '-',
-        closing.totalRevenue > 0
-          ? `${((closing.totalTax / closing.totalRevenue) * 100).toFixed(1)}%`
-          : '0.0%',
-      ],
-    ],
+    body: plRows,
     styles: { fontSize: 10, cellPadding: 3 },
     headStyles: {
       fillColor: [147, 34, 34],
@@ -443,10 +495,55 @@ export async function generateClosingPDF(data: PDFData): Promise<Blob> {
       3: { halign: 'right', fontSize: 9 },
     },
     didParseCell: (data) => {
-      if (data.row.index === 3 && data.section === 'body') {
+      // Highlight Gross Profit row
+      if (closing.totalCOGS > 0 && data.row.index === 2 && data.section === 'body') {
+        data.cell.styles.fillColor = [59, 130, 246];
+        data.cell.styles.textColor = [255, 255, 255];
         data.cell.styles.fontStyle = 'bold';
-        data.cell.styles.fillColor = [243, 244, 246];
       }
+      // Highlight Net Profit row (last row)
+      if (data.row.index === plRows.length - 1 && data.section === 'body') {
+        data.cell.styles.fillColor =
+          closing.netProfit >= 0 ? [16, 185, 129] : [239, 68, 68];
+        data.cell.styles.textColor = [255, 255, 255];
+        data.cell.styles.fontStyle = 'bold';
+      }
+    },
+    margin: { left: margin, right: margin },
+  });
+
+  yPosition = (doc as any).lastAutoTable.finalY + 10;
+
+  /* ================= COST BREAKDOWN ================= */
+
+  checkAddPage(70);
+  doc.setFillColor(COLORS.orange);
+  doc.rect(margin, yPosition, contentWidth, 8, 'F');
+  doc.setTextColor(COLORS.white);
+  doc.setFont('helvetica', 'bold');
+  doc.text('DETAILED COST BREAKDOWN', margin + 5, yPosition + 6);
+
+  yPosition += 12;
+
+  const costRows = [];
+  if (closing.totalCOGS > 0) {
+    costRows.push(['Cost of Goods Sold (COGS)', formatCurrency(closing.totalCOGS)]);
+  }
+  costRows.push(
+    ['Purchases (Inventory)', formatCurrency(closing.totalPurchases)],
+    ['Operating Expenses', formatCurrency(closing.totalExpenses)],
+    ['Discounts Given', formatCurrency(closing.totalDiscount)],
+    ['Tax Collected (VAT)', formatCurrency(closing.totalTax)]
+  );
+
+  autoTable(doc, {
+    startY: yPosition,
+    theme: 'grid',
+    body: costRows,
+    styles: { fontSize: 10, cellPadding: 3 },
+    columnStyles: {
+      0: { fontStyle: 'bold', cellWidth: 100 },
+      1: { halign: 'right' },
     },
     margin: { left: margin, right: margin },
   });
@@ -455,8 +552,8 @@ export async function generateClosingPDF(data: PDFData): Promise<Blob> {
 
   /* ================= LEDGER-DRIVEN CASH FLOW ================= */
 
-  checkAddPage(75);
-  doc.setFillColor(COLORS.primary);
+  checkAddPage(85);
+  doc.setFillColor(COLORS.blue);
   doc.rect(margin, yPosition, contentWidth, 8, 'F');
   doc.setTextColor(COLORS.white);
   doc.setFont('helvetica', 'bold');
@@ -468,13 +565,13 @@ export async function generateClosingPDF(data: PDFData): Promise<Blob> {
   doc.setTextColor(COLORS.mediumGray);
   doc.setFont('helvetica', 'italic');
   doc.text(
-    'Cash balances are calculated from ledger entries. Sales figures shown for reference only.',
+    'All balances calculated from double-entry ledger. Sales figures shown for reference only.',
     margin + 5,
     yPosition - 2
   );
   doc.setTextColor(COLORS.black);
 
-  const cashMovement = closing.closingCash - closing.openingCash;
+  const cashMovement = closing.cashMovement ?? (closing.closingCash - closing.openingCash);
   const cashMovementText =
     cashMovement >= 0
       ? `+${formatCurrency(Math.abs(cashMovement))}`
@@ -486,14 +583,8 @@ export async function generateClosingPDF(data: PDFData): Promise<Blob> {
     body: [
       ['Opening Cash Balance (Ledger)', formatCurrency(closing.openingCash)],
       ['Cash Sales (Informational)', formatCurrency(closing.cashSales)],
-      [
-        'Other Cash Receipts',
-        formatCurrency(closing.cashReceipts ?? 0),
-      ],
-      [
-        'Cash Payments (Ledger)',
-        formatCurrency(closing.cashPayments ?? 0),
-      ],
+      ['Total Cash Receipts (Ledger)', formatCurrency(closing.cashReceipts ?? 0)],
+      ['Total Cash Payments (Ledger)', `(${formatCurrency(closing.cashPayments ?? 0)})`],
       ['Net Cash Movement', cashMovementText],
       ['Closing Cash Balance (Ledger)', formatCurrency(closing.closingCash)],
     ],
@@ -508,7 +599,7 @@ export async function generateClosingPDF(data: PDFData): Promise<Blob> {
         data.cell.styles.fontStyle = 'bold';
       }
       if (data.row.index === 5) {
-        data.cell.styles.fillColor = [147, 34, 34];
+        data.cell.styles.fillColor = [59, 130, 246];
         data.cell.styles.textColor = [255, 255, 255];
         data.cell.styles.fontStyle = 'bold';
       }
@@ -520,8 +611,8 @@ export async function generateClosingPDF(data: PDFData): Promise<Blob> {
 
   /* ================= LEDGER-DRIVEN BANK FLOW ================= */
 
-  checkAddPage(70);
-  doc.setFillColor(COLORS.primary);
+  checkAddPage(75);
+  doc.setFillColor(COLORS.green);
   doc.rect(margin, yPosition, contentWidth, 8, 'F');
   doc.setTextColor(COLORS.white);
   doc.setFont('helvetica', 'bold');
@@ -529,7 +620,7 @@ export async function generateClosingPDF(data: PDFData): Promise<Blob> {
 
   yPosition += 12;
 
-  const bankMovement = closing.closingBank - closing.openingBank;
+  const bankMovement = closing.bankMovement ?? (closing.closingBank - closing.openingBank);
   const bankMovementText =
     bankMovement >= 0
       ? `+${formatCurrency(Math.abs(bankMovement))}`
@@ -540,14 +631,9 @@ export async function generateClosingPDF(data: PDFData): Promise<Blob> {
     theme: 'grid',
     body: [
       ['Opening Bank Balance (Ledger)', formatCurrency(closing.openingBank)],
-      [
-        'Bank Sales (Informational)',
-        formatCurrency(closing.bankSales ?? 0),
-      ],
-      [
-        'Bank Payments (Ledger)',
-        formatCurrency(closing.bankPayments ?? 0),
-      ],
+      ['Bank Sales (Informational)', formatCurrency(closing.bankSales ?? 0)],
+      ['Total Bank Receipts (Ledger)', formatCurrency(closing.bankReceipts ?? 0)],
+      ['Total Bank Payments (Ledger)', `(${formatCurrency(closing.bankPayments ?? 0)})`],
       ['Net Bank Movement', bankMovementText],
       ['Closing Bank Balance (Ledger)', formatCurrency(closing.closingBank)],
     ],
@@ -557,12 +643,12 @@ export async function generateClosingPDF(data: PDFData): Promise<Blob> {
       1: { halign: 'right' },
     },
     didParseCell: (data) => {
-      if (data.row.index === 3) {
+      if (data.row.index === 4) {
         data.cell.styles.fillColor = [243, 244, 246];
         data.cell.styles.fontStyle = 'bold';
       }
-      if (data.row.index === 4) {
-        data.cell.styles.fillColor = [147, 34, 34];
+      if (data.row.index === 5) {
+        data.cell.styles.fillColor = [16, 185, 129];
         data.cell.styles.textColor = [255, 255, 255];
         data.cell.styles.fontStyle = 'bold';
       }
@@ -575,7 +661,7 @@ export async function generateClosingPDF(data: PDFData): Promise<Blob> {
   /* ================= TOTAL BALANCE SUMMARY ================= */
 
   checkAddPage(50);
-  doc.setFillColor(COLORS.blue);
+  doc.setFillColor(COLORS.purple);
   doc.rect(margin, yPosition, contentWidth, 8, 'F');
   doc.setTextColor(COLORS.white);
   doc.setFont('helvetica', 'bold');
@@ -585,7 +671,7 @@ export async function generateClosingPDF(data: PDFData): Promise<Blob> {
 
   const totalOpening = closing.totalOpeningBalance ?? 0;
   const totalClosing = closing.totalClosingBalance ?? 0;
-  const totalMovement = totalClosing - totalOpening;
+  const totalMovement = closing.netMovement ?? (totalClosing - totalOpening);
 
   autoTable(doc, {
     startY: yPosition,
@@ -602,7 +688,7 @@ export async function generateClosingPDF(data: PDFData): Promise<Blob> {
     },
     didParseCell: (data) => {
       if (data.row.index === 1) {
-        data.cell.styles.fillColor = [59, 130, 246];
+        data.cell.styles.fillColor = [139, 92, 246];
         data.cell.styles.textColor = [255, 255, 255];
       }
     },
@@ -622,7 +708,7 @@ export async function generateClosingPDF(data: PDFData): Promise<Blob> {
 
   yPosition += 12;
 
-  const stockChange = closing.closingStock - closing.openingStock;
+  const stockChange = closing.stockChange ?? (closing.closingStock - closing.openingStock);
   const stockChangeText =
     stockChange >= 0 ? `+${stockChange} units` : `${stockChange} units`;
 
@@ -836,7 +922,7 @@ export async function generateClosingPDF(data: PDFData): Promise<Blob> {
 
     // System info
     doc.text(
-      'AutoCity Accounting',
+      'AutoCity Ledger-Driven Accounting',
       pageWidth / 2,
       pageHeight - 10,
       {

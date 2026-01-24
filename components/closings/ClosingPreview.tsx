@@ -7,7 +7,6 @@ import {
   DollarSign,
   TrendingUp,
   Clock,
-  AlertCircle,
   CheckCircle,
   Info,
   Wallet,
@@ -15,6 +14,9 @@ import {
   Receipt,
   TrendingDown,
   Package,
+  BarChart3,
+  Percent,
+  Database,
 } from "lucide-react";
 
 interface ClosingPreviewProps {
@@ -31,16 +33,24 @@ interface PreviewData {
   
   openingCash: number;
   openingBank: number;
-  
   projectedClosingCash: number;
   projectedClosingBank: number;
+  totalOpeningBalance: number;
+  totalClosingBalance: number;
   
   totalRevenue: number;
+  totalCOGS: number;
   totalPurchases: number;
   totalExpenses: number;
   
+  grossProfit: number;
+  netProfit: number;
+  grossProfitMargin: number;
+  netProfitMargin: number;
+  
   salesCount: number;
   historicalDaysIncluded: number | null;
+  dataSource: string;
 }
 
 export default function ClosingPreview({
@@ -93,6 +103,8 @@ export default function ClosingPreview({
   // Calculate cash and bank movements
   const cashMovement = preview.projectedClosingCash - preview.openingCash;
   const bankMovement = preview.projectedClosingBank - preview.openingBank;
+  const netMovement = preview.totalClosingBalance - preview.totalOpeningBalance;
+  const totalCosts = preview.totalCOGS + preview.totalPurchases + preview.totalExpenses;
 
   return (
     <div className="space-y-4">
@@ -121,6 +133,16 @@ export default function ClosingPreview({
           </div>
         </div>
       )}
+
+      {/* Ledger Data Source Badge */}
+      <div className="p-3 bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20 rounded-xl">
+        <div className="flex items-center gap-2">
+          <Database className="h-4 w-4 text-purple-400" />
+          <span className="text-xs font-bold text-purple-400 uppercase tracking-wide">
+            All data calculated from ledger entries
+          </span>
+        </div>
+      </div>
 
       {/* Period Information */}
       <div className="p-5 bg-[#1a1a1a] border border-red-500/20 rounded-2xl">
@@ -168,59 +190,125 @@ export default function ClosingPreview({
         </div>
       </div>
 
-      {/* Business Activity Summary */}
+      {/* Profit & Loss Preview */}
       <div className="p-5 bg-[#1a1a1a] border border-red-500/20 rounded-2xl">
         <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-4 flex items-center gap-2">
-          <TrendingUp className="h-4 w-4 text-emerald-400" />
-          Business Activity
+          <BarChart3 className="h-4 w-4 text-emerald-400" />
+          Profit & Loss Preview
         </h4>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="p-3 bg-[#0f0f0f] rounded-xl">
-            <div className="flex items-center gap-2 mb-2">
-              <ShoppingCart className="h-3.5 w-3.5 text-blue-400" />
-              <span className="text-[10px] text-gray-500 font-bold uppercase">Sales Count</span>
-            </div>
-            <p className="text-2xl font-black text-white">{preview.salesCount}</p>
-          </div>
-
+        <div className="space-y-3">
+          {/* Revenue */}
           <div className="p-3 bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 border border-emerald-500/20 rounded-xl">
-            <div className="flex items-center gap-2 mb-2">
-              <DollarSign className="h-3.5 w-3.5 text-emerald-400" />
-              <span className="text-[10px] text-gray-500 font-bold uppercase">Revenue</span>
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-emerald-400" />
+                <span className="text-xs font-bold text-gray-400 uppercase">Revenue</span>
+              </div>
+              <span className="text-lg font-bold text-emerald-400">
+                {preview.totalRevenue.toLocaleString("en-QA", {
+                  minimumFractionDigits: 0,
+                })}
+              </span>
             </div>
-            <p className="text-lg font-black text-emerald-400">
-              {preview.totalRevenue.toLocaleString("en-QA", {
-                minimumFractionDigits: 0,
-              })}
-            </p>
-            <p className="text-[9px] text-gray-600 mt-0.5">QAR</p>
+            <p className="text-[9px] text-gray-600 mt-1 ml-6">{preview.salesCount} sales</p>
           </div>
 
-          <div className="p-3 bg-gradient-to-br from-orange-500/10 to-orange-600/5 border border-orange-500/20 rounded-xl">
+          {/* Cost Breakdown */}
+          <div className="p-3 bg-[#0f0f0f] rounded-xl space-y-2">
             <div className="flex items-center gap-2 mb-2">
-              <Package className="h-3.5 w-3.5 text-orange-400" />
-              <span className="text-[10px] text-gray-500 font-bold uppercase">Purchases</span>
+              <Receipt className="h-3.5 w-3.5 text-gray-500" />
+              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">
+                Costs
+              </span>
             </div>
-            <p className="text-lg font-black text-orange-400">
-              {preview.totalPurchases.toLocaleString("en-QA", {
-                minimumFractionDigits: 0,
-              })}
-            </p>
-            <p className="text-[9px] text-gray-600 mt-0.5">QAR</p>
+            
+            {preview.totalCOGS > 0 && (
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-gray-600">COGS</span>
+                <span className="text-sm font-semibold text-gray-400">
+                  {preview.totalCOGS.toLocaleString("en-QA", { minimumFractionDigits: 0 })}
+                </span>
+              </div>
+            )}
+            
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-gray-600">Purchases</span>
+              <span className="text-sm font-semibold text-gray-400">
+                {preview.totalPurchases.toLocaleString("en-QA", { minimumFractionDigits: 0 })}
+              </span>
+            </div>
+            
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-gray-600">Expenses</span>
+              <span className="text-sm font-semibold text-gray-400">
+                {preview.totalExpenses.toLocaleString("en-QA", { minimumFractionDigits: 0 })}
+              </span>
+            </div>
+            
+            <div className="pt-2 border-t border-red-500/10">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-bold text-red-400">Total Costs</span>
+                <span className="text-sm font-bold text-red-400">
+                  {totalCosts.toLocaleString("en-QA", { minimumFractionDigits: 0 })}
+                </span>
+              </div>
+            </div>
           </div>
 
-          <div className="p-3 bg-gradient-to-br from-red-500/10 to-red-600/5 border border-red-500/20 rounded-xl">
-            <div className="flex items-center gap-2 mb-2">
-              <TrendingDown className="h-3.5 w-3.5 text-red-400" />
-              <span className="text-[10px] text-gray-500 font-bold uppercase">Expenses</span>
+          {/* Gross Profit (if COGS exists) */}
+          {preview.totalCOGS > 0 && (
+            <div className="p-3 bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 rounded-xl">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-blue-400" />
+                  <span className="text-xs font-bold text-gray-400 uppercase">Gross Profit</span>
+                  <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-500/10 rounded-full">
+                    <Percent className="h-2.5 w-2.5 text-blue-400" />
+                    <span className="text-[9px] font-bold text-blue-400">
+                      {preview.grossProfitMargin.toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+                <span className={`text-lg font-bold ${preview.grossProfit >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
+                  {preview.grossProfit.toLocaleString("en-QA", { minimumFractionDigits: 0 })}
+                </span>
+              </div>
             </div>
-            <p className="text-lg font-black text-red-400">
-              {preview.totalExpenses.toLocaleString("en-QA", {
-                minimumFractionDigits: 0,
-              })}
-            </p>
-            <p className="text-[9px] text-gray-600 mt-0.5">QAR</p>
+          )}
+
+          {/* Net Profit */}
+          <div className={`p-4 rounded-xl border-2 ${
+            preview.netProfit >= 0 
+              ? 'bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 border-emerald-500/30' 
+              : 'bg-gradient-to-br from-red-500/10 to-red-600/5 border-red-500/30'
+          }`}>
+            <div className="flex justify-between items-center">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  {preview.netProfit >= 0 ? (
+                    <TrendingUp className="h-4 w-4 text-emerald-400" />
+                  ) : (
+                    <TrendingDown className="h-4 w-4 text-red-400" />
+                  )}
+                  <span className="text-xs font-bold text-gray-400 uppercase">Net Profit</span>
+                  <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full ${
+                    preview.netProfit >= 0 ? 'bg-emerald-500/10' : 'bg-red-500/10'
+                  }`}>
+                    <Percent className={`h-2.5 w-2.5 ${preview.netProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`} />
+                    <span className={`text-[9px] font-bold ${preview.netProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {preview.netProfitMargin.toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+                <p className="text-[9px] text-gray-600 ml-6">
+                  Revenue - (COGS + Purchases + Expenses)
+                </p>
+              </div>
+              <span className={`text-2xl font-black ${preview.netProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {preview.netProfit.toLocaleString("en-QA", { minimumFractionDigits: 0 })}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -302,20 +390,20 @@ export default function ClosingPreview({
 
         {/* Total Closing Balance */}
         <div className="mt-3 p-4 bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/30 rounded-xl">
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center mb-2">
             <span className="text-xs font-bold text-purple-400 uppercase tracking-wide">
               Total Projected Closing Balance
             </span>
             <span className="text-2xl font-black text-purple-400">
-              {(preview.projectedClosingCash + preview.projectedClosingBank).toLocaleString(
-                "en-QA",
-                { minimumFractionDigits: 0 }
-              )}
+              {preview.totalClosingBalance.toLocaleString("en-QA", { minimumFractionDigits: 0 })}
             </span>
           </div>
-          <p className="text-[9px] text-purple-300/60 mt-1">
-            Cash + Bank combined balance
-          </p>
+          <div className="flex justify-between items-center text-xs">
+            <span className="text-purple-300/60">Net Movement</span>
+            <span className={`font-semibold ${netMovement >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {netMovement >= 0 ? '+' : ''}{netMovement.toLocaleString("en-QA", { minimumFractionDigits: 0 })}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -326,7 +414,7 @@ export default function ClosingPreview({
           <div>
             <h5 className="text-sm font-bold text-emerald-400">Ready to Close</h5>
             <p className="text-xs text-emerald-300/70 mt-1">
-              All validations passed. You can proceed with closing this period.
+              All validations passed. Profit calculation: Revenue - (COGS + Purchases + Expenses)
             </p>
           </div>
         </div>

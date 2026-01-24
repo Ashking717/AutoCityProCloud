@@ -7,7 +7,7 @@ import {
   ArrowLeft, Download, Printer, CheckCircle, XCircle, DollarSign, 
   TrendingUp, TrendingDown, Package, Receipt, CreditCard, Wallet, 
   Lock, Clock, FileText, BarChart3, BookOpen, Zap, ArrowUpRight, 
-  ArrowDownRight, Info, AlertCircle, Database, Shield
+  ArrowDownRight, Info, AlertCircle, Database, Shield, Percent
 } from 'lucide-react';
 import { generateClosingPDF } from '@/lib/utils/closingPdfGenerator';
 import MainLayout from '@/components/layout/MainLayout';
@@ -21,11 +21,19 @@ interface ClosingData {
   periodEnd: string;
   status: string;
   
+  // Revenue
+  totalRevenue: number;
+  
+  // Costs
+  totalCOGS: number;
   totalPurchases: number;
   totalExpenses: number;
-  totalRevenue: number;
+  
+  // Profit
+  grossProfit: number;
   netProfit: number;
   
+  // Cash & Bank
   openingCash: number;
   openingBank: number;
   cashSales: number;
@@ -34,6 +42,7 @@ interface ClosingData {
   closingCash: number;
   closingBank: number;
   bankSales?: number;
+  bankReceipts?: number;
   bankPayments?: number;
   
   totalOpeningBalance: number;
@@ -233,9 +242,13 @@ export default function ClosingDetailPage() {
   };
 
   const isProfitable = closing.netProfit >= 0;
+  const isGrossProfitable = (closing.grossProfit || 0) >= 0;
   const netChange = closing.totalClosingBalance - closing.totalOpeningBalance;
   const cashMovement = closing.closingCash - closing.openingCash;
   const bankMovement = closing.closingBank - closing.openingBank;
+  const totalCosts = (closing.totalCOGS || 0) + closing.totalPurchases + closing.totalExpenses;
+  const grossMargin = closing.totalRevenue > 0 ? ((closing.grossProfit || 0) / closing.totalRevenue) * 100 : 0;
+  const netMargin = closing.totalRevenue > 0 ? (closing.netProfit / closing.totalRevenue) * 100 : 0;
 
   return (
     <MainLayout user={user} onLogout={handleLogout}>
@@ -327,9 +340,11 @@ export default function ClosingDetailPage() {
                         </div>
                       )}
                     </div>
-                    <p className="text-xs text-blue-300/70">
-                      All cash and bank balances are calculated from double-entry ledger entries. 
-                      Sales figures shown are for reference only.
+                    <p className="text-xs text-blue-300/70 mb-2">
+                      All financial data calculated from double-entry ledger entries.
+                    </p>
+                    <p className="text-xs text-blue-400/80 font-medium">
+                      Formula: Net Profit = Revenue - (COGS + Purchases + Expenses)
                     </p>
                     {closing.ledgerEntriesCount !== undefined && (
                       <p className="text-xs text-blue-400/60 mt-1">
@@ -367,45 +382,54 @@ export default function ClosingDetailPage() {
                 </div>
               </div>
 
-              {/* Purchases */}
-              <div className="group relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="relative p-6 bg-[#141414] border border-red-500/10 rounded-2xl hover:border-red-500/30 transition-all duration-300">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="p-2.5 bg-blue-500/10 rounded-lg">
-                      <Package className="h-5 w-5 text-blue-400" />
-                    </div>
-                    <ArrowDownRight className="h-4 w-4 text-blue-400" />
-                  </div>
-                  <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-1">
-                    Total Purchases
-                  </p>
-                  <p className="text-3xl font-bold text-white tracking-tight">
-                    {formatCurrency(closing.totalPurchases)}
-                  </p>
-                  <p className="text-xs text-gray-600 mt-1">{closing.purchasesCount || 0} purchases</p>
-                </div>
-              </div>
-
-              {/* Expenses */}
+              {/* COGS */}
               <div className="group relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 <div className="relative p-6 bg-[#141414] border border-red-500/10 rounded-2xl hover:border-red-500/30 transition-all duration-300">
                   <div className="flex items-start justify-between mb-4">
                     <div className="p-2.5 bg-orange-500/10 rounded-lg">
-                      <Receipt className="h-5 w-5 text-orange-400" />
+                      <Package className="h-5 w-5 text-orange-400" />
                     </div>
                     <ArrowDownRight className="h-4 w-4 text-orange-400" />
                   </div>
                   <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-1">
-                    Total Expenses
+                    Cost of Goods Sold
                   </p>
                   <p className="text-3xl font-bold text-white tracking-tight">
-                    {formatCurrency(closing.totalExpenses)}
+                    {formatCurrency(closing.totalCOGS || 0)}
                   </p>
-                  <p className="text-xs text-gray-600 mt-1">{closing.expensesCount || 0} expenses</p>
+                  <p className="text-xs text-gray-600 mt-1">From ledger entries</p>
                 </div>
               </div>
+
+              {/* Gross Profit */}
+              {closing.totalCOGS > 0 && (
+                <div className={`group relative overflow-hidden ${isGrossProfitable ? 'border-l-4 border-blue-600' : 'border-l-4 border-orange-600'}`}>
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <div className="relative p-6 bg-[#141414] border-t border-r border-b border-red-500/10 rounded-r-2xl hover:border-red-500/30 transition-all duration-300">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className={`p-2.5 rounded-lg ${isGrossProfitable ? 'bg-blue-500/10' : 'bg-orange-500/10'}`}>
+                        {isGrossProfitable ? (
+                          <TrendingUp className="h-5 w-5 text-blue-400" />
+                        ) : (
+                          <TrendingDown className="h-5 w-5 text-orange-400" />
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-500/10 rounded-full">
+                        <Percent className="h-3 w-3 text-blue-400" />
+                        <span className="text-xs font-bold text-blue-400">{grossMargin.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                    <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-1">
+                      Gross Profit
+                    </p>
+                    <p className={`text-3xl font-bold tracking-tight ${isGrossProfitable ? 'text-blue-400' : 'text-orange-400'}`}>
+                      {formatCurrency(closing.grossProfit || 0)}
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1">Revenue - COGS</p>
+                  </div>
+                </div>
+              )}
 
               {/* Net Profit */}
               <div className={`group relative overflow-hidden ${isProfitable ? 'border-l-4 border-emerald-600' : 'border-l-4 border-red-600'}`}>
@@ -419,7 +443,10 @@ export default function ClosingDetailPage() {
                         <TrendingDown className="h-5 w-5 text-red-400" />
                       )}
                     </div>
-                    <Zap className={`h-4 w-4 ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`} />
+                    <div className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 rounded-full">
+                      <Percent className="h-3 w-3 text-emerald-400" />
+                      <span className="text-xs font-bold text-emerald-400">{netMargin.toFixed(1)}%</span>
+                    </div>
                   </div>
                   <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-1">
                     Net Profit/Loss
@@ -427,47 +454,77 @@ export default function ClosingDetailPage() {
                   <p className={`text-3xl font-bold tracking-tight ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`}>
                     {formatCurrency(closing.netProfit)}
                   </p>
-                  <p className="text-xs text-gray-600 mt-1">
-                    {closing.totalRevenue > 0 ? ((closing.netProfit / closing.totalRevenue) * 100).toFixed(1) : '0.0'}% margin
-                  </p>
+                  <p className="text-xs text-gray-600 mt-1">After all costs</p>
                 </div>
               </div>
             </div>
 
-            {/* Financial Breakdown */}
+            {/* Profit & Loss Statement */}
             <div className="bg-[#141414] border border-red-500/10 rounded-2xl p-6 mb-6">
               <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                 <BarChart3 className="h-5 w-5 text-red-400" />
-                Financial Breakdown
+                Profit & Loss Statement
               </h2>
               <div className="space-y-3">
-                <div className="flex items-center justify-between py-2 border-b border-red-500/10">
-                  <span className="text-sm font-medium text-gray-400">Total Revenue</span>
-                  <span className="text-base font-bold text-white">{formatCurrency(closing.totalRevenue)} QAR</span>
+                {/* Revenue */}
+                <div className="flex items-center justify-between py-3 border-b border-emerald-500/20">
+                  <span className="text-sm font-bold text-emerald-400 uppercase tracking-wide">Revenue</span>
+                  <span className="text-xl font-bold text-emerald-400">{formatCurrency(closing.totalRevenue)} QAR</span>
                 </div>
-                <div className="ml-4 space-y-2">
+
+                {/* COGS */}
+                {closing.totalCOGS > 0 && (
+                  <>
+                    <div className="ml-4 flex items-center justify-between py-2">
+                      <span className="text-sm text-gray-500">Less: Cost of Goods Sold</span>
+                      <span className="text-sm text-gray-400">({formatCurrency(closing.totalCOGS)}) QAR</span>
+                    </div>
+                    <div className="flex items-center justify-between py-3 bg-blue-500/5 border border-blue-500/20 rounded-xl px-4">
+                      <span className="text-sm font-bold text-blue-400">Gross Profit</span>
+                      <span className="text-lg font-bold text-blue-400">{formatCurrency(closing.grossProfit || 0)} QAR</span>
+                    </div>
+                  </>
+                )}
+
+                {/* Operating Expenses */}
+                <div className="ml-4 space-y-2 pt-2">
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Operating Costs:</p>
                   <div className="flex items-center justify-between py-1">
-                    <span className="text-sm text-gray-500">- Total Purchases</span>
-                    <span className="text-sm text-gray-400">{formatCurrency(closing.totalPurchases)} QAR</span>
+                    <span className="text-sm text-gray-500">• Purchases (Inventory)</span>
+                    <span className="text-sm text-gray-400">({formatCurrency(closing.totalPurchases)}) QAR</span>
                   </div>
                   <div className="flex items-center justify-between py-1">
-                    <span className="text-sm text-gray-500">- Total Expenses</span>
-                    <span className="text-sm text-gray-400">{formatCurrency(closing.totalExpenses)} QAR</span>
+                    <span className="text-sm text-gray-500">• Operating Expenses</span>
+                    <span className="text-sm text-gray-400">({formatCurrency(closing.totalExpenses)}) QAR</span>
                   </div>
                 </div>
+
+                {/* Total Costs */}
                 <div className="flex items-center justify-between py-2 border-t border-red-500/10">
                   <span className="text-sm font-medium text-gray-400">Total Costs</span>
-                  <span className="text-base font-bold text-white">
-                    {formatCurrency(closing.totalPurchases + closing.totalExpenses)} QAR
+                  <span className="text-base font-bold text-red-400">
+                    ({formatCurrency(totalCosts)}) QAR
                   </span>
                 </div>
-                <div className={`flex items-center justify-between py-3 rounded-xl -mx-4 px-4 ${
-                  isProfitable ? 'bg-emerald-500/5 border border-emerald-500/20' : 'bg-red-500/5 border border-red-500/20'
+
+                {/* Net Profit */}
+                <div className={`flex items-center justify-between py-4 rounded-xl -mx-4 px-4 ${
+                  isProfitable ? 'bg-emerald-500/5 border-2 border-emerald-500/30' : 'bg-red-500/5 border-2 border-red-500/30'
                 }`}>
-                  <span className="text-base font-bold text-white">Net Profit/Loss</span>
-                  <span className={`text-xl font-bold ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {formatCurrency(closing.netProfit)} QAR
-                  </span>
+                  <div>
+                    <span className="text-base font-bold text-white block">Net Profit/Loss</span>
+                    <span className="text-xs text-gray-500 mt-1 block">
+                      Revenue - (COGS + Purchases + Expenses)
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className={`text-2xl font-bold block ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {formatCurrency(closing.netProfit)} QAR
+                    </span>
+                    <span className={`text-xs font-medium ${isProfitable ? 'text-emerald-400/70' : 'text-red-400/70'}`}>
+                      {netMargin.toFixed(1)}% margin
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -505,14 +562,14 @@ export default function ClosingDetailPage() {
                   
                   {closing.cashReceipts !== undefined && closing.cashReceipts > 0 && (
                     <div className="flex items-center justify-between p-3 bg-emerald-500/5 rounded-xl">
-                      <span className="text-sm text-emerald-400">+ Other Receipts</span>
+                      <span className="text-sm text-emerald-400">+ Total Receipts (Ledger)</span>
                       <span className="text-sm font-bold text-emerald-400">{formatCurrency(closing.cashReceipts)} QAR</span>
                     </div>
                   )}
                   
                   {closing.cashPayments !== undefined && closing.cashPayments > 0 && (
                     <div className="flex items-center justify-between p-3 bg-red-500/5 rounded-xl">
-                      <span className="text-sm text-red-400">- Cash Payments</span>
+                      <span className="text-sm text-red-400">- Total Payments (Ledger)</span>
                       <span className="text-sm font-bold text-red-400">{formatCurrency(closing.cashPayments)} QAR</span>
                     </div>
                   )}
@@ -562,9 +619,16 @@ export default function ClosingDetailPage() {
                     <span className="text-sm font-bold text-emerald-300">{formatCurrency(closing.bankSales || 0)} QAR</span>
                   </div>
                   
+                  {closing.bankReceipts !== undefined && closing.bankReceipts > 0 && (
+                    <div className="flex items-center justify-between p-3 bg-emerald-500/5 rounded-xl">
+                      <span className="text-sm text-emerald-400">+ Total Receipts (Ledger)</span>
+                      <span className="text-sm font-bold text-emerald-400">{formatCurrency(closing.bankReceipts)} QAR</span>
+                    </div>
+                  )}
+                  
                   {closing.bankPayments !== undefined && closing.bankPayments > 0 && (
                     <div className="flex items-center justify-between p-3 bg-red-500/5 rounded-xl">
-                      <span className="text-sm text-red-400">- Bank Payments</span>
+                      <span className="text-sm text-red-400">- Total Payments (Ledger)</span>
                       <span className="text-sm font-bold text-red-400">{formatCurrency(closing.bankPayments)} QAR</span>
                     </div>
                   )}

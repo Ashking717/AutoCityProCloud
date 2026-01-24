@@ -51,6 +51,8 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [isScrolling, setIsScrolling] = useState(false);
+  const [lastScrollTop, setLastScrollTop] = useState(0);
 
   const toggleSection = (sectionTitle: string) => {
     setCollapsedSections((prev) => {
@@ -291,6 +293,45 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
     
     return () => window.removeEventListener('resize', checkIfMobile);
   }, []);
+
+  // Handle scroll to prevent bottom bar movement
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      
+      // Check if user is scrolling
+      setIsScrolling(Math.abs(scrollTop - lastScrollTop) > 0);
+      setLastScrollTop(scrollTop);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [lastScrollTop]);
+
+  // Prevent URL bar hide/show on mobile
+  useEffect(() => {
+    if (isMobile) {
+      // Lock viewport height to prevent resize on scroll
+      const setVH = () => {
+        const vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+      };
+      
+      setVH();
+      window.addEventListener('resize', setVH);
+      
+      // Prevent pull-to-refresh behavior that moves bottom bar
+      document.body.style.overscrollBehaviorY = 'none';
+      
+      return () => {
+        window.removeEventListener('resize', setVH);
+        document.body.style.overscrollBehaviorY = 'auto';
+      };
+    }
+  }, [isMobile]);
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -560,9 +601,11 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
         </div>
       </div>
 
-      {/* Apple-style Mobile Bottom Navigation Bar */}
+      {/* Apple-style Mobile Bottom Navigation Bar - FIXED */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 pointer-events-none">
-        <div className="pointer-events-auto bg-black/80 backdrop-blur-2xl border-t border-white/10 safe-area-bottom">
+        <div className={`pointer-events-auto bg-black/90 backdrop-blur-xl border-t border-white/10 safe-area-bottom transition-transform duration-300 ${
+          isScrolling ? 'translate-y-0' : 'translate-y-0'
+        }`}>
           <div className="flex justify-around items-center px-2 pt-2 pb-1">
             {/* Primary navigation items */}
             {primaryMobileNavItems.map((item) => {
@@ -684,7 +727,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
                               : "text-gray-300 active:bg-white/10"
                           }`}
                         >
-                                                    <div className={`p-2 rounded-lg ${isActive ? 'bg-[#E84545]/20' : 'bg-white/5'}`}>
+                          <div className={`p-2 rounded-lg ${isActive ? 'bg-[#E84545]/20' : 'bg-white/5'}`}>
                             <item.icon
                               className={`h-5 w-5 ${isActive ? 'text-[#E84545]' : 'text-gray-400'}`}
                             />
@@ -883,6 +926,8 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
         /* Prevent overscroll */
         body {
           overscroll-behavior-y: none;
+          touch-action: pan-y;
+          -webkit-overflow-scrolling: touch;
         }
 
         /* Touch improvements */
@@ -899,6 +944,32 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
 
         .active\\:scale-95:active {
           transform: scale(0.95);
+        }
+
+        /* Viewport height fix for mobile */
+        :root {
+          --vh: 1vh;
+        }
+
+        /* Prevent address bar hide/show on mobile */
+        @supports (-webkit-touch-callout: none) {
+          .h-screen {
+            height: calc(var(--vh, 1vh) * 100);
+          }
+        }
+
+        /* Hide bottom bar when keyboard is open */
+        @media (max-height: 500px) {
+          .md\\:hidden.fixed.bottom-0 {
+            display: none !important;
+          }
+        }
+
+        /* iOS specific fixes */
+        @supports (padding: max(0px)) {
+          .safe-area-bottom {
+            padding-bottom: max(env(safe-area-inset-bottom), 8px);
+          }
         }
       `}</style>
     </>

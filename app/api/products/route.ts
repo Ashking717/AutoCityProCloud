@@ -74,6 +74,11 @@ export async function GET(request: NextRequest) {
       query.carMake = carMake;
     }
     
+    const carModel = searchParams.get('carModel');
+    if (carModel) {
+      query.carModel = carModel;
+    }
+    
     const color = searchParams.get('color');
     if (color) {
       query.color = color;
@@ -126,6 +131,67 @@ export async function GET(request: NextRequest) {
       : { [sortBy]: sortOrder as SortOrder };
     
     // ─────────────────────────────────────────────────────────────
+    // CALCULATE GLOBAL STATS (for ALL products matching filters)
+    // ─────────────────────────────────────────────────────────────
+    const statsAggregation = await Product.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: null,
+          totalValue: {
+            $sum: {
+              $multiply: ['$currentStock', '$costPrice']
+            }
+          },
+          lowStockCount: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $lte: ['$currentStock', '$reorderPoint'] },
+                    { $gt: ['$currentStock', 0] }
+                  ]
+                },
+                1,
+                0
+              ]
+            }
+          },
+          outOfStockCount: {
+            $sum: {
+              $cond: [
+                { $lte: ['$currentStock', 0] },
+                1,
+                0
+              ]
+            }
+          },
+          criticalCount: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $gt: ['$currentStock', 0] },
+                    { $lte: ['$currentStock', '$minStock'] }
+                  ]
+                },
+                1,
+                0
+              ]
+            }
+          }
+        }
+      }
+    ]);
+
+    const stats = statsAggregation.length > 0 ? statsAggregation[0] : {
+      totalValue: 0,
+      lowStockCount: 0,
+      outOfStockCount: 0,
+      criticalCount: 0
+    };
+    
+    // ─────────────────────────────────────────────────────────────
     // EXECUTE QUERY - Use lean() for performance
     // ─────────────────────────────────────────────────────────────
     const [products, total] = await Promise.all([
@@ -148,6 +214,12 @@ export async function GET(request: NextRequest) {
         pages: Math.ceil(total / limit),
         hasMore: page < Math.ceil(total / limit),
       },
+      stats: {
+        totalValue: stats.totalValue || 0,
+        lowStockCount: stats.lowStockCount || 0,
+        outOfStockCount: stats.outOfStockCount || 0,
+        criticalCount: stats.criticalCount || 0,
+      }
     });
   } catch (error: any) {
     console.error('Error fetching products:', error);

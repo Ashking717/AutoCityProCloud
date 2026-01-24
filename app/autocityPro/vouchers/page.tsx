@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import { 
@@ -30,7 +30,8 @@ import {
   CheckCircle,
   Clock,
   Ban,
-  LucideBadgeAlert
+  LucideBadgeAlert,
+  Loader2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -39,6 +40,7 @@ export default function VouchersPage() {
   const [user, setUser] = useState<any>(null);
   const [vouchers, setVouchers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -51,10 +53,17 @@ export default function VouchersPage() {
     direction: 'desc'
   });
   
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  
   useEffect(() => {
     fetchUser();
-    fetchVouchers();
+    fetchVouchers(1);
+  }, []);
 
+  useEffect(() => {
     const checkIfMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
@@ -63,7 +72,39 @@ export default function VouchersPage() {
     window.addEventListener('resize', checkIfMobile);
 
     return () => window.removeEventListener('resize', checkIfMobile);
+  }, []);
+
+  // Reset and reload when filters change
+  useEffect(() => {
+    setPage(1);
+    setVouchers([]);
+    setHasMore(true);
+    fetchVouchers(1);
   }, [filterType, filterStatus]);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0];
+        if (first.isIntersecting && hasMore && !loading && !loadingMore) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    const currentRef = bottomRef.current;
+    if (currentRef) {
+      observer.observe(currentRef);
+    }
+
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+    };
+  }, [hasMore, loading, loadingMore, page]);
   
   const fetchUser = async () => {
     try {
@@ -77,24 +118,60 @@ export default function VouchersPage() {
     }
   };
   
-  const fetchVouchers = async () => {
+  const fetchVouchers = async (pageNum: number) => {
     try {
-      setLoading(true);
-      let url = '/api/vouchers?';
-      if (filterType !== 'all') url += `voucherType=${filterType}&`;
-      if (filterStatus !== 'all') url += `status=${filterStatus}&`;
+      if (pageNum === 1) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+
+      let url = `/api/vouchers?page=${pageNum}&limit=20`;
+      if (filterType !== 'all') url += `&voucherType=${filterType}`;
+      if (filterStatus !== 'all') url += `&status=${filterStatus}`;
       
       const res = await fetch(url, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
-        setVouchers(data.vouchers || []);
+        const newVouchers = data.vouchers || [];
+        
+        if (pageNum === 1) {
+          setVouchers(newVouchers);
+        } else {
+          setVouchers(prev => [...prev, ...newVouchers]);
+        }
+        
+        // Check if there are more pages
+        const totalPages = data.pagination?.pages || 1;
+        setHasMore(pageNum < totalPages);
+      } else {
+        toast.error('Failed to fetch vouchers');
+        setHasMore(false);
       }
     } catch (error) {
       console.error('Failed to fetch vouchers');
       toast.error('Failed to fetch vouchers');
+      setHasMore(false);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
+  };
+
+  const loadMore = () => {
+    if (!loadingMore && hasMore) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      fetchVouchers(nextPage);
+    }
+  };
+
+  const handleRefresh = () => {
+    setPage(1);
+    setVouchers([]);
+    setHasMore(true);
+    fetchVouchers(1);
+    toast.success('Vouchers refreshed');
   };
   
   const getVoucherTypeIcon = (type: string) => {
@@ -144,13 +221,11 @@ export default function VouchersPage() {
     let aValue = a[sortConfig.key];
     let bValue = b[sortConfig.key];
 
-    // Handle date sorting
     if (sortConfig.key === 'date') {
       aValue = new Date(a.date).getTime();
       bValue = new Date(b.date).getTime();
     }
 
-    // Handle amount sorting
     if (sortConfig.key === 'amount') {
       aValue = a.totalDebit || 0;
       bValue = b.totalDebit || 0;
@@ -176,7 +251,7 @@ export default function VouchersPage() {
       
       if (res.ok) {
         toast.success('Voucher deleted successfully!');
-        fetchVouchers();
+        setVouchers(prev => prev.filter(v => v._id !== id));
       } else {
         const error = await res.json();
         toast.error(error.error || 'Failed to delete voucher');
@@ -202,7 +277,7 @@ export default function VouchersPage() {
       v.voucherNumber || '',
       v.voucherType || '',
       new Date(v.date).toLocaleDateString(),
-      v.narration || '',
+      `"${(v.narration || '').replace(/"/g, '""')}"`,
       v.totalDebit || 0,
       v.status || '',
       v.referenceNumber || ''
@@ -225,7 +300,6 @@ export default function VouchersPage() {
   };
   
   const voucherTypes = [
-    // { value: 'payment', label: 'Payment', color: 'red', href: '/autocityPro/vouchers/payment' },
     { value: 'ledger entries', label: 'Ledger Entries', color: 'green', href: '/autocityPro/ledger-entries' },
     { value: 'journal', label: 'Journal', color: 'blue', href: '/autocityPro/vouchers/journal' },
     { value: 'contra', label: 'Contra', color: 'purple', href: '/autocityPro/vouchers/contra' },
@@ -255,20 +329,14 @@ export default function VouchersPage() {
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
                   <FileText className="h-3 w-3 text-[#E84545]" />
-                  <span className="text-white text-xs font-semibold">{filteredVouchers.length} vouchers</span>
+                  <span className="text-white text-xs font-semibold">{vouchers.length} loaded</span>
                 </div>
-                <div className="h-3 w-px bg-white/20"></div>
-                <div className="flex items-center gap-1.5">
-                  {filterType !== 'all' && (
-                    <>
-                      <span className="text-white text-xs font-medium capitalize">{filterType}</span>
-                      <div className="h-3 w-px bg-white/20"></div>
-                    </>
-                  )}
-                  <span className="text-[#E84545] text-xs font-medium">
-                    {filterStatus === 'all' ? 'All Status' : filterStatus}
-                  </span>
-                </div>
+                {hasMore && !loading && (
+                  <>
+                    <div className="h-3 w-px bg-white/20"></div>
+                    <span className="text-white/60 text-xs">Scroll for more</span>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -280,9 +348,15 @@ export default function VouchersPage() {
             <div className="flex items-center justify-between mb-3">
               <div>
                 <h1 className="text-xl font-bold text-white">Vouchers</h1>
-                <p className="text-xs text-white/60">{filteredVouchers.length} vouchers</p>
+                <p className="text-xs text-white/60">{vouchers.length} loaded{hasMore && ' • Scroll for more'}</p>
               </div>
               <div className="flex items-center gap-2">
+                <button
+                  onClick={handleRefresh}
+                  className="p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </button>
                 <button
                   onClick={() => setShowFilters(true)}
                   className="p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
@@ -317,9 +391,18 @@ export default function VouchersPage() {
             <div className="flex justify-between items-center">
               <div>
                 <h1 className="text-3xl font-bold text-white">Vouchers</h1>
-                <p className="text-white/80 mt-1">Manage and track all financial vouchers</p>
+                <p className="text-white/80 mt-1">
+                  {vouchers.length} vouchers loaded{hasMore && ' • Scroll to load more'}
+                </p>
               </div>
               <div className="flex space-x-3">
+                <button
+                  onClick={handleRefresh}
+                  className="flex items-center space-x-2 px-4 py-2.5 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-lg hover:bg-white/20 transition-all group"
+                >
+                  <RefreshCw className="h-4 w-4 group-hover:rotate-180 transition-transform duration-500" />
+                  <span>Refresh</span>
+                </button>
                 <button
                   onClick={downloadVouchersCSV}
                   className="flex items-center space-x-2 px-4 py-2.5 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-lg hover:bg-white/20 transition-all group"
@@ -430,7 +513,7 @@ export default function VouchersPage() {
           </div>
 
           {/* Quick Actions - Desktop */}
-          <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
             {voucherTypes.map((type) => (
               <button
                 key={type.value}
@@ -439,8 +522,8 @@ export default function VouchersPage() {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="font-semibold text-white group-hover:text-red-400">{type.label} </h3>
-                    <p className="text-sm text-gray-500 mt-1"></p>
+                    <h3 className="font-semibold text-white group-hover:text-red-400">{type.label}</h3>
+                    <p className="text-sm text-gray-500 mt-1">Create new</p>
                   </div>
                   <div className={`p-3 rounded-xl bg-${type.color}-900/20 border border-${type.color}-800/50 group-hover:border-[#E84545] transition-all`}>
                     {getVoucherTypeIcon(type.value)}
@@ -452,7 +535,7 @@ export default function VouchersPage() {
           
           {/* Vouchers List - Mobile */}
           <div className="md:hidden">
-            {loading ? (
+            {loading && vouchers.length === 0 ? (
               <div className="flex items-center justify-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E84545]"></div>
               </div>
@@ -471,52 +554,66 @@ export default function VouchersPage() {
                 )}
               </div>
             ) : (
-              <div className="space-y-3">
-                {sortedVouchers.map((voucher) => (
-                  <div
-                    key={voucher._id}
-                    className="bg-gradient-to-br from-[#0A0A0A] to-black border border-gray-800 rounded-xl p-4 hover:border-[#E84545] transition-all active:scale-[0.98]"
-                  >
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          {getVoucherTypeIcon(voucher.voucherType)}
-                          <span className="text-sm font-semibold text-white">{voucher.voucherNumber}</span>
-                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(voucher.status)} flex items-center gap-1`}>
-                            {getStatusIcon(voucher.status)}
-                            <span className="capitalize">{voucher.status}</span>
-                          </span>
+              <>
+                <div className="space-y-3">
+                  {sortedVouchers.map((voucher) => (
+                    <div
+                      key={voucher._id}
+                      onClick={() => router.push(`/autocityPro/vouchers/${voucher._id}`)}
+                      className="bg-gradient-to-br from-[#0A0A0A] to-black border border-gray-800 rounded-xl p-4 hover:border-[#E84545] transition-all active:scale-[0.98] cursor-pointer"
+                    >
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2">
+                            {getVoucherTypeIcon(voucher.voucherType)}
+                            <span className="text-sm font-semibold text-white">{voucher.voucherNumber}</span>
+                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(voucher.status)} flex items-center gap-1`}>
+                              {getStatusIcon(voucher.status)}
+                              <span className="capitalize">{voucher.status}</span>
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-500">{new Date(voucher.date).toLocaleDateString()}</p>
                         </div>
-                        <p className="text-xs text-gray-500">{new Date(voucher.date).toLocaleDateString()}</p>
                       </div>
-                      <button
-                        onClick={() => setShowMobileMenu(true)}
-                        className="p-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
-                      >
-                        <MoreVertical className="h-4 w-4" />
-                      </button>
-                    </div>
 
-                    <div className="space-y-2 py-3 border-t border-gray-800">
-                      <p className="text-sm text-gray-300 line-clamp-2">{voucher.narration}</p>
-                      {voucher.referenceNumber && (
-                        <p className="text-xs text-gray-500">Ref: {voucher.referenceNumber}</p>
-                      )}
-                    </div>
+                      <div className="space-y-2 py-3 border-t border-gray-800">
+                        <p className="text-sm text-gray-300 line-clamp-2">{voucher.narration}</p>
+                        {voucher.referenceNumber && (
+                          <p className="text-xs text-gray-500">Ref: {voucher.referenceNumber}</p>
+                        )}
+                      </div>
 
-                    <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-800">
-                      <div>
-                        <span className="text-[10px] text-gray-500 uppercase block mb-1">Type</span>
-                        <p className="text-sm font-semibold text-gray-300 capitalize">{voucher.voucherType}</p>
+                      <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-800">
+                        <div>
+                          <span className="text-[10px] text-gray-500 uppercase block mb-1">Type</span>
+                          <p className="text-sm font-semibold text-gray-300 capitalize">{voucher.voucherType}</p>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-gray-500 uppercase block mb-1">Amount</span>
+                          <p className="text-sm font-bold text-white">QAR {voucher.totalDebit?.toLocaleString() || '0'}</p>
+                        </div>
                       </div>
-                      <div>
-                        <span className="text-[10px] text-gray-500 uppercase block mb-1">Amount</span>
-                        <p className="text-sm font-bold text-white">QAR {voucher.totalDebit?.toLocaleString() || '0'}</p>
-                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Loading More Indicator */}
+                {loadingMore && (
+                  <div className="flex justify-center py-6">
+                    <div className="flex items-center gap-2 text-gray-400">
+                      <Loader2 className="h-5 w-5 animate-spin text-[#E84545]" />
+                      <span className="text-sm">Loading more...</span>
                     </div>
                   </div>
-                ))}
-              </div>
+                )}
+
+                {/* Scroll Trigger */}
+                <div ref={bottomRef} className="h-20 flex items-center justify-center">
+                  {!hasMore && vouchers.length > 0 && (
+                    <p className="text-xs text-gray-600">All {vouchers.length} vouchers loaded</p>
+                  )}
+                </div>
+              </>
             )}
           </div>
           
@@ -567,7 +664,7 @@ export default function VouchersPage() {
                 </tr>
               </thead>
               <tbody className="bg-black divide-y divide-gray-800">
-                {loading ? (
+                {loading && vouchers.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-6 py-12 text-center text-gray-400">
                       <div className="flex justify-center">
@@ -646,7 +743,10 @@ export default function VouchersPage() {
                                 <Edit className="h-4 w-4" />
                               </button>
                               <button
-                                onClick={() => handleDeleteVoucher(voucher._id, voucher.voucherNumber)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteVoucher(voucher._id, voucher.voucherNumber);
+                                }}
                                 className="p-2 rounded-lg bg-gray-900 text-gray-400 hover:bg-[#E84545] hover:text-white transition-all group-hover:border border-[#E84545]"
                                 title="Delete voucher"
                               >
@@ -661,11 +761,33 @@ export default function VouchersPage() {
                 )}
               </tbody>
             </table>
+
+            {/* Loading More Indicator - Desktop */}
+            {loadingMore && (
+              <div className="flex justify-center py-6 border-t border-gray-800">
+                <div className="flex items-center gap-2 text-gray-400">
+                  <Loader2 className="h-5 w-5 animate-spin text-[#E84545]" />
+                  <span className="text-sm">Loading more vouchers...</span>
+                </div>
+              </div>
+            )}
+
+            {/* Scroll Trigger - Desktop */}
+            <div ref={bottomRef} className="h-1" />
+
+            {/* End Indicator */}
+            {!hasMore && vouchers.length > 0 && (
+              <div className="text-center py-6 border-t border-gray-800">
+                <p className="text-gray-500 text-sm">
+                  All {vouchers.length} vouchers loaded
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Mobile Safe Area Bottom Padding */}
-        <div className="md:hidden h-6"></div>
+        <div className="md:hidden h-20"></div>
       </div>
 
       {/* Mobile Filter Modal */}
@@ -758,56 +880,26 @@ export default function VouchersPage() {
               </button>
             </div>
             <div className="space-y-3">
+              {voucherTypes.map((type) => (
+                <button
+                  key={type.value}
+                  onClick={() => {
+                    router.push(type.href);
+                    setShowMobileMenu(false);
+                  }}
+                  className="w-full p-4 bg-black border border-gray-800 rounded-xl text-gray-300 font-semibold hover:bg-gray-900 hover:border-[#E84545] transition-all flex items-center gap-3 active:scale-95"
+                >
+                  <div className={`p-2 bg-${type.color}-900/20 border border-${type.color}-800/50 rounded-lg`}>
+                    {getVoucherTypeIcon(type.value)}
+                  </div>
+                  <span>Create {type.label}</span>
+                </button>
+              ))}
               <button
                 onClick={() => {
-                  router.push('/autocityPro/vouchers/payment');
+                  downloadVouchersCSV();
                   setShowMobileMenu(false);
                 }}
-                className="w-full p-4 bg-black border border-gray-800 rounded-xl text-gray-300 font-semibold hover:bg-gray-900 hover:border-[#E84545] transition-all flex items-center gap-3 active:scale-95"
-              >
-                <div className="p-2 bg-red-900/20 border border-red-800/50 rounded-lg">
-                  <DollarSign className="h-4 w-4 text-red-400" />
-                </div>
-                <span>Create Payment</span>
-              </button>
-              <button
-                onClick={() => {
-                  router.push('/autocityPro/vouchers/receipt');
-                  setShowMobileMenu(false);
-                }}
-                className="w-full p-4 bg-black border border-gray-800 rounded-xl text-gray-300 font-semibold hover:bg-gray-900 hover:border-[#E84545] transition-all flex items-center gap-3 active:scale-95"
-              >
-                <div className="p-2 bg-green-900/20 border border-green-800/50 rounded-lg">
-                  <DollarSign className="h-4 w-4 text-green-400" />
-                </div>
-                <span>Create Receipt</span>
-              </button>
-              <button
-                onClick={() => {
-                  router.push('/autocityPro/vouchers/journal');
-                  setShowMobileMenu(false);
-                }}
-                className="w-full p-4 bg-black border border-gray-800 rounded-xl text-gray-300 font-semibold hover:bg-gray-900 hover:border-[#E84545] transition-all flex items-center gap-3 active:scale-95"
-              >
-                <div className="p-2 bg-blue-900/20 border border-blue-800/50 rounded-lg">
-                  <BookOpen className="h-4 w-4 text-blue-400" />
-                </div>
-                <span>Create Journal</span>
-              </button>
-              <button
-                onClick={() => {
-                  router.push('/autocityPro/vouchers/contra');
-                  setShowMobileMenu(false);
-                }}
-                className="w-full p-4 bg-black border border-gray-800 rounded-xl text-gray-300 font-semibold hover:bg-gray-900 hover:border-[#E84545] transition-all flex items-center gap-3 active:scale-95"
-              >
-                <div className="p-2 bg-purple-900/20 border border-purple-800/50 rounded-lg">
-                  <ArrowLeftRight className="h-4 w-4 text-purple-400" />
-                </div>
-                <span>Create Contra</span>
-              </button>
-              <button
-                onClick={downloadVouchersCSV}
                 className="w-full p-4 bg-black border border-gray-800 rounded-xl text-gray-300 font-semibold hover:bg-gray-900 hover:border-[#E84545] transition-all flex items-center justify-between active:scale-95"
               >
                 <span>Export CSV</span>
@@ -815,9 +907,8 @@ export default function VouchersPage() {
               </button>
               <button
                 onClick={() => {
-                  fetchVouchers();
+                  handleRefresh();
                   setShowMobileMenu(false);
-                  toast.success('Vouchers refreshed');
                 }}
                 className="w-full p-4 bg-black border border-gray-800 rounded-xl text-gray-300 font-semibold hover:bg-gray-900 hover:border-[#E84545] transition-all flex items-center justify-between active:scale-95"
               >

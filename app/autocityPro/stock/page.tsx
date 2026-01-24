@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import { 
@@ -17,7 +17,8 @@ import {
   RefreshCw,
   Car,
   Palette,
-  Calendar
+  Calendar,
+  Loader2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -49,6 +50,17 @@ export default function StockPage() {
   const [totalProducts, setTotalProducts] = useState(0);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
+  // Global stats (calculated from ALL products matching filters, not just loaded)
+  const [globalStats, setGlobalStats] = useState({
+    totalValue: 0,
+    lowStockCount: 0,
+    outOfStockCount: 0,
+    criticalCount: 0
+  });
+
+  // Infinite scroll
+  const bottomRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     fetchUser();
     fetchCategories();
@@ -67,10 +79,35 @@ export default function StockPage() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
+    setProducts([]);
+    setHasMoreProducts(true);
     fetchProducts(1, false);
   }, [searchTerm, filterStatus, filterCategory, filterMake, filterModel, filterVariant, filterColor, filterYear, filterIsVehicle]);
 
-  // Helper function to check if a year falls within a product's year range
+  // Infinite scroll observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0];
+        if (first.isIntersecting && hasMoreProducts && !loading && !isLoadingMore) {
+          loadMoreProducts();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    const currentRef = bottomRef.current;
+    if (currentRef) {
+      observer.observe(currentRef);
+    }
+
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+    };
+  }, [hasMoreProducts, loading, isLoadingMore, currentPage]);
+
   const isYearInRange = (product: any, selectedYear: string) => {
     if (!selectedYear) return true;
     const year = parseInt(selectedYear);
@@ -144,14 +181,12 @@ export default function StockPage() {
         limit: '50',
       });
 
-      // Add all filter parameters
       if (searchTerm) params.append('search', searchTerm);
       if (filterCategory) params.append('categoryId', filterCategory);
       if (filterMake) params.append('carMake', filterMake);
       if (filterModel) params.append('carModel', filterModel);
       if (filterVariant) params.append('variant', filterVariant);
       if (filterColor) params.append('color', filterColor);
-      // Note: Year filtering will be done client-side to support range checking
       if (filterIsVehicle !== 'all') {
         params.append('isVehicle', filterIsVehicle === 'vehicle' ? 'true' : 'false');
       }
@@ -173,15 +208,38 @@ export default function StockPage() {
         setHasMoreProducts(data.pagination.hasMore);
         setCurrentPage(page);
 
-        console.log('✓ Fetched stock data:', data.products?.length || 0);
+        // Update global stats from API response if available
+        // If API doesn't provide stats, calculate from loaded products
+        if (data.stats) {
+          setGlobalStats({
+            totalValue: data.stats.totalValue || 0,
+            lowStockCount: data.stats.lowStockCount || 0,
+            outOfStockCount: data.stats.outOfStockCount || 0,
+            criticalCount: data.stats.criticalCount || 0
+          });
+        } else {
+          // Fallback: calculate from currently loaded products
+          // Note: This is only accurate when all products are loaded
+          const allProducts = append ? [...products, ...data.products] : data.products;
+          const yearFiltered = allProducts.filter((p:any) => isYearInRange(p, filterYear));
+
+          setGlobalStats({
+            totalValue: yearFiltered.reduce((sum :any, p:any) => sum + (p.currentStock * p.costPrice), 0),
+            lowStockCount: yearFiltered.filter((p:any) => p.currentStock <= p.reorderPoint).length,
+            outOfStockCount: yearFiltered.filter((p:any) => p.currentStock <= 0).length,
+            criticalCount: yearFiltered.filter((p:any) => p.currentStock > 0 && p.currentStock <= p.minStock).length
+          });
+        }
       } else {
         toast.error('Failed to load stock data');
         setProducts([]);
+        setHasMoreProducts(false);
       }
     } catch (error) {
       console.error('Failed to fetch products:', error);
       toast.error('Failed to load stock data');
       setProducts([]);
+      setHasMoreProducts(false);
     } finally {
       setLoading(false);
       setIsLoadingMore(false);
@@ -190,17 +248,26 @@ export default function StockPage() {
 
   const loadMoreProducts = () => {
     if (!isLoadingMore && hasMoreProducts) {
-      fetchProducts(currentPage + 1, true);
+      const nextPage = currentPage + 1;
+      fetchProducts(nextPage, true);
     }
   };
 
-  // Calculate stats from loaded products (after year range filtering)
+  const handleRefresh = () => {
+    setCurrentPage(1);
+    setProducts([]);
+    setHasMoreProducts(true);
+    fetchProducts(1, false);
+    toast.success('Stock data refreshed');
+  };
+
   const yearFilteredProducts = products.filter(p => isYearInRange(p, filterYear));
   
-  const totalStockValue = yearFilteredProducts.reduce((sum, p) => sum + (p.currentStock * p.costPrice), 0);
-  const lowStockItems = yearFilteredProducts.filter(p => p.currentStock <= p.reorderPoint);
-  const outOfStockItems = yearFilteredProducts.filter(p => p.currentStock <= 0);
-  const criticalItems = yearFilteredProducts.filter(p => p.currentStock > 0 && p.currentStock <= p.minStock);
+  // Use global stats from API or fallback calculation
+  const totalStockValue = globalStats.totalValue;
+  const lowStockItems = { length: globalStats.lowStockCount };
+  const outOfStockItems = { length: globalStats.outOfStockCount };
+  const criticalItems = { length: globalStats.criticalCount };
 
   const totalStockCode = convertToStockCode(totalStockValue);
 
@@ -209,7 +276,6 @@ export default function StockPage() {
     window.location.href = '/autocityPro/login';
   };
 
-  // Client-side filtering for status and year range
   const filteredProducts = yearFilteredProducts.filter((p) => {
     const matchesStatus =
       filterStatus === "all" ||
@@ -219,7 +285,6 @@ export default function StockPage() {
     return matchesStatus;
   });
 
-  // Get unique values for filters from loaded products
   const availableMakes = [...new Set(products.filter(p => p.carMake).map(p => p.carMake))].sort();
   const availableModels = filterMake 
     ? [...new Set(products.filter(p => p.carMake === filterMake && p.carModel).map(p => p.carModel))].sort()
@@ -227,7 +292,6 @@ export default function StockPage() {
   const availableVariants = [...new Set(products.filter(p => p.variant).map(p => p.variant))].sort();
   const availableColors = [...new Set(products.filter(p => p.color).map(p => p.color))].sort();
   
-  // Generate a list of years from all products' year ranges
   const availableYears = (() => {
     const yearsSet = new Set<number>();
     products.forEach(p => {
@@ -272,7 +336,7 @@ export default function StockPage() {
     const headers = ["SKU", "Name", "Current Stock", "Min Stock", "Reorder Point", "Stock Value", "Make", "Model", "Variant", "Color", "Year Range"];
     const rows = filteredProducts.map(p => [
       p.sku || "",
-      p.name || "",
+      `"${(p.name || '').replace(/"/g, '""')}"`,
       p.currentStock || 0,
       p.minStock || 0,
       p.reorderPoint || 0,
@@ -312,7 +376,7 @@ export default function StockPage() {
                 </div>
                 <div className="h-3 w-px bg-white/20"></div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-white text-xs font-medium">{filteredProducts.length} of {totalProducts}</span>
+                  <span className="text-white text-xs font-medium">{products.length} of {totalProducts}</span>
                 </div>
                 {lowStockItems.length > 0 && (
                   <>
@@ -341,10 +405,18 @@ export default function StockPage() {
                 </button>
                 <div>
                   <h1 className="text-xl font-bold text-white">Stock</h1>
-                  <p className="text-xs text-white/60">{filteredProducts.length} of {totalProducts} loaded</p>
+                  <p className="text-xs text-white/60">
+                    {products.length} of {totalProducts} loaded{hasMoreProducts && ' • Scroll for more'}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <button
+                  onClick={handleRefresh}
+                  className="p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </button>
                 <button
                   onClick={() => setShowFilters(true)}
                   className="p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all relative"
@@ -385,23 +457,32 @@ export default function StockPage() {
               <div>
                 <h1 className="text-3xl font-bold text-white">Stock Management</h1>
                 <p className="text-white/80 mt-1">
-                  Monitor and manage your inventory levels • {filteredProducts.length} of {totalProducts} loaded
+                  {products.length} of {totalProducts} products loaded{hasMoreProducts && ' • Scroll to load more'}
                   {activeFilterCount > 0 && ` • ${activeFilterCount} filter${activeFilterCount > 1 ? 's' : ''} active`}
                 </p>
               </div>
-              <button
-                onClick={downloadStockCSV}
-                className="flex items-center space-x-2 px-4 py-2.5 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-lg hover:bg-white/20 transition-all group"
-              >
-                <FileDown className="h-4 w-4 group-hover:scale-110 transition-transform" />
-                <span>Export CSV</span>
-              </button>
+              <div className="flex space-x-3">
+                <button
+                  onClick={handleRefresh}
+                  className="flex items-center space-x-2 px-4 py-2.5 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-lg hover:bg-white/20 transition-all group"
+                >
+                  <RefreshCw className="h-4 w-4 group-hover:rotate-180 transition-transform duration-500" />
+                  <span>Refresh</span>
+                </button>
+                <button
+                  onClick={downloadStockCSV}
+                  className="flex items-center space-x-2 px-4 py-2.5 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-lg hover:bg-white/20 transition-all group"
+                >
+                  <FileDown className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                  <span>Export CSV</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
         <div className="px-4 md:px-8 pt-[180px] md:pt-6 pb-6">
-          {/* Stats Cards - Mobile Optimized */}
+          {/* Stats Cards - Shows TOTAL stats for ALL products (not just loaded) */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
             <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 hover:border-[#E84545]/30 transition-all active:scale-[0.98]">
               <div className="flex items-center justify-between mb-2">
@@ -525,7 +606,7 @@ export default function StockPage() {
                   value={filterMake}
                   onChange={(e) => {
                     setFilterMake(e.target.value);
-                    setFilterModel(""); // Reset model when make changes
+                    setFilterModel("");
                   }}
                   className="w-full pl-8 pr-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white appearance-none"
                 >
@@ -654,7 +735,7 @@ export default function StockPage() {
 
           {/* Stock List */}
           <div className="bg-slate-800 border border-slate-700 rounded-2xl shadow-xl overflow-hidden">
-            {loading ? (
+            {loading && products.length === 0 ? (
               <div className="flex items-center justify-center py-12">
                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#E84545]"></div>
               </div>
@@ -824,74 +905,38 @@ export default function StockPage() {
                     </tbody>
                   </table>
                 </div>
+
+                {/* Loading More Indicator */}
+                {isLoadingMore && (
+                  <div className="flex justify-center py-6 border-t border-slate-700">
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <Loader2 className="h-5 w-5 animate-spin text-[#E84545]" />
+                      <span className="text-sm">Loading more products...</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Scroll Trigger */}
+                <div ref={bottomRef} className="h-1" />
+
+                {/* End Indicator */}
+                {!hasMoreProducts && products.length > 0 && (
+                  <div className="text-center py-6 border-t border-slate-700">
+                    <p className="text-slate-500 text-sm">
+                      All {products.length} products loaded
+                    </p>
+                  </div>
+                )}
               </>
             )}
           </div>
-
-          {/* Load More Button - Desktop */}
-          {hasMoreProducts && !loading && (
-            <div className="hidden md:flex justify-center py-8">
-              <button
-                onClick={loadMoreProducts}
-                disabled={isLoadingMore}
-                className="flex items-center space-x-3 px-6 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 shadow-lg"
-              >
-                {isLoadingMore ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                    <span>Loading More...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Load More Products</span>
-                    <span className="text-sm opacity-80 bg-white/20 px-2 py-1 rounded">
-                      {filteredProducts.length} of {totalProducts}
-                    </span>
-                  </>
-                )}
-              </button>
-            </div>
-          )}
-
-          {/* Load More Button - Mobile */}
-          {hasMoreProducts && !loading && (
-            <div className="md:hidden flex justify-center py-6">
-              <button
-                onClick={loadMoreProducts}
-                disabled={isLoadingMore}
-                className="w-full mx-4 px-6 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {isLoadingMore ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                    <span>Loading...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Load More</span>
-                    <span className="text-sm opacity-80">
-                      ({filteredProducts.length}/{totalProducts})
-                    </span>
-                  </>
-                )}
-              </button>
-            </div>
-          )}
-
-          {/* Products Count Display */}
-          {!loading && filteredProducts.length > 0 && (
-            <div className="text-center py-4 text-gray-400 text-sm border-t border-white/5">
-              Showing {filteredProducts.length} of {totalProducts} products
-              {hasMoreProducts && " • Scroll down to load more"}
-            </div>
-          )}
         </div>
 
         {/* Mobile Safe Area Bottom Padding */}
-        <div className="md:hidden h-6"></div>
+        <div className="md:hidden h-20"></div>
       </div>
 
-      {/* Mobile Filter Modal */}
+      {/* Mobile Filter Modal - Same as before */}
       {showFilters && (
         <div className="md:hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 animate-in fade-in duration-200 overflow-y-auto">
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-b from-[#050505] to-[#0A0A0A] rounded-t-3xl border-t border-white/10 p-6 animate-in slide-in-from-bottom duration-300 max-h-[90vh] overflow-y-auto">
@@ -1094,9 +1139,8 @@ export default function StockPage() {
               </button>
               <button
                 onClick={() => {
-                  fetchProducts(1, false);
+                  handleRefresh();
                   setShowMobileMenu(false);
-                  toast.success('Stock data refreshed');
                 }}
                 className="w-full p-4 bg-[#0A0A0A] border border-white/10 rounded-xl text-gray-300 font-semibold hover:bg-white/5 transition-all flex items-center justify-between active:scale-95"
               >

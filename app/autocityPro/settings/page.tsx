@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { UserRole, UserRoleType } from '@/lib/types/roles';
+import { useActivityTracker } from '@/hooks/useActivityTracker';
 import {
   Settings as SettingsIcon,
   Users,
@@ -28,14 +29,29 @@ import {
   Lock,
   UserPlus,
   Store,
+  Clock,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+interface OnlineUser {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  username: string;
+  role: string;
+  outletId?: { name: string; code: string };
+  lastActiveAt: string;
+}
 
 export default function SettingsPage() {
   const [user, setUser] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('users');
   const [users, setUsers] = useState<any[]>([]);
   const [outlets, setOutlets] = useState<any[]>([]);
+  const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [showUserModal, setShowUserModal] = useState(false);
   const [showOutletModal, setShowOutletModal] = useState(false);
@@ -43,6 +59,10 @@ export default function SettingsPage() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState<string>('all');
+  const [showOnlineOnly, setShowOnlineOnly] = useState(false);
+
+  // Enable activity tracking
+  useActivityTracker(true);
 
   const [newUser, setNewUser] = useState({
     firstName: '',
@@ -74,6 +94,7 @@ export default function SettingsPage() {
     fetchUser();
     fetchUsers();
     fetchOutlets();
+    fetchOnlineUsers();
 
     const checkIfMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -82,7 +103,15 @@ export default function SettingsPage() {
     checkIfMobile();
     window.addEventListener('resize', checkIfMobile);
 
-    return () => window.removeEventListener('resize', checkIfMobile);
+    // Refresh online users every 30 seconds
+    const interval = setInterval(() => {
+      fetchOnlineUsers();
+    }, 30000);
+
+    return () => {
+      window.removeEventListener('resize', checkIfMobile);
+      clearInterval(interval);
+    };
   }, []);
 
   const fetchUser = async () => {
@@ -115,6 +144,18 @@ export default function SettingsPage() {
     }
   };
 
+  const fetchOnlineUsers = async () => {
+    try {
+      const res = await fetch('/api/users/activity', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setOnlineUsers(data.onlineUsers || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch online users');
+    }
+  };
+
   const fetchOutlets = async () => {
     try {
       const res = await fetch('/api/outlets', { credentials: 'include' });
@@ -133,7 +174,6 @@ export default function SettingsPage() {
       return;
     }
 
-    // Validate outlet for non-superadmin users
     if (newUser.role !== 'SUPERADMIN' && !newUser.outletId) {
       toast.error('Please select an outlet');
       return;
@@ -232,6 +272,34 @@ export default function SettingsPage() {
     }
   };
 
+  const isUserOnline = (userId: string) => {
+    return onlineUsers.some(ou => ou._id === userId);
+  };
+
+  const getUserLastActive = (userId: string) => {
+    const onlineUser = onlineUsers.find(ou => ou._id === userId);
+    if (!onlineUser) return null;
+    return new Date(onlineUser.lastActiveAt);
+  };
+
+  const getRelativeTime = (date: Date) => {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins === 1) return '1 min ago';
+    if (diffMins < 60) return `${diffMins} mins ago`;
+    
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours === 1) return '1 hour ago';
+    if (diffHours < 24) return `${diffHours} hours ago`;
+    
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays === 1) return '1 day ago';
+    return `${diffDays} days ago`;
+  };
+
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
       case 'SUPERADMIN':
@@ -289,9 +357,12 @@ export default function SettingsPage() {
       u.username?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesRole = filterRole === 'all' || u.role === filterRole;
+    const matchesOnline = !showOnlineOnly || isUserOnline(u._id);
     
-    return matchesSearch && matchesRole;
+    return matchesSearch && matchesRole && matchesOnline;
   });
+
+  const onlineCount = users.filter(u => isUserOnline(u._id)).length;
 
   return (
     <MainLayout user={user} onLogout={handleLogout}>
@@ -303,17 +374,42 @@ export default function SettingsPage() {
               <div>
                 <h1 className="text-xl font-bold text-white">Settings</h1>
                 <p className="text-xs text-white/60">
-                  {activeTab === 'users' ? `${filteredUsers.length} users` : `${outlets.length} outlets`}
+                  {activeTab === 'users' ? (
+                    <>
+                      {filteredUsers.length} users
+                      <span className="mx-1">•</span>
+                      <span className="inline-flex items-center">
+                        <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full mr-1 animate-pulse"></span>
+                        {onlineCount} online
+                      </span>
+                    </>
+                  ) : (
+                    `${outlets.length} outlets`
+                  )}
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                {activeTab === 'users' && canCreateUser && (
-                  <button
-                    onClick={() => setShowUserModal(true)}
-                    className="p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
-                  >
-                    <UserPlus className="h-4 w-4" />
-                  </button>
+                {activeTab === 'users' && (
+                  <>
+                    <button
+                      onClick={() => setShowOnlineOnly(!showOnlineOnly)}
+                      className={`p-2 rounded-xl transition-all ${
+                        showOnlineOnly
+                          ? 'bg-emerald-500/20 text-emerald-400'
+                          : 'bg-white/5 text-white/80 hover:text-white hover:bg-white/10'
+                      }`}
+                    >
+                      <Wifi className="h-4 w-4" />
+                    </button>
+                    {canCreateUser && (
+                      <button
+                        onClick={() => setShowUserModal(true)}
+                        className="p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
+                      >
+                        <UserPlus className="h-4 w-4" />
+                      </button>
+                    )}
+                  </>
                 )}
                 {activeTab === 'outlets' && canCreateOutlet && (
                   <button
@@ -388,7 +484,15 @@ export default function SettingsPage() {
                 </div>
                 <div>
                   <h1 className="text-3xl font-bold text-white">Settings</h1>
-                  <p className="text-white/80 mt-1">Manage users and outlets</p>
+                  <p className="text-white/80 mt-1">
+                    Manage users and outlets
+                    {activeTab === 'users' && onlineCount > 0 && (
+                      <span className="ml-3 inline-flex items-center">
+                        <span className="w-2 h-2 bg-emerald-400 rounded-full mr-2 animate-pulse"></span>
+                        <span className="text-emerald-200 font-semibold">{onlineCount} users online</span>
+                      </span>
+                    )}
+                  </p>
                 </div>
               </div>
             </div>
@@ -452,7 +556,7 @@ export default function SettingsPage() {
             <div>
               {/* Desktop Search and Filters */}
               <div className="hidden md:block bg-black border border-gray-800 rounded-xl shadow-xl p-6 mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="relative">
                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
                     <input
@@ -484,9 +588,22 @@ export default function SettingsPage() {
                   </div>
 
                   <button
+                    onClick={() => setShowOnlineOnly(!showOnlineOnly)}
+                    className={`px-4 py-2 text-sm rounded-lg transition-all flex items-center justify-center gap-2 ${
+                      showOnlineOnly
+                        ? 'bg-emerald-900/30 border-2 border-emerald-600 text-emerald-400 font-semibold'
+                        : 'bg-black border border-gray-800 text-white hover:bg-gray-900 hover:border-[#E84545]'
+                    }`}
+                  >
+                    <Wifi className="h-4 w-4" />
+                    {showOnlineOnly ? 'Online Only' : 'All Users'}
+                  </button>
+
+                  <button
                     onClick={() => {
                       setSearchTerm('');
                       setFilterRole('all');
+                      setShowOnlineOnly(false);
                     }}
                     className="px-4 py-2 text-sm bg-black border border-gray-800 rounded-lg hover:bg-gray-900 hover:border-[#E84545] transition-colors text-white"
                   >
@@ -509,53 +626,69 @@ export default function SettingsPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {filteredUsers.map((u) => (
-                      <div
-                        key={u._id}
-                        className="bg-gradient-to-br from-[#0A0A0A] to-black border border-gray-800 rounded-xl p-4 hover:border-[#E84545] transition-all"
-                      >
-                        <div className="flex justify-between items-start mb-3">
-                          <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-full bg-[#E84545]/20 flex items-center justify-center border border-[#E84545]/30">
-                              <span className="text-[#E84545] font-semibold">
-                                {u.firstName?.[0]}{u.lastName?.[0]}
+                    {filteredUsers.map((u) => {
+                      const online = isUserOnline(u._id);
+                      const lastActive = getUserLastActive(u._id);
+                      
+                      return (
+                        <div
+                          key={u._id}
+                          className="bg-gradient-to-br from-[#0A0A0A] to-black border border-gray-800 rounded-xl p-4 hover:border-[#E84545] transition-all"
+                        >
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex items-center gap-3">
+                              <div className="relative">
+                                <div className="h-10 w-10 rounded-full bg-[#E84545]/20 flex items-center justify-center border border-[#E84545]/30">
+                                  <span className="text-[#E84545] font-semibold">
+                                    {u.firstName?.[0]}{u.lastName?.[0]}
+                                  </span>
+                                </div>
+                                {online && (
+                                  <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-400 rounded-full border-2 border-black animate-pulse"></div>
+                                )}
+                              </div>
+                              <div>
+                                <p className="text-sm font-semibold text-white flex items-center gap-2">
+                                  {u.firstName} {u.lastName}
+                                  {u._id === user?._id && (
+                                    <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full">You</span>
+                                  )}
+                                </p>
+                                <p className="text-xs text-gray-500">@{u.username}</p>
+                                {online && lastActive && (
+                                  <p className="text-[10px] text-emerald-400 flex items-center gap-1 mt-0.5">
+                                    <Clock className="h-3 w-3" />
+                                    {getRelativeTime(lastActive)}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleDeleteUser(u._id)}
+                              className="p-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-red-400 hover:bg-red-900/20 transition-colors"
+                              disabled={!canCreateUser || u._id === user?._id}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3 py-3 border-t border-gray-800">
+                            <div>
+                              <span className="text-[10px] text-gray-500 uppercase block mb-1">Role</span>
+                              <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getRoleBadgeColor(u.role)}`}>
+                                {getRoleDisplayName(u.role)}
                               </span>
                             </div>
                             <div>
-                              <p className="text-sm font-semibold text-white">
-                                {u.firstName} {u.lastName}
+                              <span className="text-[10px] text-gray-500 uppercase block mb-1">Outlet</span>
+                              <p className="text-sm font-semibold text-gray-300">
+                                {u.outletId?.name || 'All Outlets'}
                               </p>
-                              <p className="text-xs text-gray-500">@{u.username}</p>
-                              {u._id === user?._id && (
-                                <span className="text-xs text-emerald-400">(You)</span>
-                              )}
                             </div>
                           </div>
-                          <button
-                            onClick={() => handleDeleteUser(u._id)}
-                            className="p-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-red-400 hover:bg-red-900/20 transition-colors"
-                            disabled={!canCreateUser || u._id === user?._id}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
                         </div>
-
-                        <div className="grid grid-cols-2 gap-3 py-3 border-t border-gray-800">
-                          <div>
-                            <span className="text-[10px] text-gray-500 uppercase block mb-1">Role</span>
-                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getRoleBadgeColor(u.role)}`}>
-                              {getRoleDisplayName(u.role)}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-[10px] text-gray-500 uppercase block mb-1">Outlet</span>
-                            <p className="text-sm font-semibold text-gray-300">
-                              {u.outletId?.name || 'All Outlets'}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -577,6 +710,9 @@ export default function SettingsPage() {
                       <th className="px-6 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
                         Outlet
                       </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                        Status
+                      </th>
                       <th className="px-6 py-3 text-right text-xs font-semibold text-gray-300 uppercase tracking-wider">
                         Actions
                       </th>
@@ -585,7 +721,7 @@ export default function SettingsPage() {
                   <tbody className="bg-black divide-y divide-gray-800">
                     {loading ? (
                       <tr>
-                        <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
+                        <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
                           <div className="flex justify-center">
                             <RefreshCw className="h-8 w-8 animate-spin text-[#E84545]" />
                           </div>
@@ -594,59 +730,89 @@ export default function SettingsPage() {
                       </tr>
                     ) : filteredUsers.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
+                        <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
                           <Users className="h-16 w-16 mx-auto mb-4 text-gray-700" />
                           <p className="text-gray-400 text-lg font-medium">No users found</p>
                         </td>
                       </tr>
                     ) : (
-                      filteredUsers.map((u) => (
-                        <tr key={u._id} className="hover:bg-gray-900 transition-colors">
-                          <td className="px-6 py-4">
-                            <div className="flex items-center">
-                              <div className="h-10 w-10 rounded-full bg-[#E84545]/20 flex items-center justify-center border border-[#E84545]/30">
-                                <span className="text-[#E84545] font-semibold">
-                                  {u.firstName?.[0]}{u.lastName?.[0]}
-                                </span>
+                      filteredUsers.map((u) => {
+                        const online = isUserOnline(u._id);
+                        const lastActive = getUserLastActive(u._id);
+                        
+                        return (
+                          <tr key={u._id} className="hover:bg-gray-900 transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="flex items-center">
+                                <div className="relative">
+                                  <div className="h-10 w-10 rounded-full bg-[#E84545]/20 flex items-center justify-center border border-[#E84545]/30">
+                                    <span className="text-[#E84545] font-semibold">
+                                      {u.firstName?.[0]}{u.lastName?.[0]}
+                                    </span>
+                                  </div>
+                                  {online && (
+                                    <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-400 rounded-full border-2 border-black animate-pulse"></div>
+                                  )}
+                                </div>
+                                <div className="ml-4">
+                                  <p className="text-sm font-medium text-white flex items-center gap-2">
+                                    {u.firstName} {u.lastName}
+                                    {u._id === user?._id && (
+                                      <span className="text-xs px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full">You</span>
+                                    )}
+                                  </p>
+                                  <p className="text-xs text-gray-500">@{u.username}</p>
+                                </div>
                               </div>
-                              <div className="ml-4">
-                                <p className="text-sm font-medium text-white">
-                                  {u.firstName} {u.lastName}
-                                </p>
-                                <p className="text-xs text-gray-500">@{u.username}</p>
-                                {u._id === user?._id && (
-                                  <span className="text-xs text-emerald-400">(You)</span>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <p className="text-sm text-white">{u.email}</p>
-                            {u.phone && (
-                              <p className="text-xs text-gray-500">{u.phone}</p>
-                            )}
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full ${getRoleBadgeColor(u.role)}`}>
-                              <Shield className="h-3 w-3" />
-                              {getRoleDisplayName(u.role)}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-300">
-                            {u.outletId?.name || 'All Outlets'}
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            {canCreateUser && u._id !== user?._id && (
-                              <button
-                                onClick={() => handleDeleteUser(u._id)}
-                                className="p-2 rounded-lg bg-gray-900 text-gray-400 hover:bg-red-900/30 hover:text-red-400 transition-colors"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      ))
+                            </td>
+                            <td className="px-6 py-4">
+                              <p className="text-sm text-white">{u.email}</p>
+                              {u.phone && (
+                                <p className="text-xs text-gray-500">{u.phone}</p>
+                              )}
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full ${getRoleBadgeColor(u.role)}`}>
+                                <Shield className="h-3 w-3" />
+                                {getRoleDisplayName(u.role)}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-300">
+                              {u.outletId?.name || 'All Outlets'}
+                            </td>
+                            <td className="px-6 py-4">
+                              {online ? (
+                                <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-900/30 text-emerald-400 rounded-full text-xs font-semibold border border-emerald-800/50">
+                                    <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
+                                    Online
+                                  </div>
+                                  {lastActive && (
+                                    <span className="text-xs text-gray-500">
+                                      {getRelativeTime(lastActive)}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-800/50 text-gray-500 rounded-full text-xs">
+                                  <WifiOff className="h-3 w-3" />
+                                  Offline
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              {canCreateUser && u._id !== user?._id && (
+                                <button
+                                  onClick={() => handleDeleteUser(u._id)}
+                                  className="p-2 rounded-lg bg-gray-900 text-gray-400 hover:bg-red-900/30 hover:text-red-400 transition-colors"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
@@ -654,7 +820,7 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* Outlets Tab */}
+          {/* Outlets Tab - Keep existing code */}
           {activeTab === 'outlets' && canCreateOutlet && (
             <div>
               <div className="md:hidden mb-6">
@@ -772,7 +938,7 @@ export default function SettingsPage() {
         <div className="md:hidden h-6"></div>
       </div>
 
-      {/* Add User Modal */}
+      {/* Keep existing modals - Add User Modal, Add Outlet Modal, Mobile Menu */}
       {showUserModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-black border border-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
@@ -1001,6 +1167,7 @@ export default function SettingsPage() {
                 onClick={() => {
                   fetchUsers();
                   fetchOutlets();
+                  fetchOnlineUsers();
                   setShowMobileMenu(false);
                   toast.success('Settings refreshed');
                 }}

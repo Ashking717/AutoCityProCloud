@@ -31,6 +31,7 @@ import {
   User,
   Grid3x3,
   ChevronUp,
+  MessageCircle,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import Image from "next/image";
@@ -53,6 +54,33 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [isScrolling, setIsScrolling] = useState(false);
   const [lastScrollTop, setLastScrollTop] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Fetch unread message count
+  const fetchUnreadCount = async () => {
+    try {
+      const res = await fetch("/api/messages", { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        const total = data.conversations?.reduce(
+          (sum: number, conv: any) => sum + conv.unreadCount,
+          0
+        ) || 0;
+        setUnreadCount(total);
+      }
+    } catch (error) {
+      console.error("Failed to fetch unread count");
+    }
+  };
+
+  useEffect(() => {
+    fetchUnreadCount();
+    
+    // Poll for new messages every 10 seconds
+    const interval = setInterval(fetchUnreadCount, 10000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   const toggleSection = (sectionTitle: string) => {
     setCollapsedSections((prev) => {
@@ -71,7 +99,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
     return user?.role && allowedRoles.includes(user.role);
   };
 
-  // Define all navigation items with role-based access
+  // Define all navigation items with role-based access (Messages removed)
   const allNavigationSections = [
     {
       title: "Main",
@@ -82,7 +110,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           href: "/autocityPro/dashboard",
           badge: null,
           mobile: true,
-          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "VIEWER", ],
+          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "VIEWER"],
         },
         {
           name: "New Sale",
@@ -111,7 +139,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           href: "/autocityPro/products",
           badge: null,
           mobile: true,
-          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "SALESPERSON", ],
+          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "SALESPERSON"],
         },
         {
           name: "Stock",
@@ -119,7 +147,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           href: "/autocityPro/stock",
           badge: null,
           mobile: true,
-          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "VIEWER","CASHIER"],
+          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "VIEWER", "CASHIER"],
         },
       ],
     },
@@ -140,7 +168,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           href: "/autocityPro/portal",
           badge: null,
           mobile: true,
-          roles: ["SUPERADMIN", "ADMIN", "MANAGER","ACCOUNTANT" ],
+          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "ACCOUNTANT"],
         },
       ],
     },
@@ -195,7 +223,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           href: "/autocityPro/closings",
           badge: null,
           mobile: true,
-          roles: ["SUPERADMIN", "ADMIN", "MANAGER","ACCOUNTANT"],
+          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "ACCOUNTANT"],
         },
         {
           name: "Settings",
@@ -248,32 +276,29 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
       ...section,
       items: section.items.filter((item) => hasAccess(item.roles)),
     }))
-    .filter((section) => section.items.length > 0); // Remove empty sections
+    .filter((section) => section.items.length > 0);
 
-  // Primary mobile navigation items (shown in bottom bar) - filtered by role
+  // Primary mobile navigation items (shown in bottom bar) - Messages removed
   const allPrimaryMobileNavItems = [
     {
       name: "Dashboard",
       icon: LayoutDashboard,
       href: "/autocityPro/dashboard",
+      badge: null,
       roles: ["SUPERADMIN", "ADMIN", "MANAGER", "VIEWER"],
     },
     {
       name: "New Sale",
       icon: Sparkles,
       href: "/autocityPro/sales/new",
+      badge: null,
       roles: ["SUPERADMIN", "ADMIN", "MANAGER", "SALESPERSON", "CASHIER"],
-    },
-    {
-      name: "Sales",
-      icon: ShoppingCart,
-      href: "/autocityPro/sales",
-      roles: ["SUPERADMIN", "ADMIN", "MANAGER", "SALESPERSON", "VIEWER", "CASHIER"],
     },
     {
       name: "Reports",
       icon: BarChart3,
       href: "/autocityPro/reports",
+      badge: null,
       roles: ["SUPERADMIN", "ADMIN", "MANAGER", "VIEWER", "ACCOUNTANT"],
     },
   ];
@@ -299,7 +324,6 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
     const handleScroll = () => {
       const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
       
-      // Check if user is scrolling
       setIsScrolling(Math.abs(scrollTop - lastScrollTop) > 0);
       setLastScrollTop(scrollTop);
     };
@@ -314,7 +338,6 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
   // Prevent URL bar hide/show on mobile
   useEffect(() => {
     if (isMobile) {
-      // Lock viewport height to prevent resize on scroll
       const setVH = () => {
         const vh = window.innerHeight * 0.01;
         document.documentElement.style.setProperty('--vh', `${vh}px`);
@@ -323,7 +346,6 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
       setVH();
       window.addEventListener('resize', setVH);
       
-      // Prevent pull-to-refresh behavior that moves bottom bar
       document.body.style.overscrollBehaviorY = 'none';
       
       return () => {
@@ -366,14 +388,15 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
 
       const keyMap: Record<string, () => void> = {
         "Ctrl+1": () => router.push("/autocityPro/dashboard"),
-        "Ctrl+2": () => router.push("/autocityPro/sales/new"),
-        "Ctrl+3": () => router.push("/autocityPro/sales"),
-        "Ctrl+4": () => router.push("/autocityPro/products"),
-        "Ctrl+5": () => router.push("/autocityPro/categories"),
-        "Ctrl+6": () => router.push("/autocityPro/stock"),
-        "Ctrl+7": () => router.push("/autocityPro/customers"),
-        "Ctrl+8": () => router.push("/autocityPro/portal"),
-        "Ctrl+9": () => router.push("/autocityPro/vouchers"),
+        "Ctrl+2": () => router.push("/autocityPro/messages"),
+        "Ctrl+3": () => router.push("/autocityPro/sales/new"),
+        "Ctrl+4": () => router.push("/autocityPro/sales"),
+        "Ctrl+5": () => router.push("/autocityPro/products"),
+        "Ctrl+6": () => router.push("/autocityPro/categories"),
+        "Ctrl+7": () => router.push("/autocityPro/stock"),
+        "Ctrl+8": () => router.push("/autocityPro/customers"),
+        "Ctrl+9": () => router.push("/autocityPro/portal"),
+        "Ctrl+0": () => router.push("/autocityPro/vouchers"),
         "Ctrl+A": () => router.push("/autocityPro/accounts"),
         "Ctrl+L": () => router.push("/autocityPro/ledgers"),
         "Ctrl+,": () => router.push("/autocityPro/settings"),
@@ -388,6 +411,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
         "Ctrl+Shift+F": () => router.push("/autocityPro/reports/cash-flow"),
         "Ctrl+Alt+L": () => router.push("/autocityPro/settings/logs"),
         "Alt+H": () => router.push("/autocityPro/dashboard"),
+        "Alt+M": () => router.push("/autocityPro/messages"),
         "Alt+N": () => router.push("/autocityPro/sales/new"),
       };
 
@@ -402,7 +426,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
       } else if (isCtrl && isAlt) {
         if (e.key === "L") keyCombo = "Ctrl+Alt+L";
       } else if (isCtrl) {
-        if (e.key >= "1" && e.key <= "9") keyCombo = `Ctrl+${e.key}`;
+        if (e.key >= "0" && e.key <= "9") keyCombo = `Ctrl+${e.key}`;
         else if (e.key === "a" || e.key === "A") keyCombo = "Ctrl+A";
         else if (e.key === "l" || e.key === "L") keyCombo = "Ctrl+L";
         else if (e.key === ",") keyCombo = "Ctrl+,";
@@ -412,6 +436,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
         else if (e.key === "q" || e.key === "Q") keyCombo = "Ctrl+Q";
       } else if (isAlt) {
         if (e.key === "h" || e.key === "H") keyCombo = "Alt+H";
+        else if (e.key === "m" || e.key === "M") keyCombo = "Alt+M";
         else if (e.key === "n" || e.key === "N") keyCombo = "Alt+N";
       }
 
@@ -425,7 +450,6 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
     return () => window.removeEventListener("keydown", handleKeyPress);
   }, [router, onLogout, showHelp, showMobileMenu]);
 
-  // Close mobile menu when clicking outside
   useEffect(() => {
     if (showMobileMenu) {
       document.body.style.overflow = 'hidden';
@@ -438,6 +462,9 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
     router.push(href);
     setShowMobileMenu(false);
   };
+
+  // Check if user has access to messages
+  const hasMessagesAccess = hasAccess(["SUPERADMIN", "ADMIN", "MANAGER", "SALESPERSON", "VIEWER", "CASHIER", "ACCOUNTANT"]);
 
   return (
     <>
@@ -503,6 +530,34 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
 
               <ChevronRight className="h-4 w-4 text-gray-600 group-hover:text-[#E84545] group-hover:translate-x-0.5 transition-all" />
             </button>
+
+            {/* Messages Button */}
+            {hasMessagesAccess && (
+              <button
+                onClick={() => router.push("/autocityPro/messages")}
+                className={`w-full flex items-center justify-between mt-3 px-3 py-2.5 text-sm rounded-xl transition-all duration-200 group ${
+                  pathname === "/autocityPro/messages"
+                    ? "bg-gradient-to-r from-[#E84545]/20 via-[#cc3c3c]/20 to-[#E84545]/20 text-white ring-1 ring-[#E84545]/30"
+                    : "bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                <div className="flex items-center space-x-3">
+                  <MessageCircle
+                    className={`h-5 w-5 transition-all ${
+                      pathname === "/autocityPro/messages"
+                        ? "text-[#E84545]"
+                        : "text-gray-400 group-hover:text-[#E84545]"
+                    }`}
+                  />
+                  <span className="font-medium">Messages</span>
+                </div>
+                {unreadCount > 0 && (
+                  <span className="px-2 py-0.5 text-xs font-bold bg-[#E84545] text-white rounded-full animate-pulse">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </button>
+            )}
           </div>
         )}
 
@@ -569,12 +624,12 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
                         </div>
 
                         {item.badge && (
-                          <span className="px-2 py-0.5 text-xs font-bold bg-[#E84545]/20 text-[#E84545] rounded-full border border-[#E84545]/30">
+                          <span className="px-2 py-0.5 text-xs font-bold bg-[#E84545] text-white rounded-full animate-pulse">
                             {item.badge}
                           </span>
                         )}
 
-                        {!isActive && (
+                        {!isActive && !item.badge && (
                           <ChevronRight className="h-4 w-4 text-gray-600 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
                         )}
                       </button>
@@ -616,11 +671,16 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
                   onClick={() => handleNavigate(item.href)}
                   className="flex flex-col items-center justify-center flex-1 relative py-1 px-1 active:scale-95 transition-transform touch-manipulation"
                 >
-                  <div className={`p-2 rounded-2xl transition-all ${isActive ? 'bg-red-500/15' : ''}`}>
+                  <div className={`p-2 rounded-2xl transition-all relative ${isActive ? 'bg-red-500/15' : ''}`}>
                     <item.icon 
                       className={`h-6 w-6 transition-colors ${isActive ? 'text-red-500' : 'text-gray-400'}`}
                       strokeWidth={isActive ? 2.5 : 2}
                     />
+                    {item.badge && (
+                      <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full px-1 animate-pulse">
+                        {item.badge > 99 ? '99+' : item.badge}
+                      </span>
+                    )}
                   </div>
                   <span className={`text-[10px] font-medium mt-0.5 transition-colors ${isActive ? 'text-red-500' : 'text-gray-400'}`}>
                     {item.name}
@@ -628,6 +688,29 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
                 </button>
               );
             })}
+            
+            {/* Messages Button (if access) */}
+            {hasMessagesAccess && (
+              <button
+                onClick={() => handleNavigate("/autocityPro/messages")}
+                className="flex flex-col items-center justify-center flex-1 relative py-1 px-1 active:scale-95 transition-transform touch-manipulation"
+              >
+                <div className={`p-2 rounded-2xl transition-all relative ${pathname === "/autocityPro/messages" ? 'bg-red-500/15' : ''}`}>
+                  <MessageCircle 
+                    className={`h-6 w-6 transition-colors ${pathname === "/autocityPro/messages" ? 'text-red-500' : 'text-gray-400'}`}
+                    strokeWidth={pathname === "/autocityPro/messages" ? 2.5 : 2}
+                  />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full px-1 animate-pulse">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                </div>
+                <span className={`text-[10px] font-medium mt-0.5 transition-colors ${pathname === "/autocityPro/messages" ? 'text-red-500' : 'text-gray-400'}`}>
+                  Messages
+                </span>
+              </button>
+            )}
             
             {/* More Menu Button */}
             <button
@@ -700,6 +783,32 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
 
                   <ChevronRight className="h-4 w-4 text-gray-600" />
                 </button>
+
+                {/* Messages Button in Mobile Menu */}
+                {hasMessagesAccess && (
+                  <button
+                    onClick={() => handleNavigate("/autocityPro/messages")}
+                    className={`w-full flex items-center justify-between mt-3 px-3 py-2.5 text-sm rounded-xl transition-all ${
+                      pathname === "/autocityPro/messages"
+                        ? "bg-gradient-to-r from-[#E84545]/20 to-[#cc3c3c]/20 text-white ring-1 ring-[#E84545]/30"
+                        : "bg-white/5 text-gray-300 active:bg-white/10"
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className={`p-2 rounded-lg ${pathname === "/autocityPro/messages" ? 'bg-[#E84545]/20' : 'bg-white/5'}`}>
+                        <MessageCircle
+                          className={`h-5 w-5 ${pathname === "/autocityPro/messages" ? 'text-[#E84545]' : 'text-gray-400'}`}
+                        />
+                      </div>
+                      <span className="font-medium">Messages</span>
+                    </div>
+                    {unreadCount > 0 && (
+                      <span className="px-2 py-0.5 text-xs font-bold bg-[#E84545] text-white rounded-full animate-pulse">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
+                  </button>
+                )}
               </div>
             )}
 
@@ -805,17 +914,18 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
                   <div className="space-y-2">
                     {[
                       { combo: "Ctrl + 1", desc: "Dashboard" },
-                      { combo: "Ctrl + 2", desc: "New Sale" },
-                      { combo: "Ctrl + 3", desc: "Sales" },
-                      { combo: "Ctrl + 4", desc: "Products" },
-                      { combo: "Ctrl + 5", desc: "Categories" },
-                      { combo: "Ctrl + 6", desc: "Stock" },
-                      { combo: "Ctrl + 7", desc: "Customers" },
-                      { combo: "Ctrl + 8", desc: "Portal" },
-                      { combo: "Ctrl + 9", desc: "Vouchers" },
+                      { combo: "Ctrl + 2", desc: "Messages" },
+                      { combo: "Ctrl + 3", desc: "New Sale" },
+                      { combo: "Ctrl + 4", desc: "Sales" },
+                      { combo: "Ctrl + 5", desc: "Products" },
+                      { combo: "Ctrl + 6", desc: "Categories" },
+                      { combo: "Ctrl + 7", desc: "Stock" },
+                      { combo: "Ctrl + 8", desc: "Customers" },
+                      { combo: "Ctrl + 9", desc: "Portal" },
                       { combo: "Ctrl + A", desc: "Accounts" },
                       { combo: "Ctrl + L", desc: "Ledgers" },
                       { combo: "Alt + H", desc: "Dashboard" },
+                      { combo: "Alt + M", desc: "Messages" },
                       { combo: "Alt + N", desc: "New Sale" },
                     ].map((shortcut, idx) => (
                       <div

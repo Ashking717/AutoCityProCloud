@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import { 
@@ -56,11 +56,12 @@ export default function VouchersPage() {
   // Pagination
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [totalPages, setTotalPages] = useState(1);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
   
   useEffect(() => {
     fetchUser();
-    fetchVouchers(1);
   }, []);
 
   useEffect(() => {
@@ -79,32 +80,59 @@ export default function VouchersPage() {
     setPage(1);
     setVouchers([]);
     setHasMore(true);
+    setLoading(true);
     fetchVouchers(1);
   }, [filterType, filterStatus]);
 
+  // Memoized load more function
+  const loadMore = useCallback(() => {
+    if (loadingMore || !hasMore || loading) {
+      return;
+    }
+    
+    const nextPage = page + 1;
+    console.log('Loading page:', nextPage, 'Has more:', hasMore, 'Total pages:', totalPages);
+    setPage(nextPage);
+    fetchVouchers(nextPage);
+  }, [page, hasMore, loadingMore, loading, totalPages]);
+
   // Infinite scroll observer
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const first = entries[0];
-        if (first.isIntersecting && hasMore && !loading && !loadingMore) {
-          loadMore();
-        }
-      },
-      { threshold: 0.1 }
-    );
+    // Clean up existing observer
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
+
+    // Don't set up observer if we're loading or no more data
+    if (loading || !hasMore) {
+      return;
+    }
+
+    const options = {
+      root: null,
+      rootMargin: '200px',
+      threshold: 0.1
+    };
+
+    observerRef.current = new IntersectionObserver((entries) => {
+      const first = entries[0];
+      if (first.isIntersecting) {
+        console.log('Intersection detected, triggering loadMore');
+        loadMore();
+      }
+    }, options);
 
     const currentRef = bottomRef.current;
     if (currentRef) {
-      observer.observe(currentRef);
+      observerRef.current.observe(currentRef);
     }
 
     return () => {
-      if (currentRef) {
-        observer.unobserve(currentRef);
+      if (observerRef.current) {
+        observerRef.current.disconnect();
       }
     };
-  }, [hasMore, loading, loadingMore, page]);
+  }, [loading, hasMore, loadMore]);
   
   const fetchUser = async () => {
     try {
@@ -120,6 +148,8 @@ export default function VouchersPage() {
   
   const fetchVouchers = async (pageNum: number) => {
     try {
+      console.log('Fetching page:', pageNum);
+      
       if (pageNum === 1) {
         setLoading(true);
       } else {
@@ -135,34 +165,36 @@ export default function VouchersPage() {
         const data = await res.json();
         const newVouchers = data.vouchers || [];
         
+        console.log('Received vouchers:', newVouchers.length, 'Page:', pageNum, 'Total pages:', data.pagination?.pages);
+        
         if (pageNum === 1) {
           setVouchers(newVouchers);
         } else {
-          setVouchers(prev => [...prev, ...newVouchers]);
+          setVouchers(prev => {
+            // Prevent duplicates
+            const existingIds = new Set(prev.map(v => v._id));
+            const uniqueNew = newVouchers.filter((v: any) => !existingIds.has(v._id));
+            console.log('Adding unique vouchers:', uniqueNew.length);
+            return [...prev, ...uniqueNew];
+          });
         }
         
-        // Check if there are more pages
-        const totalPages = data.pagination?.pages || 1;
-        setHasMore(pageNum < totalPages);
+        // Update pagination info
+        const pages = data.pagination?.pages || 1;
+        setTotalPages(pages);
+        setHasMore(pageNum < pages);
+        console.log('Has more:', pageNum < pages, 'Current page:', pageNum, 'Total:', pages);
       } else {
         toast.error('Failed to fetch vouchers');
         setHasMore(false);
       }
     } catch (error) {
-      console.error('Failed to fetch vouchers');
+      console.error('Failed to fetch vouchers', error);
       toast.error('Failed to fetch vouchers');
       setHasMore(false);
     } finally {
       setLoading(false);
       setLoadingMore(false);
-    }
-  };
-
-  const loadMore = () => {
-    if (!loadingMore && hasMore) {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      fetchVouchers(nextPage);
     }
   };
 
@@ -607,8 +639,12 @@ export default function VouchersPage() {
                   </div>
                 )}
 
-                {/* Scroll Trigger */}
-                <div ref={bottomRef} className="h-20 flex items-center justify-center">
+                {/* Scroll Trigger - More visible for debugging */}
+                <div 
+                  ref={bottomRef} 
+                  className="h-20 flex items-center justify-center"
+                  style={{ background: 'transparent' }}
+                >
                   {!hasMore && vouchers.length > 0 && (
                     <p className="text-xs text-gray-600">All {vouchers.length} vouchers loaded</p>
                   )}

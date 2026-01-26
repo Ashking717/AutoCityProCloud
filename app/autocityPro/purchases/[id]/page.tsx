@@ -109,7 +109,7 @@ export default function PurchaseDetailPage() {
   const fetchPurchase = async () => {
     try {
       setLoading(true);
-      
+
       // FIXED: Use the [id] route directly
       const res = await fetch(`/api/purchases/${purchaseId}`, {
         credentials: "include",
@@ -422,8 +422,11 @@ export default function PurchaseDetailPage() {
                             {formatCurrency(item.unitPrice)}
                           </td>
                           <td className="px-4 py-4 text-right text-gray-400">
-                            {item.taxRate > 0
-                              ? `${formatCurrency(item.taxAmount)} (${item.taxRate}%)`
+                            {Number(item.taxRate) > 0 &&
+                            Number(item.taxAmount) > 0
+                              ? `${formatCurrency(
+                                  Number(item.taxAmount)
+                                )} (${Number(item.taxRate)}%)`
                               : "-"}
                           </td>
                           <td className="px-4 py-4 text-right text-white font-semibold">
@@ -471,7 +474,10 @@ export default function PurchaseDetailPage() {
                             </div>
                             <p className="text-gray-400 text-sm">
                               {new Date(payment.date).toLocaleDateString()} •{" "}
-                              {payment.metadata?.paymentMethod?.replace("_", " ")}
+                              {payment.metadata?.paymentMethod?.replace(
+                                "_",
+                                " "
+                              )}
                               {payment.metadata?.referenceNumber &&
                                 ` • Ref: ${payment.metadata.referenceNumber}`}
                             </p>
@@ -520,7 +526,8 @@ export default function PurchaseDetailPage() {
                   <div className="flex justify-between items-center py-2 border-b border-white/5">
                     <span className="text-gray-400">Tax:</span>
                     <span className="text-white font-semibold">
-                      {formatCurrency(purchase.taxAmount)}
+                      {formatCurrency(Number(purchase.taxAmount || 0))}
+
                     </span>
                   </div>
 

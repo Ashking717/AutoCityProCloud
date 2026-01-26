@@ -49,7 +49,6 @@ interface Conversation {
   unreadCount: number;
 }
 
-
 export default function MessagesPage() {
   const [user, setUser] = useState<any>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -69,12 +68,15 @@ export default function MessagesPage() {
     lastActiveAt: null
   });
 
-
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const voiceRecorder = useVoiceRecorder();
   const [playingId, setPlayingId] = useState<string | null>(null);
+  const [audioProgress, setAudioProgress] = useState<{ [key: string]: number }>({});
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const prevMessagesLengthRef = useRef(0);
+  const userScrolledRef = useRef(false);
 
   useEffect(() => {
     fetchUser();
@@ -102,36 +104,60 @@ export default function MessagesPage() {
     };
   }, [selectedUser]);
 
+  // Smart auto-scroll: only scroll if user is near bottom or sent a message
   useEffect(() => {
-    scrollToBottom();
+    const isNewMessage = messages.length > prevMessagesLengthRef.current;
+    const isInitialLoad = prevMessagesLengthRef.current === 0 && messages.length > 0;
+    
+    if (isInitialLoad) {
+      // Always scroll on initial load
+      scrollToBottom(false);
+      userScrolledRef.current = false;
+    } else if (isNewMessage && !userScrolledRef.current) {
+      // Only auto-scroll for new messages if user hasn't manually scrolled up
+      const isNearBottom = checkIfNearBottom();
+      if (isNearBottom) {
+        scrollToBottom(true);
+      }
+    }
+    
+    prevMessagesLengthRef.current = messages.length;
   }, [messages]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  // Detect user manual scroll
+  const handleScroll = () => {
+    const isNearBottom = checkIfNearBottom();
+    userScrolledRef.current = !isNearBottom;
+  };
+
+  const checkIfNearBottom = () => {
+    const container = messagesContainerRef.current;
+    if (!container) return false;
+    
+    const threshold = 150; // pixels from bottom
+    const position = container.scrollHeight - container.scrollTop - container.clientHeight;
+    return position < threshold;
+  };
+
+  const scrollToBottom = (smooth: boolean = true) => {
+    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto" });
   };
 
   const fetchUser = async () => {
-  try {
-    const res = await fetch("/api/auth/me", { credentials: "include" });
+    try {
+      const res = await fetch("/api/auth/me", { credentials: "include" });
+      const data = await res.json();
 
-    console.log("ME API STATUS:", res.status);
-
-    const data = await res.json();
-    console.log("ME API RESPONSE:", data);
-
-    if (res.ok) {
-      setUser({
-  ...data.user,
-  _id: data.user.id, // 🔥 normalize
-});
-
+      if (res.ok) {
+        setUser({
+          ...data.user,
+          _id: data.user.id, // normalize
+        });
+      }
+    } catch (error) {
+      console.error("Failed to fetch user", error);
     }
-  } catch (error) {
-    console.error("Failed to fetch user", error);
-  }
-};
-
-
+  };
 
   const fetchConversations = async () => {
     try {
@@ -203,8 +229,9 @@ export default function MessagesPage() {
     setSelectedUser(user);
     fetchMessages(user._id);
     fetchRecipientStatus(user._id);
-    // Hide sidebar on mobile when user is selected
     setShowSidebar(false);
+    userScrolledRef.current = false;
+    prevMessagesLengthRef.current = 0;
   };
 
   const handleBackToList = () => {
@@ -215,13 +242,11 @@ export default function MessagesPage() {
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Validate file type
       if (!file.type.startsWith("image/")) {
         toast.error("Please select an image file");
         return;
       }
 
-      // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         toast.error("Image must be less than 5MB");
         return;
@@ -240,6 +265,9 @@ export default function MessagesPage() {
     if (!selectedUser || (!message.trim() && !voiceRecorder.audioBlob && !selectedImage)) return;
 
     setSending(true);
+    // Mark that user sent a message, so we should scroll to bottom
+    userScrolledRef.current = false;
+    
     try {
       let messageData: any = {
         recipientId: selectedUser._id,
@@ -247,7 +275,6 @@ export default function MessagesPage() {
         content: message.trim(),
       };
 
-      // Handle image message
       if (selectedImage) {
         const formData = new FormData();
         formData.append("file", selectedImage);
@@ -272,9 +299,7 @@ export default function MessagesPage() {
 
         setSelectedImage(null);
         setImagePreview(null);
-      }
-      // Handle voice message
-      else if (voiceRecorder.audioBlob) {
+      } else if (voiceRecorder.audioBlob) {
         const formData = new FormData();
         formData.append("file", voiceRecorder.audioBlob, "voice-note.webm");
         formData.append("type", "voice");
@@ -340,7 +365,6 @@ export default function MessagesPage() {
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
 
-  // Send activity ping to mark user as online
   const sendActivityPing = async () => {
     try {
       await fetch("/api/users/activity", {
@@ -352,7 +376,6 @@ export default function MessagesPage() {
     }
   };
 
-  // Fetch recipient's activity status
   const fetchRecipientStatus = async (userId: string) => {
     try {
       const res = await fetch(`/api/users/${userId}/status`, {
@@ -370,7 +393,6 @@ export default function MessagesPage() {
     }
   };
 
-  // Format last seen time
   const formatLastSeen = (lastActiveAt: string | null) => {
     if (!lastActiveAt) return "last seen recently";
 
@@ -390,6 +412,39 @@ export default function MessagesPage() {
     return `last seen ${lastSeen.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
   };
 
+  const formatAudioTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleAudioTimeUpdate = () => {
+    if (audioRef.current && playingId) {
+      const progress = (audioRef.current.currentTime / audioRef.current.duration) * 100;
+      setAudioProgress(prev => ({ ...prev, [playingId]: progress }));
+    }
+  };
+
+  const handleAudioEnded = () => {
+    if (playingId) {
+      setAudioProgress(prev => ({ ...prev, [playingId]: 0 }));
+    }
+    setPlayingId(null);
+  };
+
+  const playVoiceMessage = (messageId: string, voiceUrl: string) => {
+    if (playingId === messageId) {
+      audioRef.current?.pause();
+      setPlayingId(null);
+    } else {
+      if (audioRef.current) {
+        audioRef.current.src = voiceUrl;
+        audioRef.current.play();
+      }
+      setPlayingId(messageId);
+    }
+  };
+
   const handleImageView = (imageUrl: string, content: string) => {
     setViewingImage({ url: imageUrl, content });
   };
@@ -398,16 +453,13 @@ export default function MessagesPage() {
     try {
       toast.loading("Downloading image...");
       
-      // Fetch the image
       const response = await fetch(imageUrl);
       const blob = await response.blob();
       
-      // Create download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       
-      // Generate filename from content or timestamp
       const timestamp = new Date().getTime();
       const filename = content && content !== "Image" 
         ? `${content.substring(0, 20)}-${timestamp}.jpg`
@@ -439,34 +491,32 @@ export default function MessagesPage() {
         u.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         u.email?.toLowerCase().includes(searchTerm.toLowerCase()))
   );
-     
 
   return (
     <MainLayout user={user} onLogout={handleLogout}>
       <div className="flex flex-col h-screen bg-[#050505] overflow-hidden">
-
         {/* Header - Fixed */}
         <div className="bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-lg flex-shrink-0">
-          <div className="px-4 md:px-6 py-4 md:py-6">
+          <div className="px-4 md:px-6 py-3 md:py-6">
             <div className="flex items-center space-x-3">
               <div className="p-2 md:p-3 bg-white/10 backdrop-blur-sm rounded-xl">
                 <MessageCircle className="h-6 w-6 md:h-8 md:w-8 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl md:text-3xl font-bold text-white">Messages</h1>
-                <p className="text-sm md:text-base text-white/80 mt-1">Team communication</p>
+                <h1 className="text-xl md:text-3xl font-bold text-white">Messages</h1>
+                <p className="text-xs md:text-base text-white/80 mt-0.5 md:mt-1">Team communication</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Main Content Area - Takes remaining space */}
+        {/* Main Content Area */}
         <div className="flex-1 flex overflow-hidden min-h-0">
           {/* Conversations Sidebar */}
           <div className={`${
             showSidebar ? 'flex' : 'hidden'
           } md:flex w-full md:w-80 bg-black border-r border-gray-800 flex-col overflow-hidden`}>
-            {/* Search - Fixed */}
+            {/* Search */}
             <div className="p-3 md:p-4 border-b border-gray-800 flex-shrink-0">
               <div className="relative">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
@@ -475,60 +525,57 @@ export default function MessagesPage() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search users..."
-                  className="w-full pl-10 pr-4 py-2 bg-gray-900 border border-gray-800 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-sm"
+                  className="w-full pl-9 pr-3 py-2 bg-gray-900 border border-gray-800 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-sm"
                 />
               </div>
             </div>
 
-            {/* Conversations List - Scrollable */}
+            {/* Conversations List */}
             <div className="flex-1 overflow-y-auto">
               {searchTerm
                 ? filteredUsers.map((u) => (
                     <button
                       key={u._id}
                       onClick={() => handleSelectUser(u)}
-                      className={`w-full p-3 md:p-4 flex items-center space-x-3 hover:bg-gray-900 border-b border-gray-800 transition-colors ${
+                      className={`w-full p-3 md:p-4 flex items-center space-x-3 hover:bg-gray-900 border-b border-gray-800 transition-colors active:bg-gray-800 ${
                         selectedUser?._id === u._id ? "bg-gray-900" : ""
                       }`}
                     >
-                      <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-[#E84545]/20 flex items-center justify-center border border-[#E84545]/30 flex-shrink-0">
+                      <div className="w-11 h-11 md:w-12 md:h-12 rounded-full bg-[#E84545]/20 flex items-center justify-center border border-[#E84545]/30 flex-shrink-0">
                         <span className="text-[#E84545] font-semibold text-sm md:text-base">
                           {u.firstName?.[0]}
                           {u.lastName?.[0]}
                         </span>
                       </div>
-                      <div className="flex-1 text-left">
-                        <p className="text-white font-medium text-sm md:text-base">
+                      <div className="flex-1 text-left min-w-0">
+                        <p className="text-white font-medium text-sm md:text-base truncate">
                           {u.firstName} {u.lastName}
                         </p>
-                        <p className="text-gray-500 text-xs md:text-sm">{u.role}</p>
+                        <p className="text-gray-500 text-xs md:text-sm truncate">{u.role}</p>
                       </div>
                     </button>
                   ))
                 : conversations.map((conv) => (
-  <button
-    key={conv.conversationWith._id}
-    onClick={() => handleSelectUser(conv.conversationWith)}
-    className={`w-full p-3 md:p-4 flex items-center space-x-3 hover:bg-gray-900 border-b border-gray-800 transition-colors ${
-      selectedUser?._id === conv.conversationWith._id ? "bg-gray-900" : ""
-    }`}
-  >
-
-                      <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-[#E84545]/20 flex items-center justify-center border border-[#E84545]/30 flex-shrink-0">
+                    <button
+                      key={conv.conversationWith._id}
+                      onClick={() => handleSelectUser(conv.conversationWith)}
+                      className={`w-full p-3 md:p-4 flex items-center space-x-3 hover:bg-gray-900 border-b border-gray-800 transition-colors active:bg-gray-800 ${
+                        selectedUser?._id === conv.conversationWith._id ? "bg-gray-900" : ""
+                      }`}
+                    >
+                      <div className="w-11 h-11 md:w-12 md:h-12 rounded-full bg-[#E84545]/20 flex items-center justify-center border border-[#E84545]/30 flex-shrink-0">
                         <span className="text-[#E84545] font-semibold text-sm md:text-base">
                           {conv.conversationWith.firstName?.[0]}
-{conv.conversationWith.lastName?.[0]}
-
+                          {conv.conversationWith.lastName?.[0]}
                         </span>
                       </div>
                       <div className="flex-1 text-left min-w-0">
                         <div className="flex items-center justify-between mb-1">
                           <p className="text-white font-medium truncate text-sm md:text-base">
                             {conv.conversationWith.firstName} {conv.conversationWith.lastName}
-
                           </p>
                           {conv.unreadCount > 0 && (
-                            <span className="ml-2 px-2 py-0.5 bg-[#E84545] text-white text-xs rounded-full flex-shrink-0">
+                            <span className="ml-2 px-2 py-0.5 bg-[#E84545] text-white text-xs rounded-full flex-shrink-0 min-w-[1.25rem] text-center">
                               {conv.unreadCount}
                             </span>
                           )}
@@ -545,8 +592,8 @@ export default function MessagesPage() {
                   ))}
 
               {!loading && conversations.length === 0 && !searchTerm && (
-                <div className="p-8 text-center text-gray-500">
-                  <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <div className="p-6 md:p-8 text-center text-gray-500">
+                  <MessageCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
                   <p className="text-sm md:text-base">No conversations yet</p>
                   <p className="text-xs md:text-sm mt-2">
                     Search for users to start messaging
@@ -562,23 +609,23 @@ export default function MessagesPage() {
           } md:flex flex-1 flex-col min-h-0 bg-[#0A0A0A] overflow-hidden`}>
             {selectedUser ? (
               <>
-                {/* Chat Header - Fixed */}
+                {/* Chat Header */}
                 <div className="p-3 md:p-4 border-b border-gray-800 bg-black flex-shrink-0">
                   <div className="flex items-center space-x-3">
                     <button
                       onClick={handleBackToList}
-                      className="md:hidden p-2 hover:bg-gray-800 rounded-lg"
+                      className="md:hidden p-2 hover:bg-gray-800 rounded-lg active:bg-gray-700 touch-manipulation"
                     >
                       <ArrowLeft className="h-5 w-5 text-white" />
                     </button>
-                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-[#E84545]/20 flex items-center justify-center border border-[#E84545]/30">
-                      <span className="text-[#E84545] font-semibold text-sm md:text-base">
+                    <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-[#E84545]/20 flex items-center justify-center border border-[#E84545]/30">
+                      <span className="text-[#E84545] font-semibold text-sm">
                         {selectedUser.firstName?.[0]}
                         {selectedUser.lastName?.[0]}
                       </span>
                     </div>
-                    <div>
-                      <p className="text-white font-medium text-sm md:text-base">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-medium text-sm md:text-base truncate">
                         {selectedUser.firstName} {selectedUser.lastName}
                       </p>
                       <div className="flex items-center space-x-1.5">
@@ -590,7 +637,7 @@ export default function MessagesPage() {
                             </p>
                           </>
                         ) : (
-                          <p className="text-gray-400 text-xs md:text-sm">
+                          <p className="text-gray-400 text-xs truncate">
                             {formatLastSeen(recipientStatus.lastActiveAt)}
                           </p>
                         )}
@@ -599,24 +646,22 @@ export default function MessagesPage() {
                   </div>
                 </div>
 
-                {/* Messages - Scrollable */}
-                <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 md:space-y-4">
+                {/* Messages */}
+                <div 
+                  ref={messagesContainerRef}
+                  onScroll={handleScroll}
+                  className="flex-1 overflow-y-auto p-3 md:p-4 space-y-2 md:space-y-3"
+                >
                   {messages.map((msg, index) => {
-                    // Ensure proper string comparison for IDs
-                    console.log("ME:", user?._id);
-  console.log("SENDER:", msg.senderId._id);
-                    const isMe =
-  !!user && msg.senderId._id === user._id;
-
+                    const isMe = !!user && msg.senderId._id === user._id;
                     const showDate =
                       index === 0 ||
-                      formatDate(messages[index - 1].createdAt) !==
-                        formatDate(msg.createdAt);
+                      formatDate(messages[index - 1].createdAt) !== formatDate(msg.createdAt);
 
                     return (
                       <div key={msg._id}>
                         {showDate && (
-                          <div className="flex justify-center my-3 md:my-4">
+                          <div className="flex justify-center my-2 md:my-3">
                             <span className="px-3 py-1 bg-gray-800 text-gray-400 text-xs rounded-full">
                               {formatDate(msg.createdAt)}
                             </span>
@@ -625,10 +670,10 @@ export default function MessagesPage() {
 
                         <div className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
                           <div
-                            className={`max-w-[85%] md:max-w-md px-3 md:px-4 py-2 rounded-lg ${
+                            className={`max-w-[85%] md:max-w-md px-3 md:px-4 py-2 rounded-2xl ${
                               isMe
-                                ? "bg-[#005C4B] text-white"
-                                : "bg-gray-800 text-white"
+                                ? "bg-[#005C4B] text-white rounded-br-md"
+                                : "bg-gray-800 text-white rounded-bl-md"
                             }`}
                           >
                             {msg.type === "image" ? (
@@ -640,55 +685,56 @@ export default function MessagesPage() {
                                   onClick={() => handleImageView(msg.imageUrl!, msg.content)}
                                 />
                                 {msg.content && msg.content !== "Image" && (
-                                  <p className="text-xs md:text-sm">{msg.content}</p>
+                                  <p className="text-sm">{msg.content}</p>
                                 )}
                               </div>
                             ) : msg.type === "voice" ? (
-                              <div className="flex items-center space-x-2">
-                                <button
-                                  onClick={() => {
-                                    if (playingId === msg._id) {
-                                      audioRef.current?.pause();
-                                      setPlayingId(null);
-                                    } else {
-                                      if (audioRef.current) {
-                                        audioRef.current.src = msg.voiceUrl || "";
-                                        audioRef.current.play();
-                                      }
-                                      setPlayingId(msg._id);
+                              <div className="space-y-1.5">
+                                <div className="flex items-center space-x-2 min-w-[200px]">
+                                  <button
+                                    onClick={() => playVoiceMessage(msg._id, msg.voiceUrl || "")}
+                                    className="p-1.5 hover:bg-white/10 rounded-full active:bg-white/20 touch-manipulation flex-shrink-0"
+                                  >
+                                    {playingId === msg._id ? (
+                                      <Pause className="h-4 w-4" />
+                                    ) : (
+                                      <Play className="h-4 w-4" />
+                                    )}
+                                  </button>
+
+                                  <div className="flex-1 h-1.5 bg-white/30 rounded-full overflow-hidden">
+                                    <div 
+                                      className="h-full bg-white rounded-full transition-all duration-100"
+                                      style={{ width: `${audioProgress[msg._id] || 0}%` }}
+                                    />
+                                  </div>
+
+                                  <span className="text-xs opacity-80 font-mono tabular-nums">
+                                    {playingId === msg._id && audioRef.current
+                                      ? formatAudioTime(audioRef.current.currentTime)
+                                      : formatAudioTime(0)
                                     }
-                                  }}
-                                  className="p-1 hover:bg-white/10 rounded-full"
-                                >
-                                  {playingId === msg._id ? (
-                                    <Pause className="h-3 w-3 md:h-4 md:w-4" />
-                                  ) : (
-                                    <Play className="h-3 w-3 md:h-4 md:w-4" />
-                                  )}
-                                </button>
-
-                                <div className="flex-1 h-1 bg-white/30 rounded-full">
-                                  <div className="h-1 bg-white rounded-full w-1/3" />
+                                    {' / '}
+                                    {formatAudioTime(msg.voiceDuration || 0)}
+                                  </span>
                                 </div>
-
-                                <span className="text-xs opacity-80">
-                                  {msg.voiceDuration}s
-                                </span>
                               </div>
                             ) : (
-                              <p className="text-xs md:text-sm break-words">{msg.content}</p>
+                              <p className="text-sm md:text-base break-words whitespace-pre-wrap">
+                                {msg.content}
+                              </p>
                             )}
 
                             <div className="flex items-center justify-between mt-1 space-x-2">
-                              <span className="text-xs opacity-70">
+                              <span className="text-[10px] md:text-xs opacity-70">
                                 {formatTime(msg.createdAt)}
                               </span>
                               {isMe && (
                                 <span>
                                   {msg.isRead ? (
-                                    <CheckCheck className="h-3 w-3 md:h-4 md:w-4 text-[#53BDEB]" />
+                                    <CheckCheck className="h-3.5 w-3.5 md:h-4 md:w-4 text-[#53BDEB]" />
                                   ) : (
-                                    <Check className="h-3 w-3 md:h-4 md:w-4 text-gray-400" />
+                                    <Check className="h-3.5 w-3.5 md:h-4 md:w-4 text-gray-400" />
                                   )}
                                 </span>
                               )}
@@ -701,84 +747,88 @@ export default function MessagesPage() {
                   <div ref={messagesEndRef} />
                 </div>
 
-                <audio
-                  ref={audioRef}
-                  onEnded={() => setPlayingId(null)}
+                <audio 
+                  ref={audioRef} 
+                  onTimeUpdate={handleAudioTimeUpdate}
+                  onEnded={handleAudioEnded}
                 />
 
-                {/* Input Area - Fixed */}
+                {/* Input Area */}
                 <div className="border-t border-gray-800 bg-black flex-shrink-0">
-                  <div className="p-3 md:p-4">
+                  <div className="p-2.5 md:p-4 pb-safe">
                     {/* Image Preview */}
                     {imagePreview && (
-                      <div className="mb-3 relative inline-block">
+                      <div className="mb-2 md:mb-3 relative inline-block">
                         <img
                           src={imagePreview}
                           alt="Preview"
-                          className="max-h-24 md:max-h-32 rounded-lg"
+                          className="max-h-20 md:max-h-32 rounded-lg"
                         />
                         <button
                           onClick={() => {
                             setSelectedImage(null);
                             setImagePreview(null);
                           }}
-                          className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                          className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 active:bg-red-700 touch-manipulation"
                         >
-                          <X className="h-3 w-3 md:h-4 md:w-4" />
+                          <X className="h-3.5 w-3.5 md:h-4 md:w-4" />
                         </button>
                       </div>
                     )}
 
                     {voiceRecorder.isRecording ? (
-                      <div className="flex items-center space-x-2 md:space-x-3">
-                        <div className="flex-1 flex items-center space-x-2 md:space-x-3 px-3 md:px-4 py-2 md:py-3 bg-gray-900 rounded-lg">
-                          <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                          <span className="text-white text-sm md:text-base">
-                            {voiceRecorder.duration}s
+                      <div className="flex items-center space-x-2">
+                        <div className="flex-1 flex items-center space-x-2 md:space-x-3 px-3 md:px-4 py-2.5 md:py-3 bg-gray-900 rounded-xl">
+                          <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse flex-shrink-0" />
+                          <span className="text-white text-sm md:text-base font-medium font-mono tabular-nums">
+                            {formatAudioTime(voiceRecorder.duration)}
                           </span>
-                          <div className="flex-1 h-1 bg-gray-700 rounded-full">
-                            <div className="h-1 bg-red-500 rounded-full animate-pulse w-full" />
+                          <div className="flex-1 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                            <div className="h-full bg-red-500 rounded-full animate-pulse w-full" />
                           </div>
                         </div>
                         <button
                           onClick={voiceRecorder.cancelRecording}
-                          className="p-2 md:p-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700"
+                          className="p-2.5 md:p-3 bg-gray-800 text-white rounded-xl hover:bg-gray-700 active:bg-gray-600 touch-manipulation"
                         >
-                          <X className="h-4 w-4 md:h-5 md:w-5" />
+                          <X className="h-5 w-5" />
                         </button>
                         <button
                           onClick={voiceRecorder.stopRecording}
-                          className="p-2 md:p-3 bg-[#E84545] text-white rounded-lg hover:bg-[#cc3c3c]"
+                          className="p-2.5 md:p-3 bg-[#E84545] text-white rounded-xl hover:bg-[#cc3c3c] active:bg-[#b33535] touch-manipulation"
                         >
-                          <Send className="h-4 w-4 md:h-5 md:w-5" />
+                          <Send className="h-5 w-5" />
                         </button>
                       </div>
                     ) : voiceRecorder.audioBlob ? (
-                      <div className="flex items-center space-x-2 md:space-x-3">
-                        <div className="flex-1 flex items-center space-x-2 md:space-x-3 px-3 md:px-4 py-2 md:py-3 bg-gray-900 rounded-lg">
-                          <button className="p-1 hover:bg-white/10 rounded-full">
-                            <Play className="h-3 w-3 md:h-4 md:w-4 text-white" />
-                          </button>
-                          <span className="text-white text-xs md:text-sm">
-                            Voice message ({voiceRecorder.duration}s)
+                      <div className="flex items-center space-x-2">
+                        <div className="flex-1 flex items-center space-x-2 md:space-x-3 px-3 md:px-4 py-2.5 md:py-3 bg-gray-900 rounded-xl">
+                          <div className="p-1 hover:bg-white/10 rounded-full touch-manipulation">
+                            <Play className="h-4 w-4 text-white" />
+                          </div>
+                          <div className="flex-1 h-1.5 bg-gray-700 rounded-full">
+                            <div className="h-1.5 bg-white rounded-full w-0" />
+                          </div>
+                          <span className="text-white text-sm font-mono tabular-nums">
+                            {formatAudioTime(voiceRecorder.duration)}
                           </span>
                         </div>
                         <button
                           onClick={voiceRecorder.cancelRecording}
-                          className="p-2 md:p-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700"
+                          className="p-2.5 md:p-3 bg-gray-800 text-white rounded-xl hover:bg-gray-700 active:bg-gray-600 touch-manipulation"
                         >
-                          <Trash2 className="h-4 w-4 md:h-5 md:w-5" />
+                          <Trash2 className="h-5 w-5" />
                         </button>
                         <button
                           onClick={handleSendMessage}
                           disabled={sending}
-                          className="p-2 md:p-3 bg-[#E84545] text-white rounded-lg hover:bg-[#cc3c3c] disabled:opacity-50"
+                          className="p-2.5 md:p-3 bg-[#E84545] text-white rounded-xl hover:bg-[#cc3c3c] active:bg-[#b33535] disabled:opacity-50 touch-manipulation"
                         >
-                          <Send className="h-4 w-4 md:h-5 md:w-5" />
+                          <Send className="h-5 w-5" />
                         </button>
                       </div>
                     ) : (
-                      <div className="flex items-center space-x-2 md:space-x-3">
+                      <div className="flex items-center space-x-2">
                         <input
                           type="file"
                           ref={fileInputRef}
@@ -788,43 +838,39 @@ export default function MessagesPage() {
                         />
                         <button
                           onClick={() => fileInputRef.current?.click()}
-                          className="p-2 md:p-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700"
+                          className="p-2.5 md:p-3 bg-gray-800 text-white rounded-xl hover:bg-gray-700 active:bg-gray-600 touch-manipulation flex-shrink-0"
                         >
-                          <ImageIcon className="h-4 w-4 md:h-5 md:w-5" />
+                          <ImageIcon className="h-5 w-5" />
                         </button>
                         <input
                           type="text"
                           value={message}
                           onChange={(e) => setMessage(e.target.value)}
-                          onKeyPress={(e) =>
-                            e.key === "Enter" && handleSendMessage()
-                          }
+                          onKeyPress={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
                           placeholder="Type a message..."
-                          className="flex-1 px-3 md:px-4 py-2 md:py-3 bg-gray-900 border border-gray-800 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-sm md:text-base"
+                          className="flex-1 px-3 md:px-4 py-2.5 md:py-3 bg-gray-900 border border-gray-800 rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-sm md:text-base min-w-0"
                         />
                         <button
                           onClick={voiceRecorder.startRecording}
-                          className="p-2 md:p-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700"
+                          className="p-2.5 md:p-3 bg-gray-800 text-white rounded-xl hover:bg-gray-700 active:bg-gray-600 touch-manipulation flex-shrink-0"
                         >
-                          <Mic className="h-4 w-4 md:h-5 md:w-5" />
+                          <Mic className="h-5 w-5" />
                         </button>
                         <button
                           onClick={handleSendMessage}
                           disabled={(!message.trim() && !selectedImage) || sending}
-                          className="p-2 md:p-3 bg-[#E84545] text-white rounded-lg hover:bg-[#cc3c3c] disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="p-2.5 md:p-3 bg-[#E84545] text-white rounded-xl hover:bg-[#cc3c3c] active:bg-[#b33535] disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation flex-shrink-0"
                         >
-                          <Send className="h-4 w-4 md:h-5 md:w-5" />
+                          <Send className="h-5 w-5" />
                         </button>
                       </div>
                     )}
-                    {/* Mobile Safe Area Bottom Padding */}
-                  <div className="md:hidden h-24"></div>
                   </div>
                 </div>
               </>
             ) : (
-              <div className="flex-1 flex items-center justify-center text-gray-500">
-                <div className="text-center p-4">
+              <div className="flex-1 flex items-center justify-center text-gray-500 p-4">
+                <div className="text-center">
                   <MessageCircle className="h-12 w-12 md:h-16 md:w-16 mx-auto mb-4 opacity-50" />
                   <p className="text-base md:text-lg">
                     Select a conversation to start messaging
@@ -832,16 +878,17 @@ export default function MessagesPage() {
                 </div>
               </div>
             )}
-          </div>
+          {/* Mobile Safe Area Bottom Padding */}
+                  <div className="md:hidden h-24"></div>
+          </div>        
         </div>
       </div>
 
-      {/* WhatsApp-Style Image Viewer Modal */}
+      {/* Image Viewer Modal */}
       {viewingImage && (
         <div 
           className="fixed inset-0 z-50 bg-black flex flex-col animate-in fade-in duration-200"
           onClick={(e) => {
-            // Close when clicking the background (not the image or controls)
             if (e.target === e.currentTarget) {
               setViewingImage(null);
             }
@@ -851,22 +898,22 @@ export default function MessagesPage() {
           <div className="flex items-center justify-between p-3 md:p-4 bg-gradient-to-b from-black/80 to-transparent backdrop-blur-sm z-10">
             <button
               onClick={() => setViewingImage(null)}
-              className="p-2 hover:bg-white/10 rounded-full transition-colors"
+              className="p-2 hover:bg-white/10 rounded-full transition-colors active:bg-white/20 touch-manipulation"
               aria-label="Close"
             >
-              <X className="h-5 w-5 md:h-6 md:w-6 text-white" />
+              <X className="h-6 w-6 text-white" />
             </button>
             
             <button
               onClick={() => handleImageDownload(viewingImage.url, viewingImage.content)}
-              className="p-2 hover:bg-white/10 rounded-full transition-colors"
+              className="p-2 hover:bg-white/10 rounded-full transition-colors active:bg-white/20 touch-manipulation"
               aria-label="Download image"
             >
-              <Download className="h-5 w-5 md:h-6 md:w-6 text-white" />
+              <Download className="h-6 w-6 text-white" />
             </button>
           </div>
 
-          {/* Image Container - Click on empty space closes modal */}
+          {/* Image Container */}
           <div 
             className="flex-1 flex items-center justify-center p-4 overflow-hidden"
             onClick={() => setViewingImage(null)}
@@ -875,15 +922,15 @@ export default function MessagesPage() {
               src={viewingImage.url}
               alt="Full size"
               className="max-w-full max-h-full object-contain select-none"
-              onClick={(e) => e.stopPropagation()} // Prevent closing when clicking image itself
+              onClick={(e) => e.stopPropagation()}
               draggable={false}
             />
           </div>
 
-          {/* Caption (if exists) */}
+          {/* Caption */}
           {viewingImage.content && viewingImage.content !== "Image" && (
             <div className="p-3 md:p-4 bg-gradient-to-t from-black/80 to-transparent backdrop-blur-sm">
-              <p className="text-white text-center text-sm md:text-base">
+              <p className="text-white text-center text-sm md:text-base break-words">
                 {viewingImage.content}
               </p>
             </div>

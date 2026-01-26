@@ -878,8 +878,7 @@ export default function MessagesPage() {
                 </div>
               </div>
             )}
-          {/* Mobile Safe Area Bottom Padding */}
-                  <div className="md:hidden h-24"></div>
+          
           </div>        
         </div>
       </div>

@@ -11,6 +11,7 @@ interface UseVoiceRecorderReturn {
   startRecording: () => Promise<void>;
   stopRecording: () => void;
   cancelRecording: () => void;
+  reset: () => void;
   error: string | null;
 }
 
@@ -22,49 +23,64 @@ export function useVoiceRecorder(): UseVoiceRecorderReturn {
   const [error, setError] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isResettingRef = useRef(false);
+
+  const clearTimer = () => {
+    if (durationIntervalRef.current) {
+      clearInterval(durationIntervalRef.current);
+      durationIntervalRef.current = null;
+    }
+  };
+
+  const cleanupStream = () => {
+    streamRef.current?.getTracks().forEach(track => track.stop());
+    streamRef.current = null;
+  };
 
   const startRecording = useCallback(async () => {
     try {
       setError(null);
-      
-      // Request microphone access
+      isResettingRef.current = false;
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
-      // Create MediaRecorder
-      const mediaRecorder = new MediaRecorder(stream, {
+      streamRef.current = stream;
+
+      const recorder = new MediaRecorder(stream, {
         mimeType: 'audio/webm;codecs=opus',
       });
-      
-      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorderRef.current = recorder;
       chunksRef.current = [];
 
-      // Collect audio data
-      mediaRecorder.ondataavailable = (event) => {
+      recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           chunksRef.current.push(event.data);
         }
       };
 
-      // Handle recording stop
-      mediaRecorder.onstop = () => {
+      recorder.onstop = () => {
+        // Ignore late async stop after reset/send
+        if (isResettingRef.current) {
+          cleanupStream();
+          return;
+        }
+
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
         const url = URL.createObjectURL(blob);
-        
+
         setAudioBlob(blob);
         setAudioUrl(url);
-        
-        // Stop all tracks
-        stream.getTracks().forEach(track => track.stop());
+
+        cleanupStream();
       };
 
-      // Start recording
-      mediaRecorder.start();
+      recorder.start();
       setIsRecording(true);
       setDuration(0);
 
-      // Start duration counter
       durationIntervalRef.current = setInterval(() => {
         setDuration(prev => prev + 1);
       }, 1000);
@@ -76,31 +92,50 @@ export function useVoiceRecorder(): UseVoiceRecorderReturn {
   }, []);
 
   const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
+    const recorder = mediaRecorderRef.current;
+    if (recorder && isRecording) {
+      recorder.stop();
       setIsRecording(false);
-
-      if (durationIntervalRef.current) {
-        clearInterval(durationIntervalRef.current);
-        durationIntervalRef.current = null;
-      }
+      clearTimer();
     }
   }, [isRecording]);
 
   const cancelRecording = useCallback(() => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      setAudioBlob(null);
-      setAudioUrl(null);
-      setDuration(0);
+    isResettingRef.current = true;
 
-      if (durationIntervalRef.current) {
-        clearInterval(durationIntervalRef.current);
-        durationIntervalRef.current = null;
-      }
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== 'inactive') {
+      recorder.stop();
     }
-  }, [isRecording]);
+
+    clearTimer();
+    cleanupStream();
+
+    chunksRef.current = [];
+    setAudioBlob(null);
+    setAudioUrl(null);
+    setDuration(0);
+    setIsRecording(false);
+  }, []);
+
+  // ✅ CALL THIS AFTER SENDING VOICE MESSAGE
+  const reset = useCallback(() => {
+    isResettingRef.current = true;
+
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== 'inactive') {
+      recorder.stop();
+    }
+
+    clearTimer();
+    cleanupStream();
+
+    chunksRef.current = [];
+    setAudioBlob(null);
+    setAudioUrl(null);
+    setDuration(0);
+    setIsRecording(false);
+  }, []);
 
   return {
     isRecording,
@@ -110,6 +145,7 @@ export function useVoiceRecorder(): UseVoiceRecorderReturn {
     startRecording,
     stopRecording,
     cancelRecording,
+    reset,
     error,
   };
 }

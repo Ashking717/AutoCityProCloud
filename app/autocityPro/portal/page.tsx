@@ -953,7 +953,7 @@ export default function PurchasesPortalPage() {
       )}
 
       {/* Mobile Safe Area Bottom Padding */}
-      <div className="md:hidden h-6"></div>
+      <div className="md:hidden h-24"></div>
 
       <style jsx global>{`
         @supports (padding: max(0px)) {

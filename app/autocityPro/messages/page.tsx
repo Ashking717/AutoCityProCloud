@@ -67,6 +67,7 @@ export default function MessagesPage() {
     isOnline: false,
     lastActiveAt: null
   });
+  const [justSentVoice, setJustSentVoice] = useState(false); // ✅ NEW: Track if we just sent voice
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -83,13 +84,9 @@ export default function MessagesPage() {
     fetchConversations();
     fetchUsers();
 
-    // Send initial activity ping
     sendActivityPing();
-
-    // Send activity ping every 30 seconds to keep user marked as online
     const activityInterval = setInterval(sendActivityPing, 30000);
 
-    // Poll for new messages every 5 seconds
     const messagesInterval = setInterval(() => {
       if (selectedUser) {
         fetchMessages(selectedUser._id, true);
@@ -104,17 +101,14 @@ export default function MessagesPage() {
     };
   }, [selectedUser]);
 
-  // Smart auto-scroll: only scroll if user is near bottom or sent a message
   useEffect(() => {
     const isNewMessage = messages.length > prevMessagesLengthRef.current;
     const isInitialLoad = prevMessagesLengthRef.current === 0 && messages.length > 0;
     
     if (isInitialLoad) {
-      // Always scroll on initial load
       scrollToBottom(false);
       userScrolledRef.current = false;
     } else if (isNewMessage && !userScrolledRef.current) {
-      // Only auto-scroll for new messages if user hasn't manually scrolled up
       const isNearBottom = checkIfNearBottom();
       if (isNearBottom) {
         scrollToBottom(true);
@@ -124,7 +118,6 @@ export default function MessagesPage() {
     prevMessagesLengthRef.current = messages.length;
   }, [messages]);
 
-  // Detect user manual scroll
   const handleScroll = () => {
     const isNearBottom = checkIfNearBottom();
     userScrolledRef.current = !isNearBottom;
@@ -134,7 +127,7 @@ export default function MessagesPage() {
     const container = messagesContainerRef.current;
     if (!container) return false;
     
-    const threshold = 150; // pixels from bottom
+    const threshold = 150;
     const position = container.scrollHeight - container.scrollTop - container.clientHeight;
     return position < threshold;
   };
@@ -151,7 +144,7 @@ export default function MessagesPage() {
       if (res.ok) {
         setUser({
           ...data.user,
-          _id: data.user.id, // normalize
+          _id: data.user.id,
         });
       }
     } catch (error) {
@@ -265,8 +258,12 @@ export default function MessagesPage() {
     if (!selectedUser || (!message.trim() && !voiceRecorder.audioBlob && !selectedImage)) return;
 
     setSending(true);
-    // Mark that user sent a message, so we should scroll to bottom
     userScrolledRef.current = false;
+    
+    // ✅ Store voice data before clearing
+    const hasVoiceMessage = !!voiceRecorder.audioBlob;
+    const voiceBlob = voiceRecorder.audioBlob;
+    const voiceDuration = voiceRecorder.duration;
     
     try {
       let messageData: any = {
@@ -296,12 +293,9 @@ export default function MessagesPage() {
           content: message.trim() || "Image",
           imageUrl: uploadData.url,
         };
-
-        setSelectedImage(null);
-        setImagePreview(null);
-      } else if (voiceRecorder.audioBlob) {
+      } else if (hasVoiceMessage && voiceBlob) {
         const formData = new FormData();
-        formData.append("file", voiceRecorder.audioBlob, "voice-note.webm");
+        formData.append("file", voiceBlob, "voice-note.webm");
         formData.append("type", "voice");
 
         const uploadRes = await fetch("/api/upload", {
@@ -317,12 +311,10 @@ export default function MessagesPage() {
         messageData = {
           recipientId: selectedUser._id,
           type: "voice",
-          content: `Voice message (${voiceRecorder.duration}s)`,
+          content: `Voice message (${voiceDuration}s)`,
           voiceUrl: uploadData.url,
-          voiceDuration: voiceRecorder.duration,
+          voiceDuration: voiceDuration,
         };
-
-        voiceRecorder.cancelRecording();
       }
 
       const res = await fetch("/api/messages", {
@@ -333,14 +325,38 @@ export default function MessagesPage() {
       });
 
       if (res.ok) {
+        // ✅ CRITICAL: Set flag IMMEDIATELY to hide voice UI
+        if (hasVoiceMessage) {
+          setJustSentVoice(true);
+        }
+        
+        // ✅ Reset ALL input states
         setMessage("");
-        fetchMessages(selectedUser._id);
-        fetchConversations();
+        setSelectedImage(null);
+        setImagePreview(null);
+        
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+        
+        // ✅ Cancel voice recorder
+        voiceRecorder.cancelRecording();
+        
+        // Fetch updates
+        await fetchMessages(selectedUser._id);
+        await fetchConversations();
+        
+        // ✅ Reset flag after brief delay to allow state to settle
+        if (hasVoiceMessage) {
+          setTimeout(() => setJustSentVoice(false), 300);
+        }
       } else {
         throw new Error("Failed to send message");
       }
     } catch (error) {
+      console.error("Send message error:", error);
       toast.error("Failed to send message");
+      setJustSentVoice(false); // Reset on error
     } finally {
       setSending(false);
     }
@@ -451,7 +467,7 @@ export default function MessagesPage() {
 
   const handleImageDownload = async (imageUrl: string, content: string) => {
     try {
-      toast.loading("Downloading image...");
+      const loadingToast = toast.loading("Downloading image...");
       
       const response = await fetch(imageUrl);
       const blob = await response.blob();
@@ -471,10 +487,9 @@ export default function MessagesPage() {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       
-      toast.dismiss();
+      toast.dismiss(loadingToast);
       toast.success("Image downloaded");
     } catch (error) {
-      toast.dismiss();
       toast.error("Failed to download image");
     }
   };
@@ -493,7 +508,7 @@ export default function MessagesPage() {
   );
 
   return (
-    <MainLayout user={user} onLogout={handleLogout}>
+    <MainLayout user={user} onLogout={handleLogout} >
       <div className="flex flex-col h-screen bg-[#050505] overflow-hidden">
         {/* Header - Fixed */}
         <div className="bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-lg flex-shrink-0">
@@ -768,6 +783,9 @@ export default function MessagesPage() {
                           onClick={() => {
                             setSelectedImage(null);
                             setImagePreview(null);
+                            if (fileInputRef.current) {
+                              fileInputRef.current.value = "";
+                            }
                           }}
                           className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 active:bg-red-700 touch-manipulation"
                         >
@@ -800,7 +818,8 @@ export default function MessagesPage() {
                           <Send className="h-5 w-5" />
                         </button>
                       </div>
-                    ) : voiceRecorder.audioBlob ? (
+                    ) : (voiceRecorder.audioBlob && !justSentVoice) ? (
+                      // ✅ CRITICAL FIX: Check justSentVoice flag to immediately hide voice UI
                       <div className="flex items-center space-x-2">
                         <div className="flex-1 flex items-center space-x-2 md:space-x-3 px-3 md:px-4 py-2.5 md:py-3 bg-gray-900 rounded-xl">
                           <div className="p-1 hover:bg-white/10 rounded-full touch-manipulation">
@@ -846,7 +865,12 @@ export default function MessagesPage() {
                           type="text"
                           value={message}
                           onChange={(e) => setMessage(e.target.value)}
-                          onKeyPress={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
+                          onKeyPress={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                              e.preventDefault();
+                              handleSendMessage();
+                            }
+                          }}
                           placeholder="Type a message..."
                           className="flex-1 px-3 md:px-4 py-2.5 md:py-3 bg-gray-900 border border-gray-800 rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-sm md:text-base min-w-0"
                         />
@@ -865,6 +889,8 @@ export default function MessagesPage() {
                         </button>
                       </div>
                     )}
+                     {/* Mobile Safe Area Bottom Padding */}
+                  <div className="md:hidden h-24"></div>
                   </div>
                 </div>
               </>
@@ -878,8 +904,6 @@ export default function MessagesPage() {
                 </div>
               </div>
             )}
-          {/* Mobile Safe Area Bottom Padding */}
-                  <div className="md:hidden h-12"></div>
           </div>        
         </div>
       </div>
@@ -894,7 +918,6 @@ export default function MessagesPage() {
             }
           }}
         >
-          {/* Header */}
           <div className="flex items-center justify-between p-3 md:p-4 bg-gradient-to-b from-black/80 to-transparent backdrop-blur-sm z-10">
             <button
               onClick={() => setViewingImage(null)}
@@ -913,7 +936,6 @@ export default function MessagesPage() {
             </button>
           </div>
 
-          {/* Image Container */}
           <div 
             className="flex-1 flex items-center justify-center p-4 overflow-hidden"
             onClick={() => setViewingImage(null)}
@@ -927,7 +949,6 @@ export default function MessagesPage() {
             />
           </div>
 
-          {/* Caption */}
           {viewingImage.content && viewingImage.content !== "Image" && (
             <div className="p-3 md:p-4 bg-gradient-to-t from-black/80 to-transparent backdrop-blur-sm">
               <p className="text-white text-center text-sm md:text-base break-words">

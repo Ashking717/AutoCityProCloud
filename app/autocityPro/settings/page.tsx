@@ -935,7 +935,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Mobile Safe Area Bottom Padding */}
-        <div className="md:hidden h-6"></div>
+        <div className="md:hidden h-24"></div>
       </div>
 
       {/* Keep existing modals - Add User Modal, Add Outlet Modal, Mobile Menu */}

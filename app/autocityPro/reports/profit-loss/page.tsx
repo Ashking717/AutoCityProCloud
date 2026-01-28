@@ -624,7 +624,7 @@ export default function ProfitLossPage() {
         </div>
 
         {/* Mobile Safe Area Bottom Padding */}
-        <div className="md:hidden h-6"></div>
+        <div className="md:hidden h-24"></div>
       </div>
 
       {/* Mobile Action Menu */}

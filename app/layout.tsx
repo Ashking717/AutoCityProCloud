@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import { jsonLd } from './metadata';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -167,6 +168,7 @@ export default function RootLayout({
       <body className={`${inter.className} bg-black`} style={{ backgroundColor: '#000000' }}>
         <Toaster position="top-right" />
         {children}
+        <SpeedInsights />
       </body>
     </html>
   );

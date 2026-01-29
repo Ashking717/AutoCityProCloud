@@ -54,14 +54,16 @@ export default function NewPurchasePage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "bank_transfer" | "credit">("cash");
+  const [paymentMethod, setPaymentMethod] = useState<
+    "cash" | "card" | "bank_transfer" | "credit"
+  >("cash");
   const [amountPaid, setAmountPaid] = useState<number>(0);
   const [isMobile, setIsMobile] = useState(false);
   const [showAddSupplier, setShowAddSupplier] = useState(false);
   const [showCart, setShowCart] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [editingItem, setEditingItem] = useState<string | null>(null);
-  
+
   // Add Product Modal States
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [showQuickAddCategory, setShowQuickAddCategory] = useState(false);
@@ -85,8 +87,8 @@ export default function NewPurchasePage() {
       setIsMobile(window.innerWidth < 768);
     };
     checkIfMobile();
-    window.addEventListener('resize', checkIfMobile);
-    return () => window.removeEventListener('resize', checkIfMobile);
+    window.addEventListener("resize", checkIfMobile);
+    return () => window.removeEventListener("resize", checkIfMobile);
   }, []);
 
   useEffect(() => {
@@ -114,18 +116,27 @@ export default function NewPurchasePage() {
     try {
       setProductsLoading(true);
       // Use searchMode flag to fetch all products (up to 5000)
-      const res = await fetch("/api/products?searchMode=true", { credentials: "include" });
+      const res = await fetch("/api/products?searchMode=true", {
+        credentials: "include",
+      });
       if (res.ok) {
         const data = await res.json();
         setProducts(data.products || []);
-        console.log(`✓ Loaded ${data.products?.length || 0} products for search (Total: ${data.pagination?.total || 0})`);
-        
+        console.log(
+          `✓ Loaded ${data.products?.length || 0} products for search (Total: ${
+            data.pagination?.total || 0
+          })`
+        );
+
         // Show info if there are more products than loaded
         if (data.pagination?.total > data.products?.length) {
-          toast(`Loaded ${data.products?.length} of ${data.pagination.total} products. Use specific search terms for best results.`, {
-            icon: 'ℹ️',
-            duration: 4000,
-          });
+          toast(
+            `Loaded ${data.products?.length} of ${data.pagination.total} products. Use specific search terms for best results.`,
+            {
+              icon: "ℹ️",
+              duration: 4000,
+            }
+          );
         }
       }
     } catch (error) {
@@ -177,7 +188,10 @@ export default function NewPurchasePage() {
   };
 
   const generateSupplierCode = (name: string) => {
-    const code = name.toUpperCase().replace(/[^A-Z0-9]/g, "").substring(0, 10);
+    const code = name
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "")
+      .substring(0, 10);
     const timestamp = Date.now().toString().slice(-4);
     return `SUP${code}${timestamp}`;
   };
@@ -266,11 +280,11 @@ export default function NewPurchasePage() {
         const responseData = await res.json();
         toast.success("Product added successfully!");
         setShowAddProduct(false);
-        
+
         // Refresh products list and next SKU
         await fetchProducts();
         await fetchNextSKU();
-        
+
         // Add new product to cart
         const newProduct = responseData.product;
         if (newProduct) {
@@ -288,7 +302,11 @@ export default function NewPurchasePage() {
   const addToCart = (product: any) => {
     const existingItem = cart.find((item) => item.productId === product._id);
     if (existingItem) {
-      updateCartItem(existingItem.productId, "quantity", existingItem.quantity + 1);
+      updateCartItem(
+        existingItem.productId,
+        "quantity",
+        existingItem.quantity + 1
+      );
     } else {
       const newItem: CartItem = {
         productId: product._id,
@@ -328,7 +346,10 @@ export default function NewPurchasePage() {
   };
 
   const calculateTotals = () => {
-    const subtotal = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+    const subtotal = cart.reduce(
+      (sum, item) => sum + item.unitPrice * item.quantity,
+      0
+    );
     const totalTax = cart.reduce((sum, item) => sum + item.taxAmount, 0);
     const total = subtotal + totalTax;
     return { subtotal, totalTax, total, totalPaid: amountPaid };
@@ -336,35 +357,37 @@ export default function NewPurchasePage() {
 
   const getEffectivePaymentMethod = () => {
     const totals = calculateTotals();
-    
+
     if (amountPaid >= totals.total) {
-      return paymentMethod === 'credit' ? 'cash' : paymentMethod;
+      return paymentMethod === "credit" ? "cash" : paymentMethod;
     }
-    
-    if (amountPaid === 0 && paymentMethod === 'credit') {
-      return 'credit';
+
+    if (amountPaid === 0 && paymentMethod === "credit") {
+      return "credit";
     }
-    
+
     if (amountPaid > 0 && amountPaid < totals.total) {
-      return paymentMethod === 'credit' ? 'cash' : paymentMethod;
+      return paymentMethod === "credit" ? "cash" : paymentMethod;
     }
-    
+
     return paymentMethod;
   };
 
   const PaymentWarning = () => {
     const totals = calculateTotals();
     const hasPartialPayment = amountPaid > 0 && amountPaid < totals.total;
-    const isFullCredit = paymentMethod === 'credit' && amountPaid === 0;
+    const isFullCredit = paymentMethod === "credit" && amountPaid === 0;
     const isFullPayment = amountPaid >= totals.total;
-    
+
     if (isFullCredit) {
       return (
         <div className="p-3 bg-orange-500/10 border border-orange-500/20 rounded-xl mb-4">
           <div className="flex items-start gap-2">
             <AlertCircle className="h-4 w-4 text-orange-400 mt-0.5 flex-shrink-0" />
             <div>
-              <p className="text-orange-400 text-sm font-semibold">Full Credit Purchase</p>
+              <p className="text-orange-400 text-sm font-semibold">
+                Full Credit Purchase
+              </p>
               <p className="text-orange-300 text-xs mt-1">
                 You'll need to record payments later to clear the balance.
               </p>
@@ -373,30 +396,35 @@ export default function NewPurchasePage() {
         </div>
       );
     }
-    
+
     if (hasPartialPayment) {
       return (
         <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl mb-4">
           <div className="flex items-start gap-2">
             <AlertCircle className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
             <div>
-              <p className="text-blue-400 text-sm font-semibold">Partial Payment</p>
+              <p className="text-blue-400 text-sm font-semibold">
+                Partial Payment
+              </p>
               <p className="text-blue-300 text-xs mt-1">
-                Paying {formatCurrency(amountPaid)} now. Balance of {formatCurrency(totals.total - amountPaid)} will be on credit.
+                Paying {formatCurrency(amountPaid)} now. Balance of{" "}
+                {formatCurrency(totals.total - amountPaid)} will be on credit.
               </p>
             </div>
           </div>
         </div>
       );
     }
-    
+
     if (isFullPayment) {
       return (
         <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-xl mb-4">
           <div className="flex items-start gap-2">
             <CheckCircle className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
             <div>
-              <p className="text-green-400 text-sm font-semibold">Full Payment</p>
+              <p className="text-green-400 text-sm font-semibold">
+                Full Payment
+              </p>
               <p className="text-green-300 text-xs mt-1">
                 Purchase will be fully paid with no outstanding balance.
               </p>
@@ -405,7 +433,7 @@ export default function NewPurchasePage() {
         </div>
       );
     }
-    
+
     return null;
   };
 
@@ -420,14 +448,16 @@ export default function NewPurchasePage() {
     }
 
     const totals = calculateTotals();
-    
+
     if (amountPaid > totals.total) {
-      toast.error(`Amount paid cannot exceed total (${formatCurrency(totals.total)})`);
+      toast.error(
+        `Amount paid cannot exceed total (${formatCurrency(totals.total)})`
+      );
       return;
     }
-    
+
     const effectivePaymentMethod = getEffectivePaymentMethod();
-    
+
     const purchaseItems = cart.map((item) => ({
       productId: item.productId,
       name: item.productName,
@@ -456,16 +486,22 @@ export default function NewPurchasePage() {
 
       if (res.ok) {
         const data = await res.json();
-        
+
         if (data.purchase.balanceDue > 0) {
           toast.success(
-            `Purchase ${data.purchase.purchaseNumber} created! Balance due: ${formatCurrency(data.purchase.balanceDue)}`,
+            `Purchase ${
+              data.purchase.purchaseNumber
+            } created! Balance due: ${formatCurrency(
+              data.purchase.balanceDue
+            )}`,
             { duration: 5000 }
           );
         } else {
-          toast.success(`Purchase ${data.purchase.purchaseNumber} created successfully!`);
+          toast.success(
+            `Purchase ${data.purchase.purchaseNumber} created successfully!`
+          );
         }
-        
+
         setCart([]);
         setSelectedSupplier(null);
         setAmountPaid(0);
@@ -486,16 +522,17 @@ export default function NewPurchasePage() {
   // ✅ OPTIMIZED: Use useMemo for filtering large product lists
   const filteredProducts = useMemo(() => {
     if (!searchTerm || searchTerm.length < 2) return [];
-    
+
     const lowerSearch = searchTerm.toLowerCase();
-    
+
     return products
-      .filter((p) =>
-        p.name?.toLowerCase().includes(lowerSearch) ||
-        p.sku?.toLowerCase().includes(lowerSearch) ||
-        p.barcode?.toLowerCase().includes(lowerSearch) ||
-        p.carMake?.toLowerCase().includes(lowerSearch) ||
-        p.carModel?.toLowerCase().includes(lowerSearch)
+      .filter(
+        (p) =>
+          p.name?.toLowerCase().includes(lowerSearch) ||
+          p.sku?.toLowerCase().includes(lowerSearch) ||
+          p.barcode?.toLowerCase().includes(lowerSearch) ||
+          p.carMake?.toLowerCase().includes(lowerSearch) ||
+          p.carModel?.toLowerCase().includes(lowerSearch)
       )
       .slice(0, 50); // Limit to 50 results for performance
   }, [products, searchTerm]);
@@ -508,9 +545,9 @@ export default function NewPurchasePage() {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-QA', {
-      style: 'currency',
-      currency: 'QAR',
+    return new Intl.NumberFormat("en-QA", {
+      style: "currency",
+      currency: "QAR",
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(amount);
@@ -532,7 +569,9 @@ export default function NewPurchasePage() {
                 </button>
                 <div>
                   <h1 className="text-xl font-bold text-white">New Purchase</h1>
-                  <p className="text-xs text-white/60">{cart.length} items • {products.length} products</p>
+                  <p className="text-xs text-white/60">
+                    {cart.length} items • {products.length} products
+                  </p>
                 </div>
               </div>
               <button
@@ -560,17 +599,22 @@ export default function NewPurchasePage() {
                   New Purchase
                 </h1>
                 <p className="text-white/90 mt-2">
-                  Create a new purchase order • {products.length} products available
+                  Create a new purchase order • {products.length} products
+                  available
                 </p>
               </div>
               <div className="flex items-center gap-4">
                 <div className="bg-[#0A0A0A]/50 backdrop-blur-sm rounded-xl px-6 py-3 border border-white/10">
                   <p className="text-white/60 text-sm mb-1">Cart Items</p>
-                  <p className="text-white font-bold text-2xl text-center">{cart.length}</p>
+                  <p className="text-white font-bold text-2xl text-center">
+                    {cart.length}
+                  </p>
                 </div>
                 <div className="bg-[#0A0A0A]/50 backdrop-blur-sm rounded-xl px-6 py-3 border border-white/10">
                   <p className="text-white/60 text-sm mb-1">Total Amount</p>
-                  <p className="text-[#E84545] font-bold text-2xl text-center">{formatCurrency(totals.total)}</p>
+                  <p className="text-[#E84545] font-bold text-2xl text-center">
+                    {formatCurrency(totals.total)}
+                  </p>
                 </div>
               </div>
             </div>
@@ -589,7 +633,9 @@ export default function NewPurchasePage() {
                     <Search className="h-5 w-5 mr-2 text-[#E84545]" />
                     Search Products
                     {productsLoading && (
-                      <span className="ml-3 text-xs text-gray-400 animate-pulse">Loading...</span>
+                      <span className="ml-3 text-xs text-gray-400 animate-pulse">
+                        Loading...
+                      </span>
                     )}
                   </h2>
                   <button
@@ -603,7 +649,7 @@ export default function NewPurchasePage() {
                     <span className="hidden sm:inline">Add Product</span>
                   </button>
                 </div>
-                
+
                 <div className="relative mb-4">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <input
@@ -626,7 +672,9 @@ export default function NewPurchasePage() {
                     {filteredProducts.length === 0 ? (
                       <div className="col-span-2 text-center py-8">
                         <Search className="h-12 w-12 mx-auto mb-3 text-gray-600" />
-                        <p className="text-gray-400">No products found for "{searchTerm}"</p>
+                        <p className="text-gray-400">
+                          No products found for "{searchTerm}"
+                        </p>
                         <button
                           onClick={async () => {
                             await fetchNextSKU();
@@ -644,37 +692,78 @@ export default function NewPurchasePage() {
                           <div
                             key={product._id}
                             onClick={() => addToCart(product)}
-                            className="p-4 bg-white/5 border border-white/10 rounded-xl hover:border-[#E84545]/30 cursor-pointer transition-all active:scale-[0.98]"
+                            className="p-4 bg-white/5 border border-white/10 rounded-xl 
+               hover:border-[#E84545]/30 cursor-pointer 
+               transition-all active:scale-[0.98]"
                           >
+                            {/* Header */}
                             <div className="flex justify-between items-start mb-2">
                               <div className="flex-1 min-w-0">
-                                <h3 className="font-semibold text-white truncate">{product.name}</h3>
-                                <p className="text-xs text-gray-400 mt-1">SKU: {product.sku}</p>
+                                <h3 className="font-semibold text-white truncate">
+                                  {product.name}
+                                </h3>
+                                <p className="text-xs text-gray-400 mt-1">
+                                  SKU: {product.sku}
+                                </p>
                               </div>
                             </div>
-                            <div className="flex items-center justify-between pt-2 border-t border-white/5">
+
+                            {/* Vehicle Details */}
+                            <div className="mt-2 space-y-0.5">
+                              {(product.carMake || product.carModel) && (
+                                <p className="text-xs text-gray-300 truncate">
+                                  {product.carMake} {product.carModel}
+                                </p>
+                              )}
+
+                              {product.color && (
+                                <p className="text-[11px] text-gray-400">
+                                  Color: {product.color}
+                                </p>
+                              )}
+
+                              {(product.yearFrom || product.yearTo) && (
+                                <p className="text-[11px] text-gray-400">
+                                  Years: {product.yearFrom || "—"} –{" "}
+                                  {product.yearTo || "—"}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Price & Stock */}
+                            <div className="flex items-center justify-between pt-2 mt-2 border-t border-white/5">
                               <span className="text-[#E84545] font-bold">
-                                {formatCurrency(product.costPrice || product.sellingPrice)}
+                                {formatCurrency(
+                                  product.costPrice || product.sellingPrice
+                                )}
                               </span>
-                              <span className="text-xs text-gray-500">Stock: {product.currentStock}</span>
+                              <span className="text-xs text-gray-500">
+                                Stock: {product.currentStock}
+                              </span>
                             </div>
                           </div>
                         ))}
+
                         {filteredProducts.length >= 50 && (
                           <div className="col-span-2 text-center py-3 text-xs text-gray-500">
-                            Showing first 50 results. Be more specific to narrow down.
+                            Showing first 50 results. Be more specific to narrow
+                            down.
                           </div>
                         )}
                       </>
                     )}
                   </div>
                 )}
-                
+
                 {searchTerm.length < 2 && !productsLoading && (
                   <div className="text-center py-8">
                     <Search className="h-12 w-12 mx-auto mb-3 text-gray-600" />
-                    <p className="text-gray-400">Start typing to search {products.length} products</p>
-                    <p className="text-xs text-gray-500 mt-1">Enter at least 2 characters</p>
+                    <p className="text-gray-400">
+                      Start typing to search {products.length} products
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Enter at least 2 characters
+                    </p>
                   </div>
                 )}
               </div>
@@ -690,15 +779,24 @@ export default function NewPurchasePage() {
                     <div className="text-center py-8">
                       <ShoppingCart className="h-12 w-12 mx-auto mb-3 text-gray-600" />
                       <p className="text-gray-400">Your cart is empty</p>
-                      <p className="text-sm text-gray-500 mt-2">Search and add products above</p>
+                      <p className="text-sm text-gray-500 mt-2">
+                        Search and add products above
+                      </p>
                     </div>
                   ) : (
                     cart.map((item, index) => (
-                      <div key={index} className="border border-white/10 rounded-xl p-4 bg-white/5">
+                      <div
+                        key={index}
+                        className="border border-white/10 rounded-xl p-4 bg-white/5"
+                      >
                         <div className="flex justify-between items-start mb-3">
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-white truncate">{item.productName}</h3>
-                            <p className="text-xs text-gray-400 mt-1">SKU: {item.sku}</p>
+                            <h3 className="font-semibold text-white truncate">
+                              {item.productName}
+                            </h3>
+                            <p className="text-xs text-gray-400 mt-1">
+                              SKU: {item.sku}
+                            </p>
                           </div>
                           <button
                             onClick={() => removeFromCart(index)}
@@ -710,38 +808,64 @@ export default function NewPurchasePage() {
 
                         <div className="grid grid-cols-4 gap-2 mb-3">
                           <div>
-                            <label className="text-[10px] text-gray-500 mb-1 block">Qty</label>
+                            <label className="text-[10px] text-gray-500 mb-1 block">
+                              Qty
+                            </label>
                             <input
                               type="number"
                               value={item.quantity}
-                              onChange={(e) => updateCartItem(item.productId, "quantity", parseFloat(e.target.value) || 1)}
+                              onChange={(e) =>
+                                updateCartItem(
+                                  item.productId,
+                                  "quantity",
+                                  parseFloat(e.target.value) || 1
+                                )
+                              }
                               min="1"
                               className="w-full px-2 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#E84545]/50"
                             />
                           </div>
                           <div>
-                            <label className="text-[10px] text-gray-500 mb-1 block">Price</label>
+                            <label className="text-[10px] text-gray-500 mb-1 block">
+                              Price
+                            </label>
                             <input
                               type="number"
                               value={item.unitPrice}
-                              onChange={(e) => updateCartItem(item.productId, "unitPrice", parseFloat(e.target.value) || 0)}
+                              onChange={(e) =>
+                                updateCartItem(
+                                  item.productId,
+                                  "unitPrice",
+                                  parseFloat(e.target.value) || 0
+                                )
+                              }
                               min="0"
                               className="w-full px-2 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#E84545]/50"
                             />
                           </div>
                           <div>
-                            <label className="text-[10px] text-gray-500 mb-1 block">Tax %</label>
+                            <label className="text-[10px] text-gray-500 mb-1 block">
+                              Tax %
+                            </label>
                             <input
                               type="number"
                               value={item.taxRate}
-                              onChange={(e) => updateCartItem(item.productId, "taxRate", parseFloat(e.target.value) || 0)}
+                              onChange={(e) =>
+                                updateCartItem(
+                                  item.productId,
+                                  "taxRate",
+                                  parseFloat(e.target.value) || 0
+                                )
+                              }
                               min="0"
                               max="100"
                               className="w-full px-2 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#E84545]/50"
                             />
                           </div>
                           <div>
-                            <label className="text-[10px] text-gray-500 mb-1 block">Unit</label>
+                            <label className="text-[10px] text-gray-500 mb-1 block">
+                              Unit
+                            </label>
                             <div className="px-2 py-2 bg-white/5 rounded-lg text-sm text-white flex items-center justify-center border border-white/10">
                               {item.unit}
                             </div>
@@ -750,9 +874,13 @@ export default function NewPurchasePage() {
 
                         <div className="flex justify-between items-center pt-3 border-t border-white/5">
                           {item.taxRate > 0 && (
-                            <span className="text-xs text-gray-500">Tax: {formatCurrency(item.taxAmount)}</span>
+                            <span className="text-xs text-gray-500">
+                              Tax: {formatCurrency(item.taxAmount)}
+                            </span>
                           )}
-                          <span className="font-bold text-white ml-auto">{formatCurrency(item.total)}</span>
+                          <span className="font-bold text-white ml-auto">
+                            {formatCurrency(item.total)}
+                          </span>
                         </div>
                       </div>
                     ))
@@ -771,7 +899,9 @@ export default function NewPurchasePage() {
                 </h2>
 
                 <select
-                  value={selectedSupplier?._id ? String(selectedSupplier._id) : ""}
+                  value={
+                    selectedSupplier?._id ? String(selectedSupplier._id) : ""
+                  }
                   onChange={(e) => {
                     const selectedId = e.target.value;
                     const supplier = suppliers.find(
@@ -785,7 +915,10 @@ export default function NewPurchasePage() {
                   {suppliers
                     .filter((s) => s && s._id)
                     .map((supplier) => (
-                      <option key={String(supplier._id)} value={String(supplier._id)}>
+                      <option
+                        key={String(supplier._id)}
+                        value={String(supplier._id)}
+                      >
                         {supplier.name} - {supplier.phone}
                       </option>
                     ))}
@@ -793,10 +926,16 @@ export default function NewPurchasePage() {
 
                 {selectedSupplier && (
                   <div className="p-4 bg-white/5 rounded-xl border border-white/10 mb-3">
-                    <p className="text-white font-semibold">{selectedSupplier.name}</p>
-                    <p className="text-sm text-gray-400 mt-1">{selectedSupplier.phone}</p>
+                    <p className="text-white font-semibold">
+                      {selectedSupplier.name}
+                    </p>
+                    <p className="text-sm text-gray-400 mt-1">
+                      {selectedSupplier.phone}
+                    </p>
                     {selectedSupplier.email && (
-                      <p className="text-xs text-gray-500 mt-1">{selectedSupplier.email}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {selectedSupplier.email}
+                      </p>
                     )}
                   </div>
                 )}
@@ -816,21 +955,26 @@ export default function NewPurchasePage() {
                   <CreditCard className="h-5 w-5 mr-2 text-[#E84545]" />
                   Payment
                 </h2>
-                
+
                 <div className="space-y-3">
                   <div>
-                    <label className="text-sm text-gray-400 mb-2 block">Payment Method</label>
+                    <label className="text-sm text-gray-400 mb-2 block">
+                      Payment Method
+                    </label>
                     <select
                       value={paymentMethod}
                       onChange={(e) => {
                         const newMethod = e.target.value as any;
                         setPaymentMethod(newMethod);
-                        
-                        if (newMethod === 'credit' && amountPaid > 0) {
-                          toast('Tip: Leave "Amount Paid" as 0 for full credit purchase', {
-                            icon: '💡',
-                            duration: 4000,
-                          });
+
+                        if (newMethod === "credit" && amountPaid > 0) {
+                          toast(
+                            'Tip: Leave "Amount Paid" as 0 for full credit purchase',
+                            {
+                              icon: "💡",
+                              duration: 4000,
+                            }
+                          );
                         }
                       }}
                       className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-[#E84545]/50"
@@ -845,8 +989,10 @@ export default function NewPurchasePage() {
                   <div>
                     <label className="text-sm text-gray-400 mb-2 block">
                       Amount Paid Now
-                      {paymentMethod === 'credit' && (
-                        <span className="text-orange-400 text-xs ml-2">(Leave 0 for full credit)</span>
+                      {paymentMethod === "credit" && (
+                        <span className="text-orange-400 text-xs ml-2">
+                          (Leave 0 for full credit)
+                        </span>
                       )}
                     </label>
                     <div className="relative">
@@ -855,9 +1001,9 @@ export default function NewPurchasePage() {
                         value={amountPaid}
                         onChange={(e) => {
                           const value = parseFloat(e.target.value) || 0;
-                          
+
                           if (value > totals.total) {
-                            toast.error('Amount cannot exceed total');
+                            toast.error("Amount cannot exceed total");
                             setAmountPaid(totals.total);
                           } else {
                             setAmountPaid(value);
@@ -868,16 +1014,18 @@ export default function NewPurchasePage() {
                         step="0.01"
                         className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-[#E84545]/50"
                       />
-                      {amountPaid < totals.total && amountPaid >= 0 && totals.total > 0 && (
-                        <button
-                          onClick={() => setAmountPaid(totals.total)}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 bg-[#E84545]/10 border border-[#E84545]/20 text-[#E84545] rounded-lg text-xs font-medium hover:bg-[#E84545]/20 transition-all"
-                        >
-                          Pay Full
-                        </button>
-                      )}
+                      {amountPaid < totals.total &&
+                        amountPaid >= 0 &&
+                        totals.total > 0 && (
+                          <button
+                            onClick={() => setAmountPaid(totals.total)}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 bg-[#E84545]/10 border border-[#E84545]/20 text-[#E84545] rounded-lg text-xs font-medium hover:bg-[#E84545]/20 transition-all"
+                          >
+                            Pay Full
+                          </button>
+                        )}
                     </div>
-                    
+
                     {totals.total > 0 && (
                       <div className="grid grid-cols-4 gap-2 mt-2">
                         <button
@@ -887,13 +1035,21 @@ export default function NewPurchasePage() {
                           0%
                         </button>
                         <button
-                          onClick={() => setAmountPaid(Math.round(totals.total * 0.25 * 100) / 100)}
+                          onClick={() =>
+                            setAmountPaid(
+                              Math.round(totals.total * 0.25 * 100) / 100
+                            )
+                          }
                           className="px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white hover:bg-white/10 transition-all"
                         >
                           25%
                         </button>
                         <button
-                          onClick={() => setAmountPaid(Math.round(totals.total * 0.5 * 100) / 100)}
+                          onClick={() =>
+                            setAmountPaid(
+                              Math.round(totals.total * 0.5 * 100) / 100
+                            )
+                          }
                           className="px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white hover:bg-white/10 transition-all"
                         >
                           50%
@@ -916,29 +1072,43 @@ export default function NewPurchasePage() {
                   <Calculator className="h-5 w-5 mr-2 text-[#E84545]" />
                   Summary
                 </h2>
-                
+
                 <PaymentWarning />
-                
+
                 <div className="space-y-3">
                   <div className="flex justify-between items-center py-2 border-b border-white/5">
                     <span className="text-gray-400">Subtotal:</span>
-                    <span className="text-white font-semibold">{formatCurrency(totals.subtotal)}</span>
+                    <span className="text-white font-semibold">
+                      {formatCurrency(totals.subtotal)}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-white/5">
                     <span className="text-gray-400">Tax:</span>
-                    <span className="text-white font-semibold">{formatCurrency(totals.totalTax)}</span>
+                    <span className="text-white font-semibold">
+                      {formatCurrency(totals.totalTax)}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center py-3 border-t border-white/10">
                     <span className="text-white font-bold text-lg">Total:</span>
-                    <span className="text-[#E84545] font-bold text-xl">{formatCurrency(totals.total)}</span>
+                    <span className="text-[#E84545] font-bold text-xl">
+                      {formatCurrency(totals.total)}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center py-2 border-t border-white/5 pt-4">
                     <span className="text-gray-400">Paid:</span>
-                    <span className="text-green-400 font-semibold">{formatCurrency(totals.totalPaid)}</span>
+                    <span className="text-green-400 font-semibold">
+                      {formatCurrency(totals.totalPaid)}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center py-2">
                     <span className="text-white font-semibold">Balance:</span>
-                    <span className={`font-bold ${totals.total - totals.totalPaid > 0 ? 'text-orange-400' : 'text-green-400'}`}>
+                    <span
+                      className={`font-bold ${
+                        totals.total - totals.totalPaid > 0
+                          ? "text-orange-400"
+                          : "text-green-400"
+                      }`}
+                    >
                       {formatCurrency(totals.total - totals.totalPaid)}
                     </span>
                   </div>
@@ -966,7 +1136,7 @@ export default function NewPurchasePage() {
           </div>
         </div>
 
-          {/* Add Product Modal */}
+        {/* Add Product Modal */}
         <AddProductModal
           show={showAddProduct}
           onClose={() => setShowAddProduct(false)}
@@ -1058,16 +1228,27 @@ export default function NewPurchasePage() {
                 {cart.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full">
                     <ShoppingCart className="h-16 w-16 text-gray-600 mb-4" />
-                    <p className="text-gray-400 text-lg font-medium">Cart is empty</p>
-                    <p className="text-gray-500 text-sm mt-2">Add products to get started</p>
+                    <p className="text-gray-400 text-lg font-medium">
+                      Cart is empty
+                    </p>
+                    <p className="text-gray-500 text-sm mt-2">
+                      Add products to get started
+                    </p>
                   </div>
                 ) : (
                   cart.map((item, index) => (
-                    <div key={index} className="bg-white/5 border border-white/10 rounded-2xl p-4">
+                    <div
+                      key={index}
+                      className="bg-white/5 border border-white/10 rounded-2xl p-4"
+                    >
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex-1 min-w-0 pr-2">
-                          <h3 className="font-semibold text-white truncate">{item.productName}</h3>
-                          <p className="text-xs text-gray-400 mt-1">SKU: {item.sku}</p>
+                          <h3 className="font-semibold text-white truncate">
+                            {item.productName}
+                          </h3>
+                          <p className="text-xs text-gray-400 mt-1">
+                            SKU: {item.sku}
+                          </p>
                         </div>
                         <button
                           onClick={() => removeFromCart(index)}
@@ -1081,21 +1262,37 @@ export default function NewPurchasePage() {
                         <div className="space-y-2">
                           <div className="grid grid-cols-2 gap-2">
                             <div>
-                              <label className="text-[10px] text-gray-500 mb-1 block">Quantity</label>
+                              <label className="text-[10px] text-gray-500 mb-1 block">
+                                Quantity
+                              </label>
                               <input
                                 type="number"
                                 value={item.quantity}
-                                onChange={(e) => updateCartItem(item.productId, "quantity", parseFloat(e.target.value) || 1)}
+                                onChange={(e) =>
+                                  updateCartItem(
+                                    item.productId,
+                                    "quantity",
+                                    parseFloat(e.target.value) || 1
+                                  )
+                                }
                                 min="1"
                                 className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#E84545]/50"
                               />
                             </div>
                             <div>
-                              <label className="text-[10px] text-gray-500 mb-1 block">Unit Price</label>
+                              <label className="text-[10px] text-gray-500 mb-1 block">
+                                Unit Price
+                              </label>
                               <input
                                 type="number"
                                 value={item.unitPrice}
-                                onChange={(e) => updateCartItem(item.productId, "unitPrice", parseFloat(e.target.value) || 0)}
+                                onChange={(e) =>
+                                  updateCartItem(
+                                    item.productId,
+                                    "unitPrice",
+                                    parseFloat(e.target.value) || 0
+                                  )
+                                }
                                 min="0"
                                 className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#E84545]/50"
                               />
@@ -1103,18 +1300,28 @@ export default function NewPurchasePage() {
                           </div>
                           <div className="grid grid-cols-2 gap-2">
                             <div>
-                              <label className="text-[10px] text-gray-500 mb-1 block">Tax Rate %</label>
+                              <label className="text-[10px] text-gray-500 mb-1 block">
+                                Tax Rate %
+                              </label>
                               <input
                                 type="number"
                                 value={item.taxRate}
-                                onChange={(e) => updateCartItem(item.productId, "taxRate", parseFloat(e.target.value) || 0)}
+                                onChange={(e) =>
+                                  updateCartItem(
+                                    item.productId,
+                                    "taxRate",
+                                    parseFloat(e.target.value) || 0
+                                  )
+                                }
                                 min="0"
                                 max="100"
                                 className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#E84545]/50"
                               />
                             </div>
                             <div>
-                              <label className="text-[10px] text-gray-500 mb-1 block">Unit</label>
+                              <label className="text-[10px] text-gray-500 mb-1 block">
+                                Unit
+                              </label>
                               <div className="px-3 py-2 bg-white/5 rounded-lg text-sm text-white flex items-center justify-center border border-white/10 h-[38px]">
                                 {item.unit}
                               </div>
@@ -1132,16 +1339,28 @@ export default function NewPurchasePage() {
                         <div>
                           <div className="grid grid-cols-3 gap-2 mb-3 p-3 bg-white/5 rounded-lg">
                             <div className="text-center">
-                              <p className="text-[10px] text-gray-500 mb-1">Qty</p>
-                              <p className="text-white font-semibold text-sm">{item.quantity}</p>
+                              <p className="text-[10px] text-gray-500 mb-1">
+                                Qty
+                              </p>
+                              <p className="text-white font-semibold text-sm">
+                                {item.quantity}
+                              </p>
                             </div>
                             <div className="text-center border-x border-white/10">
-                              <p className="text-[10px] text-gray-500 mb-1">Price</p>
-                              <p className="text-white font-semibold text-sm">{item.unitPrice.toFixed(2)}</p>
+                              <p className="text-[10px] text-gray-500 mb-1">
+                                Price
+                              </p>
+                              <p className="text-white font-semibold text-sm">
+                                {item.unitPrice.toFixed(2)}
+                              </p>
                             </div>
                             <div className="text-center">
-                              <p className="text-[10px] text-gray-500 mb-1">Tax</p>
-                              <p className="text-white font-semibold text-sm">{item.taxRate}%</p>
+                              <p className="text-[10px] text-gray-500 mb-1">
+                                Tax
+                              </p>
+                              <p className="text-white font-semibold text-sm">
+                                {item.taxRate}%
+                              </p>
                             </div>
                           </div>
                           <div className="flex items-center justify-between pt-3 border-t border-white/5">
@@ -1154,9 +1373,13 @@ export default function NewPurchasePage() {
                             </button>
                             <div className="text-right">
                               {item.taxRate > 0 && (
-                                <p className="text-[10px] text-gray-500">Tax: {formatCurrency(item.taxAmount)}</p>
+                                <p className="text-[10px] text-gray-500">
+                                  Tax: {formatCurrency(item.taxAmount)}
+                                </p>
                               )}
-                              <p className="text-white font-bold">{formatCurrency(item.total)}</p>
+                              <p className="text-white font-bold">
+                                {formatCurrency(item.total)}
+                              </p>
                             </div>
                           </div>
                         </div>
@@ -1170,7 +1393,9 @@ export default function NewPurchasePage() {
                 <div className="border-t border-white/10 p-4 bg-[#0A0A0A]/50 backdrop-blur-xl">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-gray-400">Total Amount:</span>
-                    <span className="text-[#E84545] font-bold text-xl">{formatCurrency(totals.total)}</span>
+                    <span className="text-[#E84545] font-bold text-xl">
+                      {formatCurrency(totals.total)}
+                    </span>
                   </div>
                   <button
                     onClick={() => {
@@ -1192,7 +1417,9 @@ export default function NewPurchasePage() {
           <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[60] animate-in fade-in duration-200">
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-b from-[#0A0A0A] to-[#050505] rounded-t-3xl border-t border-white/10 p-6 animate-in slide-in-from-bottom duration-300 shadow-2xl max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-bold text-white">Complete Purchase</h2>
+                <h2 className="text-lg font-bold text-white">
+                  Complete Purchase
+                </h2>
                 <button
                   onClick={() => setShowPayment(false)}
                   className="p-2 rounded-xl bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
@@ -1204,10 +1431,16 @@ export default function NewPurchasePage() {
               <div className="space-y-4">
                 {/* Supplier */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-2">Supplier *</label>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Supplier *
+                  </label>
                   <select
                     value={selectedSupplier?._id || ""}
-                    onChange={(e) => setSelectedSupplier(suppliers.find((s) => s._id === e.target.value))}
+                    onChange={(e) =>
+                      setSelectedSupplier(
+                        suppliers.find((s) => s._id === e.target.value)
+                      )
+                    }
                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-[#E84545]/50"
                   >
                     <option value="">Select Supplier</option>
@@ -1219,8 +1452,12 @@ export default function NewPurchasePage() {
                   </select>
                   {selectedSupplier && (
                     <div className="mt-3 p-3 bg-white/5 rounded-xl border border-white/10">
-                      <p className="text-white font-semibold">{selectedSupplier.name}</p>
-                      <p className="text-sm text-gray-400 mt-1">{selectedSupplier.phone}</p>
+                      <p className="text-white font-semibold">
+                        {selectedSupplier.name}
+                      </p>
+                      <p className="text-sm text-gray-400 mt-1">
+                        {selectedSupplier.phone}
+                      </p>
                     </div>
                   )}
                   <button
@@ -1231,24 +1468,31 @@ export default function NewPurchasePage() {
                     className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed border-[#E84545]/30 text-[#E84545] rounded-xl hover:border-[#E84545]/50 active:scale-95 transition-all"
                   >
                     <Plus className="h-4 w-4" />
-                    <span className="text-sm font-medium">Add New Supplier</span>
+                    <span className="text-sm font-medium">
+                      Add New Supplier
+                    </span>
                   </button>
                 </div>
 
                 {/* Payment Method */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-2">Payment Method</label>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Payment Method
+                  </label>
                   <select
                     value={paymentMethod}
                     onChange={(e) => {
                       const newMethod = e.target.value as any;
                       setPaymentMethod(newMethod);
-                      
-                      if (newMethod === 'credit' && amountPaid > 0) {
-                        toast('Tip: Leave "Amount Paid" as 0 for full credit purchase', {
-                          icon: '💡',
-                          duration: 4000,
-                        });
+
+                      if (newMethod === "credit" && amountPaid > 0) {
+                        toast(
+                          'Tip: Leave "Amount Paid" as 0 for full credit purchase',
+                          {
+                            icon: "💡",
+                            duration: 4000,
+                          }
+                        );
                       }
                     }}
                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-[#E84545]/50"
@@ -1264,8 +1508,10 @@ export default function NewPurchasePage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-2">
                     Amount Paid Now
-                    {paymentMethod === 'credit' && (
-                      <span className="text-orange-400 text-xs ml-2">(Leave 0 for full credit)</span>
+                    {paymentMethod === "credit" && (
+                      <span className="text-orange-400 text-xs ml-2">
+                        (Leave 0 for full credit)
+                      </span>
                     )}
                   </label>
                   <input
@@ -1273,9 +1519,9 @@ export default function NewPurchasePage() {
                     value={amountPaid}
                     onChange={(e) => {
                       const value = parseFloat(e.target.value) || 0;
-                      
+
                       if (value > totals.total) {
-                        toast.error('Amount cannot exceed total');
+                        toast.error("Amount cannot exceed total");
                         setAmountPaid(totals.total);
                       } else {
                         setAmountPaid(value);
@@ -1286,7 +1532,7 @@ export default function NewPurchasePage() {
                     step="0.01"
                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-[#E84545]/50"
                   />
-                  
+
                   {/* Quick amount buttons */}
                   {totals.total > 0 && (
                     <div className="grid grid-cols-4 gap-2 mt-2">
@@ -1297,13 +1543,21 @@ export default function NewPurchasePage() {
                         0%
                       </button>
                       <button
-                        onClick={() => setAmountPaid(Math.round(totals.total * 0.25 * 100) / 100)}
+                        onClick={() =>
+                          setAmountPaid(
+                            Math.round(totals.total * 0.25 * 100) / 100
+                          )
+                        }
                         className="px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white hover:bg-white/10 transition-all"
                       >
                         25%
                       </button>
                       <button
-                        onClick={() => setAmountPaid(Math.round(totals.total * 0.5 * 100) / 100)}
+                        onClick={() =>
+                          setAmountPaid(
+                            Math.round(totals.total * 0.5 * 100) / 100
+                          )
+                        }
                         className="px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white hover:bg-white/10 transition-all"
                       >
                         50%
@@ -1320,13 +1574,15 @@ export default function NewPurchasePage() {
 
                 {/* Summary */}
                 <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                  <h3 className="text-white font-semibold mb-3">Order Summary</h3>
-                  
+                  <h3 className="text-white font-semibold mb-3">
+                    Order Summary
+                  </h3>
+
                   {/* Payment Warning for Mobile */}
                   <div className="mb-3">
                     <PaymentWarning />
                   </div>
-                  
+
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-400">Items:</span>
@@ -1334,23 +1590,37 @@ export default function NewPurchasePage() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Subtotal:</span>
-                      <span className="text-white">{formatCurrency(totals.subtotal)}</span>
+                      <span className="text-white">
+                        {formatCurrency(totals.subtotal)}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Tax:</span>
-                      <span className="text-white">{formatCurrency(totals.totalTax)}</span>
+                      <span className="text-white">
+                        {formatCurrency(totals.totalTax)}
+                      </span>
                     </div>
                     <div className="flex justify-between pt-2 border-t border-white/10 font-semibold">
                       <span className="text-white">Total:</span>
-                      <span className="text-[#E84545]">{formatCurrency(totals.total)}</span>
+                      <span className="text-[#E84545]">
+                        {formatCurrency(totals.total)}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Paid:</span>
-                      <span className="text-green-400">{formatCurrency(totals.totalPaid)}</span>
+                      <span className="text-green-400">
+                        {formatCurrency(totals.totalPaid)}
+                      </span>
                     </div>
                     <div className="flex justify-between font-semibold">
                       <span className="text-white">Balance:</span>
-                      <span className={totals.total - totals.totalPaid > 0 ? 'text-orange-400' : 'text-green-400'}>
+                      <span
+                        className={
+                          totals.total - totals.totalPaid > 0
+                            ? "text-orange-400"
+                            : "text-green-400"
+                        }
+                      >
                         {formatCurrency(totals.total - totals.totalPaid)}
                       </span>
                     </div>
@@ -1411,7 +1681,9 @@ export default function NewPurchasePage() {
                     <input
                       type="text"
                       value={newSupplier.name}
-                      onChange={(e) => setNewSupplier({ ...newSupplier, name: e.target.value })}
+                      onChange={(e) =>
+                        setNewSupplier({ ...newSupplier, name: e.target.value })
+                      }
                       className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#E84545]/50"
                       placeholder="Enter supplier name"
                     />
@@ -1424,50 +1696,83 @@ export default function NewPurchasePage() {
                     <input
                       type="text"
                       value={newSupplier.phone}
-                      onChange={(e) => setNewSupplier({ ...newSupplier, phone: e.target.value })}
+                      onChange={(e) =>
+                        setNewSupplier({
+                          ...newSupplier,
+                          phone: e.target.value,
+                        })
+                      }
                       className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#E84545]/50"
                       placeholder="Phone number"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-2 text-white">Email</label>
+                    <label className="block text-sm font-medium mb-2 text-white">
+                      Email
+                    </label>
                     <input
                       type="email"
                       value={newSupplier.email}
-                      onChange={(e) => setNewSupplier({ ...newSupplier, email: e.target.value })}
+                      onChange={(e) =>
+                        setNewSupplier({
+                          ...newSupplier,
+                          email: e.target.value,
+                        })
+                      }
                       className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#E84545]/50"
                       placeholder="email@example.com"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-2 text-white">Contact Person</label>
+                    <label className="block text-sm font-medium mb-2 text-white">
+                      Contact Person
+                    </label>
                     <input
                       type="text"
                       value={newSupplier.contactPerson}
-                      onChange={(e) => setNewSupplier({ ...newSupplier, contactPerson: e.target.value })}
+                      onChange={(e) =>
+                        setNewSupplier({
+                          ...newSupplier,
+                          contactPerson: e.target.value,
+                        })
+                      }
                       className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#E84545]/50"
                       placeholder="Contact person name"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-2 text-white">Tax Number</label>
+                    <label className="block text-sm font-medium mb-2 text-white">
+                      Tax Number
+                    </label>
                     <input
                       type="text"
                       value={newSupplier.taxNumber}
-                      onChange={(e) => setNewSupplier({ ...newSupplier, taxNumber: e.target.value })}
+                      onChange={(e) =>
+                        setNewSupplier({
+                          ...newSupplier,
+                          taxNumber: e.target.value,
+                        })
+                      }
                       className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#E84545]/50"
                       placeholder="Tax ID"
                     />
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium mb-2 text-white">Address</label>
+                    <label className="block text-sm font-medium mb-2 text-white">
+                      Address
+                    </label>
                     <textarea
                       value={newSupplier.address}
-                      onChange={(e) => setNewSupplier({ ...newSupplier, address: e.target.value })}
+                      onChange={(e) =>
+                        setNewSupplier({
+                          ...newSupplier,
+                          address: e.target.value,
+                        })
+                      }
                       rows={3}
                       className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#E84545]/50 resize-none"
                       placeholder="Supplier address"
@@ -1475,11 +1780,18 @@ export default function NewPurchasePage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-2 text-white">Credit Limit (QAR)</label>
+                    <label className="block text-sm font-medium mb-2 text-white">
+                      Credit Limit (QAR)
+                    </label>
                     <input
                       type="number"
                       value={newSupplier.creditLimit}
-                      onChange={(e) => setNewSupplier({ ...newSupplier, creditLimit: parseFloat(e.target.value) || 0 })}
+                      onChange={(e) =>
+                        setNewSupplier({
+                          ...newSupplier,
+                          creditLimit: parseFloat(e.target.value) || 0,
+                        })
+                      }
                       min="0"
                       step="0.01"
                       className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#E84545]/50"
@@ -1488,11 +1800,18 @@ export default function NewPurchasePage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-2 text-white">Payment Terms</label>
+                    <label className="block text-sm font-medium mb-2 text-white">
+                      Payment Terms
+                    </label>
                     <input
                       type="text"
                       value={newSupplier.paymentTerms}
-                      onChange={(e) => setNewSupplier({ ...newSupplier, paymentTerms: e.target.value })}
+                      onChange={(e) =>
+                        setNewSupplier({
+                          ...newSupplier,
+                          paymentTerms: e.target.value,
+                        })
+                      }
                       className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#E84545]/50"
                       placeholder="e.g., Net 30"
                     />

@@ -46,6 +46,8 @@ export default function ProductsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [productToDelete, setProductToDelete] = useState<any>(null);
+  const [showStockModal, setShowStockModal] = useState(false);
+  const [stockToDecrease, setStockToDecrease] = useState<number>(0);
 
   // Keyboard navigation state
   const [selectedProductIndex, setSelectedProductIndex] = useState(-1);
@@ -87,6 +89,80 @@ export default function ProductsPage() {
     return `${yearFrom}-${yearTo}`;
   };
 
+  // Handle delete button click - check stock first
+  const handleDeleteClick = (product: any) => {
+    if (product.currentStock > 0) {
+      // Show stock modal if stock is not zero
+      setProductToDelete(product);
+      setStockToDecrease(product.currentStock);
+      setShowStockModal(true);
+    } else {
+      // Stock is already zero, proceed to delete confirmation
+      setProductToDelete(product);
+      setShowStockModal(false);
+    }
+  };
+
+  // Decrease stock to zero
+  const handleDecreaseStock = async () => {
+    if (!productToDelete) return;
+
+    try {
+      const res = await fetch(`/api/products/${productToDelete._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          ...productToDelete,
+          currentStock: 0,
+        }),
+      });
+
+      if (res.ok) {
+        toast.success("Stock decreased to zero");
+        setShowStockModal(false);
+        // Update local product state
+        setProductToDelete({ ...productToDelete, currentStock: 0 });
+        await fetchProducts(1, false);
+        // Now show delete confirmation since stock is zero
+      } else {
+        const error = await res.json();
+        toast.error(error.error || "Failed to update stock");
+      }
+    } catch (error) {
+      toast.error("Failed to update stock");
+    }
+  };
+
+  // Delete product (only works when stock is zero)
+  const handleDeleteProduct = async () => {
+    if (!productToDelete) return;
+
+    // Final check: ensure stock is zero
+    if (productToDelete.currentStock > 0) {
+      toast.error("Cannot delete product with stock. Please decrease stock to zero first.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/products/${productToDelete._id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (res.ok) {
+        toast.success("Product deleted successfully!");
+        setProductToDelete(null);
+        setShowStockModal(false);
+        await fetchProducts(1, false);
+      } else {
+        const error = await res.json();
+        toast.error(error.error || "Failed to delete product");
+      }
+    } catch (error) {
+      toast.error("Failed to delete product");
+    }
+  };
+
   // Keyboard navigation handler
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -96,7 +172,8 @@ export default function ProductsPage() {
         showQuickAddCategory ||
         productToDelete ||
         showFilters ||
-        showMobileMenu
+        showMobileMenu ||
+        showStockModal
       ) {
         return;
       }
@@ -173,7 +250,7 @@ export default function ProductsPage() {
           ) {
             e.preventDefault();
             const product = filteredProducts[selectedProductIndex];
-            setProductToDelete(product);
+            handleDeleteClick(product);
           }
           break;
 
@@ -210,6 +287,7 @@ export default function ProductsPage() {
     productToDelete,
     showFilters,
     showMobileMenu,
+    showStockModal,
     selectedProductIndex,
     filteredProducts,
   ]);
@@ -447,26 +525,6 @@ export default function ProductsPage() {
       }
     } catch (error) {
       toast.error("Failed to update product");
-    }
-  };
-
-  const handleDeleteProduct = async () => {
-    if (!productToDelete) return;
-    try {
-      const res = await fetch(`/api/products/${productToDelete._id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      if (res.ok) {
-        toast.success("Product deleted successfully!");
-        setProductToDelete(null);
-        await fetchProducts(1, false);
-      } else {
-        const error = await res.json();
-        toast.error(error.error || "Failed to delete product");
-      }
-    } catch (error) {
-      toast.error("Failed to delete product");
     }
   };
 
@@ -1371,7 +1429,7 @@ export default function ProductsPage() {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setProductToDelete(product);
+                                handleDeleteClick(product);
                               }}
                               className="text-red-400 hover:text-red-300 p-2 transition-colors"
                               title="Delete (Del)"
@@ -1516,7 +1574,7 @@ export default function ProductsPage() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              setProductToDelete(product);
+                              handleDeleteClick(product);
                             }}
                             className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 active:scale-95 transition-all"
                             title="Delete"
@@ -1742,8 +1800,73 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
-      {productToDelete && (
+      {/* Stock Verification Modal - NEW */}
+      {showStockModal && productToDelete && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-b from-[#050505] to-[#0A0A0A] rounded-2xl shadow-2xl max-w-md w-full border border-white/10">
+            <div className="p-4 md:p-6">
+              <div className="flex items-start gap-4 mb-4">
+                <div className="p-3 bg-orange-500/10 rounded-xl">
+                  <AlertCircle className="h-6 w-6 text-orange-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-white mb-2">
+                    Stock Must Be Zero
+                  </h3>
+                  <p className="text-sm text-gray-400 mb-3">
+                    <strong className="text-white">
+                      {productToDelete.name}
+                    </strong>{" "}
+                    currently has{" "}
+                    <strong className="text-orange-400">
+                      {productToDelete.currentStock}
+                    </strong>{" "}
+                    units in stock.
+                  </p>
+                  <p className="text-sm text-gray-400">
+                    You must decrease the stock to zero before deleting this
+                    product.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-[#0A0A0A] border border-white/5 rounded-xl p-4 mb-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-400">Current Stock:</span>
+                  <span className="text-lg font-bold text-orange-400">
+                    {productToDelete.currentStock}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center mt-2">
+                  <span className="text-sm text-gray-400">After Decrease:</span>
+                  <span className="text-lg font-bold text-green-400">0</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setShowStockModal(false);
+                    setProductToDelete(null);
+                  }}
+                  className="px-4 py-2 border border-white/10 text-gray-300 rounded-xl hover:bg-white/5 transition-colors active:scale-95"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDecreaseStock}
+                  className="px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-xl hover:opacity-90 transition-opacity active:scale-95"
+                >
+                  Decrease Stock to Zero
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal - Only shown when stock is zero */}
+      {productToDelete && !showStockModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-gradient-to-b from-[#050505] to-[#0A0A0A] rounded-2xl shadow-2xl max-w-md w-full border border-white/10">
             <div className="p-4 md:p-6">
@@ -1762,6 +1885,11 @@ export default function ProductsPage() {
                     </strong>
                     ? This action cannot be undone.
                   </p>
+                  <div className="mt-3 p-2 bg-green-500/10 border border-green-500/20 rounded-lg">
+                    <p className="text-xs text-green-400">
+                      ✓ Stock is at zero - Ready to delete
+                    </p>
+                  </div>
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row justify-end gap-3">

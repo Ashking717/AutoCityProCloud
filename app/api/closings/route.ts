@@ -129,9 +129,9 @@ async function calculatePeriodBoundaries(
 /* =========================================================
    POST /api/closings - LEDGER-DRIVEN WITH PROPER PROFIT
    
-   CRITICAL: Only include PAID purchases in the calculation
-   - Purchases on credit (amountPaid = 0) should NOT be included
-   - Only purchases where actual payment was made
+   UPDATED: Calculate purchases and expenses from ledger entries
+   - Purchases: Credits to Cash/Bank accounts with referenceType="PURCHASE"
+   - Expenses: Credits to Cash/Bank accounts with narration containing "Expense payment"
    
    Formula: Net Profit = Revenue - (COGS + Purchases + Expenses)
    ========================================================= */
@@ -224,7 +224,7 @@ export async function POST(req: NextRequest) {
       return entries.reduce((sum, e) => sum + (e.debit || 0), 0);
     }
 
-        async function sumNetAmountInPeriod(
+    async function sumNetAmountInPeriod(
       accountType: AccountType,
       subTypes: AccountSubType[],
       start: Date,
@@ -251,7 +251,6 @@ export async function POST(req: NextRequest) {
         0
       );
     }
-    
 
     // Get sum of credits to specific account types in a period
     async function sumCreditsInPeriod(
@@ -276,6 +275,114 @@ export async function POST(req: NextRequest) {
       }).lean();
 
       return entries.reduce((sum, e) => sum + (e.credit || 0), 0);
+    }
+
+    /* ========================================
+       NEW: Calculate Purchases from Ledger Entries
+       
+       Logic:
+       - Find all ledger entries with referenceType="PURCHASE"
+       - These represent purchase transactions
+       - Sum the CREDIT amounts from Cash/Bank accounts (money paid out)
+       - This gives us the total cash basis purchases for the period
+       ======================================== */
+    async function calculatePurchasesFromLedger(
+      start: Date,
+      end: Date
+    ): Promise<{
+      totalPurchases: number;
+      purchasesCount: number;
+      purchaseEntries: any[];
+    }> {
+      // Get Cash and Bank account IDs
+      const cashBankAccounts = await Account.find({
+        outletId: user.outletId,
+        subType: { $in: [AccountSubType.CASH, AccountSubType.BANK] },
+        isActive: true,
+      }).select('_id').lean();
+
+      if (cashBankAccounts.length === 0) {
+        return { totalPurchases: 0, purchasesCount: 0, purchaseEntries: [] };
+      }
+
+      // Find all purchase-related ledger entries where cash/bank was credited (paid out)
+      const purchaseEntries = await LedgerEntry.find({
+        outletId: user.outletId,
+        accountId: { $in: cashBankAccounts.map(a => a._id) },
+        referenceType: 'PURCHASE',
+        date: { $gte: start, $lte: end },
+        credit: { $gt: 0 }, // Only entries where money was paid (credited from cash/bank)
+      }).lean();
+
+      // Calculate total purchases (sum of credits = money paid out)
+      const totalPurchases = purchaseEntries.reduce(
+        (sum, entry) => sum + (entry.credit || 0),
+        0
+      );
+
+      // Count unique purchase transactions (by referenceId)
+      const uniquePurchaseIds = new Set(
+        purchaseEntries
+          .map(e => e.referenceId?.toString())
+          .filter(Boolean)
+      );
+      const purchasesCount = uniquePurchaseIds.size;
+
+      return { totalPurchases, purchasesCount, purchaseEntries };
+    }
+
+    /* ========================================
+       NEW: Calculate Expenses from Ledger Entries
+       
+       Logic:
+       - Find ledger entries with narration containing "Expense payment"
+       - These represent expense transactions
+       - Sum the CREDIT amounts from Cash/Bank accounts (money paid out)
+       - This gives us the total cash basis expenses for the period
+       ======================================== */
+    async function calculateExpensesFromLedger(
+      start: Date,
+      end: Date
+    ): Promise<{
+      totalExpenses: number;
+      expensesCount: number;
+      expenseEntries: any[];
+    }> {
+      // Get Cash and Bank account IDs
+      const cashBankAccounts = await Account.find({
+        outletId: user.outletId,
+        subType: { $in: [AccountSubType.CASH, AccountSubType.BANK] },
+        isActive: true,
+      }).select('_id').lean();
+
+      if (cashBankAccounts.length === 0) {
+        return { totalExpenses: 0, expensesCount: 0, expenseEntries: [] };
+      }
+
+      // Find all expense-related ledger entries where cash/bank was credited (paid out)
+      const expenseEntries = await LedgerEntry.find({
+        outletId: user.outletId,
+        accountId: { $in: cashBankAccounts.map(a => a._id) },
+        narration: { $regex: /Expense payment/i },
+        date: { $gte: start, $lte: end },
+        credit: { $gt: 0 }, // Only entries where money was paid (credited from cash/bank)
+      }).lean();
+
+      // Calculate total expenses (sum of credits = money paid out)
+      const totalExpenses = expenseEntries.reduce(
+        (sum, entry) => sum + (entry.credit || 0),
+        0
+      );
+
+      // Count unique expense transactions (by referenceId or voucherId)
+      const uniqueExpenseIds = new Set(
+        expenseEntries
+          .map(e => e.referenceId?.toString() || e.voucherId?.toString())
+          .filter(Boolean)
+      );
+      const expensesCount = uniqueExpenseIds.size;
+
+      return { totalExpenses, expensesCount, expenseEntries };
     }
 
     /* ========================================
@@ -304,12 +411,11 @@ export async function POST(req: NextRequest) {
        REVENUE - Net of Discounts
        ======================================== */
     let totalRevenue = await sumNetAmountInPeriod(
-  AccountType.REVENUE,
-  [AccountSubType.SALES_REVENUE, AccountSubType.SERVICE_REVENUE],
-  periodStart,
-  periodEnd
-);
-
+      AccountType.REVENUE,
+      [AccountSubType.SALES_REVENUE, AccountSubType.SERVICE_REVENUE],
+      periodStart,
+      periodEnd
+    );
 
     // Fallback: If no ledger revenue found, calculate from sales
     if (totalRevenue === 0 && sales.length > 0) {
@@ -395,66 +501,63 @@ export async function POST(req: NextRequest) {
     );
 
     /* ========================================
-       PURCHASES (ONLY PAID PURCHASES)
+       PURCHASES (from Ledger Entries)
        
-       CRITICAL: Only include purchases where payment was actually made
-       - Status = 'PAID' OR
-       - amountPaid > 0
+       NEW APPROACH: Calculate from ledger entries with referenceType="PURCHASE"
+       This represents actual cash payments made for purchases during the period
+       ======================================== */
+    const {
+      totalPurchases,
+      purchasesCount,
+      purchaseEntries
+    } = await calculatePurchasesFromLedger(periodStart, periodEnd);
+
+    /* ========================================
+       EXPENSES (from Ledger Entries)
        
-       Purchases on credit (COMPLETED but amountPaid = 0) should NOT be included
-       because no cash has left the business yet
+       NEW APPROACH: Calculate from ledger entries with "Expense payment" narration
+       This represents actual cash payments made for expenses during the period
+       ======================================== */
+    const {
+      totalExpenses,
+      expensesCount,
+      expenseEntries
+    } = await calculateExpensesFromLedger(periodStart, periodEnd);
+
+    /* ========================================
+       ADDITIONAL METRICS FOR REPORTING
+       
+       Get counts from source documents for reference/verification
        ======================================== */
     const allPurchases = await Purchase.find({
       outletId: user.outletId,
       purchaseDate: { $gte: periodStart, $lte: periodEnd },
     }).lean();
 
-    // Filter to only PAID purchases (where actual payment was made)
-    const paidPurchases = allPurchases.filter(
+    const allExpenses = await Expense.find({
+      outletId: user.outletId,
+      expenseDate: { $gte: periodStart, $lte: periodEnd },
+    }).lean();
+
+    // Separate paid and unpaid for reporting
+    const paidPurchasesFromDocs = allPurchases.filter(
       p => p.status === 'PAID' || (p.amountPaid && p.amountPaid > 0)
     );
 
-    const totalPurchases = paidPurchases.reduce(
-      (sum, p) => sum + (p.amountPaid || 0),
-      0
-    );
-
-    const purchasesCount = paidPurchases.length;
-
-    // Track unpaid purchases for reference
     const unpaidPurchases = allPurchases.filter(
       p => (!p.amountPaid || p.amountPaid === 0) && p.status !== 'PAID'
     );
+
     const unpaidPurchasesTotal = unpaidPurchases.reduce(
       (sum, p) => sum + (p.grandTotal || 0),
       0
     );
 
     /* ========================================
-       EXPENSES (ONLY PAID EXPENSES)
-       ======================================== */
-    const allExpenses = await Expense.find({
-      outletId: user.outletId,
-      expenseDate: { $gte: periodStart, $lte: periodEnd },
-    }).lean();
-
-    // Filter to only PAID expenses
-    const paidExpenses = allExpenses.filter(
-      e => e.status === 'PAID' || (e.amountPaid && e.amountPaid > 0)
-    );
-
-    const totalExpenses = paidExpenses.reduce(
-      (sum, e) => sum + (e.amountPaid || 0),
-      0
-    );
-
-    const expensesCount = paidExpenses.length;
-
-    /* ========================================
        PROFIT CALCULATION
        
        Revenue is NET of discounts (from grandTotal)
-       Only PAID purchases and expenses are deducted
+       Only PAID purchases and expenses are deducted (from ledger)
        
        Gross Profit = Revenue - COGS
        Net Profit = Revenue - (COGS + Paid Purchases + Paid Expenses)
@@ -540,12 +643,12 @@ export async function POST(req: NextRequest) {
       // Revenue (NET of discounts)
       totalRevenue,
 
-      // Costs (ONLY PAID transactions)
+      // Costs (from Ledger Entries)
       totalCOGS,        // From ledger COGS entries
-      totalPurchases,   // Only PAID purchases
-      totalExpenses,    // Only PAID expenses
+      totalPurchases,   // From ledger entries with referenceType="PURCHASE"
+      totalExpenses,    // From ledger entries with "Expense payment" narration
 
-      // Profit (calculated from net revenue and paid costs)
+      // Profit (calculated from net revenue and ledger-based costs)
       grossProfit,
       netProfit,
 
@@ -567,7 +670,7 @@ export async function POST(req: NextRequest) {
       totalCredits,
       trialBalanceMatched,
 
-      // Counts (only paid transactions)
+      // Counts (from ledger entries)
       purchasesCount,
       expensesCount,
 
@@ -581,19 +684,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       closing,
-      message: 'Period closed successfully (Cash Basis Accounting)',
+      message: 'Period closed successfully (Ledger-Based Cash Accounting)',
       profitBreakdown: {
         revenue: totalRevenue,
         revenueNote: 'Net of discounts (from grandTotal)',
         discounts: totalDiscount,
         cogs: totalCOGS,
         purchases: totalPurchases,
-        purchasesNote: 'Only PAID purchases included',
+        purchasesNote: 'Calculated from ledger entries (referenceType=PURCHASE)',
         expenses: totalExpenses,
-        expensesNote: 'Only PAID expenses included',
+        expensesNote: 'Calculated from ledger entries (Expense payment narration)',
         grossProfit,
         netProfit,
-        formula: 'Net Profit = Revenue - (COGS + Paid Purchases + Paid Expenses)',
+        formula: 'Net Profit = Revenue - (COGS + Ledger Purchases + Ledger Expenses)',
       },
       ledgerStats: {
         entries: ledgerEntriesCount,
@@ -603,15 +706,27 @@ export async function POST(req: NextRequest) {
       },
       transactionCounts: {
         sales: salesCount,
-        paidPurchases: purchasesCount,
-        unpaidPurchases: unpaidPurchases.length,
-        paidExpenses: expensesCount,
+        purchasesFromLedger: purchasesCount,
+        expensesFromLedger: expensesCount,
+        purchaseLedgerEntries: purchaseEntries.length,
+        expenseLedgerEntries: expenseEntries.length,
+      },
+      documentCounts: {
+        totalPurchaseDocs: allPurchases.length,
+        paidPurchaseDocs: paidPurchasesFromDocs.length,
+        unpaidPurchaseDocs: unpaidPurchases.length,
+        totalExpenseDocs: allExpenses.length,
       },
       creditInfo: {
         unpaidPurchasesCount: unpaidPurchases.length,
         unpaidPurchasesTotal,
         accountsPayable,
-        note: 'Unpaid purchases are tracked in Accounts Payable but not deducted from profit until paid',
+        note: 'Unpaid purchases are tracked in Accounts Payable but not deducted from profit until paid (reflected in ledger)',
+      },
+      ledgerCalculationDetails: {
+        purchaseCalculation: `Found ${purchaseEntries.length} ledger entries with referenceType="PURCHASE" totaling ${totalPurchases}`,
+        expenseCalculation: `Found ${expenseEntries.length} ledger entries with "Expense payment" narration totaling ${totalExpenses}`,
+        verificationNote: 'Purchases and expenses are calculated from actual ledger entries representing cash flows',
       },
     });
 

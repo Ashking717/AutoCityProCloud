@@ -77,7 +77,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
     fetchUnreadCount();
     
     // Poll for new messages every 10 seconds
-    const interval = setInterval(fetchUnreadCount, 10000);
+    const interval = setInterval(fetchUnreadCount, 200000);
     
     return () => clearInterval(interval);
   }, []);

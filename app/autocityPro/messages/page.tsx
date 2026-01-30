@@ -19,6 +19,7 @@ import {
   Paperclip,
   ArrowLeft,
   Download,
+  RefreshCw,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -50,7 +51,7 @@ interface Conversation {
 }
 
 export default function MessagesPage() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -67,44 +68,108 @@ export default function MessagesPage() {
     isOnline: false,
     lastActiveAt: null
   });
-  const [justSentVoice, setJustSentVoice] = useState(false); // ✅ NEW: Track if we just sent voice
+  const [justSentVoice, setJustSentVoice] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const voiceRecorder = useVoiceRecorder();
+
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [audioProgress, setAudioProgress] = useState<{ [key: string]: number }>({});
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+
   const prevMessagesLengthRef = useRef(0);
   const userScrolledRef = useRef(false);
 
+  // ✅ OPTIMIZED: Initial data fetch
   useEffect(() => {
     fetchUser();
     fetchConversations();
     fetchUsers();
-
     sendActivityPing();
-    const activityInterval = setInterval(sendActivityPing, 30000);
 
-    const messagesInterval = setInterval(() => {
-      if (selectedUser) {
-        fetchMessages(selectedUser._id, true);
-        fetchRecipientStatus(selectedUser._id);
-      }
-      fetchConversations();
-    }, 5000);
+    // Activity ping every 30 seconds
+    const activityInterval = setInterval(sendActivityPing, 30000);
 
     return () => {
       clearInterval(activityInterval);
+    };
+  }, []);
+
+  // ✅ OPTIMIZED: Smart polling with visibility detection
+  useEffect(() => {
+    if (!selectedUser) return;
+
+    let messagesInterval: NodeJS.Timeout;
+    let conversationsInterval: NodeJS.Timeout;
+
+    const startPolling = () => {
+      // Poll messages and status every 10 seconds when user is selected
+      messagesInterval = setInterval(() => {
+        if (selectedUser) {
+          fetchMessages(selectedUser._id, true);
+          fetchRecipientStatus(selectedUser._id);
+        }
+      }, 10000);
+
+      // Poll conversations every 30 seconds
+      conversationsInterval = setInterval(() => {
+        fetchConversations();
+      }, 30000);
+    };
+
+    const stopPolling = () => {
       clearInterval(messagesInterval);
+      clearInterval(conversationsInterval);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        // Fetch immediately when tab becomes visible
+        if (selectedUser) {
+          fetchMessages(selectedUser._id, true);
+          fetchRecipientStatus(selectedUser._id);
+        }
+        fetchConversations();
+        startPolling();
+      }
+    };
+
+    // Initial fetch
+    fetchMessages(selectedUser._id);
+    fetchRecipientStatus(selectedUser._id);
+
+    // Start polling
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    startPolling();
+
+    return () => {
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [selectedUser]);
+
+  // ✅ Poll conversations list less frequently when no user is selected
+  useEffect(() => {
+    if (selectedUser) return; // Already handled in the above effect
+
+    const conversationsInterval = setInterval(() => {
+      fetchConversations();
+    }, 30000); // Every 30 seconds
+
+    return () => {
+      clearInterval(conversationsInterval);
     };
   }, [selectedUser]);
 
   useEffect(() => {
     const isNewMessage = messages.length > prevMessagesLengthRef.current;
     const isInitialLoad = prevMessagesLengthRef.current === 0 && messages.length > 0;
-    
+
     if (isInitialLoad) {
       scrollToBottom(false);
       userScrolledRef.current = false;
@@ -114,7 +179,7 @@ export default function MessagesPage() {
         scrollToBottom(true);
       }
     }
-    
+
     prevMessagesLengthRef.current = messages.length;
   }, [messages]);
 
@@ -126,21 +191,22 @@ export default function MessagesPage() {
   const checkIfNearBottom = () => {
     const container = messagesContainerRef.current;
     if (!container) return false;
-    
+
     const threshold = 150;
     const position = container.scrollHeight - container.scrollTop - container.clientHeight;
     return position < threshold;
   };
 
   const scrollToBottom = (smooth: boolean = true) => {
-    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto" });
+    messagesEndRef.current?.scrollIntoView({
+      behavior: smooth ? "smooth" : "auto"
+    });
   };
 
   const fetchUser = async () => {
     try {
       const res = await fetch("/api/auth/me", { credentials: "include" });
       const data = await res.json();
-
       if (res.ok) {
         setUser({
           ...data.user,
@@ -220,8 +286,6 @@ export default function MessagesPage() {
 
   const handleSelectUser = (user: User) => {
     setSelectedUser(user);
-    fetchMessages(user._id);
-    fetchRecipientStatus(user._id);
     setShowSidebar(false);
     userScrolledRef.current = false;
     prevMessagesLengthRef.current = 0;
@@ -239,7 +303,6 @@ export default function MessagesPage() {
         toast.error("Please select an image file");
         return;
       }
-
       if (file.size > 5 * 1024 * 1024) {
         toast.error("Image must be less than 5MB");
         return;
@@ -259,12 +322,11 @@ export default function MessagesPage() {
 
     setSending(true);
     userScrolledRef.current = false;
-    
-    // ✅ Store voice data before clearing
+
     const hasVoiceMessage = !!voiceRecorder.audioBlob;
     const voiceBlob = voiceRecorder.audioBlob;
     const voiceDuration = voiceRecorder.duration;
-    
+
     try {
       let messageData: any = {
         recipientId: selectedUser._id,
@@ -325,28 +387,21 @@ export default function MessagesPage() {
       });
 
       if (res.ok) {
-        // ✅ CRITICAL: Set flag IMMEDIATELY to hide voice UI
         if (hasVoiceMessage) {
           setJustSentVoice(true);
         }
-        
-        // ✅ Reset ALL input states
+
         setMessage("");
         setSelectedImage(null);
         setImagePreview(null);
-        
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
-        
-        // ✅ Cancel voice recorder
         voiceRecorder.cancelRecording();
-        
-        // Fetch updates
+
         await fetchMessages(selectedUser._id);
         await fetchConversations();
-        
-        // ✅ Reset flag after brief delay to allow state to settle
+
         if (hasVoiceMessage) {
           setTimeout(() => setJustSentVoice(false), 300);
         }
@@ -356,9 +411,30 @@ export default function MessagesPage() {
     } catch (error) {
       console.error("Send message error:", error);
       toast.error("Failed to send message");
-      setJustSentVoice(false); // Reset on error
+      setJustSentVoice(false);
     } finally {
       setSending(false);
+    }
+  };
+
+  // ✅ NEW: Manual refresh function
+  const handleManualRefresh = async () => {
+    if (isRefreshing) return;
+    
+    setIsRefreshing(true);
+    try {
+      if (selectedUser) {
+        await Promise.all([
+          fetchMessages(selectedUser._id, true),
+          fetchRecipientStatus(selectedUser._id),
+        ]);
+      }
+      await fetchConversations();
+      toast.success("Refreshed");
+    } catch (error) {
+      toast.error("Failed to refresh");
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 1000);
     }
   };
 
@@ -378,7 +454,11 @@ export default function MessagesPage() {
 
     if (d.toDateString() === today.toDateString()) return "Today";
     if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric"
+    });
   };
 
   const sendActivityPing = async () => {
@@ -424,8 +504,11 @@ export default function MessagesPage() {
     if (diffHours < 24) return `last seen ${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
     if (diffDays === 1) return "last seen yesterday";
     if (diffDays < 7) return `last seen ${diffDays} days ago`;
-    
-    return `last seen ${lastSeen.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+
+    return `last seen ${lastSeen.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric"
+    })}`;
   };
 
   const formatAudioTime = (seconds: number) => {
@@ -468,25 +551,24 @@ export default function MessagesPage() {
   const handleImageDownload = async (imageUrl: string, content: string) => {
     try {
       const loadingToast = toast.loading("Downloading image...");
-      
+
       const response = await fetch(imageUrl);
       const blob = await response.blob();
-      
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      
+
       const timestamp = new Date().getTime();
-      const filename = content && content !== "Image" 
+      const filename = content && content !== "Image"
         ? `${content.substring(0, 20)}-${timestamp}.jpg`
         : `image-${timestamp}.jpg`;
-      
+
       link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      
+
       toast.dismiss(loadingToast);
       toast.success("Image downloaded");
     } catch (error) {
@@ -494,10 +576,7 @@ export default function MessagesPage() {
     }
   };
 
-  const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-    window.location.href = "/autocityPro/login";
-  };
+  
 
   const filteredUsers = users.filter(
     (u) =>
@@ -507,20 +586,37 @@ export default function MessagesPage() {
         u.email?.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    window.location.href = "/autocityPro/login";
+  };
+
   return (
-    <MainLayout user={user} onLogout={handleLogout} >
+    <MainLayout user={user} onLogout={handleLogout}>
       <div className="flex flex-col h-screen bg-[#050505] overflow-hidden">
         {/* Header - Fixed */}
         <div className="bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-lg flex-shrink-0">
           <div className="px-4 md:px-6 py-3 md:py-6">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 md:p-3 bg-white/10 backdrop-blur-sm rounded-xl">
-                <MessageCircle className="h-6 w-6 md:h-8 md:w-8 text-white" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 md:p-3 bg-white/10 backdrop-blur-sm rounded-xl">
+                  <MessageCircle className="h-6 w-6 md:h-8 md:w-8 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-xl md:text-3xl font-bold text-white">Messages</h1>
+                  <p className="text-xs md:text-base text-white/80 mt-0.5 md:mt-1">Team communication</p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-xl md:text-3xl font-bold text-white">Messages</h1>
-                <p className="text-xs md:text-base text-white/80 mt-0.5 md:mt-1">Team communication</p>
-              </div>
+              
+              {/* ✅ NEW: Manual refresh button */}
+              <button
+                onClick={handleManualRefresh}
+                disabled={isRefreshing}
+                className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
+                title="Refresh messages"
+              >
+                <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </button>
             </div>
           </div>
         </div>
@@ -575,7 +671,9 @@ export default function MessagesPage() {
                       key={conv.conversationWith._id}
                       onClick={() => handleSelectUser(conv.conversationWith)}
                       className={`w-full p-3 md:p-4 flex items-center space-x-3 hover:bg-gray-900 border-b border-gray-800 transition-colors active:bg-gray-800 ${
-                        selectedUser?._id === conv.conversationWith._id ? "bg-gray-900" : ""
+                        selectedUser?._id === conv.conversationWith._id
+                          ? "bg-gray-900"
+                          : ""
                       }`}
                     >
                       <div className="w-11 h-11 md:w-12 md:h-12 rounded-full bg-[#E84545]/20 flex items-center justify-center border border-[#E84545]/30 flex-shrink-0">
@@ -587,7 +685,8 @@ export default function MessagesPage() {
                       <div className="flex-1 text-left min-w-0">
                         <div className="flex items-center justify-between mb-1">
                           <p className="text-white font-medium truncate text-sm md:text-base">
-                            {conv.conversationWith.firstName} {conv.conversationWith.lastName}
+                            {conv.conversationWith.firstName}{" "}
+                            {conv.conversationWith.lastName}
                           </p>
                           {conv.unreadCount > 0 && (
                             <span className="ml-2 px-2 py-0.5 bg-[#E84545] text-white text-xs rounded-full flex-shrink-0 min-w-[1.25rem] text-center">
@@ -607,10 +706,12 @@ export default function MessagesPage() {
                   ))}
 
               {!loading && conversations.length === 0 && !searchTerm && (
-                <div className="p-6 md:p-8 text-center text-gray-500">
-                  <MessageCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p className="text-sm md:text-base">No conversations yet</p>
-                  <p className="text-xs md:text-sm mt-2">
+                <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+                  <MessageCircle className="h-12 w-12 md:h-16 md:w-16 text-gray-700 mb-4" />
+                  <p className="text-gray-500 text-sm md:text-base">
+                    No conversations yet
+                  </p>
+                  <p className="text-gray-600 text-xs md:text-sm mt-2">
                     Search for users to start messaging
                   </p>
                 </div>
@@ -671,7 +772,8 @@ export default function MessagesPage() {
                     const isMe = !!user && msg.senderId._id === user._id;
                     const showDate =
                       index === 0 ||
-                      formatDate(messages[index - 1].createdAt) !== formatDate(msg.createdAt);
+                      formatDate(messages[index - 1].createdAt) !==
+                        formatDate(msg.createdAt);
 
                     return (
                       <div key={msg._id}>
@@ -691,6 +793,7 @@ export default function MessagesPage() {
                                 : "bg-gray-800 text-white rounded-bl-md"
                             }`}
                           >
+                          
                             {msg.type === "image" ? (
                               <div className="space-y-2">
                                 <img

@@ -1,151 +1,236 @@
-// hooks/useVoiceRecorder.ts
-'use client';
-
-import { useState, useRef, useCallback } from 'react';
+// hooks/useVoiceRecorder.ts - IMPROVED iOS-COMPATIBLE VERSION
+import { useState, useRef, useCallback, useEffect } from 'react';
 
 interface UseVoiceRecorderReturn {
   isRecording: boolean;
+  isPaused: boolean;
   duration: number;
   audioBlob: Blob | null;
   audioUrl: string | null;
   startRecording: () => Promise<void>;
   stopRecording: () => void;
+  pauseRecording: () => void;
+  resumeRecording: () => void;
   cancelRecording: () => void;
-  reset: () => void;
   error: string | null;
 }
 
 export function useVoiceRecorder(): UseVoiceRecorderReturn {
   const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [duration, setDuration] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const isResettingRef = useRef(false);
+  const startTimeRef = useRef<number>(0);
+  const pausedTimeRef = useRef<number>(0);
 
-  const clearTimer = () => {
-    if (durationIntervalRef.current) {
-      clearInterval(durationIntervalRef.current);
-      durationIntervalRef.current = null;
+  // ✅ iOS-compatible MIME types (in order of preference)
+  const getSupportedMimeType = (): string => {
+    const types = [
+      'audio/mp4',           // iOS Safari preferred
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/ogg;codecs=opus',
+      'audio/wav',
+    ];
+
+    for (const type of types) {
+      if (MediaRecorder.isTypeSupported(type)) {
+        console.log('Using MIME type:', type);
+        return type;
+      }
     }
+
+    console.warn('No supported MIME type found, using default');
+    return '';
   };
 
-  const cleanupStream = () => {
-    streamRef.current?.getTracks().forEach(track => track.stop());
-    streamRef.current = null;
-  };
+  const startTimer = useCallback(() => {
+    startTimeRef.current = Date.now() - pausedTimeRef.current;
+    
+    timerRef.current = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+      setDuration(elapsed);
+    }, 100);
+  }, []);
+
+  const stopTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
 
   const startRecording = useCallback(async () => {
     try {
       setError(null);
-      isResettingRef.current = false;
+      audioChunksRef.current = [];
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-
-      const recorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus',
+      // ✅ Request microphone permission with iOS-friendly constraints
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          // iOS-specific: Don't request high sample rates as they may fail
+          sampleRate: { ideal: 44100 },
+          channelCount: { ideal: 1 },
+        },
       });
 
-      mediaRecorderRef.current = recorder;
-      chunksRef.current = [];
+      streamRef.current = stream;
 
-      recorder.ondataavailable = (event) => {
+      // ✅ Get iOS-compatible MIME type
+      const mimeType = getSupportedMimeType();
+      
+      // ✅ Create MediaRecorder with iOS-compatible options
+      const options: MediaRecorderOptions = mimeType 
+        ? { mimeType }
+        : {};
+
+      const mediaRecorder = new MediaRecorder(stream, options);
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
-          chunksRef.current.push(event.data);
+          audioChunksRef.current.push(event.data);
         }
       };
 
-      recorder.onstop = () => {
-        // Ignore late async stop after reset/send
-        if (isResettingRef.current) {
-          cleanupStream();
-          return;
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, {
+          type: mimeType || 'audio/webm',
+        });
+        setAudioBlob(audioBlob);
+        setAudioUrl(URL.createObjectURL(audioBlob));
+
+        // Cleanup stream
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((track) => track.stop());
+          streamRef.current = null;
         }
-
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-        const url = URL.createObjectURL(blob);
-
-        setAudioBlob(blob);
-        setAudioUrl(url);
-
-        cleanupStream();
       };
 
-      recorder.start();
+      mediaRecorder.onerror = (event) => {
+        console.error('MediaRecorder error:', event);
+        setError('Recording failed. Please try again.');
+        cancelRecording();
+      };
+
+      // ✅ Start recording with small timeslice for better iOS compatibility
+      mediaRecorder.start(100);
       setIsRecording(true);
-      setDuration(0);
+      setIsPaused(false);
+      pausedTimeRef.current = 0;
+      startTimer();
 
-      durationIntervalRef.current = setInterval(() => {
-        setDuration(prev => prev + 1);
-      }, 1000);
+      // ✅ iOS haptic feedback (if available)
+      if ('vibrate' in navigator) {
+        navigator.vibrate(10);
+      }
 
-    } catch (err: any) {
-      console.error('Error starting recording:', err);
-      setError(err.message || 'Failed to access microphone');
+    } catch (err) {
+      console.error('Failed to start recording:', err);
+      
+      // ✅ User-friendly error messages for iOS
+      if (err instanceof DOMException) {
+        if (err.name === 'NotAllowedError') {
+          setError('Microphone permission denied. Please enable it in Settings.');
+        } else if (err.name === 'NotFoundError') {
+          setError('No microphone found.');
+        } else if (err.name === 'NotReadableError') {
+          setError('Microphone is being used by another app.');
+        } else {
+          setError('Failed to access microphone.');
+        }
+      } else {
+        setError('Recording failed. Please try again.');
+      }
     }
-  }, []);
+  }, [startTimer]);
 
   const stopRecording = useCallback(() => {
-    const recorder = mediaRecorderRef.current;
-    if (recorder && isRecording) {
-      recorder.stop();
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
       setIsRecording(false);
-      clearTimer();
+      setIsPaused(false);
+      stopTimer();
+
+      // ✅ iOS haptic feedback
+      if ('vibrate' in navigator) {
+        navigator.vibrate(10);
+      }
     }
-  }, [isRecording]);
+  }, [isRecording, stopTimer]);
+
+  const pauseRecording = useCallback(() => {
+    if (mediaRecorderRef.current && isRecording && !isPaused) {
+      mediaRecorderRef.current.pause();
+      setIsPaused(true);
+      pausedTimeRef.current = Date.now() - startTimeRef.current;
+      stopTimer();
+    }
+  }, [isRecording, isPaused, stopTimer]);
+
+  const resumeRecording = useCallback(() => {
+    if (mediaRecorderRef.current && isRecording && isPaused) {
+      mediaRecorderRef.current.resume();
+      setIsPaused(false);
+      startTimer();
+    }
+  }, [isRecording, isPaused, startTimer]);
 
   const cancelRecording = useCallback(() => {
-    isResettingRef.current = true;
-
-    const recorder = mediaRecorderRef.current;
-    if (recorder && recorder.state !== 'inactive') {
-      recorder.stop();
+    if (mediaRecorderRef.current) {
+      if (isRecording) {
+        mediaRecorderRef.current.stop();
+      }
+      mediaRecorderRef.current = null;
     }
 
-    clearTimer();
-    cleanupStream();
-
-    chunksRef.current = [];
-    setAudioBlob(null);
-    setAudioUrl(null);
-    setDuration(0);
-    setIsRecording(false);
-  }, []);
-
-  // ✅ CALL THIS AFTER SENDING VOICE MESSAGE
-  const reset = useCallback(() => {
-    isResettingRef.current = true;
-
-    const recorder = mediaRecorderRef.current;
-    if (recorder && recorder.state !== 'inactive') {
-      recorder.stop();
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
     }
 
-    clearTimer();
-    cleanupStream();
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl);
+    }
 
-    chunksRef.current = [];
+    audioChunksRef.current = [];
+    setIsRecording(false);
+    setIsPaused(false);
+    setDuration(0);
     setAudioBlob(null);
     setAudioUrl(null);
-    setDuration(0);
-    setIsRecording(false);
+    pausedTimeRef.current = 0;
+    stopTimer();
+  }, [isRecording, audioUrl, stopTimer]);
+
+  // ✅ Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cancelRecording();
+    };
   }, []);
 
   return {
     isRecording,
+    isPaused,
     duration,
     audioBlob,
     audioUrl,
     startRecording,
     stopRecording,
+    pauseRecording,
+    resumeRecording,
     cancelRecording,
-    reset,
     error,
   };
 }

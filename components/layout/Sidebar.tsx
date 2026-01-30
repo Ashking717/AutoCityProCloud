@@ -49,11 +49,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
     new Set()
   );
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [isScrolling, setIsScrolling] = useState(false);
-  const [lastScrollTop, setLastScrollTop] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Fetch unread message count
@@ -76,8 +72,8 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
   useEffect(() => {
     fetchUnreadCount();
     
-    // Poll for new messages every 10 seconds
-    const interval = setInterval(fetchUnreadCount, 200000);
+    // Poll for new messages every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000);
     
     return () => clearInterval(interval);
   }, []);
@@ -99,7 +95,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
     return user?.role && allowedRoles.includes(user.role);
   };
 
-  // Define all navigation items with role-based access (Messages removed)
+  // Define all navigation items with role-based access
   const allNavigationSections = [
     {
       title: "Main",
@@ -278,7 +274,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
     }))
     .filter((section) => section.items.length > 0);
 
-  // Primary mobile navigation items (shown in bottom bar) - Messages removed
+  // ✅ UPDATED: Primary mobile navigation items (Dashboard, New Sale, Portal, Messages, More)
   const allPrimaryMobileNavItems = [
     {
       name: "Dashboard",
@@ -295,65 +291,17 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
       roles: ["SUPERADMIN", "ADMIN", "MANAGER", "SALESPERSON", "CASHIER"],
     },
     {
-      name: "Reports",
-      icon: BarChart3,
-      href: "/autocityPro/reports",
+      name: "Portal",
+      icon: Truck,
+      href: "/autocityPro/portal",
       badge: null,
-      roles: ["SUPERADMIN", "ADMIN", "MANAGER", "VIEWER", "ACCOUNTANT"],
+      roles: ["SUPERADMIN", "ADMIN", "MANAGER", "ACCOUNTANT"],
     },
   ];
 
   const primaryMobileNavItems = allPrimaryMobileNavItems.filter((item) =>
     hasAccess(item.roles)
   );
-
-  // Check if mobile on mount and resize
-  useEffect(() => {
-    const checkIfMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    checkIfMobile();
-    window.addEventListener('resize', checkIfMobile);
-    
-    return () => window.removeEventListener('resize', checkIfMobile);
-  }, []);
-
-  // Handle scroll to prevent bottom bar movement
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-      
-      setIsScrolling(Math.abs(scrollTop - lastScrollTop) > 0);
-      setLastScrollTop(scrollTop);
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, [lastScrollTop]);
-
-  // Prevent URL bar hide/show on mobile
-  useEffect(() => {
-    if (isMobile) {
-      const setVH = () => {
-        const vh = window.innerHeight * 0.01;
-        document.documentElement.style.setProperty('--vh', `${vh}px`);
-      };
-      
-      setVH();
-      window.addEventListener('resize', setVH);
-      
-      document.body.style.overscrollBehaviorY = 'none';
-      
-      return () => {
-        window.removeEventListener('resize', setVH);
-        document.body.style.overscrollBehaviorY = 'auto';
-      };
-    }
-  }, [isMobile]);
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -549,7 +497,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
                         : "text-gray-400 group-hover:text-[#E84545]"
                     }`}
                   />
-                  <span className="font-medium">Messages</span>
+                  <span className="font-medium">Chat+</span>
                 </div>
                 {unreadCount > 0 && (
                   <span className="px-2 py-0.5 text-xs font-bold bg-[#E84545] text-white rounded-full animate-pulse">
@@ -656,11 +604,14 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
         </div>
       </div>
 
-      {/* Apple-style Mobile Bottom Navigation Bar - FIXED */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 pointer-events-none">
-        <div className={`pointer-events-auto bg-black/90 backdrop-blur-xl border-t border-white/10 safe-area-bottom transition-transform duration-300 ${
-          isScrolling ? 'translate-y-0' : 'translate-y-0'
-        }`}>
+      {/* ✅ FIXED: Mobile Bottom Navigation Bar - No more dragging! */}
+      <div 
+        className="md:hidden fixed bottom-0 left-0 right-0 z-50"
+        style={{
+          paddingBottom: 'env(safe-area-inset-bottom)',
+        }}
+      >
+        <div className="bg-black/95 backdrop-blur-xl border-t border-white/10">
           <div className="flex justify-around items-center px-2 pt-2 pb-1">
             {/* Primary navigation items */}
             {primaryMobileNavItems.map((item) => {
@@ -725,7 +676,8 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
               </span>
             </button>
           </div>
-          {/* Home indicator */}
+          
+          {/* ✅ iOS Home Indicator */}
           <div className="flex justify-center pb-1">
             <div className="w-32 h-1 bg-white/20 rounded-full"></div>
           </div>
@@ -736,11 +688,15 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
       {showMobileMenu && (
         <div className="md:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={() => setShowMobileMenu(false)}>
           <div 
-            className="absolute bottom-0 left-0 right-0 bg-[#050505] rounded-t-3xl shadow-2xl max-h-[85vh] overflow-hidden flex flex-col"
+            className="absolute bottom-0 left-0 right-0 bg-[#050505] rounded-t-3xl shadow-2xl flex flex-col"
+            style={{ 
+              maxHeight: '85vh',
+              paddingBottom: 'env(safe-area-inset-bottom)'
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Menu Header */}
-            <div className="flex items-center justify-between p-4 border-b border-white/10 bg-gradient-to-r from-[#E84545]/5 to-transparent">
+            <div className="flex items-center justify-between p-4 border-b border-white/10 bg-gradient-to-r from-[#E84545]/5 to-transparent flex-shrink-0">
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-[#E84545]/10 rounded-xl">
                   <Grid3x3 className="h-5 w-5 text-[#E84545]" />
@@ -749,7 +705,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
               </div>
               <button
                 onClick={() => setShowMobileMenu(false)}
-                className="p-2 hover:bg-white/10 rounded-xl transition-colors active:scale-95"
+                className="p-2 hover:bg-white/10 rounded-xl transition-colors active:scale-95 touch-manipulation"
               >
                 <ChevronDown className="h-5 w-5 text-gray-400" />
               </button>
@@ -757,10 +713,10 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
 
             {/* User Profile in Mobile Menu */}
             {user && (
-              <div className="p-4 border-b border-white/5">
+              <div className="p-4 border-b border-white/5 flex-shrink-0">
                 <button
                   onClick={() => handleNavigate("/autocityPro/profile")}
-                  className="w-full flex items-center space-x-3 text-left rounded-xl p-3 bg-white/5 active:bg-white/10 transition-all"
+                  className="w-full flex items-center space-x-3 text-left rounded-xl p-3 bg-white/5 active:bg-white/10 transition-all touch-manipulation"
                 >
                   <div className="relative">
                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#E84545] to-[#cc3c3c] flex items-center justify-center shadow-lg">
@@ -788,7 +744,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
                 {hasMessagesAccess && (
                   <button
                     onClick={() => handleNavigate("/autocityPro/messages")}
-                    className={`w-full flex items-center justify-between mt-3 px-3 py-2.5 text-sm rounded-xl transition-all ${
+                    className={`w-full flex items-center justify-between mt-3 px-3 py-2.5 text-sm rounded-xl transition-all touch-manipulation ${
                       pathname === "/autocityPro/messages"
                         ? "bg-gradient-to-r from-[#E84545]/20 to-[#cc3c3c]/20 text-white ring-1 ring-[#E84545]/30"
                         : "bg-white/5 text-gray-300 active:bg-white/10"
@@ -813,7 +769,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
             )}
 
             {/* Scrollable Menu Content */}
-            <div className="flex-1 overflow-y-auto py-2 px-4">
+            <div className="flex-1 overflow-y-auto py-2 px-4" style={{ WebkitOverflowScrolling: 'touch' }}>
               {navigation.map((section, idx) => (
                 <div key={idx} className="mb-4">
                   <div className="flex items-center space-x-2 px-3 py-2 mb-2">
@@ -830,7 +786,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
                         <button
                           key={item.href}
                           onClick={() => handleNavigate(item.href)}
-                          className={`w-full flex items-center space-x-3 px-3 py-3 text-sm rounded-xl transition-all active:scale-98 ${
+                          className={`w-full flex items-center space-x-3 px-3 py-3 text-sm rounded-xl transition-all active:scale-98 touch-manipulation ${
                             isActive
                               ? "bg-gradient-to-r from-[#E84545]/20 to-[#cc3c3c]/20 text-white ring-1 ring-[#E84545]/30"
                               : "text-gray-300 active:bg-white/10"
@@ -854,13 +810,13 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
             </div>
 
             {/* Menu Footer */}
-            <div className="border-t border-white/10 p-4">
+            <div className="border-t border-white/10 p-4 flex-shrink-0">
               <button
                 onClick={() => {
                   setShowHelp(true);
                   setShowMobileMenu(false);
                 }}
-                className="w-full flex items-center justify-center space-x-2 py-3 text-sm rounded-xl bg-white/5 active:bg-white/10 transition-all"
+                className="w-full flex items-center justify-center space-x-2 py-3 text-sm rounded-xl bg-white/5 active:bg-white/10 transition-all touch-manipulation"
               >
                 <Keyboard className="h-5 w-5 text-gray-400" />
                 <span className="font-medium text-gray-300">Keyboard Shortcuts</span>
@@ -868,7 +824,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
               
               <button
                 onClick={onLogout}
-                className="w-full flex items-center justify-center space-x-2 py-3 text-sm rounded-xl bg-[#E84545]/10 active:bg-[#E84545]/20 text-[#E84545] mt-2 transition-all"
+                className="w-full flex items-center justify-center space-x-2 py-3 text-sm rounded-xl bg-[#E84545]/10 active:bg-[#E84545]/20 text-[#E84545] mt-2 transition-all touch-manipulation"
               >
                 <LogOut className="h-5 w-5" />
                 <span className="font-medium">Logout</span>
@@ -897,14 +853,14 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
               </div>
               <button
                 onClick={() => setShowHelp(false)}
-                className="p-2 hover:bg-white/10 rounded-xl transition-colors"
+                className="p-2 hover:bg-white/10 rounded-xl transition-colors touch-manipulation"
               >
                 <X className="h-5 w-5 text-gray-400" />
               </button>
             </div>
 
             {/* Shortcuts Content */}
-            <div className="p-6 overflow-y-auto max-h-[60vh]">
+            <div className="p-6 overflow-y-auto max-h-[60vh]" style={{ WebkitOverflowScrolling: 'touch' }}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Navigation */}
                 <div>
@@ -1011,8 +967,9 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
         </div>
       )}
 
-      {/* Custom Scrollbar Styles + iOS Safe Area */}
+      {/* ✅ OPTIMIZED: Custom Styles */}
       <style jsx global>{`
+        /* Custom Scrollbar */
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;
         }
@@ -1026,18 +983,6 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
           background: rgba(232, 69, 69, 0.5);
-        }
-        
-        /* iOS Safe Area Support */
-        .safe-area-bottom {
-          padding-bottom: env(safe-area-inset-bottom);
-        }
-
-        /* Prevent overscroll */
-        body {
-          overscroll-behavior-y: none;
-          touch-action: pan-y;
-          -webkit-overflow-scrolling: touch;
         }
 
         /* Touch improvements */
@@ -1054,32 +999,6 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
 
         .active\\:scale-95:active {
           transform: scale(0.95);
-        }
-
-        /* Viewport height fix for mobile */
-        :root {
-          --vh: 1vh;
-        }
-
-        /* Prevent address bar hide/show on mobile */
-        @supports (-webkit-touch-callout: none) {
-          .h-screen {
-            height: calc(var(--vh, 1vh) * 100);
-          }
-        }
-
-        /* Hide bottom bar when keyboard is open */
-        @media (max-height: 500px) {
-          .md\\:hidden.fixed.bottom-0 {
-            display: none !important;
-          }
-        }
-
-        /* iOS specific fixes */
-        @supports (padding: max(0px)) {
-          .safe-area-bottom {
-            padding-bottom: max(env(safe-area-inset-bottom), 8px);
-          }
         }
       `}</style>
     </>

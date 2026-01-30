@@ -1,7 +1,7 @@
-// app/autocityPro/messages/page.tsx
+// app/autocityPro/messages/page.tsx - OPTIMIZED FOR MOBILE WITH SIDEBAR
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import { useVoiceRecorder } from "@/hooks/useVoiceRecorder";
 import {
@@ -16,10 +16,11 @@ import {
   Check,
   CheckCheck,
   Image as ImageIcon,
-  Paperclip,
   ArrowLeft,
   Download,
   RefreshCw,
+  ChevronDown,
+  Copy,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -70,11 +71,18 @@ export default function MessagesPage() {
   });
   const [justSentVoice, setJustSentVoice] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [imageZoom, setImageZoom] = useState(1);
+  const [isPulling, setIsPulling] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const voiceRecorder = useVoiceRecorder();
+  const touchStartYRef = useRef(0);
+  const pullThreshold = 80;
 
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [audioProgress, setAudioProgress] = useState<{ [key: string]: number }>({});
@@ -83,14 +91,12 @@ export default function MessagesPage() {
   const prevMessagesLengthRef = useRef(0);
   const userScrolledRef = useRef(false);
 
-  // ✅ OPTIMIZED: Initial data fetch
   useEffect(() => {
     fetchUser();
     fetchConversations();
     fetchUsers();
     sendActivityPing();
 
-    // Activity ping every 30 seconds
     const activityInterval = setInterval(sendActivityPing, 30000);
 
     return () => {
@@ -98,7 +104,6 @@ export default function MessagesPage() {
     };
   }, []);
 
-  // ✅ OPTIMIZED: Smart polling with visibility detection
   useEffect(() => {
     if (!selectedUser) return;
 
@@ -106,7 +111,6 @@ export default function MessagesPage() {
     let conversationsInterval: NodeJS.Timeout;
 
     const startPolling = () => {
-      // Poll messages and status every 10 seconds when user is selected
       messagesInterval = setInterval(() => {
         if (selectedUser) {
           fetchMessages(selectedUser._id, true);
@@ -114,7 +118,6 @@ export default function MessagesPage() {
         }
       }, 10000);
 
-      // Poll conversations every 30 seconds
       conversationsInterval = setInterval(() => {
         fetchConversations();
       }, 30000);
@@ -129,7 +132,6 @@ export default function MessagesPage() {
       if (document.hidden) {
         stopPolling();
       } else {
-        // Fetch immediately when tab becomes visible
         if (selectedUser) {
           fetchMessages(selectedUser._id, true);
           fetchRecipientStatus(selectedUser._id);
@@ -139,11 +141,9 @@ export default function MessagesPage() {
       }
     };
 
-    // Initial fetch
     fetchMessages(selectedUser._id);
     fetchRecipientStatus(selectedUser._id);
 
-    // Start polling
     document.addEventListener('visibilitychange', handleVisibilityChange);
     startPolling();
 
@@ -153,13 +153,12 @@ export default function MessagesPage() {
     };
   }, [selectedUser]);
 
-  // ✅ Poll conversations list less frequently when no user is selected
   useEffect(() => {
-    if (selectedUser) return; // Already handled in the above effect
+    if (selectedUser) return;
 
     const conversationsInterval = setInterval(() => {
       fetchConversations();
-    }, 30000); // Every 30 seconds
+    }, 30000);
 
     return () => {
       clearInterval(conversationsInterval);
@@ -183,9 +182,50 @@ export default function MessagesPage() {
     prevMessagesLengthRef.current = messages.length;
   }, [messages]);
 
+  useEffect(() => {
+    if (voiceRecorder.error) {
+      toast.error(voiceRecorder.error);
+    }
+  }, [voiceRecorder.error]);
+
   const handleScroll = () => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
     const isNearBottom = checkIfNearBottom();
     userScrolledRef.current = !isNearBottom;
+    
+    const scrolledDistance = container.scrollHeight - container.scrollTop - container.clientHeight;
+    setShowScrollButton(scrolledDistance > 200);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const container = messagesContainerRef.current;
+    if (!container || container.scrollTop > 0) return;
+    
+    touchStartYRef.current = e.touches[0].clientY;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    const container = messagesContainerRef.current;
+    if (!container || container.scrollTop > 0) return;
+
+    const currentY = e.touches[0].clientY;
+    const distance = currentY - touchStartYRef.current;
+
+    if (distance > 0 && distance < pullThreshold * 1.5) {
+      setPullDistance(distance);
+      setIsPulling(true);
+    }
+  };
+
+  const handleTouchEnd = async () => {
+    if (pullDistance > pullThreshold) {
+      await handleManualRefresh();
+    }
+    
+    setIsPulling(false);
+    setPullDistance(0);
   };
 
   const checkIfNearBottom = () => {
@@ -289,6 +329,10 @@ export default function MessagesPage() {
     setShowSidebar(false);
     userScrolledRef.current = false;
     prevMessagesLengthRef.current = 0;
+    
+    if ('vibrate' in navigator) {
+      navigator.vibrate(10);
+    }
   };
 
   const handleBackToList = () => {
@@ -326,6 +370,10 @@ export default function MessagesPage() {
     const hasVoiceMessage = !!voiceRecorder.audioBlob;
     const voiceBlob = voiceRecorder.audioBlob;
     const voiceDuration = voiceRecorder.duration;
+
+    if ('vibrate' in navigator) {
+      navigator.vibrate(10);
+    }
 
     try {
       let messageData: any = {
@@ -417,11 +465,15 @@ export default function MessagesPage() {
     }
   };
 
-  // ✅ NEW: Manual refresh function
   const handleManualRefresh = async () => {
     if (isRefreshing) return;
     
     setIsRefreshing(true);
+    
+    if ('vibrate' in navigator) {
+      navigator.vibrate([10, 50, 10]);
+    }
+
     try {
       if (selectedUser) {
         await Promise.all([
@@ -430,11 +482,29 @@ export default function MessagesPage() {
         ]);
       }
       await fetchConversations();
-      toast.success("Refreshed");
+      toast.success("Refreshed", { duration: 1500 });
     } catch (error) {
       toast.error("Failed to refresh");
     } finally {
       setTimeout(() => setIsRefreshing(false), 1000);
+    }
+  };
+
+  const handleLongPress = useCallback((message: Message) => {
+    setSelectedMessage(message);
+    
+    if ('vibrate' in navigator) {
+      navigator.vibrate(50);
+    }
+  }, []);
+
+  const handleCopyMessage = async (content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      toast.success("Copied to clipboard");
+      setSelectedMessage(null);
+    } catch (error) {
+      toast.error("Failed to copy");
     }
   };
 
@@ -538,7 +608,10 @@ export default function MessagesPage() {
     } else {
       if (audioRef.current) {
         audioRef.current.src = voiceUrl;
-        audioRef.current.play();
+        audioRef.current.play().catch((error) => {
+          console.error("Failed to play audio:", error);
+          toast.error("Failed to play voice message");
+        });
       }
       setPlayingId(messageId);
     }
@@ -546,6 +619,7 @@ export default function MessagesPage() {
 
   const handleImageView = (imageUrl: string, content: string) => {
     setViewingImage({ url: imageUrl, content });
+    setImageZoom(1);
   };
 
   const handleImageDownload = async (imageUrl: string, content: string) => {
@@ -576,8 +650,6 @@ export default function MessagesPage() {
     }
   };
 
-  
-
   const filteredUsers = users.filter(
     (u) =>
       u._id !== user?._id &&
@@ -593,62 +665,49 @@ export default function MessagesPage() {
 
   return (
     <MainLayout user={user} onLogout={handleLogout}>
-      <div className="flex flex-col h-screen bg-[#050505] overflow-hidden">
-        {/* Header - Fixed */}
-        <div className="bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-lg flex-shrink-0">
-          <div className="px-4 md:px-6 py-3 md:py-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 md:p-3 bg-white/10 backdrop-blur-sm rounded-xl">
-                  <MessageCircle className="h-6 w-6 md:h-8 md:w-8 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-xl md:text-3xl font-bold text-white">Messages</h1>
-                  <p className="text-xs md:text-base text-white/80 mt-0.5 md:mt-1">Team communication</p>
-                </div>
-              </div>
-              
-              {/* ✅ NEW: Manual refresh button */}
-              <button
-                onClick={handleManualRefresh}
-                disabled={isRefreshing}
-                className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
-                title="Refresh messages"
-              >
-                <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
-              </button>
-            </div>
-          </div>
-        </div>
-
+      {/* ✅ UPDATED: Container height - adjusted for mobile bottom bar, full height on desktop */}
+      <div className="flex flex-col bg-[#050505] messages-container-height">
+        
         {/* Main Content Area */}
         <div className="flex-1 flex overflow-hidden min-h-0">
           {/* Conversations Sidebar */}
           <div className={`${
             showSidebar ? 'flex' : 'hidden'
-          } md:flex w-full md:w-80 bg-black border-r border-gray-800 flex-col overflow-hidden`}>
+          } md:flex w-full md:w-80 bg-black border-r border-gray-800 flex-col`}>
+            
             {/* Search */}
             <div className="p-3 md:p-4 border-b border-gray-800 flex-shrink-0">
-              <div className="relative">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search users..."
-                  className="w-full pl-9 pr-3 py-2 bg-gray-900 border border-gray-800 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-sm"
-                />
+              <div className="flex items-center space-x-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Search users..."
+                    className="w-full pl-9 pr-3 py-2 bg-gray-900 border border-gray-800 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-sm"
+                    style={{ fontSize: '16px' }}
+                  />
+                </div>
+                <button
+                  onClick={handleManualRefresh}
+                  disabled={isRefreshing}
+                  className="p-2 text-white/80 hover:text-white hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50 active:scale-95 flex-shrink-0 touch-manipulation"
+                  title="Refresh"
+                >
+                  <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                </button>
               </div>
             </div>
 
             {/* Conversations List */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
               {searchTerm
                 ? filteredUsers.map((u) => (
                     <button
                       key={u._id}
                       onClick={() => handleSelectUser(u)}
-                      className={`w-full p-3 md:p-4 flex items-center space-x-3 hover:bg-gray-900 border-b border-gray-800 transition-colors active:bg-gray-800 ${
+                      className={`w-full p-3 md:p-4 flex items-center space-x-3 hover:bg-gray-900 border-b border-gray-800 transition-colors active:bg-gray-800 touch-manipulation ${
                         selectedUser?._id === u._id ? "bg-gray-900" : ""
                       }`}
                     >
@@ -670,7 +729,7 @@ export default function MessagesPage() {
                     <button
                       key={conv.conversationWith._id}
                       onClick={() => handleSelectUser(conv.conversationWith)}
-                      className={`w-full p-3 md:p-4 flex items-center space-x-3 hover:bg-gray-900 border-b border-gray-800 transition-colors active:bg-gray-800 ${
+                      className={`w-full p-3 md:p-4 flex items-center space-x-3 hover:bg-gray-900 border-b border-gray-800 transition-colors active:bg-gray-800 touch-manipulation ${
                         selectedUser?._id === conv.conversationWith._id
                           ? "bg-gray-900"
                           : ""
@@ -722,33 +781,33 @@ export default function MessagesPage() {
           {/* Chat Area */}
           <div className={`${
             !selectedUser ? 'hidden' : 'flex'
-          } md:flex flex-1 flex-col min-h-0 bg-[#0A0A0A] overflow-hidden`}>
+          } md:flex flex-1 flex-col bg-[#0A0A0A] relative`}>
             {selectedUser ? (
               <>
-                {/* Chat Header */}
-                <div className="p-3 md:p-4 border-b border-gray-800 bg-black flex-shrink-0">
+                {/* Chat Header - Compact */}
+                <div className="p-3 border-b border-gray-800 bg-black flex-shrink-0">
                   <div className="flex items-center space-x-3">
                     <button
                       onClick={handleBackToList}
-                      className="md:hidden p-2 hover:bg-gray-800 rounded-lg active:bg-gray-700 touch-manipulation"
+                      className="md:hidden p-2 hover:bg-gray-800 rounded-lg active:bg-gray-700 active:scale-95 touch-manipulation"
                     >
                       <ArrowLeft className="h-5 w-5 text-white" />
                     </button>
-                    <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-[#E84545]/20 flex items-center justify-center border border-[#E84545]/30">
+                    <div className="w-9 h-9 rounded-full bg-[#E84545]/20 flex items-center justify-center border border-[#E84545]/30">
                       <span className="text-[#E84545] font-semibold text-sm">
                         {selectedUser.firstName?.[0]}
                         {selectedUser.lastName?.[0]}
                       </span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-white font-medium text-sm md:text-base truncate">
+                      <p className="text-white font-medium text-sm truncate">
                         {selectedUser.firstName} {selectedUser.lastName}
                       </p>
                       <div className="flex items-center space-x-1.5">
                         {recipientStatus.isOnline ? (
                           <>
                             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                            <p className="text-green-400 text-xs md:text-sm font-medium">
+                            <p className="text-green-400 text-xs font-medium">
                               online
                             </p>
                           </>
@@ -762,11 +821,33 @@ export default function MessagesPage() {
                   </div>
                 </div>
 
+                {/* Pull-to-refresh indicator */}
+                {isPulling && (
+                  <div 
+                    className="absolute top-16 left-1/2 transform -translate-x-1/2 z-10 transition-all"
+                    style={{ 
+                      opacity: Math.min(pullDistance / pullThreshold, 1),
+                      transform: `translateX(-50%) translateY(${Math.min(pullDistance / 2, 40)}px)`
+                    }}
+                  >
+                    <div className="bg-gray-800 rounded-full p-2">
+                      <RefreshCw className={`h-5 w-5 text-white ${pullDistance > pullThreshold ? 'animate-spin' : ''}`} />
+                    </div>
+                  </div>
+                )}
+
                 {/* Messages */}
                 <div 
                   ref={messagesContainerRef}
                   onScroll={handleScroll}
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
                   className="flex-1 overflow-y-auto p-3 md:p-4 space-y-2 md:space-y-3"
+                  style={{ 
+                    WebkitOverflowScrolling: 'touch',
+                    overscrollBehavior: 'contain'
+                  }}
                 >
                   {messages.map((msg, index) => {
                     const isMe = !!user && msg.senderId._id === user._id;
@@ -787,6 +868,30 @@ export default function MessagesPage() {
 
                         <div className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
                           <div
+                            onContextMenu={(e) => {
+                              e.preventDefault();
+                              handleLongPress(msg);
+                            }}
+                            onTouchStart={(e) => {
+                              // Store reference to the element to avoid null error
+                              const element = e.currentTarget;
+                              let timer: NodeJS.Timeout | null = null;
+                              
+                              const handleTouchEnd = () => {
+                                if (timer) clearTimeout(timer);
+                                if (element) {
+                                  element.removeEventListener('touchend', handleTouchEnd);
+                                  element.removeEventListener('touchmove', handleTouchEnd);
+                                }
+                              };
+                              
+                              timer = setTimeout(() => {
+                                handleLongPress(msg);
+                              }, 500);
+                              
+                              element.addEventListener('touchend', handleTouchEnd, { once: false });
+                              element.addEventListener('touchmove', handleTouchEnd, { once: true });
+                            }}
                             className={`max-w-[85%] md:max-w-md px-3 md:px-4 py-2 rounded-2xl ${
                               isMe
                                 ? "bg-[#005C4B] text-white rounded-br-md"
@@ -799,7 +904,7 @@ export default function MessagesPage() {
                                 <img
                                   src={msg.imageUrl}
                                   alt="Shared image"
-                                  className="rounded-lg max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity"
+                                  className="rounded-lg max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity active:opacity-75"
                                   onClick={() => handleImageView(msg.imageUrl!, msg.content)}
                                 />
                                 {msg.content && msg.content !== "Image" && (
@@ -811,7 +916,7 @@ export default function MessagesPage() {
                                 <div className="flex items-center space-x-2 min-w-[200px]">
                                   <button
                                     onClick={() => playVoiceMessage(msg._id, msg.voiceUrl || "")}
-                                    className="p-1.5 hover:bg-white/10 rounded-full active:bg-white/20 touch-manipulation flex-shrink-0"
+                                    className="p-1.5 hover:bg-white/10 rounded-full active:bg-white/20 active:scale-95 touch-manipulation flex-shrink-0"
                                   >
                                     {playingId === msg._id ? (
                                       <Pause className="h-4 w-4" />
@@ -863,7 +968,20 @@ export default function MessagesPage() {
                     );
                   })}
                   <div ref={messagesEndRef} />
+                  
+                  {/* ✅ Extra bottom padding for mobile to prevent last message from being under input */}
+                  <div className="h-4 md:h-0" />
                 </div>
+
+                {/* Scroll to bottom button */}
+                {showScrollButton && (
+                  <button
+                    onClick={() => scrollToBottom(true)}
+                    className="absolute bottom-28 md:bottom-24 right-4 p-3 bg-[#E84545] text-white rounded-full shadow-lg hover:bg-[#cc3c3c] active:bg-[#b33535] active:scale-95 transition-all z-10 touch-manipulation"
+                  >
+                    <ChevronDown className="h-5 w-5" />
+                  </button>
+                )}
 
                 <audio 
                   ref={audioRef} 
@@ -871,9 +989,9 @@ export default function MessagesPage() {
                   onEnded={handleAudioEnded}
                 />
 
-                {/* Input Area */}
+                {/* ✅ UPDATED: Input Area with mobile bottom bar accommodation */}
                 <div className="border-t border-gray-800 bg-black flex-shrink-0">
-                  <div className="p-2.5 md:p-4 pb-safe">
+                  <div className="p-2.5 md:p-4">
                     {/* Image Preview */}
                     {imagePreview && (
                       <div className="mb-2 md:mb-3 relative inline-block">
@@ -890,7 +1008,7 @@ export default function MessagesPage() {
                               fileInputRef.current.value = "";
                             }
                           }}
-                          className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 active:bg-red-700 touch-manipulation"
+                          className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 active:bg-red-700 active:scale-95 touch-manipulation"
                         >
                           <X className="h-3.5 w-3.5 md:h-4 md:w-4" />
                         </button>
@@ -910,19 +1028,18 @@ export default function MessagesPage() {
                         </div>
                         <button
                           onClick={voiceRecorder.cancelRecording}
-                          className="p-2.5 md:p-3 bg-gray-800 text-white rounded-xl hover:bg-gray-700 active:bg-gray-600 touch-manipulation"
+                          className="p-2.5 md:p-3 bg-gray-800 text-white rounded-xl hover:bg-gray-700 active:bg-gray-600 active:scale-95 touch-manipulation"
                         >
                           <X className="h-5 w-5" />
                         </button>
                         <button
                           onClick={voiceRecorder.stopRecording}
-                          className="p-2.5 md:p-3 bg-[#E84545] text-white rounded-xl hover:bg-[#cc3c3c] active:bg-[#b33535] touch-manipulation"
+                          className="p-2.5 md:p-3 bg-[#E84545] text-white rounded-xl hover:bg-[#cc3c3c] active:bg-[#b33535] active:scale-95 touch-manipulation"
                         >
                           <Send className="h-5 w-5" />
                         </button>
                       </div>
                     ) : (voiceRecorder.audioBlob && !justSentVoice) ? (
-                      // ✅ CRITICAL FIX: Check justSentVoice flag to immediately hide voice UI
                       <div className="flex items-center space-x-2">
                         <div className="flex-1 flex items-center space-x-2 md:space-x-3 px-3 md:px-4 py-2.5 md:py-3 bg-gray-900 rounded-xl">
                           <div className="p-1 hover:bg-white/10 rounded-full touch-manipulation">
@@ -937,14 +1054,14 @@ export default function MessagesPage() {
                         </div>
                         <button
                           onClick={voiceRecorder.cancelRecording}
-                          className="p-2.5 md:p-3 bg-gray-800 text-white rounded-xl hover:bg-gray-700 active:bg-gray-600 touch-manipulation"
+                          className="p-2.5 md:p-3 bg-gray-800 text-white rounded-xl hover:bg-gray-700 active:bg-gray-600 active:scale-95 touch-manipulation"
                         >
                           <Trash2 className="h-5 w-5" />
                         </button>
                         <button
                           onClick={handleSendMessage}
                           disabled={sending}
-                          className="p-2.5 md:p-3 bg-[#E84545] text-white rounded-xl hover:bg-[#cc3c3c] active:bg-[#b33535] disabled:opacity-50 touch-manipulation"
+                          className="p-2.5 md:p-3 bg-[#E84545] text-white rounded-xl hover:bg-[#cc3c3c] active:bg-[#b33535] active:scale-95 disabled:opacity-50 touch-manipulation"
                         >
                           <Send className="h-5 w-5" />
                         </button>
@@ -960,7 +1077,7 @@ export default function MessagesPage() {
                         />
                         <button
                           onClick={() => fileInputRef.current?.click()}
-                          className="p-2.5 md:p-3 bg-gray-800 text-white rounded-xl hover:bg-gray-700 active:bg-gray-600 touch-manipulation flex-shrink-0"
+                          className="p-2.5 md:p-3 bg-gray-800 text-white rounded-xl hover:bg-gray-700 active:bg-gray-600 active:scale-95 touch-manipulation flex-shrink-0"
                         >
                           <ImageIcon className="h-5 w-5" />
                         </button>
@@ -976,24 +1093,24 @@ export default function MessagesPage() {
                           }}
                           placeholder="Type a message..."
                           className="flex-1 px-3 md:px-4 py-2.5 md:py-3 bg-gray-900 border border-gray-800 rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-sm md:text-base min-w-0"
+                          style={{ fontSize: '16px' }}
                         />
                         <button
                           onClick={voiceRecorder.startRecording}
-                          className="p-2.5 md:p-3 bg-gray-800 text-white rounded-xl hover:bg-gray-700 active:bg-gray-600 touch-manipulation flex-shrink-0"
+                          disabled={voiceRecorder.isRecording}
+                          className="p-2.5 md:p-3 bg-gray-800 text-white rounded-xl hover:bg-gray-700 active:bg-gray-600 active:scale-95 disabled:opacity-50 touch-manipulation flex-shrink-0"
                         >
                           <Mic className="h-5 w-5" />
                         </button>
                         <button
                           onClick={handleSendMessage}
                           disabled={(!message.trim() && !selectedImage) || sending}
-                          className="p-2.5 md:p-3 bg-[#E84545] text-white rounded-xl hover:bg-[#cc3c3c] active:bg-[#b33535] disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation flex-shrink-0"
+                          className="p-2.5 md:p-3 bg-[#E84545] text-white rounded-xl hover:bg-[#cc3c3c] active:bg-[#b33535] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation flex-shrink-0"
                         >
                           <Send className="h-5 w-5" />
                         </button>
                       </div>
                     )}
-                     {/* Mobile Safe Area Bottom Padding */}
-                  <div className="md:hidden h-24"></div>
                   </div>
                 </div>
               </>
@@ -1011,6 +1128,54 @@ export default function MessagesPage() {
         </div>
       </div>
 
+      {/* Message Options Modal */}
+      {selectedMessage && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/50 flex items-end md:items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setSelectedMessage(null)}
+        >
+          <div 
+            className="bg-gray-900 rounded-2xl w-full md:w-96 overflow-hidden animate-in slide-in-from-bottom duration-300"
+            onClick={(e) => e.stopPropagation()}
+            style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
+          >
+            <div className="p-4 border-b border-gray-800">
+              <p className="text-white font-medium">Message Options</p>
+            </div>
+            <div className="p-2">
+              {selectedMessage.type === "text" && (
+                <button
+                  onClick={() => handleCopyMessage(selectedMessage.content)}
+                  className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-gray-800 rounded-lg transition-colors text-left active:bg-gray-700 touch-manipulation"
+                >
+                  <Copy className="h-5 w-5 text-gray-400" />
+                  <span className="text-white">Copy Text</span>
+                </button>
+              )}
+              {selectedMessage.type === "image" && (
+                <button
+                  onClick={() => {
+                    handleImageDownload(selectedMessage.imageUrl!, selectedMessage.content);
+                    setSelectedMessage(null);
+                  }}
+                  className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-gray-800 rounded-lg transition-colors text-left active:bg-gray-700 touch-manipulation"
+                >
+                  <Download className="h-5 w-5 text-gray-400" />
+                  <span className="text-white">Download Image</span>
+                </button>
+              )}
+              <button
+                onClick={() => setSelectedMessage(null)}
+                className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-gray-800 rounded-lg transition-colors text-left active:bg-gray-700 touch-manipulation"
+              >
+                <X className="h-5 w-5 text-gray-400" />
+                <span className="text-white">Cancel</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Image Viewer Modal */}
       {viewingImage && (
         <div 
@@ -1024,7 +1189,7 @@ export default function MessagesPage() {
           <div className="flex items-center justify-between p-3 md:p-4 bg-gradient-to-b from-black/80 to-transparent backdrop-blur-sm z-10">
             <button
               onClick={() => setViewingImage(null)}
-              className="p-2 hover:bg-white/10 rounded-full transition-colors active:bg-white/20 touch-manipulation"
+              className="p-2 hover:bg-white/10 rounded-full transition-colors active:bg-white/20 active:scale-95 touch-manipulation"
               aria-label="Close"
             >
               <X className="h-6 w-6 text-white" />
@@ -1032,7 +1197,7 @@ export default function MessagesPage() {
             
             <button
               onClick={() => handleImageDownload(viewingImage.url, viewingImage.content)}
-              className="p-2 hover:bg-white/10 rounded-full transition-colors active:bg-white/20 touch-manipulation"
+              className="p-2 hover:bg-white/10 rounded-full transition-colors active:bg-white/20 active:scale-95 touch-manipulation"
               aria-label="Download image"
             >
               <Download className="h-6 w-6 text-white" />
@@ -1040,14 +1205,22 @@ export default function MessagesPage() {
           </div>
 
           <div 
-            className="flex-1 flex items-center justify-center p-4 overflow-hidden"
+            className="flex-1 flex items-center justify-center p-4 overflow-hidden touch-none"
             onClick={() => setViewingImage(null)}
           >
             <img
               src={viewingImage.url}
               alt="Full size"
               className="max-w-full max-h-full object-contain select-none"
+              style={{ 
+                transform: `scale(${imageZoom})`,
+                transition: 'transform 0.2s ease-out'
+              }}
               onClick={(e) => e.stopPropagation()}
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                setImageZoom(imageZoom === 1 ? 2 : 1);
+              }}
               draggable={false}
             />
           </div>
@@ -1061,6 +1234,19 @@ export default function MessagesPage() {
           )}
         </div>
       )}
+      
+      {/* ✅ Responsive height styling */}
+      <style jsx>{`
+        .messages-container-height {
+          height: calc(100vh - 5rem); /* Mobile: account for bottom bar */
+        }
+        
+        @media (min-width: 768px) {
+          .messages-container-height {
+            height: 100vh; /* Desktop: full height */
+          }
+        }
+      `}</style>
     </MainLayout>
   );
 }

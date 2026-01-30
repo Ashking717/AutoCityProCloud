@@ -1,10 +1,8 @@
 // app/autocityPro/products/page.tsx
-// ✅ CORRECTED FETCH VERSION (no NEXT_PUBLIC_API_URL needed)
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import ProductsClient from "./ProductsClient";
 
-// ✅ Server-side data fetching with internal fetch
 async function getServerData() {
   const cookieStore = cookies();
   const token = cookieStore.get("auth-token")?.value;
@@ -13,28 +11,32 @@ async function getServerData() {
     redirect("/autocityPro/login");
   }
 
-  // ✅ CORRECT: Use absolute URL with request context
-  // No environment variable needed!
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL 
-    // ? `${process.env.NEXT_PUBLIC_APP_URL}` 
-    // : 
+  // ✅ VERCEL-SAFE BASE URL
+  const headersList = headers();
+  const host = headersList.get("host");
+  const protocol =
+    process.env.NODE_ENV === "development" ? "http" : "https";
 
-  // ✅ Parallel data fetching
+  const baseUrl = `${protocol}://${host}`;
+
+  // ✅ Forward cookie explicitly
+  const cookieHeader = `auth-token=${token}`;
+
   const [userRes, productsRes, categoriesRes, skuRes] = await Promise.all([
     fetch(`${baseUrl}/api/auth/me`, {
-      headers: { Cookie: `auth-token=${token}` },
+      headers: { cookie: cookieHeader },
       cache: "no-store",
     }),
     fetch(`${baseUrl}/api/products?page=1&limit=50`, {
-      headers: { Cookie: `auth-token=${token}` },
+      headers: { cookie: cookieHeader },
       cache: "no-store",
     }),
     fetch(`${baseUrl}/api/categories`, {
-      headers: { Cookie: `auth-token=${token}` },
+      headers: { cookie: cookieHeader },
       cache: "no-store",
     }),
     fetch(`${baseUrl}/api/products/next-sku`, {
-      headers: { Cookie: `auth-token=${token}` },
+      headers: { cookie: cookieHeader },
       cache: "no-store",
     }),
   ]);
@@ -52,11 +54,11 @@ async function getServerData() {
 
   return {
     user: userData.user,
-    initialProducts: productsData.products || [],
-    initialStats: productsData.stats || {},
-    initialPagination: productsData.pagination || {},
-    categories: categoriesData.categories || [],
-    nextSKU: skuData.nextSKU || "10001",
+    initialProducts: productsData.products ?? [],
+    initialStats: productsData.stats ?? {},
+    initialPagination: productsData.pagination ?? {},
+    categories: categoriesData.categories ?? [],
+    nextSKU: skuData.nextSKU ?? "10001",
   };
 }
 

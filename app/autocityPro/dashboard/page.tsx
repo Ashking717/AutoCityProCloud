@@ -652,7 +652,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Main Content */}
-        <div className="px-4 md:px-6 pt-[140px] md:pt-6 pb-6">
+        <div className="px-4 md:px-6 pt-[180px] md:pt-6 pb-6">
           {/* Stats Grid - Mobile Optimized Cards */}
           <div className="mb-6">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">

@@ -861,7 +861,7 @@ const formatSafeDate = (dateString: string, formatString: string) => {
           </div>
         </div>
 
-        <div className="px-4 md:px-8 pt-[140px] md:pt-6 pb-6">
+        <div className="px-4 md:px-8 pt-[180px] md:pt-6 pb-6">
           {/* Summary Cards */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mb-6">
             <div className="bg-gradient-to-r from-[#111111] to-[#0A0A0A] border border-white/5 rounded-2xl p-4 active:scale-[0.98] transition-all hover:border-[#E84545]/30 group cursor-pointer">

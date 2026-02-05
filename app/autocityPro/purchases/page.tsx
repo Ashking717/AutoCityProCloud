@@ -714,10 +714,10 @@ export default function PurchasesPage() {
                       <CheckCircle className="h-4 w-4 text-blue-400" />
                     </div>
                     <h3 className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-2">
-                      Completed
+                      Total Paid
                     </h3>
-                    <p className="text-3xl font-bold text-white mb-1">{stats.completed}</p>
-                    <p className="text-xs text-blue-400">{((stats.completed / stats.total) * 100).toFixed(1)}% of total</p>
+                    <p className="text-3xl font-bold text-white mb-1">{stats.totalPaid}</p>
+                    <p className="text-xs text-blue-400">{((stats.totalPaid / stats.totalAmount) * 100).toFixed(1)}% of total</p>
                   </div>
                 </div>
 

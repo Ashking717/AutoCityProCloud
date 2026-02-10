@@ -473,7 +473,7 @@ export default function NewJobPage() {
   });
 
   const totals = calculateTotals();
-  const isAdmin = user?.role === "admin" || user?.role === "manager";
+  const isAdmin = user?.role === "ADMIN" || user?.role === "MANAGER";
 
   function isValidCarMake(make: any): make is CarMake {
     return Object.keys(carMakesModels).includes(make);

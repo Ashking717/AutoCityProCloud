@@ -1,4 +1,4 @@
-// app/autocityPro/purchases/page.tsx
+// app/autocityPro/purchases/page.tsx - COMPLETE WITH UNPAID DEFAULT
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
@@ -16,7 +16,6 @@ import {
   DollarSign,
   ChevronLeft,
   X,
-  MoreVertical,
   Clock,
   FileText,
   CreditCard,
@@ -24,30 +23,17 @@ import {
   CheckCircle,
   XCircle,
   RefreshCw,
-  Sparkles,
   Users,
-  Zap,
   ChevronRight,
   BarChart3,
-  PieChart,
-  TrendingDown,
   Activity,
-  ArrowUpRight,
-  ArrowDownRight,
   Star,
   Grid,
   List,
   SortAsc,
   SortDesc,
   Printer,
-  Send,
-  Edit,
   Trash2,
-  Copy,
-  ExternalLink,
-  Settings,
-  ChevronDown,
-  CircleDot,
   Layers,
   Wallet,
   Receipt,
@@ -91,6 +77,7 @@ export default function PurchasesPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [allPurchases, setAllPurchases] = useState<Purchase[]>([]); // ✅ Store all for stats
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -98,20 +85,18 @@ export default function PurchasesPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [supplierFilter, setSupplierFilter] = useState("all");
   const [paymentMethodFilter, setPaymentMethodFilter] = useState("all");
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState("unpaid"); // ✅ DEFAULT TO UNPAID
   const [dateRange, setDateRange] = useState({ startDate: "", endDate: "" });
   const [isMobile, setIsMobile] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [selectedPurchases, setSelectedPurchases] = useState<Set<string>>(new Set());
-  const [showBulkActions, setShowBulkActions] = useState(false);
   const [quickDateFilter, setQuickDateFilter] = useState('all');
   const [showExportModal, setShowExportModal] = useState(false);
 
-  // Mobile detection
   useEffect(() => {
     const checkIfMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -159,7 +144,9 @@ export default function PurchasesPage() {
 
       if (res.ok) {
         const data = await res.json();
-        setPurchases(data.purchases || []);
+        const fetchedPurchases = data.purchases || [];
+        setAllPurchases(fetchedPurchases); // ✅ Store all for stats
+        setPurchases(fetchedPurchases);
         toast.success('Purchases loaded');
       } else {
         toast.error("Failed to fetch purchases");
@@ -202,7 +189,6 @@ export default function PurchasesPage() {
 
   const handleRefresh = () => fetchPurchases(false);
 
-  // Quick date filters
   const applyQuickDateFilter = (filter: string) => {
     setQuickDateFilter(filter);
     const today = new Date();
@@ -235,7 +221,7 @@ export default function PurchasesPage() {
     });
   };
 
-  // Filtered and sorted purchases
+  // ✅ Filtered and sorted purchases (with payment status filter)
   const filteredAndSortedPurchases = useMemo(() => {
     let filtered = purchases.filter((purchase) => {
       const matchesSearch =
@@ -245,10 +231,15 @@ export default function PurchasesPage() {
       const matchesPaymentMethod = 
         paymentMethodFilter === 'all' || purchase.paymentMethod === paymentMethodFilter;
       
-      return matchesSearch && matchesPaymentMethod;
+      // ✅ Payment status filter
+      const matchesPaymentStatus = 
+        paymentStatusFilter === 'all' || 
+        (paymentStatusFilter === 'unpaid' && purchase.balanceDue > 0) ||
+        (paymentStatusFilter === 'paid' && purchase.balanceDue === 0);
+      
+      return matchesSearch && matchesPaymentMethod && matchesPaymentStatus;
     });
 
-    // Sort
     filtered.sort((a, b) => {
       let comparison = 0;
       
@@ -274,46 +265,62 @@ export default function PurchasesPage() {
     });
 
     return filtered;
-  }, [purchases, searchTerm, paymentMethodFilter, sortField, sortOrder]);
+  }, [purchases, searchTerm, paymentMethodFilter, paymentStatusFilter, sortField, sortOrder]);
 
-  // Calculate comprehensive statistics
+  // ✅ Stats from ALL purchases (not filtered by payment status)
   const stats = useMemo(() => {
-    const completed = filteredAndSortedPurchases.filter(p => p.status === 'COMPLETED');
-    const draft = filteredAndSortedPurchases.filter(p => p.status === 'DRAFT');
-    const cancelled = filteredAndSortedPurchases.filter(p => p.status === 'CANCELLED');
-    const overduePayments = filteredAndSortedPurchases.filter(p => p.balanceDue > 0);
+    let statsBase = allPurchases.filter(p => {
+      const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
+      const matchesSupplier = supplierFilter === 'all' || p.supplierName === supplierFilter;
+      const matchesPaymentMethod = paymentMethodFilter === 'all' || p.paymentMethod === paymentMethodFilter;
+      
+      let matchesDateRange = true;
+      if (dateRange.startDate || dateRange.endDate) {
+        const purchaseDate = new Date(p.purchaseDate);
+        if (dateRange.startDate) {
+          matchesDateRange = matchesDateRange && purchaseDate >= new Date(dateRange.startDate);
+        }
+        if (dateRange.endDate) {
+          matchesDateRange = matchesDateRange && purchaseDate <= new Date(dateRange.endDate);
+        }
+      }
+      
+      return matchesStatus && matchesSupplier && matchesPaymentMethod && matchesDateRange;
+    });
+
+    const completed = statsBase.filter(p => p.status === 'COMPLETED');
+    const draft = statsBase.filter(p => p.status === 'DRAFT');
+    const cancelled = statsBase.filter(p => p.status === 'CANCELLED');
+    const overduePayments = statsBase.filter(p => p.balanceDue > 0);
     
-    // Calculate trends (comparing to previous period)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const recentPurchases = filteredAndSortedPurchases.filter(
+    const recentPurchases = statsBase.filter(
       p => new Date(p.purchaseDate) >= thirtyDaysAgo
     );
     
-    // Payment method breakdown
-    const paymentMethods = filteredAndSortedPurchases.reduce((acc, p) => {
+    const paymentMethods = statsBase.reduce((acc, p) => {
       acc[p.paymentMethod] = (acc[p.paymentMethod] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
-    // Top suppliers
-    const supplierTotals = filteredAndSortedPurchases.reduce((acc, p) => {
+    const supplierTotals = statsBase.reduce((acc, p) => {
       acc[p.supplierName] = (acc[p.supplierName] || 0) + p.grandTotal;
       return acc;
     }, {} as Record<string, number>);
 
     return {
-      total: filteredAndSortedPurchases.length,
-      totalAmount: filteredAndSortedPurchases.reduce((sum, p) => sum + (p.grandTotal || 0), 0),
-      totalPaid: filteredAndSortedPurchases.reduce((sum, p) => sum + (p.amountPaid || 0), 0),
-      totalDue: filteredAndSortedPurchases.reduce((sum, p) => sum + (p.balanceDue || 0), 0),
+      total: statsBase.length,
+      totalAmount: statsBase.reduce((sum, p) => sum + (p.grandTotal || 0), 0),
+      totalPaid: statsBase.reduce((sum, p) => sum + (p.amountPaid || 0), 0),
+      totalDue: statsBase.reduce((sum, p) => sum + (p.balanceDue || 0), 0),
       completed: completed.length,
       draft: draft.length,
       cancelled: cancelled.length,
       overduePayments: overduePayments.length,
       overdueAmount: overduePayments.reduce((sum, p) => sum + p.balanceDue, 0),
-      averageOrderValue: filteredAndSortedPurchases.length > 0 
-        ? filteredAndSortedPurchases.reduce((sum, p) => sum + p.grandTotal, 0) / filteredAndSortedPurchases.length 
+      averageOrderValue: statsBase.length > 0 
+        ? statsBase.reduce((sum, p) => sum + p.grandTotal, 0) / statsBase.length 
         : 0,
       recentPurchasesCount: recentPurchases.length,
       recentAmount: recentPurchases.reduce((sum, p) => sum + p.grandTotal, 0),
@@ -322,9 +329,9 @@ export default function PurchasesPage() {
         .sort(([, a], [, b]) => b - a)
         .slice(0, 5)
         .map(([name, total]) => ({ name, total })),
-      totalItems: filteredAndSortedPurchases.reduce((sum, p) => sum + (p.items?.length || 0), 0),
+      totalItems: statsBase.reduce((sum, p) => sum + (p.items?.length || 0), 0),
     };
-  }, [filteredAndSortedPurchases]);
+  }, [allPurchases, statusFilter, supplierFilter, paymentMethodFilter, dateRange]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-QA', {
@@ -401,6 +408,7 @@ export default function PurchasesPage() {
     setStatusFilter("all");
     setSupplierFilter("all");
     setPaymentMethodFilter("all");
+    setPaymentStatusFilter("unpaid"); // ✅ Reset to unpaid
     setDateRange({ startDate: "", endDate: "" });
     setQuickDateFilter("all");
     setShowFilters(false);
@@ -436,14 +444,12 @@ export default function PurchasesPage() {
   const handleBulkExport = () => {
     toast.success(`Exporting ${selectedPurchases.size} purchases...`);
     setSelectedPurchases(new Set());
-    setShowBulkActions(false);
   };
 
   const handleBulkDelete = () => {
     if (confirm(`Delete ${selectedPurchases.size} purchases?`)) {
       toast.success(`Deleted ${selectedPurchases.size} purchases`);
       setSelectedPurchases(new Set());
-      setShowBulkActions(false);
     }
   };
 
@@ -468,7 +474,6 @@ export default function PurchasesPage() {
         {/* Enhanced Mobile Header */}
         <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-gradient-to-b from-black via-[#0A0A0A] to-transparent border-b border-white/5 backdrop-blur-xl">
           <div className="px-4 py-3 pt-safe">
-            {/* Top Bar */}
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
                 <button
@@ -482,7 +487,9 @@ export default function PurchasesPage() {
                     <ShoppingCart className="h-5 w-5 text-[#E84545]" />
                     Purchases
                   </h1>
-                  <p className="text-xs text-white/60">{stats.total} total • {formatCompactCurrency(stats.totalAmount)}</p>
+                  <p className="text-xs text-white/60">
+                    {filteredAndSortedPurchases.length} {paymentStatusFilter === 'unpaid' ? 'unpaid' : 'total'} • {formatCompactCurrency(stats.totalAmount)}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -501,7 +508,32 @@ export default function PurchasesPage() {
               </div>
             </div>
 
-            {/* Analytics Mini Cards - Mobile */}
+            {/* ✅ Payment Status Toggle - Mobile */}
+            <div className="flex items-center gap-2 mb-3">
+              <button
+                onClick={() => setPaymentStatusFilter('unpaid')}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all ${
+                  paymentStatusFilter === 'unpaid'
+                    ? 'bg-[#E84545] text-white shadow-lg'
+                    : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                }`}
+              >
+                <AlertCircle className="h-4 w-4" />
+                Unpaid ({allPurchases.filter(p => p.balanceDue > 0).length})
+              </button>
+              <button
+                onClick={() => setPaymentStatusFilter('all')}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all ${
+                  paymentStatusFilter === 'all'
+                    ? 'bg-[#E84545] text-white shadow-lg'
+                    : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                }`}
+              >
+                <FileText className="h-4 w-4" />
+                All ({allPurchases.length})
+              </button>
+            </div>
+
             {showAnalytics && (
               <div className="grid grid-cols-3 gap-2 mb-3">
                 <div className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 rounded-xl p-2.5 backdrop-blur-sm">
@@ -528,7 +560,6 @@ export default function PurchasesPage() {
               </div>
             )}
 
-            {/* Search and Filters */}
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -558,7 +589,6 @@ export default function PurchasesPage() {
               </button>
             </div>
 
-            {/* Quick Date Filters */}
             <div className="flex items-center gap-2 mt-3 overflow-x-auto pb-2 scrollbar-hide">
               {['all', 'today', 'week', 'month', 'quarter', 'year'].map((filter) => (
                 <button
@@ -579,7 +609,6 @@ export default function PurchasesPage() {
 
         {/* Enhanced Desktop Header */}
         <div className="hidden md:block py-11 bg-gradient-to-br from-[#1a0a0a] via-[#411010] to-[#0A0A0A] border-b border-white/10 shadow-2xl relative overflow-hidden">
-          {/* Background Pattern */}
           <div className="absolute inset-0 opacity-5">
             <div className="absolute inset-0" style={{
               backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
@@ -601,39 +630,6 @@ export default function PurchasesPage() {
                     <p className="text-white/70 mt-1">Track and manage all your purchase orders</p>
                   </div>
                 </div>
-                
-                {/* Quick Stats Row */}
-                {/* <div className="flex items-center gap-6 mt-4">
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 bg-white/5 rounded-lg">
-                      <FileText className="h-4 w-4 text-gray-400" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-white">{stats.total}</p>
-                      <p className="text-xs text-gray-400">Total Orders</p>
-                    </div>
-                  </div>
-                  <div className="h-10 w-px bg-white/10"></div>
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 bg-emerald-500/10 rounded-lg">
-                      <DollarSign className="h-4 w-4 text-emerald-400" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-white">{formatCompactCurrency(stats.totalAmount)}</p>
-                      <p className="text-xs text-gray-400">Total Value</p>
-                    </div>
-                  </div>
-                  <div className="h-10 w-px bg-white/10"></div>
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 bg-orange-500/10 rounded-lg">
-                      <AlertCircle className="h-4 w-4 text-orange-400" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-orange-400">{formatCompactCurrency(stats.totalDue)}</p>
-                      <p className="text-xs text-gray-400">Outstanding</p>
-                    </div>
-                  </div>
-                </div> */}
               </div>
               
               <div className="flex items-center gap-3">
@@ -664,11 +660,10 @@ export default function PurchasesPage() {
         </div>
 
         {/* Main Content */}
-        <div className="max-w-[1400px] mx-auto px-4 md:px-6 pt-[260px] md:pt-6 pb-6">
+        <div className="max-w-[1400px] mx-auto px-4 md:px-6 pt-[320px] md:pt-6 pb-6">
           {/* Analytics Dashboard - Desktop */}
           {!isMobile && showAnalytics && (
             <div className="mb-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {/* Main Stats Grid */}
               <div className="lg:col-span-2 grid grid-cols-4 gap-4">
                 <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-5 hover:border-[#E84545]/30 transition-all group relative overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-br from-[#E84545]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -716,8 +711,8 @@ export default function PurchasesPage() {
                     <h3 className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-2">
                       Total Paid
                     </h3>
-                    <p className="text-3xl font-bold text-white mb-1">{stats.totalPaid}</p>
-                    <p className="text-xs text-blue-400">{((stats.totalPaid / stats.totalAmount) * 100).toFixed(1)}% of total</p>
+                    <p className="text-2xl font-bold text-white mb-1">{formatCompactCurrency(stats.totalPaid)}</p>
+                    <p className="text-xs text-blue-400">{stats.totalAmount > 0 ? ((stats.totalPaid / stats.totalAmount) * 100).toFixed(1) : 0}% of total</p>
                   </div>
                 </div>
 
@@ -743,16 +738,12 @@ export default function PurchasesPage() {
                 </div>
               </div>
 
-              {/* Top Suppliers Card */}
               <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-5">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-white font-semibold flex items-center gap-2">
                     <Star className="h-4 w-4 text-yellow-400" />
                     Top Suppliers
                   </h3>
-                  <button className="text-xs text-gray-400 hover:text-white transition-colors">
-                    View All
-                  </button>
                 </div>
                 <div className="space-y-3">
                   {stats.topSuppliers.slice(0, 3).map((supplier, index) => (
@@ -784,6 +775,32 @@ export default function PurchasesPage() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <h3 className="text-white font-semibold">Filters & Search</h3>
+                  {/* ✅ Payment Status Toggle - Desktop */}
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-lg border border-white/10">
+                    <button
+                      onClick={() => setPaymentStatusFilter('unpaid')}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        paymentStatusFilter === 'unpaid'
+                          ? 'bg-[#E84545] text-white shadow-lg'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      <AlertCircle className="h-3 w-3" />
+                      Unpaid ({allPurchases.filter(p => p.balanceDue > 0).length})
+                    </button>
+                    <div className="h-4 w-px bg-white/10"></div>
+                    <button
+                      onClick={() => setPaymentStatusFilter('all')}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        paymentStatusFilter === 'all'
+                          ? 'bg-[#E84545] text-white shadow-lg'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      <FileText className="h-3 w-3" />
+                      All ({allPurchases.length})
+                    </button>
+                  </div>
                   {(statusFilter !== 'all' || supplierFilter !== 'all' || paymentMethodFilter !== 'all' || dateRange.startDate) && (
                     <button
                       onClick={clearFilters}
@@ -874,7 +891,6 @@ export default function PurchasesPage() {
                 />
               </div>
 
-              {/* Quick Date Filters */}
               <div className="flex items-center gap-2 mt-3">
                 <span className="text-xs text-gray-400 mr-2">Quick:</span>
                 {['all', 'today', 'week', 'month', 'quarter', 'year'].map((filter) => (
@@ -950,7 +966,11 @@ export default function PurchasesPage() {
                     <ShoppingCart className="h-10 w-10 text-gray-600" />
                   </div>
                   <h3 className="text-xl font-bold text-white mb-2">No Purchases Found</h3>
-                  <p className="text-gray-400 mb-6">Start by creating your first purchase order</p>
+                  <p className="text-gray-400 mb-6">
+                    {paymentStatusFilter === 'unpaid' 
+                      ? 'No unpaid purchases. Switch to "All" to view all purchases.' 
+                      : 'Start by creating your first purchase order'}
+                  </p>
                   <button
                     onClick={() => router.push('/autocityPro/purchases/new')}
                     className="px-6 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl font-semibold hover:opacity-90 transition-all inline-flex items-center gap-2 shadow-lg"
@@ -966,11 +986,9 @@ export default function PurchasesPage() {
                     onClick={() => router.push(`/autocityPro/purchases/${purchase._id}`)}
                     className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl shadow-lg p-4 hover:border-[#E84545]/30 active:scale-[0.98] transition-all relative overflow-hidden group"
                   >
-                    {/* Hover Gradient */}
                     <div className="absolute inset-0 bg-gradient-to-br from-[#E84545]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                     
                     <div className="relative z-10">
-                      {/* Header */}
                       <div className="flex items-start justify-between mb-5">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
@@ -990,7 +1008,6 @@ export default function PurchasesPage() {
                         </span>
                       </div>
 
-                      {/* Amount Grid */}
                       <div className="grid grid-cols-2 gap-2 mb-3 p-3 bg-white/5 rounded-xl border border-white/5">
                         <div>
                           <div className="flex items-center gap-1 mb-1">
@@ -1010,7 +1027,6 @@ export default function PurchasesPage() {
                         </div>
                       </div>
 
-                      {/* Footer */}
                       <div className="flex items-center justify-between pt-3 border-t border-white/5">
                         <div className="flex items-center gap-2">
                           <span className={`px-2 py-1 rounded-lg text-[10px] font-semibold border flex items-center gap-1 ${getPaymentMethodColor(purchase.paymentMethod)}`}>
@@ -1045,7 +1061,11 @@ export default function PurchasesPage() {
                         <ShoppingCart className="h-12 w-12 text-gray-600" />
                       </div>
                       <h3 className="text-2xl font-bold text-white mb-2">No Purchases Found</h3>
-                      <p className="text-gray-400 mb-6">Start by creating your first purchase order</p>
+                      <p className="text-gray-400 mb-6">
+                        {paymentStatusFilter === 'unpaid' 
+                          ? 'No unpaid purchases. Switch to "All" to view all purchases.' 
+                          : 'Start by creating your first purchase order'}
+                      </p>
                       <button
                         onClick={() => router.push('/autocityPro/purchases/new')}
                         className="px-6 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl font-semibold hover:opacity-90 transition-all inline-flex items-center gap-2 shadow-lg"
@@ -1061,7 +1081,6 @@ export default function PurchasesPage() {
                         onClick={() => router.push(`/autocityPro/purchases/${purchase._id}`)}
                         className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl shadow-lg p-5 hover:border-[#E84545]/30 transition-all cursor-pointer group relative overflow-hidden"
                       >
-                        {/* Selection Checkbox */}
                         <div
                           className="absolute top-4 left-4 z-20"
                           onClick={(e) => {
@@ -1083,7 +1102,6 @@ export default function PurchasesPage() {
                         <div className="absolute inset-0 bg-gradient-to-br from-[#E84545]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         
                         <div className="relative z-10">
-                          {/* Header */}
                           <div className="flex items-start justify-between mb-4 pl-8">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2">
@@ -1103,7 +1121,6 @@ export default function PurchasesPage() {
                             </span>
                           </div>
 
-                          {/* Stats */}
                           <div className="grid grid-cols-2 gap-3 mb-4">
                             <div className="p-3 bg-white/5 rounded-xl border border-white/5">
                               <div className="flex items-center gap-2 mb-1">
@@ -1123,7 +1140,6 @@ export default function PurchasesPage() {
                             </div>
                           </div>
 
-                          {/* Footer */}
                           <div className="flex items-center justify-between pt-4 border-t border-white/5">
                             <div className="flex items-center gap-2">
                               <span className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border flex items-center gap-1.5 ${getPaymentMethodColor(purchase.paymentMethod)}`}>
@@ -1233,7 +1249,11 @@ export default function PurchasesPage() {
                                 <ShoppingCart className="h-10 w-10 text-gray-600" />
                               </div>
                               <h3 className="text-xl font-bold text-white mb-2">No Purchases Found</h3>
-                              <p className="text-gray-400 mb-6">Try adjusting your filters or create a new purchase order</p>
+                              <p className="text-gray-400 mb-6">
+                                {paymentStatusFilter === 'unpaid' 
+                                  ? 'No unpaid purchases. Switch to "All" to view all purchases.' 
+                                  : 'Try adjusting your filters or create a new purchase order'}
+                              </p>
                               <button
                                 onClick={() => router.push('/autocityPro/purchases/new')}
                                 className="px-6 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl font-semibold hover:opacity-90 transition-all inline-flex items-center gap-2 shadow-lg"
@@ -1354,7 +1374,11 @@ export default function PurchasesPage() {
                           <ShoppingCart className="h-10 w-10 text-gray-600" />
                         </div>
                         <h3 className="text-xl font-bold text-white mb-2">No Purchases Found</h3>
-                        <p className="text-gray-400 mb-6">Try adjusting your filters or create a new purchase order</p>
+                        <p className="text-gray-400 mb-6">
+                          {paymentStatusFilter === 'unpaid' 
+                            ? 'No unpaid purchases. Switch to "All" to view all purchases.' 
+                            : 'Try adjusting your filters or create a new purchase order'}
+                        </p>
                         <button
                           onClick={() => router.push('/autocityPro/purchases/new')}
                           className="px-6 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl font-semibold hover:opacity-90 transition-all inline-flex items-center gap-2 shadow-lg"
@@ -1491,7 +1515,20 @@ export default function PurchasesPage() {
               </div>
 
               <div className="space-y-4">
-                {/* Status Filter */}
+                {/* Payment Status Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">Payment Status</label>
+                  <select
+                    value={paymentStatusFilter}
+                    onChange={(e) => setPaymentStatusFilter(e.target.value as any)}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-[#E84545]/50 focus:border-[#E84545]/50"
+                  >
+                    <option value="unpaid">Unpaid Only</option>
+                    <option value="paid">Paid Only</option>
+                    <option value="all">All Purchases</option>
+                  </select>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-2">Status</label>
                   <select
@@ -1506,7 +1543,6 @@ export default function PurchasesPage() {
                   </select>
                 </div>
 
-                {/* Supplier Filter */}
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-2">Supplier</label>
                   <select
@@ -1523,7 +1559,6 @@ export default function PurchasesPage() {
                   </select>
                 </div>
 
-                {/* Payment Method Filter */}
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-2">Payment Method</label>
                   <select
@@ -1539,7 +1574,6 @@ export default function PurchasesPage() {
                   </select>
                 </div>
 
-                {/* Date Range */}
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-2">Start Date</label>
                   <input
@@ -1560,7 +1594,6 @@ export default function PurchasesPage() {
                   />
                 </div>
 
-                {/* Action Buttons */}
                 <div className="grid grid-cols-2 gap-3 pt-4">
                   <button
                     onClick={clearFilters}
@@ -1654,25 +1687,6 @@ export default function PurchasesPage() {
                   </div>
                   <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-white transition-colors" />
                 </button>
-
-                <button
-                  onClick={() => {
-                    toast.success('Exporting to JSON...');
-                    setShowExportModal(false);
-                  }}
-                  className="w-full p-4 bg-white/5 border border-white/10 rounded-xl text-white font-medium hover:bg-white/10 transition-all flex items-center justify-between group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-purple-500/10 rounded-lg group-hover:bg-purple-500/20 transition-colors">
-                      <FileText className="h-5 w-5 text-purple-400" />
-                    </div>
-                    <div className="text-left">
-                      <p className="font-semibold">JSON Data</p>
-                      <p className="text-xs text-gray-400">.json format</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-white transition-colors" />
-                </button>
               </div>
 
               <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
@@ -1693,17 +1707,9 @@ export default function PurchasesPage() {
         )}
       </div>
 
-      {/* Mobile Safe Area Bottom Padding */}
       <div className="md:hidden h-24"></div>
 
-      {/* Custom Styles */}
       <style jsx global>{`
-        @supports (padding: max(0px)) {
-          .pt-safe {
-            padding-top: max(12px, env(safe-area-inset-top));
-          }
-        }
-        
         .scrollbar-hide {
           -ms-overflow-style: none;
           scrollbar-width: none;
@@ -1711,359 +1717,6 @@ export default function PurchasesPage() {
         
         .scrollbar-hide::-webkit-scrollbar {
           display: none;
-        }
-        
-        @keyframes slideInFromTop {
-          from {
-            transform: translateY(-100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateY(0);
-            opacity: 1;
-          }
-        }
-        
-        @keyframes slideInFromBottom {
-          from {
-            transform: translateY(100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateY(0);
-            opacity: 1;
-          }
-        }
-        
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-        
-        @keyframes zoomIn {
-          from {
-            transform: scale(0.95);
-            opacity: 0;
-          }
-          to {
-            transform: scale(1);
-            opacity: 1;
-          }
-        }
-        
-        .animate-in {
-          animation-fill-mode: both;
-        }
-        
-        .slide-in-from-top {
-          animation-name: slideInFromTop;
-        }
-        
-        .slide-in-from-bottom {
-          animation-name: slideInFromBottom;
-        }
-        
-        .fade-in {
-          animation-name: fadeIn;
-        }
-        
-        .zoom-in {
-          animation-name: zoomIn;
-        }
-        
-        .duration-200 {
-          animation-duration: 200ms;
-        }
-        
-        .duration-300 {
-          animation-duration: 300ms;
-        }
-        
-        .duration-500 {
-          animation-duration: 500ms;
-        }
-
-        /* Custom select styles */
-        select option {
-          background-color: #0A0A0A;
-          color: white;
-          padding: 8px;
-        }
-
-        /* Smooth transitions */
-        * {
-          transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        /* Enhanced scrollbar for desktop */
-        @media (min-width: 768px) {
-          ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-          }
-
-          ::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 4px;
-          }
-
-          ::-webkit-scrollbar-thumb {
-            background: rgba(232, 69, 69, 0.5);
-            border-radius: 4px;
-          }
-
-          ::-webkit-scrollbar-thumb:hover {
-            background: rgba(232, 69, 69, 0.7);
-          }
-        }
-
-        /* Improved focus states */
-        input:focus,
-        select:focus,
-        button:focus {
-          outline: none;
-        }
-
-        /* Loading states */
-        .animate-pulse {
-          animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-
-        @keyframes pulse {
-          0%, 100% {
-            opacity: 1;
-          }
-          50% {
-            opacity: 0.5;
-          }
-        }
-
-        /* Improved hover effects */
-        @media (hover: hover) {
-          button:hover,
-          a:hover {
-            transform: translateY(-1px);
-          }
-
-          button:active,
-          a:active {
-            transform: translateY(0);
-          }
-        }
-
-        /* Mobile touch feedback */
-        @media (hover: none) {
-          button:active,
-          a:active {
-            opacity: 0.7;
-          }
-        }
-
-        /* Gradient text */
-        .gradient-text {
-          background: linear-gradient(135deg, #E84545 0%, #cc3c3c 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-        }
-
-        /* Glass morphism effects */
-        .glass {
-          background: rgba(10, 10, 10, 0.7);
-          backdrop-filter: blur(10px);
-          -webkit-backdrop-filter: blur(10px);
-        }
-
-        /* Shimmer loading effect */
-        @keyframes shimmer {
-          0% {
-            background-position: -1000px 0;
-          }
-          100% {
-            background-position: 1000px 0;
-          }
-        }
-
-        .shimmer {
-          animation: shimmer 2s infinite;
-          background: linear-gradient(
-            to right,
-            rgba(255, 255, 255, 0.05) 0%,
-            rgba(255, 255, 255, 0.1) 50%,
-            rgba(255, 255, 255, 0.05) 100%
-          );
-          background-size: 1000px 100%;
-        }
-
-        /* Enhanced card hover effects */
-        .card-hover {
-          position: relative;
-          overflow: hidden;
-        }
-
-        .card-hover::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: -100%;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(
-            90deg,
-            transparent,
-            rgba(232, 69, 69, 0.1),
-            transparent
-          );
-          transition: left 0.5s;
-        }
-
-        .card-hover:hover::before {
-          left: 100%;
-        }
-
-        /* Number counter animation */
-        @keyframes countUp {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        .count-up {
-          animation: countUp 0.5s ease-out;
-        }
-
-        /* Micro-interactions */
-        .micro-bounce {
-          transition: transform 0.2s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-        }
-
-        .micro-bounce:active {
-          transform: scale(0.95);
-        }
-
-        /* Status badge pulse */
-        @keyframes statusPulse {
-          0%, 100% {
-            box-shadow: 0 0 0 0 rgba(232, 69, 69, 0.7);
-          }
-          50% {
-            box-shadow: 0 0 0 8px rgba(232, 69, 69, 0);
-          }
-        }
-
-        .status-pulse {
-          animation: statusPulse 2s infinite;
-        }
-
-        /* Skeleton loading */
-        .skeleton {
-          background: linear-gradient(
-            90deg,
-            rgba(255, 255, 255, 0.05) 25%,
-            rgba(255, 255, 255, 0.1) 50%,
-            rgba(255, 255, 255, 0.05) 75%
-          );
-          background-size: 200% 100%;
-          animation: loading 1.5s ease-in-out infinite;
-        }
-
-        @keyframes loading {
-          0% {
-            background-position: 200% 0;
-          }
-          100% {
-            background-position: -200% 0;
-          }
-        }
-
-        /* Improved mobile tap targets */
-        @media (max-width: 768px) {
-          button,
-          a,
-          input,
-          select {
-            min-height: 44px;
-            min-width: 44px;
-          }
-        }
-
-        /* Print styles */
-        @media print {
-          .no-print {
-            display: none !important;
-          }
-          
-          body {
-            background: white !important;
-          }
-          
-          .bg-gradient-to-br,
-          .bg-gradient-to-r {
-            background: white !important;
-            color: black !important;
-          }
-        }
-
-        /* Smooth scroll behavior */
-        html {
-          scroll-behavior: smooth;
-        }
-
-        /* Custom checkbox styles */
-        input[type="checkbox"] {
-          appearance: none;
-          -webkit-appearance: none;
-          cursor: pointer;
-          position: relative;
-        }
-
-        input[type="checkbox"]:checked::before {
-          content: '✓';
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          color: white;
-          font-size: 12px;
-          font-weight: bold;
-        }
-
-        /* Improved table styles */
-        table {
-          border-collapse: separate;
-          border-spacing: 0;
-        }
-
-        /* Better text selection */
-        ::selection {
-          background-color: rgba(232, 69, 69, 0.3);
-          color: white;
-        }
-
-        /* Focus visible for accessibility */
-        *:focus-visible {
-          outline: 2px solid #E84545;
-          outline-offset: 2px;
-        }
-
-        /* Reduced motion for accessibility */
-        @media (prefers-reduced-motion: reduce) {
-          *,
-          *::before,
-          *::after {
-            animation-duration: 0.01ms !important;
-            animation-iteration-count: 1 !important;
-            transition-duration: 0.01ms !important;
-          }
         }
       `}</style>
     </MainLayout>

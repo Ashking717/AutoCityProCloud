@@ -126,10 +126,20 @@ export default function NewJobPage() {
 
   useEffect(() => {
     fetchUser();
-    fetchProducts();
     fetchCustomers();
     fetchStaff();
   }, []);
+
+  // Debounced product search
+  useEffect(() => {
+    const delay = setTimeout(() => {
+      if (searchTerm) {
+        fetchProducts(searchTerm);
+      }
+    }, 300);
+
+    return () => clearTimeout(delay);
+  }, [searchTerm]);
 
   useEffect(() => {
     const checkIfMobile = () => {
@@ -172,11 +182,20 @@ export default function NewJobPage() {
     }
   };
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (search = "") => {
     try {
-      const res = await fetch("/api/products?limit=100", {
+      const params = new URLSearchParams({
+        limit: "50",
+      });
+
+      if (search) {
+        params.append("search", search);
+      }
+
+      const res = await fetch(`/api/products?${params.toString()}`, {
         credentials: "include",
       });
+
       if (res.ok) {
         const data = await res.json();
         setProducts(data.products || []);
@@ -454,7 +473,7 @@ export default function NewJobPage() {
   });
 
   const totals = calculateTotals();
-  const isAdmin = user?.role === "ADMIN" || user?.role === "MANAGER";
+  const isAdmin = user?.role === "admin" || user?.role === "manager";
 
   function isValidCarMake(make: any): make is CarMake {
     return Object.keys(carMakesModels).includes(make);
@@ -527,7 +546,7 @@ export default function NewJobPage() {
       </div>
 
       {/* Desktop Header */}
-      <div className="hidden md:block py-12 bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-lg">
+      <div className="hidden md:block py-8 bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-lg">
         <div className="px-6">
           <div className="flex justify-between items-center">
             <div>

@@ -117,7 +117,7 @@ export default function NewSalePage() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [payments, setPayments] = useState<Payment[]>([
-    { method: "cash", amount: 0 },
+    { method: "card", amount: 0 },
   ]);
   const [overallDiscount, setOverallDiscount] = useState(0);
   const [overallDiscountType, setOverallDiscountType] = useState<

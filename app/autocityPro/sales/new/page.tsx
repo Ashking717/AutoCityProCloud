@@ -1,4 +1,4 @@
-// app/autocityPro/sales/new/page.tsx
+// app/autocityPro/sales/new/page.tsx - UPDATED WITH JOB INTEGRATION
 "use client";
 
 import { useState, useEffect } from "react";
@@ -17,6 +17,8 @@ import {
   Percent,
   Sparkles,
   Filter,
+  Briefcase,
+  CheckCircle,
 } from "lucide-react";
 import {
   carMakesModels,
@@ -152,7 +154,7 @@ export default function NewSalePage() {
     rate: 0,
     taxRate: 0,
   });
-  
+
   // Filter states
   const [filterYear, setFilterYear] = useState<string>("all");
   const [filterMake, setFilterMake] = useState<string>("all");
@@ -162,12 +164,19 @@ export default function NewSalePage() {
   const [categories, setCategories] = useState<any[]>([]);
   const [showKeyboardHints, setShowKeyboardHints] = useState(false);
 
+  // ✅ NEW: Job integration
+  const [completedJobs, setCompletedJobs] = useState<any[]>([]);
+  const [showJobsModal, setShowJobsModal] = useState(false);
+  const [loadingJobs, setLoadingJobs] = useState(false);
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+
   useEffect(() => {
     fetchUser();
     fetchProducts();
     fetchFrequentProducts();
     fetchCustomers();
     fetchCategories();
+    fetchCompletedJobs(); // ✅ NEW
   }, []);
 
   useEffect(() => {
@@ -185,63 +194,64 @@ export default function NewSalePage() {
     window.addEventListener("resize", checkIfMobile);
     return () => window.removeEventListener("resize", checkIfMobile);
   }, []);
-      const filteredProducts = products.filter((p) => {
-  if (filterYear !== "all" && filterYear !== "") {
-    if (!checkYearMatch(p, parseInt(filterYear))) return false;
-  }
 
-  if (filterMake !== "all" && filterMake !== "") {
-    if (p.carMake !== filterMake) return false;
-  }
+  const filteredProducts = products.filter((p) => {
+    if (filterYear !== "all" && filterYear !== "") {
+      if (!checkYearMatch(p, parseInt(filterYear))) return false;
+    }
 
-  if (filterCategory !== "all" && filterCategory !== "") {
-    const productCategoryId =
-      p.category?._id?.toString() || p.category?.toString();
-    if (productCategoryId !== filterCategory.toString()) return false;
-  }
+    if (filterMake !== "all" && filterMake !== "") {
+      if (p.carMake !== filterMake) return false;
+    }
 
-  return true;
-});
+    if (filterCategory !== "all" && filterCategory !== "") {
+      const productCategoryId =
+        p.category?._id?.toString() || p.category?.toString();
+      if (productCategoryId !== filterCategory.toString()) return false;
+    }
 
-    useEffect(() => {
-  const delay = setTimeout(() => {
-    fetchProducts(searchTerm);
-  }, 300); // debounce
+    return true;
+  });
 
-  return () => clearTimeout(delay);
-}, [searchTerm]);
-    useEffect(() => {
-  searchInputRef.current?.focus();
-}, []);
+  useEffect(() => {
+    const delay = setTimeout(() => {
+      fetchProducts(searchTerm);
+    }, 300);
+
+    return () => clearTimeout(delay);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    searchInputRef.current?.focus();
+  }, []);
 
   // KEYBOARD NAVIGATION
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      // Ignore if user is typing in an input/textarea
       const target = e.target as HTMLElement;
       if (
         target.tagName === "INPUT" ||
         target.tagName === "TEXTAREA" ||
         target.tagName === "SELECT"
       ) {
-        // Allow Escape to close modals even when in input
         if (e.key === "Escape") {
           if (showAddCustomer) setShowAddCustomer(false);
           if (showAddLabor) setShowAddLabor(false);
           if (showMobileMenu) setShowMobileMenu(false);
           if (showMobileFilters) setShowMobileFilters(false);
+          if (showJobsModal) setShowJobsModal(false); // ✅ NEW
           return;
         }
         return;
       }
 
-      // Prevent default for handled keys
       const handledKeys = [
         "f",
         "c",
         "l",
         "p",
         "s",
+        "j", // ✅ NEW
         "Escape",
         "ArrowDown",
         "ArrowUp",
@@ -249,14 +259,15 @@ export default function NewSalePage() {
         "=",
         "h",
       ];
-      if (handledKeys.includes(e.key.toLowerCase()) || handledKeys.includes(e.key)) {
+      if (
+        handledKeys.includes(e.key.toLowerCase()) ||
+        handledKeys.includes(e.key)
+      ) {
         e.preventDefault();
       }
 
-      // Keyboard shortcuts
       switch (e.key.toLowerCase()) {
         case "f":
-          // Focus search
           const searchInput = document.querySelector(
             'input[placeholder*="Search"]'
           ) as HTMLInputElement;
@@ -264,17 +275,21 @@ export default function NewSalePage() {
           break;
 
         case "c":
-          // Toggle customer modal
           setShowAddCustomer(!showAddCustomer);
           break;
 
         case "l":
-          // Toggle labor modal
           setShowAddLabor(!showAddLabor);
           break;
 
+        // ✅ NEW: Job modal shortcut
+        case "j":
+          if (completedJobs.length > 0) {
+            setShowJobsModal(!showJobsModal);
+          }
+          break;
+
         case "p":
-          // Focus payment amount
           const paymentInput = document.querySelector(
             'input[placeholder="Amount"]'
           ) as HTMLInputElement;
@@ -282,28 +297,25 @@ export default function NewSalePage() {
           break;
 
         case "s":
-          // Submit sale (only if cart has items and customer selected)
           if (cart.length > 0 && selectedCustomer && !loading) {
             handleSubmit();
           }
           break;
 
         case "h":
-          // Toggle keyboard hints
           setShowKeyboardHints(!showKeyboardHints);
           break;
 
         case "escape":
-          // Close any open modals
           if (showAddCustomer) setShowAddCustomer(false);
           else if (showAddLabor) setShowAddLabor(false);
           else if (showMobileMenu) setShowMobileMenu(false);
           else if (showMobileFilters) setShowMobileFilters(false);
+          else if (showJobsModal) setShowJobsModal(false); // ✅ NEW
           else if (searchTerm) setSearchTerm("");
           break;
 
         case "arrowdown":
-          // Navigate to first product in search results
           if (searchTerm && filteredProducts.length > 0) {
             const firstProduct = document.querySelector(
               '[data-search-item="0"]'
@@ -319,7 +331,6 @@ export default function NewSalePage() {
 
         case "+":
         case "=":
-          // Quick add first frequent product if visible
           if (!searchTerm && frequentProducts.length > 0) {
             addToCart(frequentProducts[0]);
           }
@@ -344,6 +355,8 @@ export default function NewSalePage() {
     showMobileMenu,
     showMobileFilters,
     showKeyboardHints,
+    showJobsModal, // ✅ NEW
+    completedJobs, // ✅ NEW
   ]);
 
   const fetchUser = async () => {
@@ -359,28 +372,27 @@ export default function NewSalePage() {
   };
 
   const fetchProducts = async (search = "") => {
-  try {
-    const params = new URLSearchParams({
-      limit: "50",
-    });
+    try {
+      const params = new URLSearchParams({
+        limit: "50",
+      });
 
-    if (search) {
-      params.append("search", search);
+      if (search) {
+        params.append("search", search);
+      }
+
+      const res = await fetch(`/api/products?${params.toString()}`, {
+        credentials: "include",
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setProducts(data.products || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch products");
     }
-
-    const res = await fetch(`/api/products?${params.toString()}`, {
-      credentials: "include",
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      setProducts(data.products || []);
-    }
-  } catch (error) {
-    console.error("Failed to fetch products");
-  }
-};
-
+  };
 
   const fetchFrequentProducts = async () => {
     try {
@@ -426,6 +438,83 @@ export default function NewSalePage() {
     } catch (error) {
       console.error("Failed to fetch categories");
     }
+  };
+
+  // ✅ NEW: Fetch completed jobs
+  const fetchCompletedJobs = async () => {
+    setLoadingJobs(true);
+    try {
+      const res = await fetch(
+        "/api/jobs?status=COMPLETED&convertedToSale=false&limit=50",
+        { credentials: "include" }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setCompletedJobs(data.jobs || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch completed jobs");
+    } finally {
+      setLoadingJobs(false);
+    }
+  };
+
+  // ✅ NEW: Load job into cart
+  const loadJobIntoCart = (job: any) => {
+    setActiveJobId(job._id);
+
+    // Set customer
+    const customerData = job.customerId;
+    setSelectedCustomer({
+      _id: customerData._id || customerData,
+      name: job.customerName,
+      phone: customerData.phone || "",
+      email: customerData.email || "",
+      vehicleRegistrationNumber:
+        job.vehicleRegistrationNumber || customerData.vehicleRegistrationNumber,
+    });
+
+    // Clear existing cart
+    setCart([]);
+
+    // Convert job items to cart items
+    const jobItems = job.items.map((item: any) => {
+      const actualPrice = item.actualPrice ?? item.estimatedPrice;
+
+      let itemDiscount = 0;
+      if (item.discountType === "percentage") {
+        itemDiscount = (actualPrice * item.quantity * item.discount) / 100;
+      } else {
+        itemDiscount = item.discount || 0;
+      }
+
+      const itemSubtotal = actualPrice * item.quantity - itemDiscount;
+      const itemTotal = itemSubtotal * (1 + (item.taxRate || 0) / 100);
+
+      return {
+        productId: item.productId || undefined,
+        productName: item.productName,
+        sku: item.sku,
+        isVehicle: false,
+        isLabor: item.isLabor || false,
+        unit: item.unit || "pcs",
+        quantity: item.quantity,
+        costPrice: item.isLabor ? 0 : item.costPrice || 0,
+        sellingPrice: actualPrice,
+        discount: item.discount || 0,
+        discountType: item.discountType || "percentage",
+        taxRate: item.taxRate || 0,
+        subtotal: itemSubtotal,
+        total: itemTotal,
+        profit: item.isLabor
+          ? actualPrice * item.quantity
+          : (actualPrice - (item.costPrice || 0)) * item.quantity,
+      };
+    });
+
+    setCart(jobItems);
+    setShowJobsModal(false);
+    toast.success(`Loaded job ${job.jobNumber} into cart`);
   };
 
   const generateCustomerCode = (name: string) => {
@@ -664,41 +753,54 @@ export default function NewSalePage() {
     };
   };
 
-// Update your handleSubmit function in new/page.tsx
-
-const handleSubmit = async () => {
-  if (cart.length === 0) {
-    toast.error("Cart is empty");
-    return;
-  }
-
-  if (!selectedCustomer) {
-    toast.error("Please select a customer");
-    return;
-  }
-
-  setInvoiceCustomer(selectedCustomer);
-
-  const totals = calculateTotals();
-
-  const saleItems = cart.map((item) => {
-    let discountAmount = 0;
-    let discountPercentage = 0;
-
-    if (item.discountType === "percentage") {
-      discountPercentage = item.discount;
-      discountAmount =
-        (item.sellingPrice * item.quantity * item.discount) / 100;
-    } else {
-      discountAmount = item.discount;
-      discountPercentage =
-        item.sellingPrice * item.quantity > 0
-          ? (item.discount / (item.sellingPrice * item.quantity)) * 100
-          : 0;
+  const handleSubmit = async () => {
+    if (cart.length === 0) {
+      toast.error("Cart is empty");
+      return;
     }
 
-    if (item.isLabor) {
+    if (!selectedCustomer) {
+      toast.error("Please select a customer");
+      return;
+    }
+
+    setInvoiceCustomer(selectedCustomer);
+
+    const totals = calculateTotals();
+
+    const saleItems = cart.map((item) => {
+      let discountAmount = 0;
+      let discountPercentage = 0;
+
+      if (item.discountType === "percentage") {
+        discountPercentage = item.discount;
+        discountAmount =
+          (item.sellingPrice * item.quantity * item.discount) / 100;
+      } else {
+        discountAmount = item.discount;
+        discountPercentage =
+          item.sellingPrice * item.quantity > 0
+            ? (item.discount / (item.sellingPrice * item.quantity)) * 100
+            : 0;
+      }
+
+      if (item.isLabor) {
+        return {
+          name: item.productName,
+          sku: item.sku,
+          quantity: item.quantity,
+          unit: item.unit || "pcs",
+          unitPrice: item.sellingPrice,
+          taxRate: item.taxRate,
+          discount: discountPercentage,
+          discountAmount: discountAmount,
+          discountType: item.discountType,
+          isLabor: true,
+        };
+      }
+
       return {
+        productId: item.productId,
         name: item.productName,
         sku: item.sku,
         quantity: item.quantity,
@@ -708,143 +810,129 @@ const handleSubmit = async () => {
         discount: discountPercentage,
         discountAmount: discountAmount,
         discountType: item.discountType,
-        isLabor: true,
+        isLabor: false,
       };
+    });
+
+    const paymentDetails = payments
+      .filter((p) => p.amount > 0)
+      .map((p) => ({
+        method: p.method.toUpperCase(),
+        amount: Number(p.amount),
+        reference: p.reference || undefined,
+      }));
+
+    if (paymentDetails.length === 0) {
+      paymentDetails.push({
+        method: "CASH",
+        amount: 0,
+        reference: undefined,
+      });
     }
 
-    return {
-      productId: item.productId,
-      name: item.productName,
-      sku: item.sku,
-      quantity: item.quantity,
-      unit: item.unit || "pcs",
-      unitPrice: item.sellingPrice,
-      taxRate: item.taxRate,
-      discount: discountPercentage,
-      discountAmount: discountAmount,
-      discountType: item.discountType,
-      isLabor: false,
-    };
-  });
+    setLoading(true);
 
-  // ✅ NEW: Prepare payment details array
-  const paymentDetails = payments
-    .filter(p => p.amount > 0) // Only include payments with amounts
-    .map(p => ({
-      method: p.method.toUpperCase(),
-      amount: Number(p.amount),
-      reference: p.reference || undefined,
-    }));
-
-  // Ensure we have at least one payment
-  if (paymentDetails.length === 0) {
-    paymentDetails.push({
-      method: "CASH",
-      amount: 0,
-      reference: undefined,
-    });
-  }
-
-  setLoading(true);
-
-  try {
-    const res = await fetch("/api/sales", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        customerId: selectedCustomer._id,
-        customerName: selectedCustomer.name,
-        items: saleItems,
-        
-        // ✅ NEW: Send payment details array
-        payments: paymentDetails,
-        
-        // Keep for backward compatibility
-        paymentMethod: paymentDetails[0].method,
-        amountPaid: totals.totalPaid,
-        
-        notes: "",
-        overallDiscount,
-        overallDiscountType,
-        overallDiscountAmount: totals.overallDiscountAmount,
-      }),
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      toast.success(`Sale ${data.sale.invoiceNumber} created successfully!`);
-
-      setInvoiceData({
-        invoiceNumber: data.sale.invoiceNumber,
-        saleDate: data.sale.saleDate,
-        items: cart.map((item) => {
-          let discountAmount = 0;
-          if (item.discountType === "percentage") {
-            discountAmount =
-              (item.sellingPrice * item.quantity * item.discount) / 100;
-          } else {
-            discountAmount = item.discount;
-          }
-
-          const itemSubtotal =
-            item.sellingPrice * item.quantity - discountAmount;
-          return {
-            name: item.productName,
-            quantity: item.quantity,
-            unitPrice: item.sellingPrice,
-            discount: discountAmount,
-            taxAmount: (itemSubtotal * item.taxRate) / 100,
-            total: item.total,
-            isLabor: item.isLabor,
-          };
+    try {
+      const res = await fetch("/api/sales", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          customerId: selectedCustomer._id,
+          customerName: selectedCustomer.name,
+          items: saleItems,
+          payments: paymentDetails,
+          paymentMethod: paymentDetails[0].method,
+          amountPaid: totals.totalPaid,
+          notes: "",
+          overallDiscount,
+          overallDiscountType,
+          overallDiscountAmount: totals.overallDiscountAmount,
         }),
-        subtotal: totals.subtotal,
-        totalDiscount: totals.totalDiscount + totals.overallDiscountAmount,
-        totalTax: totals.totalTax,
-        grandTotal: totals.total,
-        amountPaid: totals.totalPaid,
-        balanceDue: totals.total - totals.totalPaid,
-        
-        // ✅ Show all payment methods on invoice
-        paymentMethods: paymentDetails,
-        paymentMethod: paymentDetails[0].method, // Primary for display
-        
-        notes: "",
       });
 
-      setShowInvoice(true);
+      if (res.ok) {
+        const data = await res.json();
+        toast.success(`Sale ${data.sale.invoiceNumber} created successfully!`);
 
-      setCart([]);
-      setSelectedCustomer(null);
-      setPayments([{ method: "cash", amount: 0 }]);
-      setOverallDiscount(0);
+        // ✅ MARK JOB AS CONVERTED TO SALE
+        if (activeJobId) {
+          await fetch(`/api/jobs/${activeJobId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              convertedToSale: true,
+              status: "COMPLETED",
+            }),
+          });
+        }
 
-      fetchProducts();
-      fetchFrequentProducts();
-    } else {
-      const error = await res.json();
-      toast.error(error.error || "Failed to create sale");
+        setInvoiceData({
+          invoiceNumber: data.sale.invoiceNumber,
+          saleDate: data.sale.saleDate,
+          items: cart.map((item) => {
+            let discountAmount = 0;
+            if (item.discountType === "percentage") {
+              discountAmount =
+                (item.sellingPrice * item.quantity * item.discount) / 100;
+            } else {
+              discountAmount = item.discount;
+            }
+
+            const itemSubtotal =
+              item.sellingPrice * item.quantity - discountAmount;
+            return {
+              name: item.productName,
+              quantity: item.quantity,
+              unitPrice: item.sellingPrice,
+              discount: discountAmount,
+              taxAmount: (itemSubtotal * item.taxRate) / 100,
+              total: item.total,
+              isLabor: item.isLabor,
+            };
+          }),
+          subtotal: totals.subtotal,
+          totalDiscount: totals.totalDiscount + totals.overallDiscountAmount,
+          totalTax: totals.totalTax,
+          grandTotal: totals.total,
+          amountPaid: totals.totalPaid,
+          balanceDue: totals.total - totals.totalPaid,
+          paymentMethods: paymentDetails,
+          paymentMethod: paymentDetails[0].method,
+          notes: "",
+        });
+
+        setShowInvoice(true);
+
+        setCart([]);
+        setSelectedCustomer(null);
+        setPayments([{ method: "cash", amount: 0 }]);
+        setOverallDiscount(0);
+
+        fetchProducts();
+        fetchFrequentProducts();
+        fetchCompletedJobs(); // ✅ NEW: Refresh jobs list
+      } else {
+        const error = await res.json();
+        toast.error(error.error || "Failed to create sale");
+      }
+    } catch (error) {
+      console.error("Error creating sale:", error);
+      toast.error("Failed to create sale");
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error("Error creating sale:", error);
-    toast.error("Failed to create sale");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
+
   const findExactSkuMatch = (sku: string) => {
-  return products.find(
-    (p) => p.sku?.toLowerCase() === sku.toLowerCase()
-  );
-};
+    return products.find((p) => p.sku?.toLowerCase() === sku.toLowerCase());
+  };
 
-
-  // Helper function to check if a product matches a given year
   const checkYearMatch = (product: any, year: number): boolean => {
     if (!product.isVehicle) return true;
     if (!year) return true;
-    
+
     const yearFrom = product.yearFrom;
     const yearTo = product.yearTo;
 
@@ -872,7 +960,6 @@ const handleSubmit = async () => {
     filterMake !== "all",
     filterCategory !== "all",
   ].filter(Boolean).length;
-
 
   const totals = calculateTotals();
 
@@ -1028,7 +1115,10 @@ const handleSubmit = async () => {
                             e.preventDefault();
                             addToCart(product);
                           }
-                          if (e.key === "ArrowRight" && index < frequentProducts.length - 1) {
+                          if (
+                            e.key === "ArrowRight" &&
+                            index < frequentProducts.length - 1
+                          ) {
                             const next = document.querySelector(
                               `[data-product-item="${index + 1}"]`
                             ) as HTMLElement;
@@ -1086,26 +1176,28 @@ const handleSubmit = async () => {
                 <div className="flex items-center gap-3 mb-4">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-<input
-  ref={searchInputRef}
-  type="text"
-  value={searchTerm}
-  onChange={(e) => setSearchTerm(e.target.value)}
-  onKeyDown={(e) => {
-    if (e.key === "Enter") {
-      const exactMatch = findExactSkuMatch(searchTerm.trim());
+                    <input
+                      ref={searchInputRef}
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          const exactMatch = findExactSkuMatch(
+                            searchTerm.trim()
+                          );
 
-      if (exactMatch) {
-        addToCart(exactMatch);
-        setSearchTerm("");
-        searchInputRef.current?.focus();
-        e.preventDefault();
-      }
-    }
-  }}
-  placeholder="Search by name, SKU, barcode..."
-  className="w-full pl-10 pr-4 py-3 ..."
-/>
+                          if (exactMatch) {
+                            addToCart(exactMatch);
+                            setSearchTerm("");
+                            searchInputRef.current?.focus();
+                            e.preventDefault();
+                          }
+                        }
+                      }}
+                      placeholder="Search by name, SKU, barcode..."
+                      className="w-full pl-10 pr-4 py-3 bg-[#111111] border border-white/5 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                    />
                   </div>
                   <button
                     onClick={() =>
@@ -1114,7 +1206,8 @@ const handleSubmit = async () => {
                         : setShowDesktopFilters(!showDesktopFilters)
                     }
                     className={`flex items-center space-x-2 px-4 py-3 border rounded-lg transition-colors ${
-                      (isMobile ? showMobileFilters : showDesktopFilters) || activeFilterCount > 0
+                      (isMobile ? showMobileFilters : showDesktopFilters) ||
+                      activeFilterCount > 0
                         ? "bg-[#E84545]/20 border-[#E84545]/30 text-white"
                         : "border-white/5 text-gray-300 hover:bg-white/5"
                     }`}
@@ -1127,6 +1220,21 @@ const handleSubmit = async () => {
                       </span>
                     )}
                   </button>
+
+                  {/* ✅ NEW: Load Job Button */}
+                  {completedJobs.length > 0 && (
+                    <button
+                      onClick={() => setShowJobsModal(true)}
+                      className="flex items-center space-x-2 px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 whitespace-nowrap transition-all shadow-lg relative"
+                    >
+                      <Briefcase className="h-5 w-5" />
+                      <span className="hidden md:inline">Load Jobs</span>
+                      <span className="absolute -top-2 -right-2 bg-green-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                        {completedJobs.length}
+                      </span>
+                    </button>
+                  )}
+
                   <button
                     onClick={() => setShowAddLabor(true)}
                     className="flex items-center space-x-2 px-4 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-lg hover:from-[#cc3c3c] hover:to-[#E84545] whitespace-nowrap transition-all shadow-lg hover:shadow-[#E84545]/30"
@@ -1176,7 +1284,11 @@ const handleSubmit = async () => {
                           All Makes
                         </option>
                         {availableMakes.map((make) => (
-                          <option key={make} value={make} className="bg-[#0A0A0A]">
+                          <option
+                            key={make}
+                            value={make}
+                            className="bg-[#0A0A0A]"
+                          >
                             {make}
                           </option>
                         ))}
@@ -1196,7 +1308,11 @@ const handleSubmit = async () => {
                           All Years
                         </option>
                         {yearOptions.map((year) => (
-                          <option key={year} value={year} className="bg-[#0A0A0A]">
+                          <option
+                            key={year}
+                            value={year}
+                            className="bg-[#0A0A0A]"
+                          >
                             {year}
                           </option>
                         ))}
@@ -1220,7 +1336,8 @@ const handleSubmit = async () => {
                   <div className="flex flex-wrap gap-2 mt-3">
                     {filterCategory !== "all" && (
                       <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#E84545]/20 border border-[#E84545]/30 rounded-full text-xs text-white">
-                        Category: {categories.find((c) => c._id === filterCategory)?.name}
+                        Category:{" "}
+                        {categories.find((c) => c._id === filterCategory)?.name}
                         <button
                           onClick={() => setFilterCategory("all")}
                           className="ml-1 hover:text-[#E84545]"
@@ -1259,7 +1376,8 @@ const handleSubmit = async () => {
                   <div className="mt-4">
                     <div className="flex items-center justify-between mb-3">
                       <p className="text-sm text-gray-400">
-                        {filteredProducts.length} product{filteredProducts.length !== 1 ? "s" : ""} found
+                        {filteredProducts.length} product
+                        {filteredProducts.length !== 1 ? "s" : ""} found
                       </p>
                       {activeFilterCount > 0 && (
                         <button
@@ -1270,7 +1388,7 @@ const handleSubmit = async () => {
                         </button>
                       )}
                     </div>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
                       {filteredProducts.length === 0 ? (
                         <div className="col-span-2 text-center py-8 text-gray-400">
@@ -1292,7 +1410,10 @@ const handleSubmit = async () => {
                                 e.preventDefault();
                                 addToCart(product);
                               }
-                              if (e.key === "ArrowDown" && index < filteredProducts.length - 1) {
+                              if (
+                                e.key === "ArrowDown" &&
+                                index < filteredProducts.length - 1
+                              ) {
                                 const next = document.querySelector(
                                   `[data-search-item="${index + 1}"]`
                                 ) as HTMLElement;
@@ -1322,7 +1443,8 @@ const handleSubmit = async () => {
                                 <div className="space-y-1 mt-1">
                                   <p className="text-xs text-gray-400 truncate">
                                     SKU: {product.sku}
-                                    {product.partNumber && ` | Part#: ${product.partNumber}`}
+                                    {product.partNumber &&
+                                      ` | Part#: ${product.partNumber}`}
                                   </p>
                                   {product.category?.name && (
                                     <p className="text-xs text-gray-500 truncate">
@@ -1334,11 +1456,13 @@ const handleSubmit = async () => {
                                       <Car className="h-3 w-3 text-[#E84545]" />
                                       <span className="text-xs text-[#E84545]">
                                         {product.carMake} {product.carModel}
-                                        {product.variant && ` ${product.variant}`}
+                                        {product.variant &&
+                                          ` ${product.variant}`}
                                       </span>
                                       {(product.yearFrom || product.yearTo) && (
                                         <span className="text-xs text-gray-500">
-                                          | {product.yearFrom && product.yearTo
+                                          |{" "}
+                                          {product.yearFrom && product.yearTo
                                             ? `${product.yearFrom}-${product.yearTo}`
                                             : product.yearFrom
                                             ? `${product.yearFrom}+`
@@ -1817,6 +1941,24 @@ const handleSubmit = async () => {
                 </button>
               </div>
               <div className="space-y-3">
+                {/* ✅ NEW: Load Job button in mobile menu */}
+                {completedJobs.length > 0 && (
+                  <button
+                    onClick={() => {
+                      setShowJobsModal(true);
+                      setShowMobileMenu(false);
+                    }}
+                    className="w-full p-4 bg-blue-500/10 border border-blue-500/30 rounded-2xl text-blue-300 font-semibold hover:bg-blue-500/20 transition-all flex items-center justify-between active:scale-[0.98]"
+                  >
+                    <span>Load Completed Job</span>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 bg-green-500 text-white text-xs rounded-full">
+                        {completedJobs.length}
+                      </span>
+                      <Briefcase className="h-5 w-5" />
+                    </div>
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     setShowAddLabor(true);
@@ -1857,6 +1999,101 @@ const handleSubmit = async () => {
         {/* Mobile Safe Area Bottom Padding */}
         <div className="md:hidden h-24"></div>
       </div>
+
+      {/* ✅ NEW: Jobs Modal */}
+      {showJobsModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[#0A0A0A] rounded-lg shadow-2xl max-w-4xl w-full max-h-[80vh] overflow-hidden border border-white/5">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-white/5 bg-gradient-to-r from-[#0A0A0A] to-[#111111]">
+              <div>
+                <h2 className="text-xl font-bold text-white flex items-center">
+                  <Briefcase className="h-5 w-5 mr-2 text-blue-400" />
+                  Completed Jobs
+                </h2>
+                <p className="text-sm text-gray-400 mt-1">
+                  Select a job to load into the cart
+                </p>
+              </div>
+              <button
+                onClick={() => setShowJobsModal(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              {loadingJobs ? (
+                <div className="text-center py-8 text-gray-400">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mb-3"></div>
+                  <p>Loading jobs...</p>
+                </div>
+              ) : completedJobs.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <Briefcase className="h-12 w-12 mx-auto mb-3 text-gray-600" />
+                  <p>No completed jobs available</p>
+                  <p className="text-sm mt-2">
+                    Jobs marked as completed will appear here
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {completedJobs.map((job) => (
+                    <div
+                      key={job._id}
+                      onClick={() => loadJobIntoCart(job)}
+                      className="bg-[#111111] border border-white/5 rounded-lg p-4 hover:border-blue-500/50 hover:bg-white/5 cursor-pointer transition-all group"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="font-bold text-white">
+                              {job.jobNumber}
+                            </h3>
+                            <span className="px-2 py-1 bg-green-500/20 text-green-300 rounded-full text-xs border border-green-500/30 flex items-center gap-1">
+                              <CheckCircle className="h-3 w-3" />
+                              Completed
+                            </span>
+                          </div>
+                          <h4 className="text-base font-medium text-white mb-1">
+                            {job.title}
+                          </h4>
+                          <div className="flex items-center gap-3 text-sm text-gray-400">
+                            <span>{job.customerName}</span>
+                            {job.vehicleRegistrationNumber && (
+                              <span className="font-mono text-blue-400">
+                                {job.vehicleRegistrationNumber}
+                              </span>
+                            )}
+                            <span>• {job.items.length} items</span>
+                          </div>
+                          {job.description && (
+                            <p className="text-xs text-gray-500 mt-2">
+                              {job.description}
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-right ml-4">
+                          <p className="text-sm text-gray-400">Total</p>
+                          <p className="text-lg font-bold text-white">
+                            QAR{" "}
+                            {(
+                              job.actualGrandTotal || job.estimatedGrandTotal
+                            ).toFixed(2)}
+                          </p>
+                          <button className="mt-2 px-3 py-1 bg-blue-500/20 text-blue-300 rounded-lg text-xs hover:bg-blue-500/30 transition-colors group-hover:bg-blue-500 group-hover:text-white">
+                            Load Job
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add Customer Modal */}
       {showAddCustomer && (
@@ -2251,7 +2488,8 @@ const handleSubmit = async () => {
                 <h2 className="text-lg font-bold text-white">Filters</h2>
                 {activeFilterCount > 0 && (
                   <p className="text-xs text-gray-400 mt-1">
-                    {activeFilterCount} filter{activeFilterCount !== 1 ? "s" : ""} active
+                    {activeFilterCount} filter
+                    {activeFilterCount !== 1 ? "s" : ""} active
                   </p>
                 )}
               </div>
@@ -2437,6 +2675,15 @@ const handleSubmit = async () => {
                 L
               </kbd>
             </div>
+            {/* ✅ NEW: Job shortcut */}
+            {completedJobs.length > 0 && (
+              <div className="flex items-center justify-between">
+                <span className="text-gray-400">Load Job</span>
+                <kbd className="px-2 py-0.5 bg-[#111111] border border-white/10 rounded text-white font-mono">
+                  J
+                </kbd>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <span className="text-gray-400">Payment</span>
               <kbd className="px-2 py-0.5 bg-[#111111] border border-white/10 rounded text-white font-mono">

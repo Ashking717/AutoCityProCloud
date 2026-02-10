@@ -32,6 +32,7 @@ import {
   Grid3x3,
   ChevronUp,
   MessageCircle,
+  Briefcase,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import Image from "next/image";
@@ -124,6 +125,14 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           mobile: true,
           roles: ["SUPERADMIN", "ADMIN", "MANAGER", "SALESPERSON", "VIEWER", "CASHIER"],
         },
+        {
+          name: "Jobs",
+          icon: Briefcase,
+          href: "/autocityPro/jobs",
+          badge: null,
+          mobile: true,
+          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "SALESPERSON", "VIEWER", "CASHIER"],
+        }
       ],
     },
     {

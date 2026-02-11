@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useRef, useCallback, lazy, Suspense } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import {
@@ -32,6 +32,19 @@ import {
   Bell,
   Zap,
 } from 'lucide-react';
+import { Line, Bar } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler,
+} from 'chart.js';
 import toast from 'react-hot-toast';
 import {
   formatTime,
@@ -43,9 +56,17 @@ import {
   QATAR_TIMEZONE,
 } from '@/lib/utils/timezone';
 
-// ✅ OPTIMIZATION: Lazy load Chart components (below the fold)
-const SalesTrendChart = lazy(() => import('@/components/charts/SalesTrendChart'));
-const TopProductsChart = lazy(() => import('@/components/charts/TopProductsChart'));
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+);
 
 // Types
 interface DashboardStats {
@@ -131,21 +152,6 @@ const defaultSalesTrend: SalesTrend = {
   profits: [],
 };
 
-// ✅ OPTIMIZATION: Skeleton component for instant UI
-const StatCardSkeleton = () => (
-  <div className="group bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl shadow-lg p-4 animate-pulse">
-    <div className="flex items-start justify-between mb-3">
-      <div className="bg-white/5 p-2.5 rounded-xl h-9 w-9" />
-    </div>
-    <div className="h-3 bg-white/5 rounded w-20 mb-1.5 md:mb-2" />
-    <div className="h-8 bg-white/5 rounded w-24 mb-2" />
-    <div className="flex items-center justify-between pt-2 border-t border-white/5">
-      <div className="h-4 bg-white/5 rounded w-12" />
-      <div className="h-3 bg-white/5 rounded w-16" />
-    </div>
-  </div>
-);
-
 export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -174,7 +180,8 @@ export default function DashboardPage() {
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentTime(getCurrentDateInTimezone());
-    }, 60000);
+    }, 60000); // Update every minute
+
     return () => clearInterval(interval);
   }, []);
 
@@ -188,7 +195,6 @@ export default function DashboardPage() {
     return () => window.removeEventListener('resize', checkIfMobile);
   }, []);
 
-  // ✅ OPTIMIZATION: Parallel API calls instead of sequential
   const fetchDashboardData = useCallback(async (showLoading: boolean = true) => {
     try {
       if (showLoading) {
@@ -198,28 +204,23 @@ export default function DashboardPage() {
         setRefreshing(true);
       }
 
-      // Parallel requests for faster loading
-      const [userRes, analyticsRes] = await Promise.all([
-        fetch('/api/auth/me', {
-          credentials: 'include',
-          headers: { 'Cache-Control': 'no-cache' },
-        }),
-        fetch(`/api/analytics/dashboard?period=${period}`, {
-          credentials: 'include',
-          headers: { 'Cache-Control': 'no-cache' },
-        }),
-      ]);
-
+      const userRes = await fetch('/api/auth/me', {
+        credentials: 'include',
+        headers: { 'Cache-Control': 'no-cache' },
+      });
       if (!userRes.ok) throw new Error('Unauthorized');
-      if (!analyticsRes.ok) throw new Error(`Failed to fetch analytics: ${analyticsRes.status}`);
-
-      const [userData, data] = await Promise.all([
-        userRes.json(),
-        analyticsRes.json(),
-      ]);
-
+      const userData = await userRes.json();
       setUser(userData.user);
+
+      const analyticsRes = await fetch(`/api/analytics/dashboard?period=${period}`, {
+        credentials: 'include',
+        headers: { 'Cache-Control': 'no-cache' },
+      });
+      if (!analyticsRes.ok) throw new Error(`Failed to fetch analytics: ${analyticsRes.status}`);
+      const data = await analyticsRes.json();
       setDashboardData(data);
+      
+      // Set last updated time in local timezone
       setLastUpdated(getCurrentDateInTimezone());
       
       if (showLoading) setLoading(false);
@@ -267,6 +268,7 @@ export default function DashboardPage() {
   const handlePeriodChange = (newPeriod: PeriodType) => {
     setPeriod(newPeriod);
     setDashboardData(null);
+    
     if (isMobile) setShowMobileFilter(false);
   };
 
@@ -312,70 +314,15 @@ export default function DashboardPage() {
     { value: 'year', label: 'Year' },
   ];
 
-  // ✅ OPTIMIZATION: Show skeleton UI instead of blank screen
-  if (loading && !dashboardData) {
+  if (loading && !refreshing) {
     return (
-      <MainLayout user={user} onLogout={handleLogout}>
-        <div className="min-h-screen bg-[#050505]">
-          {/* Mobile Dynamic Island */}
-          {isMobile && showDynamicIsland && (
-            <div className="fixed top-2 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
-              <div className="bg-black rounded-[28px] px-6 py-3 shadow-2xl border border-white/10 backdrop-blur-xl pointer-events-auto animate-in slide-in-from-top duration-500">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                    <span className="text-white text-xs font-medium">Loading...</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Mobile Header */}
-          <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-gradient-to-br from-[#0A0A0A] via-[#050505] to-[#0A0A0A] border-b border-white/5 backdrop-blur-xl pt-safe">
-            <div className="px-4 py-3 mt-12">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => router.back()}
-                    className="p-2 rounded-xl bg-white/5 text-white/80"
-                  >
-                    <ChevronLeft className="h-5 w-5" />
-                  </button>
-                  <div>
-                    <h1 className="text-xl font-bold text-white">Dashboard</h1>
-                    <p className="text-xs text-white/60">Loading...</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Desktop Header */}
-          <div className="hidden md:block py-11 bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-xl">
-            <div className="px-8">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
-                    <Sparkles className="h-8 w-8 text-[#E84545]" />
-                    Dashboard
-                  </h1>
-                  <p className="text-white/90 mt-2">Loading your data...</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Skeleton Content */}
-          <div className="px-4 md:px-6 pt-[140px] md:pt-6 pb-6">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 mb-6">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <StatCardSkeleton key={i} />
-              ))}
-            </div>
-          </div>
+      <div className="min-h-screen flex items-center justify-center bg-[#050505]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-white/10 border-t-[#E84545] mx-auto"></div>
+          <p className="mt-4 text-white text-lg font-medium">Loading dashboard...</p>
+          <p className="text-gray-400 text-sm mt-2">Calculating real-time metrics</p>
         </div>
-      </MainLayout>
+      </div>
     );
   }
 
@@ -396,6 +343,99 @@ export default function DashboardPage() {
       </div>
     );
   }
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: true,
+    plugins: {
+      legend: {
+        position: 'top' as const,
+        labels: {
+          color: '#e2e8f0',
+          font: { family: 'Inter, sans-serif', size: isMobile ? 10 : 12 },
+          padding: isMobile ? 12 : 20,
+          usePointStyle: true,
+        },
+      },
+      tooltip: {
+        backgroundColor: 'rgba(10, 10, 10, 0.95)',
+        titleColor: '#e2e8f0',
+        bodyColor: '#cbd5e1',
+        borderColor: '#E84545',
+        borderWidth: 1,
+        padding: isMobile ? 8 : 12,
+        cornerRadius: 8,
+        callbacks: {
+          label: (context: any) => `${context.dataset.label}: ${formatCurrency(context.raw)}`,
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid: { color: 'rgba(255, 255, 255, 0.03)' },
+        ticks: {
+          color: '#94a3b8',
+          font: { size: isMobile ? 9 : 11 },
+          maxRotation: isMobile ? 45 : 0,
+        },
+      },
+      y: {
+        beginAtZero: true,
+        grid: { color: 'rgba(255, 255, 255, 0.03)' },
+        ticks: {
+          color: '#94a3b8',
+          font: { size: isMobile ? 9 : 11 },
+          callback: (value: any) => isMobile ? `${value / 1000}K` : formatCurrency(value),
+        },
+      },
+    },
+  };
+
+  const salesTrendConfig = {
+    labels: salesTrend.labels,
+    datasets: [
+      {
+        label: 'Sales',
+        data: salesTrend.data,
+        borderColor: '#E84545',
+        backgroundColor: 'rgba(232, 69, 69, 0.1)',
+        fill: true,
+        tension: 0.4,
+        borderWidth: 2,
+        pointBackgroundColor: '#E84545',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: isMobile ? 2 : 4,
+        pointHoverRadius: isMobile ? 4 : 6,
+      },
+      {
+        label: 'Profit',
+        data: salesTrend.profits,
+        borderColor: '#10b981',
+        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+        fill: true,
+        tension: 0.4,
+        borderWidth: 2,
+        pointBackgroundColor: '#10b981',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: isMobile ? 2 : 4,
+        pointHoverRadius: isMobile ? 4 : 6,
+      },
+    ],
+  };
+
+  const topProductsConfig = {
+    labels: topProducts.map(p => isMobile ? p.name.substring(0, 15) + '...' : p.name),
+    datasets: [{
+      label: 'Revenue',
+      data: topProducts.map(p => p.revenue),
+      backgroundColor: ['rgba(232, 69, 69, 0.8)', 'rgba(204, 60, 60, 0.8)', 'rgba(176, 51, 51, 0.8)', 'rgba(148, 42, 42, 0.8)', 'rgba(120, 33, 33, 0.8)'],
+      borderColor: ['#E84545', '#cc3c3c', '#b03333', '#942a2a', '#782121'],
+      borderWidth: 1,
+      borderRadius: 6,
+    }],
+  };
 
   const statCards = [
     {
@@ -456,7 +496,7 @@ export default function DashboardPage() {
       <div className="min-h-screen bg-[#050505]">
         {/* Dynamic Island - Mobile Only */}
         {isMobile && showDynamicIsland && (
-          <div className="fixed top-2 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
+          <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-2 px-4 pointer-events-none">
             <div className="bg-black rounded-[28px] px-6 py-3 shadow-2xl border border-white/10 backdrop-blur-xl pointer-events-auto animate-in slide-in-from-top duration-500">
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
@@ -483,8 +523,8 @@ export default function DashboardPage() {
         )}
 
         {/* Mobile Header - Compact & Fixed */}
-        <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-gradient-to-br from-[#0A0A0A] via-[#050505] to-[#0A0A0A] border-b border-white/5 backdrop-blur-xl pt-safe">
-          <div className="px-4 py-3 mt-12">
+        <div className="md:hidden fixed top-16 left-0 right-0 z-40 bg-gradient-to-br from-[#0A0A0A] via-[#050505] to-[#0A0A0A] border-b border-white/5 backdrop-blur-xl">
+          <div className="px-4 py-3">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-3">
                 <button
@@ -612,9 +652,9 @@ export default function DashboardPage() {
         </div>
 
         {/* Main Content */}
-        <div className="px-4 md:px-6 pt-[160px] md:pt-6 pb-6">
+        <div className="px-4 md:px-6 pt-[180px] md:pt-6 pb-6">
           {/* Stats Grid - Mobile Optimized Cards */}
-          <div className="mb-8">
+          <div className="mb-6">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
               {statCards.map((stat, index) => (
                 <div
@@ -701,39 +741,72 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Charts Section - Mobile Optimized with Lazy Loading */}
+          {/* Charts Section - Mobile Optimized */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-6">
-            {/* ✅ OPTIMIZATION: Lazy load charts with Suspense */}
-            <Suspense fallback={
-              <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl shadow-lg p-4 md:p-6">
-                <div className="animate-pulse">
-                  <div className="h-6 bg-white/5 rounded w-32 mb-4"></div>
-                  <div className="h-48 md:h-64 bg-white/5 rounded-xl"></div>
+            {/* Sales Trend */}
+            <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl shadow-lg p-4 md:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-sm md:text-lg font-bold text-white flex items-center">
+                    <TrendingUp className="h-4 w-4 md:h-5 md:w-5 mr-2 text-[#E84545]" />
+                    Sales Trend
+                  </h2>
+                  <p className="text-[10px] md:text-sm text-gray-400 mt-1">
+                    {period === 'today' ? 'Hourly' : period === 'week' ? 'Last 7 days' : period === 'month' ? 'Last 30 days' : 'Monthly'}
+                  </p>
                 </div>
               </div>
-            }>
-              <SalesTrendChart 
-                data={salesTrend} 
-                period={period} 
-                isMobile={isMobile}
-                formatCurrency={formatCurrency}
-              />
-            </Suspense>
+              <div className="h-48 md:h-64">
+                {salesTrend.data.length > 0 ? (
+                  <Line data={salesTrendConfig} options={chartOptions} />
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center">
+                    <AlertTriangle className="h-10 w-10 text-gray-600 mb-3" />
+                    <p className="text-gray-400 font-medium text-sm">No sales data</p>
+                  </div>
+                )}
+              </div>
+            </div>
 
-            <Suspense fallback={
-              <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl shadow-lg p-4 md:p-6">
-                <div className="animate-pulse">
-                  <div className="h-6 bg-white/5 rounded w-32 mb-4"></div>
-                  <div className="h-48 md:h-64 bg-white/5 rounded-xl"></div>
+            {/* Top Products */}
+            <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl shadow-lg p-4 md:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-sm md:text-lg font-bold text-white flex items-center">
+                    <Package className="h-4 w-4 md:h-5 md:w-5 mr-2 text-[#E84545]" />
+                    Top Products
+                  </h2>
+                  <p className="text-[10px] md:text-sm text-gray-400 mt-1">Best sellers</p>
                 </div>
               </div>
-            }>
-              <TopProductsChart 
-                products={topProducts} 
-                isMobile={isMobile}
-                formatCurrency={formatCompactCurrency}
-              />
-            </Suspense>
+              {topProducts.length > 0 ? (
+                <div className="space-y-2">
+                  {topProducts.slice(0, 5).map((product, index) => (
+                    <div key={product.id} className="flex items-center justify-between p-3 bg-[#0A0A0A]/50 rounded-xl border border-white/5 hover:border-[#E84545]/20 transition-all active:scale-[0.98]">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#E84545] to-[#cc3c3c] flex items-center justify-center text-white text-xs font-bold shadow-md flex-shrink-0">
+                          {index + 1}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs md:text-sm font-semibold text-white truncate">{product.name}</p>
+                          <p className="text-[10px] md:text-xs text-gray-400">{product.quantity} sold</p>
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0 ml-2">
+                        <p className="text-xs md:text-sm font-bold text-[#E84545]">
+                          {formatCompactCurrency(product.revenue)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="h-48 flex flex-col items-center justify-center">
+                  <Package className="h-10 w-10 text-gray-600 mb-3" />
+                  <p className="text-gray-400 font-medium text-sm">No sales data</p>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Recent Activity & Quick Actions */}
@@ -794,7 +867,7 @@ export default function DashboardPage() {
                   <Package className="h-4 w-4" />
                 </button>
                 <button
-                  onClick={() => router.push('/autocityPro/customers')}
+                  onClick={() => router.push('autocityPro/customers')}
                   className="w-full p-3 bg-[#0A0A0A]/50 border border-white/5 rounded-xl text-gray-300 font-semibold hover:bg-white/5 hover:border-[#E84545]/20 transition-all flex items-center justify-between active:scale-[0.98]"
                 >
                   <span className="text-sm">Customers</span>
@@ -873,7 +946,7 @@ export default function DashboardPage() {
       {/* Custom Styles */}
       <style jsx global>{`
         @supports (padding: max(0px)) {
-          .pt-safe {
+          .md\\:hidden.fixed.top-16 {
             padding-top: max(12px, env(safe-area-inset-top));
           }
         }

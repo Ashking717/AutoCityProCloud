@@ -667,7 +667,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
                   )}
                 </div>
                 <span className={`text-[10px] font-medium mt-0.5 transition-colors ${pathname === "/autocityPro/messages" ? 'text-red-500' : 'text-gray-400'}`}>
-                  Messages
+                  Chat+
                 </span>
               </button>
             )}

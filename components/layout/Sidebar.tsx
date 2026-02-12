@@ -34,7 +34,7 @@ import {
   MessageCircle,
   Briefcase,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import Image from "next/image";
 
 interface SidebarProps {
@@ -43,419 +43,270 @@ interface SidebarProps {
   className?: string;
 }
 
+// ─── Static data moved outside component ────────────────────────────────────
+// Avoids recreating these large arrays on every render.
+
+const ALL_NAVIGATION_SECTIONS = [
+  {
+    title: "Main",
+    items: [
+      { name: "Dashboard",  icon: LayoutDashboard, href: "/autocityPro/dashboard",  roles: ["SUPERADMIN","ADMIN","MANAGER","VIEWER"] },
+      { name: "New Sale",   icon: Sparkles,        href: "/autocityPro/sales/new",  roles: ["SUPERADMIN","ADMIN","MANAGER","SALESPERSON","CASHIER"] },
+      { name: "Sales",      icon: ShoppingCart,    href: "/autocityPro/sales",      roles: ["SUPERADMIN","ADMIN","MANAGER","SALESPERSON","VIEWER","CASHIER"] },
+      { name: "Jobs",       icon: Briefcase,       href: "/autocityPro/jobs",       roles: ["SUPERADMIN","ADMIN","MANAGER","SALESPERSON","VIEWER","CASHIER"] },
+    ],
+  },
+  {
+    title: "Inventory",
+    items: [
+      { name: "Products", icon: Package,    href: "/autocityPro/products", roles: ["SUPERADMIN","ADMIN","MANAGER","SALESPERSON"] },
+      { name: "Stock",    icon: TrendingUp, href: "/autocityPro/stock",    roles: ["SUPERADMIN","ADMIN","MANAGER","VIEWER","CASHIER"] },
+    ],
+  },
+  {
+    title: "Parties",
+    items: [
+      { name: "Customers", icon: Users, href: "/autocityPro/customers", roles: ["SUPERADMIN","ADMIN","MANAGER","SALESPERSON","CASHIER"] },
+      { name: "Portal",    icon: Truck, href: "/autocityPro/portal",    roles: ["SUPERADMIN","ADMIN","MANAGER","ACCOUNTANT"] },
+    ],
+  },
+  {
+    title: "Accounting",
+    items: [
+      { name: "Vouchers", icon: Receipt,    href: "/autocityPro/vouchers", roles: ["SUPERADMIN","ADMIN","MANAGER","ACCOUNTANT"] },
+      { name: "Accounts", icon: BookOpen,   href: "/autocityPro/accounts", roles: ["SUPERADMIN","ADMIN","MANAGER","ACCOUNTANT"] },
+      { name: "Ledgers",  icon: DollarSign, href: "/autocityPro/ledgers",  roles: ["SUPERADMIN","ADMIN","MANAGER","ACCOUNTANT"] },
+    ],
+  },
+  {
+    title: "Reports",
+    items: [
+      { name: "Reports", icon: BarChart3, href: "/autocityPro/reports", roles: ["SUPERADMIN","ADMIN","MANAGER","VIEWER","ACCOUNTANT"] },
+    ],
+  },
+  {
+    title: "System",
+    items: [
+      { name: "Day & Month Closing", icon: Lock,     href: "/autocityPro/closings", roles: ["SUPERADMIN","ADMIN","MANAGER","ACCOUNTANT"] },
+      { name: "Settings",            icon: Settings, href: "/autocityPro/settings", roles: ["SUPERADMIN","ADMIN"] },
+    ],
+  },
+];
+
+const SUPERADMIN_SECTION = {
+  title: "Admin",
+  items: [
+    { name: "Outlets",       icon: Building,   href: "/autocityPro/settings/outlets/new", roles: ["SUPERADMIN"] },
+    { name: "Users",         icon: Users,      href: "/autocityPro/settings/users",       roles: ["SUPERADMIN"] },
+    { name: "Activity Logs", icon: ActivityIcon, href: "/autocityPro/settings/logs",      roles: ["SUPERADMIN"] },
+  ],
+};
+
+const ALL_PRIMARY_MOBILE_ITEMS = [
+  { name: "Dashboard", icon: LayoutDashboard, href: "/autocityPro/dashboard", roles: ["SUPERADMIN","ADMIN","MANAGER","VIEWER"] },
+  { name: "New Sale",  icon: Sparkles,        href: "/autocityPro/sales/new", roles: ["SUPERADMIN","ADMIN","MANAGER","SALESPERSON","CASHIER"] },
+  { name: "Portal",    icon: Truck,           href: "/autocityPro/portal",    roles: ["SUPERADMIN","ADMIN","MANAGER","ACCOUNTANT"] },
+];
+
+const MESSAGES_ROLES = ["SUPERADMIN","ADMIN","MANAGER","SALESPERSON","VIEWER","CASHIER","ACCOUNTANT"];
+
+// ─── Keyboard shortcuts map – built once, never changes ─────────────────────
+const buildKeyMap = (router: ReturnType<typeof useRouter>, onLogout: () => void) => ({
+  "Ctrl+1": () => router.push("/autocityPro/dashboard"),
+  "Ctrl+2": () => router.push("/autocityPro/messages"),
+  "Ctrl+3": () => router.push("/autocityPro/sales/new"),
+  "Ctrl+4": () => router.push("/autocityPro/sales"),
+  "Ctrl+5": () => router.push("/autocityPro/products"),
+  "Ctrl+6": () => router.push("/autocityPro/categories"),
+  "Ctrl+7": () => router.push("/autocityPro/stock"),
+  "Ctrl+8": () => router.push("/autocityPro/customers"),
+  "Ctrl+9": () => router.push("/autocityPro/portal"),
+  "Ctrl+0": () => router.push("/autocityPro/vouchers"),
+  "Ctrl+A": () => router.push("/autocityPro/accounts"),
+  "Ctrl+L": () => router.push("/autocityPro/ledgers"),
+  "Ctrl+,": () => router.push("/autocityPro/settings"),
+  "Ctrl+M": () => router.push("/autocityPro/closings"),
+  "Ctrl+O": () => router.push("/autocityPro/settings/outlets"),
+  "Ctrl+U": () => router.push("/autocityPro/settings/users"),
+  "Ctrl+Q": onLogout,
+  "Ctrl+Shift+S": () => router.push("/autocityPro/reports/sales"),
+  "Ctrl+Shift+B": () => router.push("/autocityPro/reports/balance-sheet"),
+  "Ctrl+Shift+T": () => router.push("/autocityPro/reports/stock"),
+  "Ctrl+Shift+D": () => router.push("/autocityPro/reports/daybook"),
+  "Ctrl+Shift+F": () => router.push("/autocityPro/reports/cash-flow"),
+  "Ctrl+Alt+L": () => router.push("/autocityPro/settings/logs"),
+  "Alt+H": () => router.push("/autocityPro/dashboard"),
+  "Alt+M": () => router.push("/autocityPro/messages"),
+  "Alt+N": () => router.push("/autocityPro/sales/new"),
+});
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
 export default function Sidebar({ user, onLogout }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
-  const [showHelp, setShowHelp] = useState(false);
-  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
-    new Set()
-  );
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const router   = useRouter();
+  const [showHelp,          setShowHelp]          = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const [showMobileMenu,    setShowMobileMenu]    = useState(false);
+  const [unreadCount,       setUnreadCount]       = useState(0);
 
-  // Fetch unread message count
-  const fetchUnreadCount = async () => {
+  // Keep latest values available inside stable callback refs
+  const showHelpRef       = useRef(showHelp);
+  const showMobileMenuRef = useRef(showMobileMenu);
+  useEffect(() => { showHelpRef.current       = showHelp; },       [showHelp]);
+  useEffect(() => { showMobileMenuRef.current = showMobileMenu; }, [showMobileMenu]);
+
+  // ── Unread count – polled every 60 s (was 30 s) ─────────────────────────
+  // Using a ref to the latest setter so the interval closure stays stable.
+  const fetchUnreadCount = useCallback(async () => {
     try {
       const res = await fetch("/api/messages", { credentials: "include" });
-      if (res.ok) {
-        const data = await res.json();
-        const total = data.conversations?.reduce(
-          (sum: number, conv: any) => sum + conv.unreadCount,
-          0
-        ) || 0;
-        setUnreadCount(total);
-      }
-    } catch (error) {
-      console.error("Failed to fetch unread count");
+      if (!res.ok) return;
+      const data = await res.json();
+      const total: number = data.conversations?.reduce(
+        (sum: number, conv: any) => sum + (conv.unreadCount ?? 0), 0
+      ) ?? 0;
+      setUnreadCount(total);
+    } catch {
+      // silently ignore
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchUnreadCount();
-    
-    // Poll for new messages every 30 seconds
-    const interval = setInterval(fetchUnreadCount, 30000);
-    
-    return () => clearInterval(interval);
+    const id = setInterval(fetchUnreadCount, 60_000); // ⬆ 30 s → 60 s
+    return () => clearInterval(id);
+  }, [fetchUnreadCount]);
+
+  // ── Role helpers ─────────────────────────────────────────────────────────
+  const userRole = user?.role as string | undefined;
+
+  const hasAccess = useCallback(
+    (allowedRoles: string[]) => !!userRole && allowedRoles.includes(userRole),
+    [userRole]
+  );
+
+  // ── Filtered navigation – recomputed only when role changes ─────────────
+  const navigation = useMemo(() => {
+    const sections = userRole === "SUPERADMIN"
+      ? [...ALL_NAVIGATION_SECTIONS, SUPERADMIN_SECTION]
+      : ALL_NAVIGATION_SECTIONS;
+
+    return sections
+      .map((section) => ({
+        ...section,
+        items: section.items.filter((item) => hasAccess(item.roles)),
+      }))
+      .filter((section) => section.items.length > 0);
+  }, [userRole, hasAccess]);
+
+  const primaryMobileNavItems = useMemo(
+    () => ALL_PRIMARY_MOBILE_ITEMS.filter((item) => hasAccess(item.roles)),
+    [hasAccess]
+  );
+
+  const hasMessagesAccess = useMemo(() => hasAccess(MESSAGES_ROLES), [hasAccess]);
+
+  // ── Section toggle ────────────────────────────────────────────────────────
+  const toggleSection = useCallback((title: string) => {
+    setCollapsedSections((prev) => {
+      const next = new Set(prev);
+      next.has(title) ? next.delete(title) : next.add(title);
+      return next;
+    });
   }, []);
 
-  const toggleSection = (sectionTitle: string) => {
-    setCollapsedSections((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(sectionTitle)) {
-        newSet.delete(sectionTitle);
-      } else {
-        newSet.add(sectionTitle);
-      }
-      return newSet;
-    });
-  };
-
-  // Helper function to check if user has access to a feature
-  const hasAccess = (allowedRoles: string[]) => {
-    return user?.role && allowedRoles.includes(user.role);
-  };
-
-  // Define all navigation items with role-based access
-  const allNavigationSections = [
-    {
-      title: "Main",
-      items: [
-        {
-          name: "Dashboard",
-          icon: LayoutDashboard,
-          href: "/autocityPro/dashboard",
-          badge: null,
-          mobile: true,
-          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "VIEWER"],
-        },
-        {
-          name: "New Sale",
-          icon: Sparkles,
-          href: "/autocityPro/sales/new",
-          badge: null,
-          mobile: true,
-          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "SALESPERSON", "CASHIER"],
-        },
-        {
-          name: "Sales",
-          icon: ShoppingCart,
-          href: "/autocityPro/sales",
-          badge: null,
-          mobile: true,
-          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "SALESPERSON", "VIEWER", "CASHIER"],
-        },
-        {
-          name: "Jobs",
-          icon: Briefcase,
-          href: "/autocityPro/jobs",
-          badge: null,
-          mobile: true,
-          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "SALESPERSON", "VIEWER", "CASHIER"],
-        }
-      ],
-    },
-    {
-      title: "Inventory",
-      items: [
-        {
-          name: "Products",
-          icon: Package,
-          href: "/autocityPro/products",
-          badge: null,
-          mobile: true,
-          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "SALESPERSON"],
-        },
-        {
-          name: "Stock",
-          icon: TrendingUp,
-          href: "/autocityPro/stock",
-          badge: null,
-          mobile: true,
-          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "VIEWER", "CASHIER"],
-        },
-      ],
-    },
-    {
-      title: "Parties",
-      items: [
-        {
-          name: "Customers",
-          icon: Users,
-          href: "/autocityPro/customers",
-          badge: null,
-          mobile: true,
-          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "SALESPERSON", "CASHIER"],
-        },
-        {
-          name: "Portal",
-          icon: Truck,
-          href: "/autocityPro/portal",
-          badge: null,
-          mobile: true,
-          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "ACCOUNTANT"],
-        },
-      ],
-    },
-    {
-      title: "Accounting",
-      items: [
-        {
-          name: "Vouchers",
-          icon: Receipt,
-          href: "/autocityPro/vouchers",
-          badge: null,
-          mobile: true,
-          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "ACCOUNTANT"],
-        },
-        {
-          name: "Accounts",
-          icon: BookOpen,
-          href: "/autocityPro/accounts",
-          badge: null,
-          mobile: true,
-          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "ACCOUNTANT"],
-        },
-        {
-          name: "Ledgers",
-          icon: DollarSign,
-          href: "/autocityPro/ledgers",
-          badge: null,
-          mobile: true,
-          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "ACCOUNTANT"],
-        },
-      ],
-    },
-    {
-      title: "Reports",
-      items: [
-        {
-          name: "Reports",
-          icon: BarChart3,
-          href: "/autocityPro/reports",
-          badge: null,
-          mobile: true,
-          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "VIEWER", "ACCOUNTANT"],
-        },
-      ],
-    },
-    {
-      title: "System",
-      items: [
-        {
-          name: "Day & Month Closing",
-          icon: Lock,
-          href: "/autocityPro/closings",
-          badge: null,
-          mobile: true,
-          roles: ["SUPERADMIN", "ADMIN", "MANAGER", "ACCOUNTANT"],
-        },
-        {
-          name: "Settings",
-          icon: Settings,
-          href: "/autocityPro/settings",
-          badge: null,
-          mobile: true,
-          roles: ["SUPERADMIN", "ADMIN"],
-        },
-      ],
-    },
-  ];
-
-  // Add SUPERADMIN-only section
-  if (user?.role === "SUPERADMIN") {
-    allNavigationSections.push({
-      title: "Admin",
-      items: [
-        {
-          name: "Outlets",
-          icon: Building,
-          href: "/autocityPro/settings/outlets/new",
-          badge: null,
-          mobile: true,
-          roles: ["SUPERADMIN"],
-        },
-        {
-          name: "Users",
-          icon: Users,
-          href: "/autocityPro/settings/users",
-          badge: null,
-          mobile: true,
-          roles: ["SUPERADMIN"],
-        },
-        {
-          name: "Activity Logs",
-          icon: ActivityIcon,
-          href: "/autocityPro/settings/logs",
-          badge: null,
-          mobile: true,
-          roles: ["SUPERADMIN"],
-        },
-      ],
-    });
-  }
-
-  // Filter navigation based on user role
-  const navigation = allNavigationSections
-    .map((section) => ({
-      ...section,
-      items: section.items.filter((item) => hasAccess(item.roles)),
-    }))
-    .filter((section) => section.items.length > 0);
-
-  // ✅ UPDATED: Primary mobile navigation items (Dashboard, New Sale, Portal, Messages, More)
-  const allPrimaryMobileNavItems = [
-    {
-      name: "Dashboard",
-      icon: LayoutDashboard,
-      href: "/autocityPro/dashboard",
-      badge: null,
-      roles: ["SUPERADMIN", "ADMIN", "MANAGER", "VIEWER"],
-    },
-    {
-      name: "New Sale",
-      icon: Sparkles,
-      href: "/autocityPro/sales/new",
-      badge: null,
-      roles: ["SUPERADMIN", "ADMIN", "MANAGER", "SALESPERSON", "CASHIER"],
-    },
-    {
-      name: "Portal",
-      icon: Truck,
-      href: "/autocityPro/portal",
-      badge: null,
-      roles: ["SUPERADMIN", "ADMIN", "MANAGER", "ACCOUNTANT"],
-    },
-  ];
-
-  const primaryMobileNavItems = allPrimaryMobileNavItems.filter((item) =>
-    hasAccess(item.roles)
-  );
+  // ── Keyboard shortcuts – stable handler via refs ─────────────────────────
+  const keyMapRef = useRef<Record<string, () => void>>({});
+  useEffect(() => {
+    keyMapRef.current = buildKeyMap(router, onLogout);
+  }, [router, onLogout]);
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement
-      ) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      const ctrl  = e.ctrlKey || e.metaKey;
+      const shift = e.shiftKey;
+      const alt   = e.altKey;
+
+      if (e.key === "?" && !ctrl && !shift && !alt) {
+        e.preventDefault();
+        setShowHelp((v) => !v);
         return;
       }
-
-      const isCtrl = e.ctrlKey || e.metaKey;
-      const isShift = e.shiftKey;
-      const isAlt = e.altKey;
-
-      if (e.key === "?" && !isCtrl && !isShift && !isAlt) {
-        e.preventDefault();
-        setShowHelp((prev) => !prev);
-        return;
+      if (e.key === "Escape") {
+        if (showHelpRef.current)       { e.preventDefault(); setShowHelp(false); return; }
+        if (showMobileMenuRef.current) { e.preventDefault(); setShowMobileMenu(false); return; }
       }
 
-      if (e.key === "Escape" && showHelp) {
-        e.preventDefault();
-        setShowHelp(false);
-        return;
+      let combo = "";
+      if (ctrl && shift) {
+        if      (e.key === "S") combo = "Ctrl+Shift+S";
+        else if (e.key === "B") combo = "Ctrl+Shift+B";
+        else if (e.key === "T") combo = "Ctrl+Shift+T";
+        else if (e.key === "D") combo = "Ctrl+Shift+D";
+        else if (e.key === "F") combo = "Ctrl+Shift+F";
+      } else if (ctrl && alt) {
+        if (e.key === "L") combo = "Ctrl+Alt+L";
+      } else if (ctrl) {
+        if      (e.key >= "0" && e.key <= "9") combo = `Ctrl+${e.key}`;
+        else if (e.key === "a" || e.key === "A") combo = "Ctrl+A";
+        else if (e.key === "l" || e.key === "L") combo = "Ctrl+L";
+        else if (e.key === ",")                  combo = "Ctrl+,";
+        else if (e.key === "m" || e.key === "M") combo = "Ctrl+M";
+        else if (e.key === "o" || e.key === "O") combo = "Ctrl+O";
+        else if (e.key === "u" || e.key === "U") combo = "Ctrl+U";
+        else if (e.key === "q" || e.key === "Q") combo = "Ctrl+Q";
+      } else if (alt) {
+        if      (e.key === "h" || e.key === "H") combo = "Alt+H";
+        else if (e.key === "m" || e.key === "M") combo = "Alt+M";
+        else if (e.key === "n" || e.key === "N") combo = "Alt+N";
       }
 
-      if (e.key === "Escape" && showMobileMenu) {
-        e.preventDefault();
-        setShowMobileMenu(false);
-        return;
-      }
-
-      const keyMap: Record<string, () => void> = {
-        "Ctrl+1": () => router.push("/autocityPro/dashboard"),
-        "Ctrl+2": () => router.push("/autocityPro/messages"),
-        "Ctrl+3": () => router.push("/autocityPro/sales/new"),
-        "Ctrl+4": () => router.push("/autocityPro/sales"),
-        "Ctrl+5": () => router.push("/autocityPro/products"),
-        "Ctrl+6": () => router.push("/autocityPro/categories"),
-        "Ctrl+7": () => router.push("/autocityPro/stock"),
-        "Ctrl+8": () => router.push("/autocityPro/customers"),
-        "Ctrl+9": () => router.push("/autocityPro/portal"),
-        "Ctrl+0": () => router.push("/autocityPro/vouchers"),
-        "Ctrl+A": () => router.push("/autocityPro/accounts"),
-        "Ctrl+L": () => router.push("/autocityPro/ledgers"),
-        "Ctrl+,": () => router.push("/autocityPro/settings"),
-        "Ctrl+M": () => router.push("/autocityPro/closings"),
-        "Ctrl+O": () => router.push("/autocityPro/settings/outlets"),
-        "Ctrl+U": () => router.push("/autocityPro/settings/users"),
-        "Ctrl+Q": () => onLogout(),
-        "Ctrl+Shift+S": () => router.push("/autocityPro/reports/sales"),
-        "Ctrl+Shift+B": () => router.push("/autocityPro/reports/balance-sheet"),
-        "Ctrl+Shift+T": () => router.push("/autocityPro/reports/stock"),
-        "Ctrl+Shift+D": () => router.push("/autocityPro/reports/daybook"),
-        "Ctrl+Shift+F": () => router.push("/autocityPro/reports/cash-flow"),
-        "Ctrl+Alt+L": () => router.push("/autocityPro/settings/logs"),
-        "Alt+H": () => router.push("/autocityPro/dashboard"),
-        "Alt+M": () => router.push("/autocityPro/messages"),
-        "Alt+N": () => router.push("/autocityPro/sales/new"),
-      };
-
-      let keyCombo = "";
-
-      if (isCtrl && isShift) {
-        if (e.key === "S") keyCombo = "Ctrl+Shift+S";
-        else if (e.key === "B") keyCombo = "Ctrl+Shift+B";
-        else if (e.key === "T") keyCombo = "Ctrl+Shift+T";
-        else if (e.key === "D") keyCombo = "Ctrl+Shift+D";
-        else if (e.key === "F") keyCombo = "Ctrl+Shift+F";
-      } else if (isCtrl && isAlt) {
-        if (e.key === "L") keyCombo = "Ctrl+Alt+L";
-      } else if (isCtrl) {
-        if (e.key >= "0" && e.key <= "9") keyCombo = `Ctrl+${e.key}`;
-        else if (e.key === "a" || e.key === "A") keyCombo = "Ctrl+A";
-        else if (e.key === "l" || e.key === "L") keyCombo = "Ctrl+L";
-        else if (e.key === ",") keyCombo = "Ctrl+,";
-        else if (e.key === "m" || e.key === "M") keyCombo = "Ctrl+M";
-        else if (e.key === "o" || e.key === "O") keyCombo = "Ctrl+O";
-        else if (e.key === "u" || e.key === "U") keyCombo = "Ctrl+U";
-        else if (e.key === "q" || e.key === "Q") keyCombo = "Ctrl+Q";
-      } else if (isAlt) {
-        if (e.key === "h" || e.key === "H") keyCombo = "Alt+H";
-        else if (e.key === "m" || e.key === "M") keyCombo = "Alt+M";
-        else if (e.key === "n" || e.key === "N") keyCombo = "Alt+N";
-      }
-
-      if (keyCombo && keyMap[keyCombo]) {
-        e.preventDefault();
-        keyMap[keyCombo]();
+      if (combo) {
+        const action = keyMapRef.current[combo];
+        if (action) { e.preventDefault(); action(); }
       }
     };
 
     window.addEventListener("keydown", handleKeyPress);
     return () => window.removeEventListener("keydown", handleKeyPress);
-  }, [router, onLogout, showHelp, showMobileMenu]);
+  }, []); // ← stable: no deps change
 
+  // ── Body scroll lock for mobile menu ─────────────────────────────────────
   useEffect(() => {
-    if (showMobileMenu) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
+    document.body.style.overflow = showMobileMenu ? "hidden" : "unset";
   }, [showMobileMenu]);
 
-  const handleNavigate = (href: string) => {
+  // ── Navigate helper ───────────────────────────────────────────────────────
+  const handleNavigate = useCallback((href: string) => {
     router.push(href);
     setShowMobileMenu(false);
-  };
+  }, [router]);
 
-  // Check if user has access to messages
-  const hasMessagesAccess = hasAccess(["SUPERADMIN", "ADMIN", "MANAGER", "SALESPERSON", "VIEWER", "CASHIER", "ACCOUNTANT"]);
-
+  // ─────────────────────────────────────────────────────────────────────────
   return (
     <>
-      {/* Desktop Sidebar - Hidden on mobile */}
-      <div className={`hidden md:flex w-64 bg-[#050505] text-white h-screen fixed left-0 top-0 overflow-y-auto flex-col z-40 border-r border-white/5 shadow-2xl`}>
-        {/* Header with Logo */}
+      {/* Desktop Sidebar */}
+      <div className="hidden md:flex w-64 bg-[#050505] text-white h-screen fixed left-0 top-0 overflow-y-auto flex-col z-40 border-r border-white/5 shadow-2xl">
+        {/* Header */}
         <div className="p-6 bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5">
           <div className="flex items-center space-x-3 mb-4">
             <div className="relative w-14 h-14 flex items-center justify-center bg-gray-100/90 backdrop-blur-sm rounded-xl shadow-lg ring-2 ring-[#E84545]/20">
-              <Image
-                src="/sidebar.png"
-                alt="AutoCity Logo"
-                width={60}
-                height={60}
-                className="rounded-lg"
-                priority
-              />
+              <Image src="/sidebar.png" alt="AutoCity Logo" width={60} height={60} className="rounded-lg" priority />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white tracking-tight">
-                AutoCity 
-              </h2>
+              <h2 className="text-xl font-bold text-white tracking-tight">AutoCity</h2>
             </div>
           </div>
-
           <button
             onClick={() => setShowHelp(true)}
             className="w-full flex items-center justify-center space-x-2 text-xs text-white/90 hover:text-white transition-all bg-[#E84545]/10 hover:bg-[#E84545]/20 backdrop-blur-sm px-3 py-2 rounded-lg border border-[#E84545]/20 hover:border-[#E84545]/30 shadow-sm hover:shadow-md group"
           >
             <Keyboard className="h-3.5 w-3.5 group-hover:scale-110 transition-transform" />
             <span className="font-medium">Keyboard Shortcuts</span>
-            <kbd className="ml-auto px-1.5 py-0.5 bg-[#E84545]/20 rounded text-xs font-mono border border-[#E84545]/30">
-              ?
-            </kbd>
+            <kbd className="ml-auto px-1.5 py-0.5 bg-[#E84545]/20 rounded text-xs font-mono border border-[#E84545]/30">?</kbd>
           </button>
         </div>
 
@@ -468,27 +319,17 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
             >
               <div className="relative">
                 <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#E84545] via-[#cc3c3c] to-[#E84545] flex items-center justify-center shadow-lg ring-2 ring-slate-800 group-hover:ring-[#E84545]/50 transition-all">
-                  <span className="text-sm font-bold text-white">
-                    {user.firstName?.[0]}
-                    {user.lastName?.[0]}
-                  </span>
+                  <span className="text-sm font-bold text-white">{user.firstName?.[0]}{user.lastName?.[0]}</span>
                 </div>
                 <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-[#050505] shadow-sm"></div>
               </div>
-
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate text-white group-hover:text-[#E84545] transition-colors">
-                  {user.firstName} {user.lastName}
-                </p>
-                <p className="text-xs text-gray-400 truncate font-medium">
-                  {user.role}
-                </p>
+                <p className="text-sm font-semibold truncate text-white group-hover:text-[#E84545] transition-colors">{user.firstName} {user.lastName}</p>
+                <p className="text-xs text-gray-400 truncate font-medium">{user.role}</p>
               </div>
-
               <ChevronRight className="h-4 w-4 text-gray-600 group-hover:text-[#E84545] group-hover:translate-x-0.5 transition-all" />
             </button>
 
-            {/* Messages Button */}
             {hasMessagesAccess && (
               <button
                 onClick={() => router.push("/autocityPro/messages")}
@@ -499,18 +340,12 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
                 }`}
               >
                 <div className="flex items-center space-x-3">
-                  <MessageCircle
-                    className={`h-5 w-5 transition-all ${
-                      pathname === "/autocityPro/messages"
-                        ? "text-[#E84545]"
-                        : "text-gray-400 group-hover:text-[#E84545]"
-                    }`}
-                  />
+                  <MessageCircle className={`h-5 w-5 transition-all ${pathname === "/autocityPro/messages" ? "text-[#E84545]" : "text-gray-400 group-hover:text-[#E84545]"}`} />
                   <span className="font-medium">Chat+</span>
                 </div>
                 {unreadCount > 0 && (
                   <span className="px-2 py-0.5 text-xs font-bold bg-[#E84545] text-white rounded-full animate-pulse">
-                    {unreadCount > 99 ? '99+' : unreadCount}
+                    {unreadCount > 99 ? "99+" : unreadCount}
                   </span>
                 )}
               </button>
@@ -529,26 +364,17 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
                   className="w-full flex items-center justify-between px-3 py-2 mb-1 text-xs font-bold text-gray-400 uppercase tracking-wider hover:text-gray-300 transition-colors group rounded-lg hover:bg-white/5"
                 >
                   <span className="flex items-center space-x-2">
-                    <div className="w-1 h-1 rounded-full bg-[#E84545] group-hover:bg-[#E84545] transition-colors"></div>
+                    <div className="w-1 h-1 rounded-full bg-[#E84545]"></div>
                     <span>{section.title}</span>
                   </span>
-                  {isCollapsed ? (
-                    <ChevronRight className="h-3.5 w-3.5 transition-transform" />
-                  ) : (
-                    <ChevronDown className="h-3.5 w-3.5 transition-transform" />
-                  )}
+                  {isCollapsed
+                    ? <ChevronRight className="h-3.5 w-3.5 transition-transform" />
+                    : <ChevronDown  className="h-3.5 w-3.5 transition-transform" />}
                 </button>
 
-                <div
-                  className={`space-y-0.5 transition-all duration-200 ${
-                    isCollapsed
-                      ? "max-h-0 opacity-0 overflow-hidden"
-                      : "max-h-[500px] opacity-100"
-                  }`}
-                >
+                <div className={`space-y-0.5 transition-all duration-200 ${isCollapsed ? "max-h-0 opacity-0 overflow-hidden" : "max-h-[500px] opacity-100"}`}>
                   {section.items.map((item) => {
                     const isActive = pathname === item.href;
-
                     return (
                       <button
                         key={item.href}
@@ -559,36 +385,12 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
                             : "text-gray-300 hover:bg-white/5 hover:text-white"
                         }`}
                       >
-                        {isActive && (
-                          <div className="absolute left-0 top-0 w-1 h-full bg-gradient-to-b from-[#E84545] to-[#cc3c3c] rounded-r-full"></div>
-                        )}
-
+                        {isActive && <div className="absolute left-0 top-0 w-1 h-full bg-gradient-to-b from-[#E84545] to-[#cc3c3c] rounded-r-full"></div>}
                         <div className="flex items-center space-x-3 relative z-10">
-                          <item.icon
-                            className={`h-5 w-5 flex-shrink-0 transition-all duration-200 ${
-                              isActive
-                                ? "text-[#E84545] scale-110"
-                                : "text-gray-400 group-hover:text-[#E84545] group-hover:scale-110"
-                            }`}
-                          />
-                          <span
-                            className={`font-medium ${
-                              isActive ? "font-semibold" : ""
-                            }`}
-                          >
-                            {item.name}
-                          </span>
+                          <item.icon className={`h-5 w-5 flex-shrink-0 transition-all duration-200 ${isActive ? "text-[#E84545] scale-110" : "text-gray-400 group-hover:text-[#E84545] group-hover:scale-110"}`} />
+                          <span className={`font-medium ${isActive ? "font-semibold" : ""}`}>{item.name}</span>
                         </div>
-
-                        {item.badge && (
-                          <span className="px-2 py-0.5 text-xs font-bold bg-[#E84545] text-white rounded-full animate-pulse">
-                            {item.badge}
-                          </span>
-                        )}
-
-                        {!isActive && !item.badge && (
-                          <ChevronRight className="h-4 w-4 text-gray-600 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
-                        )}
+                        {!isActive && <ChevronRight className="h-4 w-4 text-gray-600 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />}
                       </button>
                     );
                   })}
@@ -598,31 +400,74 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           })}
         </nav>
 
-        {/* Logout */}
-        <div className="p-4 border-t border-white/5 bg-[#0A0A0A]">
+        {/* Logout — glassmorphism bar */}
+        <div className="p-4 relative overflow-hidden"
+          style={{
+            background: "linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)",
+            backdropFilter: "blur(20px)",
+            WebkitBackdropFilter: "blur(20px)",
+            borderTop: "1px solid rgba(255,255,255,0.08)",
+            boxShadow: "0 -8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)",
+          }}
+        >
+          {/* Subtle shimmer line */}
+          <div className="absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
           <button
             onClick={onLogout}
-            className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-gray-300 hover:text-white rounded-xl transition-all duration-200 group hover:bg-gradient-to-r hover:from-[#E84545]/10 hover:to-[#cc3c3c]/10 hover:ring-1 hover:ring-[#E84545]/30"
+            className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-gray-300 hover:text-white rounded-xl transition-all duration-300 group relative overflow-hidden"
+            style={{
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.07)",
+              backdropFilter: "blur(8px)",
+            }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLButtonElement).style.background = "rgba(232,69,69,0.12)";
+              (e.currentTarget as HTMLButtonElement).style.border = "1px solid rgba(232,69,69,0.25)";
+              (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 20px rgba(232,69,69,0.15), inset 0 1px 0 rgba(255,255,255,0.08)";
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.03)";
+              (e.currentTarget as HTMLButtonElement).style.border = "1px solid rgba(255,255,255,0.07)";
+              (e.currentTarget as HTMLButtonElement).style.boxShadow = "none";
+            }}
           >
-            <LogOut className="h-5 w-5 text-gray-400 group-hover:text-[#E84545] transition-colors" />
+            <LogOut className="h-5 w-5 text-gray-400 group-hover:text-[#E84545] transition-colors duration-200" />
             <span className="font-medium">Logout</span>
-            <kbd className="ml-auto px-2 py-1 bg-[#050505] rounded text-xs font-mono border border-gray-800 text-gray-400 group-hover:border-[#E84545]/30 group-hover:text-[#E84545] transition-all">
+            <kbd className="ml-auto px-2 py-1 rounded text-xs font-mono text-gray-400 group-hover:text-[#E84545] transition-all duration-200"
+              style={{
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                backdropFilter: "blur(4px)",
+              }}
+            >
               Ctrl+Q
             </kbd>
           </button>
         </div>
       </div>
 
-      {/* ✅ FIXED: Mobile Bottom Navigation Bar - No more dragging! */}
-      <div 
+      {/* Mobile Bottom Navigation Bar — Glassmorphism */}
+      <div
         className="md:hidden fixed bottom-0 left-0 right-0 z-50"
-        style={{
-          paddingBottom: 'env(safe-area-inset-bottom)',
-        }}
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <div className="bg-black/95 backdrop-blur-xl border-t border-white/10">
+        {/* Frosted glass container */}
+        <div
+          className="relative overflow-hidden"
+          style={{
+            background: "linear-gradient(180deg, rgba(10,10,12,0.55) 0%, rgba(5,5,7,0.85) 100%)",
+            backdropFilter: "blur(28px) saturate(180%)",
+            WebkitBackdropFilter: "blur(28px) saturate(180%)",
+            borderTop: "1px solid rgba(255,255,255,0.10)",
+            boxShadow: "0 -1px 0 rgba(255,255,255,0.04), 0 -12px 40px rgba(0,0,0,0.5)",
+          }}
+        >
+          {/* Top shimmer line */}
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+
+          {/* Nav items */}
           <div className="flex justify-around items-center px-2 pt-2 pb-1">
-            {/* Primary navigation items */}
             {primaryMobileNavItems.map((item) => {
               const isActive = pathname === item.href;
               return (
@@ -631,64 +476,100 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
                   onClick={() => handleNavigate(item.href)}
                   className="flex flex-col items-center justify-center flex-1 relative py-1 px-1 active:scale-95 transition-transform touch-manipulation"
                 >
-                  <div className={`p-2 rounded-2xl transition-all relative ${isActive ? 'bg-red-500/15' : ''}`}>
-                    <item.icon 
-                      className={`h-6 w-6 transition-colors ${isActive ? 'text-red-500' : 'text-gray-400'}`}
+                  <div
+                    className="p-2 rounded-2xl transition-all duration-200 relative"
+                    style={isActive ? {
+                      background: "rgba(232,69,69,0.18)",
+                      boxShadow: "0 2px 12px rgba(232,69,69,0.25), inset 0 1px 0 rgba(255,255,255,0.1)",
+                      border: "1px solid rgba(232,69,69,0.25)",
+                    } : {
+                      background: "transparent",
+                      border: "1px solid transparent",
+                    }}
+                  >
+                    {isActive && (
+                      <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
+                    )}
+                    <item.icon
+                      className={`h-6 w-6 transition-colors duration-200 ${isActive ? "text-red-400" : "text-gray-400"}`}
                       strokeWidth={isActive ? 2.5 : 2}
                     />
-                    {item.badge && (
-                      <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full px-1 animate-pulse">
-                        {item.badge > 99 ? '99+' : item.badge}
-                      </span>
-                    )}
                   </div>
-                  <span className={`text-[10px] font-medium mt-0.5 transition-colors ${isActive ? 'text-red-500' : 'text-gray-400'}`}>
+                  <span className={`text-[10px] font-medium mt-0.5 transition-colors duration-200 ${isActive ? "text-red-400" : "text-gray-500"}`}>
                     {item.name}
                   </span>
                 </button>
               );
             })}
-            
-            {/* Messages Button (if access) */}
+
             {hasMessagesAccess && (
               <button
                 onClick={() => handleNavigate("/autocityPro/messages")}
                 className="flex flex-col items-center justify-center flex-1 relative py-1 px-1 active:scale-95 transition-transform touch-manipulation"
               >
-                <div className={`p-2 rounded-2xl transition-all relative ${pathname === "/autocityPro/messages" ? 'bg-red-500/15' : ''}`}>
-                  <MessageCircle 
-                    className={`h-6 w-6 transition-colors ${pathname === "/autocityPro/messages" ? 'text-red-500' : 'text-gray-400'}`}
-                    strokeWidth={pathname === "/autocityPro/messages" ? 2.5 : 2}
-                  />
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full px-1 animate-pulse">
-                      {unreadCount > 99 ? '99+' : unreadCount}
-                    </span>
-                  )}
-                </div>
-                <span className={`text-[10px] font-medium mt-0.5 transition-colors ${pathname === "/autocityPro/messages" ? 'text-red-500' : 'text-gray-400'}`}>
-                  Chat+
-                </span>
+                {(() => {
+                  const isActive = pathname === "/autocityPro/messages";
+                  return (
+                    <>
+                      <div
+                        className="p-2 rounded-2xl transition-all duration-200 relative"
+                        style={isActive ? {
+                          background: "rgba(232,69,69,0.18)",
+                          boxShadow: "0 2px 12px rgba(232,69,69,0.25), inset 0 1px 0 rgba(255,255,255,0.1)",
+                          border: "1px solid rgba(232,69,69,0.25)",
+                        } : {
+                          background: "transparent",
+                          border: "1px solid transparent",
+                        }}
+                      >
+                        {isActive && (
+                          <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
+                        )}
+                        <MessageCircle
+                          className={`h-6 w-6 transition-colors duration-200 ${isActive ? "text-red-400" : "text-gray-400"}`}
+                          strokeWidth={isActive ? 2.5 : 2}
+                        />
+                        {unreadCount > 0 && (
+                          <span
+                            className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center text-white text-[10px] font-bold rounded-full px-1"
+                            style={{
+                              background: "linear-gradient(135deg, #E84545, #cc3c3c)",
+                              boxShadow: "0 2px 8px rgba(232,69,69,0.5)",
+                            }}
+                          >
+                            {unreadCount > 99 ? "99+" : unreadCount}
+                          </span>
+                        )}
+                      </div>
+                      <span className={`text-[10px] font-medium mt-0.5 transition-colors duration-200 ${isActive ? "text-red-400" : "text-gray-500"}`}>
+                        Chat+
+                      </span>
+                    </>
+                  );
+                })()}
               </button>
             )}
-            
-            {/* More Menu Button */}
+
             <button
               onClick={() => setShowMobileMenu(true)}
               className="flex flex-col items-center justify-center flex-1 relative py-1 px-1 active:scale-95 transition-transform touch-manipulation"
             >
-              <div className="p-2 rounded-2xl">
+              <div
+                className="p-2 rounded-2xl transition-all duration-200"
+                style={{ background: "transparent", border: "1px solid transparent" }}
+              >
                 <Grid3x3 className="h-6 w-6 text-gray-400" strokeWidth={2} />
               </div>
-              <span className="text-[10px] font-medium mt-0.5 text-gray-400">
-                More
-              </span>
+              <span className="text-[10px] font-medium mt-0.5 text-gray-500">More</span>
             </button>
           </div>
-          
-          {/* ✅ iOS Home Indicator */}
+
+          {/* iOS home indicator */}
           <div className="flex justify-center pb-1">
-            <div className="w-32 h-1 bg-white/20 rounded-full"></div>
+            <div
+              className="w-32 h-1 rounded-full"
+              style={{ background: "rgba(255,255,255,0.15)" }}
+            />
           </div>
         </div>
       </div>
@@ -696,31 +577,21 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
       {/* Mobile Full Menu Overlay */}
       {showMobileMenu && (
         <div className="md:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={() => setShowMobileMenu(false)}>
-          <div 
+          <div
             className="absolute bottom-0 left-0 right-0 bg-[#050505] rounded-t-3xl shadow-2xl flex flex-col"
-            style={{ 
-              maxHeight: '85vh',
-              paddingBottom: 'env(safe-area-inset-bottom)'
-            }}
+            style={{ maxHeight: "85vh", paddingBottom: "env(safe-area-inset-bottom)" }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Menu Header */}
             <div className="flex items-center justify-between p-4 border-b border-white/10 bg-gradient-to-r from-[#E84545]/5 to-transparent flex-shrink-0">
               <div className="flex items-center space-x-3">
-                <div className="p-2 bg-[#E84545]/10 rounded-xl">
-                  <Grid3x3 className="h-5 w-5 text-[#E84545]" />
-                </div>
+                <div className="p-2 bg-[#E84545]/10 rounded-xl"><Grid3x3 className="h-5 w-5 text-[#E84545]" /></div>
                 <h3 className="text-lg font-bold text-white">All Pages</h3>
               </div>
-              <button
-                onClick={() => setShowMobileMenu(false)}
-                className="p-2 hover:bg-white/10 rounded-xl transition-colors active:scale-95 touch-manipulation"
-              >
+              <button onClick={() => setShowMobileMenu(false)} className="p-2 hover:bg-white/10 rounded-xl transition-colors active:scale-95 touch-manipulation">
                 <ChevronDown className="h-5 w-5 text-gray-400" />
               </button>
             </div>
 
-            {/* User Profile in Mobile Menu */}
             {user && (
               <div className="p-4 border-b border-white/5 flex-shrink-0">
                 <button
@@ -729,27 +600,17 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
                 >
                   <div className="relative">
                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#E84545] to-[#cc3c3c] flex items-center justify-center shadow-lg">
-                      <span className="text-base font-bold text-white">
-                        {user.firstName?.[0]}
-                        {user.lastName?.[0]}
-                      </span>
+                      <span className="text-base font-bold text-white">{user.firstName?.[0]}{user.lastName?.[0]}</span>
                     </div>
                     <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-[#050505]"></div>
                   </div>
-
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate text-white">
-                      {user.firstName} {user.lastName}
-                    </p>
-                    <p className="text-xs text-gray-400 truncate">
-                      {user.role} • Tap to view profile
-                    </p>
+                    <p className="text-sm font-semibold truncate text-white">{user.firstName} {user.lastName}</p>
+                    <p className="text-xs text-gray-400 truncate">{user.role} • Tap to view profile</p>
                   </div>
-
                   <ChevronRight className="h-4 w-4 text-gray-600" />
                 </button>
 
-                {/* Messages Button in Mobile Menu */}
                 {hasMessagesAccess && (
                   <button
                     onClick={() => handleNavigate("/autocityPro/messages")}
@@ -760,16 +621,14 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
                     }`}
                   >
                     <div className="flex items-center space-x-3">
-                      <div className={`p-2 rounded-lg ${pathname === "/autocityPro/messages" ? 'bg-[#E84545]/20' : 'bg-white/5'}`}>
-                        <MessageCircle
-                          className={`h-5 w-5 ${pathname === "/autocityPro/messages" ? 'text-[#E84545]' : 'text-gray-400'}`}
-                        />
+                      <div className={`p-2 rounded-lg ${pathname === "/autocityPro/messages" ? "bg-[#E84545]/20" : "bg-white/5"}`}>
+                        <MessageCircle className={`h-5 w-5 ${pathname === "/autocityPro/messages" ? "text-[#E84545]" : "text-gray-400"}`} />
                       </div>
                       <span className="font-medium">Chat+</span>
                     </div>
                     {unreadCount > 0 && (
                       <span className="px-2 py-0.5 text-xs font-bold bg-[#E84545] text-white rounded-full animate-pulse">
-                        {unreadCount > 99 ? '99+' : unreadCount}
+                        {unreadCount > 99 ? "99+" : unreadCount}
                       </span>
                     )}
                   </button>
@@ -777,17 +636,13 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
               </div>
             )}
 
-            {/* Scrollable Menu Content */}
-            <div className="flex-1 overflow-y-auto py-2 px-4" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div className="flex-1 overflow-y-auto py-2 px-4" style={{ WebkitOverflowScrolling: "touch" }}>
               {navigation.map((section, idx) => (
                 <div key={idx} className="mb-4">
                   <div className="flex items-center space-x-2 px-3 py-2 mb-2">
                     <div className="w-1 h-1 rounded-full bg-[#E84545]"></div>
-                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                      {section.title}
-                    </h4>
+                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">{section.title}</h4>
                   </div>
-
                   <div className="space-y-1">
                     {section.items.map((item) => {
                       const isActive = pathname === item.href;
@@ -801,15 +656,11 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
                               : "text-gray-300 active:bg-white/10"
                           }`}
                         >
-                          <div className={`p-2 rounded-lg ${isActive ? 'bg-[#E84545]/20' : 'bg-white/5'}`}>
-                            <item.icon
-                              className={`h-5 w-5 ${isActive ? 'text-[#E84545]' : 'text-gray-400'}`}
-                            />
+                          <div className={`p-2 rounded-lg ${isActive ? "bg-[#E84545]/20" : "bg-white/5"}`}>
+                            <item.icon className={`h-5 w-5 ${isActive ? "text-[#E84545]" : "text-gray-400"}`} />
                           </div>
                           <span className="font-medium">{item.name}</span>
-                          {isActive && (
-                            <div className="ml-auto w-2 h-2 bg-[#E84545] rounded-full"></div>
-                          )}
+                          {isActive && <div className="ml-auto w-2 h-2 bg-[#E84545] rounded-full"></div>}
                         </button>
                       );
                     })}
@@ -818,19 +669,14 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
               ))}
             </div>
 
-            {/* Menu Footer */}
             <div className="border-t border-white/10 p-4 flex-shrink-0">
               <button
-                onClick={() => {
-                  setShowHelp(true);
-                  setShowMobileMenu(false);
-                }}
+                onClick={() => { setShowHelp(true); setShowMobileMenu(false); }}
                 className="w-full flex items-center justify-center space-x-2 py-3 text-sm rounded-xl bg-white/5 active:bg-white/10 transition-all touch-manipulation"
               >
                 <Keyboard className="h-5 w-5 text-gray-400" />
                 <span className="font-medium text-gray-300">Keyboard Shortcuts</span>
               </button>
-              
               <button
                 onClick={onLogout}
                 className="w-full flex items-center justify-center space-x-2 py-3 text-sm rounded-xl bg-[#E84545]/10 active:bg-[#E84545]/20 text-[#E84545] mt-2 transition-all touch-manipulation"
@@ -847,118 +693,68 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
       {showHelp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="relative w-full max-w-2xl bg-[#050505] rounded-2xl border border-white/10 shadow-2xl max-h-[85vh] overflow-hidden">
-            {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-white/10 bg-gradient-to-r from-[#E84545]/5 to-transparent">
               <div className="flex items-center space-x-3">
-                <div className="p-2 bg-[#E84545]/10 rounded-xl">
-                  <Keyboard className="h-5 w-5 text-[#E84545]" />
-                </div>
+                <div className="p-2 bg-[#E84545]/10 rounded-xl"><Keyboard className="h-5 w-5 text-[#E84545]" /></div>
                 <div>
                   <h3 className="text-xl font-bold text-white">Keyboard Shortcuts</h3>
-                  <p className="text-sm text-gray-400">
-                    Quickly navigate and perform actions
-                  </p>
+                  <p className="text-sm text-gray-400">Quickly navigate and perform actions</p>
                 </div>
               </div>
-              <button
-                onClick={() => setShowHelp(false)}
-                className="p-2 hover:bg-white/10 rounded-xl transition-colors touch-manipulation"
-              >
+              <button onClick={() => setShowHelp(false)} className="p-2 hover:bg-white/10 rounded-xl transition-colors touch-manipulation">
                 <X className="h-5 w-5 text-gray-400" />
               </button>
             </div>
 
-            {/* Shortcuts Content */}
-            <div className="p-6 overflow-y-auto max-h-[60vh]" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div className="p-6 overflow-y-auto max-h-[60vh]" style={{ WebkitOverflowScrolling: "touch" }}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Navigation */}
                 <div>
-                  <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">
-                    Navigation
-                  </h4>
+                  <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Navigation</h4>
                   <div className="space-y-2">
                     {[
-                      { combo: "Ctrl + 1", desc: "Dashboard" },
-                      { combo: "Ctrl + 2", desc: "Messages" },
-                      { combo: "Ctrl + 3", desc: "New Sale" },
-                      { combo: "Ctrl + 4", desc: "Sales" },
-                      { combo: "Ctrl + 5", desc: "Products" },
-                      { combo: "Ctrl + 6", desc: "Categories" },
-                      { combo: "Ctrl + 7", desc: "Stock" },
-                      { combo: "Ctrl + 8", desc: "Customers" },
-                      { combo: "Ctrl + 9", desc: "Portal" },
-                      { combo: "Ctrl + A", desc: "Accounts" },
-                      { combo: "Ctrl + L", desc: "Ledgers" },
-                      { combo: "Alt + H", desc: "Dashboard" },
-                      { combo: "Alt + M", desc: "Messages" },
-                      { combo: "Alt + N", desc: "New Sale" },
-                    ].map((shortcut, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center justify-between p-3 rounded-lg hover:bg-white/5 transition-colors"
-                      >
-                        <span className="text-sm text-gray-300">
-                          {shortcut.desc}
-                        </span>
-                        <kbd className="px-2 py-1 bg-white/5 rounded text-xs font-mono border border-white/10 text-gray-400">
-                          {shortcut.combo}
-                        </kbd>
+                      { combo: "Ctrl + 1", desc: "Dashboard" }, { combo: "Ctrl + 2", desc: "Messages" },
+                      { combo: "Ctrl + 3", desc: "New Sale" },  { combo: "Ctrl + 4", desc: "Sales" },
+                      { combo: "Ctrl + 5", desc: "Products" },  { combo: "Ctrl + 6", desc: "Categories" },
+                      { combo: "Ctrl + 7", desc: "Stock" },     { combo: "Ctrl + 8", desc: "Customers" },
+                      { combo: "Ctrl + 9", desc: "Portal" },    { combo: "Ctrl + A", desc: "Accounts" },
+                      { combo: "Ctrl + L", desc: "Ledgers" },   { combo: "Alt + H",  desc: "Dashboard" },
+                      { combo: "Alt + M",  desc: "Messages" },  { combo: "Alt + N",  desc: "New Sale" },
+                    ].map((s, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 rounded-lg hover:bg-white/5 transition-colors">
+                        <span className="text-sm text-gray-300">{s.desc}</span>
+                        <kbd className="px-2 py-1 bg-white/5 rounded text-xs font-mono border border-white/10 text-gray-400">{s.combo}</kbd>
                       </div>
                     ))}
                   </div>
                 </div>
-
-                {/* Actions & Reports */}
                 <div>
-                  <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">
-                    Actions & Reports
-                  </h4>
+                  <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Actions & Reports</h4>
                   <div className="space-y-2">
                     {[
-                      { combo: "Ctrl + Q", desc: "Logout" },
-                      { combo: "Ctrl + ,", desc: "Settings" },
-                      { combo: "Ctrl + M", desc: "Day & Month Closing" },
-                      { combo: "Ctrl + O", desc: "Outlets" },
-                      { combo: "Ctrl + U", desc: "Users" },
+                      { combo: "Ctrl + Q",       desc: "Logout" },
+                      { combo: "Ctrl + ,",       desc: "Settings" },
+                      { combo: "Ctrl + M",       desc: "Day & Month Closing" },
+                      { combo: "Ctrl + O",       desc: "Outlets" },
+                      { combo: "Ctrl + U",       desc: "Users" },
                       { combo: "Ctrl + Shift + S", desc: "Sales Reports" },
                       { combo: "Ctrl + Shift + B", desc: "Balance Sheet" },
                       { combo: "Ctrl + Shift + T", desc: "Stock Reports" },
                       { combo: "Ctrl + Shift + D", desc: "Daybook" },
                       { combo: "Ctrl + Shift + F", desc: "Cash Flow" },
-                      { combo: "Ctrl + Alt + L", desc: "Activity Logs" },
-                    ].map((shortcut, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center justify-between p-3 rounded-lg hover:bg-white/5 transition-colors"
-                      >
-                        <span className="text-sm text-gray-300">
-                          {shortcut.desc}
-                        </span>
-                        <kbd className="px-2 py-1 bg-white/5 rounded text-xs font-mono border border-white/10 text-gray-400">
-                          {shortcut.combo}
-                        </kbd>
+                      { combo: "Ctrl + Alt + L",   desc: "Activity Logs" },
+                    ].map((s, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 rounded-lg hover:bg-white/5 transition-colors">
+                        <span className="text-sm text-gray-300">{s.desc}</span>
+                        <kbd className="px-2 py-1 bg-white/5 rounded text-xs font-mono border border-white/10 text-gray-400">{s.combo}</kbd>
                       </div>
                     ))}
                   </div>
-
-                  <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mt-6 mb-3">
-                    Global
-                  </h4>
+                  <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mt-6 mb-3">Global</h4>
                   <div className="space-y-2">
-                    {[
-                      { combo: "?", desc: "Show/Hide this dialog" },
-                      { combo: "Esc", desc: "Close dialog/menu" },
-                    ].map((shortcut, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center justify-between p-3 rounded-lg hover:bg-white/5 transition-colors"
-                      >
-                        <span className="text-sm text-gray-300">
-                          {shortcut.desc}
-                        </span>
-                        <kbd className="px-2 py-1 bg-white/5 rounded text-xs font-mono border border-white/10 text-gray-400">
-                          {shortcut.combo}
-                        </kbd>
+                    {[{ combo: "?", desc: "Show/Hide this dialog" }, { combo: "Esc", desc: "Close dialog/menu" }].map((s, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 rounded-lg hover:bg-white/5 transition-colors">
+                        <span className="text-sm text-gray-300">{s.desc}</span>
+                        <kbd className="px-2 py-1 bg-white/5 rounded text-xs font-mono border border-white/10 text-gray-400">{s.combo}</kbd>
                       </div>
                     ))}
                   </div>
@@ -966,7 +762,6 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
               </div>
             </div>
 
-            {/* Modal Footer */}
             <div className="p-4 border-t border-white/10 bg-black/50 text-center">
               <p className="text-xs text-gray-500">
                 Press <kbd className="px-1.5 py-0.5 bg-white/5 rounded text-xs font-mono border border-white/10">Esc</kbd> or click outside to close
@@ -976,39 +771,14 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
         </div>
       )}
 
-      {/* ✅ OPTIMIZED: Custom Styles */}
       <style jsx global>{`
-        /* Custom Scrollbar */
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(10, 10, 10, 0.3);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(232, 69, 69, 0.3);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(232, 69, 69, 0.5);
-        }
-
-        /* Touch improvements */
-        .touch-manipulation {
-          -webkit-tap-highlight-color: transparent;
-          -webkit-touch-callout: none;
-          user-select: none;
-        }
-
-        /* Active scale */
-        .active\\:scale-98:active {
-          transform: scale(0.98);
-        }
-
-        .active\\:scale-95:active {
-          transform: scale(0.95);
-        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(10,10,10,0.3); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(232,69,69,0.3); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(232,69,69,0.5); }
+        .touch-manipulation { -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; user-select: none; }
+        .active\\:scale-98:active { transform: scale(0.98); }
+        .active\\:scale-95:active { transform: scale(0.95); }
       `}</style>
     </>
   );

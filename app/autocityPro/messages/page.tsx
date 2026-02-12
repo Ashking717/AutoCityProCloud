@@ -7,7 +7,7 @@ import { useVoiceRecorder } from "@/hooks/useVoiceRecorder";
 import {
   MessageCircle, Send, Mic, X, Play, Pause, Trash2,
   Search, Check, CheckCheck, ArrowLeft, Download,
-  RefreshCw, ChevronDown, Copy, Plus, Camera,
+  RefreshCw, ChevronDown, ChevronUp, ChevronLeft, Copy, Plus, Camera, Lock,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -49,17 +49,15 @@ const WALLPAPER_SVG_RAW = `<svg xmlns='http://www.w3.org/2000/svg' width='380' h
   </g>
 </svg>`;
 
-// Replace # and collapse whitespace once, store as module-level constant
 const WALLPAPER_BG_URL = `url("data:image/svg+xml,${
   WALLPAPER_SVG_RAW.replace(/#/g, "%23").replace(/\n\s*/g, " ")
 }")`;
 
-// ─── Waveform cache – computed once per message ID, stored in a Map ─────────
+// ─── Waveform cache ───────────────────────────────────────────────────────────
 const waveformCache = new Map<string, number[]>();
 
 function getWaveform(seed: string, bars = 28): number[] {
   if (waveformCache.has(seed)) return waveformCache.get(seed)!;
-
   let hash = 5381;
   for (let i = 0; i < seed.length; i++) {
     hash = ((hash << 5) + hash) + seed.charCodeAt(i);
@@ -77,7 +75,7 @@ function getWaveform(seed: string, bars = 28): number[] {
   return result;
 }
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 interface User {
   _id: string;
   firstName: string;
@@ -105,7 +103,7 @@ interface Conversation {
   unreadCount: number;
 }
 
-// ─── Helpers (module-level, no closure over state) ───────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 const formatTime = (date: string) =>
   new Date(date).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
 
@@ -124,11 +122,11 @@ const formatLastSeen = (lastActiveAt: string | null): string => {
   const diffMins  = Math.floor((Date.now() - new Date(lastActiveAt).getTime()) / 60_000);
   const diffHours = Math.floor(diffMins / 60);
   const diffDays  = Math.floor(diffHours / 24);
-  if (diffMins  < 1)  return "last seen just now";
-  if (diffMins  < 60) return `last seen ${diffMins} minute${diffMins === 1 ? "" : "s"} ago`;
-  if (diffHours < 24) return `last seen ${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
+  if (diffMins  < 1)   return "last seen just now";
+  if (diffMins  < 60)  return `last seen ${diffMins} minute${diffMins === 1 ? "" : "s"} ago`;
+  if (diffHours < 24)  return `last seen ${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
   if (diffDays  === 1) return "last seen yesterday";
-  if (diffDays  < 7)  return `last seen ${diffDays} days ago`;
+  if (diffDays  < 7)   return `last seen ${diffDays} days ago`;
   return `last seen ${new Date(lastActiveAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
 };
 
@@ -138,7 +136,11 @@ const formatAudioTime = (seconds: number) => {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 };
 
-// ─── Component ───────────────────────────────────────────────────────────────
+// ─── Hold-to-record thresholds ────────────────────────────────────────────────
+const LOCK_THRESHOLD   = 80; // px upward  → lock into continuous mode
+const CANCEL_THRESHOLD = 80; // px leftward → cancel recording
+
+// ─── Component ────────────────────────────────────────────────────────────────
 export default function MessagesPage() {
   const [user,             setUser]             = useState<User | null>(null);
   const [conversations,    setConversations]    = useState<Conversation[]>([]);
@@ -164,6 +166,11 @@ export default function MessagesPage() {
   const [playingId,        setPlayingId]        = useState<string | null>(null);
   const [audioProgress,    setAudioProgress]    = useState<Record<string, number>>({});
 
+  // ── WhatsApp hold-to-record state ─────────────────────────────────────────
+  const [holdState,  setHoldState]  = useState<"idle" | "holding" | "locked">("idle");
+  const [slideUp,    setSlideUp]    = useState(0);
+  const [slideLeft,  setSlideLeft]  = useState(0);
+
   const messagesEndRef       = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef         = useRef<HTMLInputElement>(null);
@@ -171,13 +178,15 @@ export default function MessagesPage() {
   const touchStartYRef       = useRef(0);
   const prevLengthRef        = useRef(0);
   const userScrolledRef      = useRef(false);
-  // Stable ref to current user – avoids re-creating fetch callbacks when user changes
   const userRef              = useRef<User | null>(null);
   const pullThreshold        = 80;
+  // Flag: auto-send as soon as the blob is ready (set on quick-release)
+  const autoSendRef          = useRef(false);
+  const recordOriginRef      = useRef({ x: 0, y: 0 });
 
   const voiceRecorder = useVoiceRecorder();
 
-  // ── Stable fetch helpers ─────────────────────────────────────────────────
+  // ── Stable fetch helpers ──────────────────────────────────────────────────
   const fetchUser = useCallback(async () => {
     try {
       const res  = await fetch("/api/auth/me", { credentials: "include" });
@@ -230,11 +239,9 @@ export default function MessagesPage() {
       if (!res.ok) return;
       const data = await res.json();
       setMessages(data.messages ?? []);
-
       const unreadIds: string[] = (data.messages as Message[])
         .filter((m) => !m.isRead && m.recipientId._id === userRef.current?._id)
         .map((m) => m._id);
-
       if (unreadIds.length > 0) markAsRead(unreadIds);
     } catch {
       if (!silent) console.error("Failed to fetch messages");
@@ -257,162 +264,7 @@ export default function MessagesPage() {
     } catch {}
   }, []);
 
-  // ── Initial data load ────────────────────────────────────────────────────
-  useEffect(() => {
-    fetchUser();
-    fetchConversations();
-    fetchUsers();
-    sendActivityPing();
-
-    // Activity ping – every 60 s (was 30 s; halves serverless invocations)
-    const activityId = setInterval(sendActivityPing, 60_000);
-    return () => clearInterval(activityId);
-  }, [fetchUser, fetchConversations, fetchUsers, sendActivityPing]);
-
-  // ── Per-conversation polling ─────────────────────────────────────────────
-  // Consolidated into ONE effect so only a single pair of intervals runs.
-  useEffect(() => {
-    if (!selectedUser) {
-      // When no conversation is open, poll conversations at a relaxed rate
-      const id = setInterval(fetchConversations, 30_000);
-      return () => clearInterval(id);
-    }
-
-    const run = () => {
-      fetchMessages(selectedUser._id, true);
-      fetchRecipientStatus(selectedUser._id);
-    };
-
-    run(); // immediate on select
-    fetchConversations();
-
-    // 30 s (was 10 s) – cuts message-poll serverless calls by 3×
-    const msgId  = setInterval(run, 30_000);
-    const convId = setInterval(fetchConversations, 60_000);
-
-    const onVisibility = () => {
-      if (!document.hidden) run();
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-
-    return () => {
-      clearInterval(msgId);
-      clearInterval(convId);
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, [selectedUser, fetchMessages, fetchConversations, fetchRecipientStatus]);
-
-  // ── Auto-scroll ──────────────────────────────────────────────────────────
-  useEffect(() => {
-    const isInitial = prevLengthRef.current === 0 && messages.length > 0;
-    const isNew     = messages.length > prevLengthRef.current;
-
-    if (isInitial) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
-      userScrolledRef.current = false;
-    } else if (isNew && !userScrolledRef.current) {
-      const c = messagesContainerRef.current;
-      if (c) {
-        const dist = c.scrollHeight - c.scrollTop - c.clientHeight;
-        if (dist < 150) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      }
-    }
-    prevLengthRef.current = messages.length;
-  }, [messages]);
-
-  // ── Voice recorder error ─────────────────────────────────────────────────
-  useEffect(() => {
-    if (voiceRecorder.error) toast.error(voiceRecorder.error);
-  }, [voiceRecorder.error]);
-
-  // ── Body scroll lock (mobile) ─────────────────────────────────────────────
-  useEffect(() => {
-    if (typeof window === "undefined" || window.innerWidth >= 768) return;
-    document.documentElement.style.overflow = selectedUser ? "hidden" : "";
-    document.body.style.overflow            = selectedUser ? "hidden" : "";
-    return () => {
-      document.documentElement.style.overflow = "";
-      document.body.style.overflow = "";
-    };
-  }, [selectedUser]);
-
-  // ── Scroll events ────────────────────────────────────────────────────────
-  const handleScroll = useCallback(() => {
-    const c = messagesContainerRef.current;
-    if (!c) return;
-    const distFromBottom = c.scrollHeight - c.scrollTop - c.clientHeight;
-    userScrolledRef.current = distFromBottom > 150;
-    setShowScrollButton(distFromBottom > 200);
-  }, []);
-
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    const c = messagesContainerRef.current;
-    if (!c || c.scrollTop > 0) return;
-    touchStartYRef.current = e.touches[0].clientY;
-  }, []);
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    const c = messagesContainerRef.current;
-    if (!c) return;
-    const dist = e.touches[0].clientY - touchStartYRef.current;
-    if (c.scrollTop <= 0 && dist > 0) {
-      e.stopPropagation();
-      if (dist < pullThreshold * 1.5) { setPullDistance(dist); setIsPulling(true); }
-    }
-  }, []);
-
-  // ── Manual refresh ───────────────────────────────────────────────────────
-  const handleManualRefresh = useCallback(async () => {
-    if (isRefreshing) return;
-    setIsRefreshing(true);
-    if ("vibrate" in navigator) navigator.vibrate([10, 50, 10]);
-    try {
-      if (selectedUser) await Promise.all([
-        fetchMessages(selectedUser._id, true),
-        fetchRecipientStatus(selectedUser._id),
-      ]);
-      await fetchConversations();
-      
-    } catch {
-      toast.error("Failed to refresh");
-    } finally {
-      setTimeout(() => setIsRefreshing(false), 1000);
-    }
-  }, [isRefreshing, selectedUser, fetchMessages, fetchRecipientStatus, fetchConversations]);
-
-  const handleTouchEnd = useCallback(async () => {
-    if (pullDistance > pullThreshold) await handleManualRefresh();
-    setIsPulling(false);
-    setPullDistance(0);
-  }, [pullDistance, handleManualRefresh]);
-
-  // ── Conversation select / back ───────────────────────────────────────────
-  const handleSelectUser = useCallback((u: User) => {
-    setSelectedUser(u);
-    setShowSidebar(false);
-    userScrolledRef.current  = false;
-    prevLengthRef.current    = 0;
-    if ("vibrate" in navigator) navigator.vibrate(10);
-  }, []);
-
-  const handleBackToList = useCallback(() => {
-    setSelectedUser(null);
-    setShowSidebar(true);
-  }, []);
-
-  // ── Image select ─────────────────────────────────────────────────────────
-  const handleImageSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) { toast.error("Please select an image file"); return; }
-    if (file.size > 5 * 1024 * 1024)     { toast.error("Image must be less than 5MB");  return; }
-    setSelectedImage(file);
-    const reader = new FileReader();
-    reader.onloadend = () => setImagePreview(reader.result as string);
-    reader.readAsDataURL(file);
-  }, []);
-
-  // ── Send message ─────────────────────────────────────────────────────────
+  // ── Send message ──────────────────────────────────────────────────────────
   const handleSendMessage = useCallback(async () => {
     if (!selectedUser || (!message.trim() && !voiceRecorder.audioBlob && !selectedImage)) return;
     setSending(true);
@@ -470,7 +322,156 @@ export default function MessagesPage() {
     }
   }, [selectedUser, message, voiceRecorder, selectedImage, fetchMessages, fetchConversations]);
 
-  // ── Long-press / copy ────────────────────────────────────────────────────
+  // ── Initial data load ─────────────────────────────────────────────────────
+  useEffect(() => {
+    fetchUser();
+    fetchConversations();
+    fetchUsers();
+    sendActivityPing();
+    const activityId = setInterval(sendActivityPing, 60_000);
+    return () => clearInterval(activityId);
+  }, [fetchUser, fetchConversations, fetchUsers, sendActivityPing]);
+
+  // ── Per-conversation polling ───────────────────────────────────────────────
+  useEffect(() => {
+    if (!selectedUser) {
+      const id = setInterval(fetchConversations, 30_000);
+      return () => clearInterval(id);
+    }
+    const run = () => {
+      fetchMessages(selectedUser._id, true);
+      fetchRecipientStatus(selectedUser._id);
+    };
+    run();
+    fetchConversations();
+    const msgId  = setInterval(run, 30_000);
+    const convId = setInterval(fetchConversations, 60_000);
+    const onVisibility = () => { if (!document.hidden) run(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      clearInterval(msgId);
+      clearInterval(convId);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [selectedUser, fetchMessages, fetchConversations, fetchRecipientStatus]);
+
+  // ── Auto-scroll ───────────────────────────────────────────────────────────
+  useEffect(() => {
+    const isInitial = prevLengthRef.current === 0 && messages.length > 0;
+    const isNew     = messages.length > prevLengthRef.current;
+    if (isInitial) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+      userScrolledRef.current = false;
+    } else if (isNew && !userScrolledRef.current) {
+      const c = messagesContainerRef.current;
+      if (c) {
+        const dist = c.scrollHeight - c.scrollTop - c.clientHeight;
+        if (dist < 150) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }
+    }
+    prevLengthRef.current = messages.length;
+  }, [messages]);
+
+  // ── Voice recorder error ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (voiceRecorder.error) toast.error(voiceRecorder.error);
+  }, [voiceRecorder.error]);
+
+  // ── Auto-send: fires when blob lands after a quick-release ───────────────
+  useEffect(() => {
+    if (autoSendRef.current && voiceRecorder.audioBlob && !sending) {
+      autoSendRef.current = false;
+      handleSendMessage();
+    }
+  }, [voiceRecorder.audioBlob, sending, handleSendMessage]);
+
+  // ── Body scroll lock (mobile) ─────────────────────────────────────────────
+  useEffect(() => {
+    if (typeof window === "undefined" || window.innerWidth >= 768) return;
+    document.documentElement.style.overflow = selectedUser ? "hidden" : "";
+    document.body.style.overflow            = selectedUser ? "hidden" : "";
+    return () => {
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
+    };
+  }, [selectedUser]);
+
+  // ── Scroll events ─────────────────────────────────────────────────────────
+  const handleScroll = useCallback(() => {
+    const c = messagesContainerRef.current;
+    if (!c) return;
+    const distFromBottom = c.scrollHeight - c.scrollTop - c.clientHeight;
+    userScrolledRef.current = distFromBottom > 150;
+    setShowScrollButton(distFromBottom > 200);
+  }, []);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const c = messagesContainerRef.current;
+    if (!c || c.scrollTop > 0) return;
+    touchStartYRef.current = e.touches[0].clientY;
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    const c = messagesContainerRef.current;
+    if (!c) return;
+    const dist = e.touches[0].clientY - touchStartYRef.current;
+    if (c.scrollTop <= 0 && dist > 0) {
+      e.stopPropagation();
+      if (dist < pullThreshold * 1.5) { setPullDistance(dist); setIsPulling(true); }
+    }
+  }, []);
+
+  // ── Manual refresh ────────────────────────────────────────────────────────
+  const handleManualRefresh = useCallback(async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    if ("vibrate" in navigator) navigator.vibrate([10, 50, 10]);
+    try {
+      if (selectedUser) await Promise.all([
+        fetchMessages(selectedUser._id, true),
+        fetchRecipientStatus(selectedUser._id),
+      ]);
+      await fetchConversations();
+    } catch {
+      toast.error("Failed to refresh");
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 1000);
+    }
+  }, [isRefreshing, selectedUser, fetchMessages, fetchRecipientStatus, fetchConversations]);
+
+  const handleTouchEnd = useCallback(async () => {
+    if (pullDistance > pullThreshold) await handleManualRefresh();
+    setIsPulling(false);
+    setPullDistance(0);
+  }, [pullDistance, handleManualRefresh]);
+
+  // ── Conversation select / back ────────────────────────────────────────────
+  const handleSelectUser = useCallback((u: User) => {
+    setSelectedUser(u);
+    setShowSidebar(false);
+    userScrolledRef.current = false;
+    prevLengthRef.current   = 0;
+    if ("vibrate" in navigator) navigator.vibrate(10);
+  }, []);
+
+  const handleBackToList = useCallback(() => {
+    setSelectedUser(null);
+    setShowSidebar(true);
+  }, []);
+
+  // ── Image select ──────────────────────────────────────────────────────────
+  const handleImageSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { toast.error("Please select an image file"); return; }
+    if (file.size > 5 * 1024 * 1024)     { toast.error("Image must be less than 5MB");  return; }
+    setSelectedImage(file);
+    const reader = new FileReader();
+    reader.onloadend = () => setImagePreview(reader.result as string);
+    reader.readAsDataURL(file);
+  }, []);
+
+  // ── Long-press / copy ─────────────────────────────────────────────────────
   const handleLongPress = useCallback((msg: Message) => {
     setSelectedMessage(msg);
     if ("vibrate" in navigator) navigator.vibrate(50);
@@ -486,7 +487,7 @@ export default function MessagesPage() {
     }
   }, []);
 
-  // ── Audio playback ───────────────────────────────────────────────────────
+  // ── Audio playback ────────────────────────────────────────────────────────
   const handleAudioTimeUpdate = useCallback(() => {
     if (!audioRef.current || !playingId) return;
     const progress = (audioRef.current.currentTime / audioRef.current.duration) * 100;
@@ -529,11 +530,74 @@ export default function MessagesPage() {
     } catch { toast.dismiss(id); toast.error("Failed to download image"); }
   }, []);
 
-  // ── Logout ───────────────────────────────────────────────────────────────
+  // ── Logout ────────────────────────────────────────────────────────────────
   const handleLogout = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     window.location.href = "/autocityPro/login";
   }, []);
+
+  // ── WhatsApp hold-to-record handlers ─────────────────────────────────────
+  const handleMicPointerDown = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    recordOriginRef.current = { x: e.clientX, y: e.clientY };
+    setHoldState("holding");
+    setSlideUp(0);
+    setSlideLeft(0);
+    voiceRecorder.startRecording();
+    if ("vibrate" in navigator) navigator.vibrate(15);
+  }, [voiceRecorder]);
+
+  const handleMicPointerMove = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    if (holdState !== "holding") return;
+    const dy = recordOriginRef.current.y - e.clientY; // positive = upward
+    const dx = recordOriginRef.current.x - e.clientX; // positive = leftward
+    setSlideUp(Math.max(0, dy));
+    setSlideLeft(Math.max(0, dx));
+
+    if (dy > LOCK_THRESHOLD) {
+      setHoldState("locked");
+      setSlideUp(0);
+      setSlideLeft(0);
+      if ("vibrate" in navigator) navigator.vibrate([10, 40, 10]);
+    }
+  }, [holdState]);
+
+  const handleMicPointerUp = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    if (holdState !== "holding") return;
+    const dx = recordOriginRef.current.x - e.clientX;
+
+    if (dx > CANCEL_THRESHOLD) {
+      // Slid left → discard
+      voiceRecorder.cancelRecording();
+      setHoldState("idle");
+    } else {
+      // Normal release → stop & auto-send immediately
+      autoSendRef.current = true;
+      voiceRecorder.stopRecording();
+      setHoldState("idle");
+    }
+    setSlideUp(0);
+    setSlideLeft(0);
+  }, [holdState, voiceRecorder]);
+
+  const handleMicPointerCancel = useCallback(() => {
+    voiceRecorder.cancelRecording();
+    setHoldState("idle");
+    setSlideUp(0);
+    setSlideLeft(0);
+  }, [voiceRecorder]);
+
+  const handleLockedCancel = useCallback(() => {
+    voiceRecorder.cancelRecording();
+    setHoldState("idle");
+  }, [voiceRecorder]);
+
+  const handleLockedSend = useCallback(() => {
+    autoSendRef.current = true;
+    voiceRecorder.stopRecording();
+    setHoldState("idle");
+  }, [voiceRecorder]);
 
   // ── Filtered users (memoised) ─────────────────────────────────────────────
   const filteredUsers = useMemo(() => {
@@ -553,7 +617,7 @@ export default function MessagesPage() {
       <div className="flex flex-col bg-[#050505] messages-container-height overflow-hidden">
         <div className="flex-1 flex overflow-hidden min-h-0">
 
-          {/* Conversations sidebar */}
+          {/* ── Conversations sidebar ────────────────────────────────────── */}
           <div className={`${showSidebar ? "flex" : "hidden"} md:flex w-full md:w-80 bg-black border-r border-gray-800 flex-col overflow-hidden`}>
             <div className="p-3 md:p-4 border-b border-gray-800 flex-shrink-0">
               <div className="flex items-center space-x-2">
@@ -568,14 +632,21 @@ export default function MessagesPage() {
                     style={{ fontSize: "16px" }}
                   />
                 </div>
-                <button onClick={handleManualRefresh} disabled={isRefreshing} className="p-2 text-white/80 hover:text-white hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50 active:scale-95 flex-shrink-0 touch-manipulation">
+                <button
+                  onClick={handleManualRefresh}
+                  disabled={isRefreshing}
+                  className="p-2 text-white/80 hover:text-white hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50 active:scale-95 flex-shrink-0 touch-manipulation"
+                >
                   <RefreshCw className={`h-5 w-5 ${isRefreshing ? "animate-spin" : ""}`} />
                 </button>
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto min-h-0" style={{ WebkitOverflowScrolling: "touch" }}>
-              {(searchTerm ? filteredUsers.map((u) => ({ user: u, conv: null })) : conversations.map((c) => ({ user: c.conversationWith, conv: c }))).map(({ user: u, conv }) => (
+              {(searchTerm
+                ? filteredUsers.map((u) => ({ user: u, conv: null }))
+                : conversations.map((c) => ({ user: c.conversationWith, conv: c }))
+              ).map(({ user: u, conv }) => (
                 <button
                   key={u._id}
                   onClick={() => handleSelectUser(u)}
@@ -589,10 +660,16 @@ export default function MessagesPage() {
                       <>
                         <div className="flex items-center justify-between mb-1">
                           <p className="text-white font-medium truncate text-sm md:text-base">{u.firstName} {u.lastName}</p>
-                          {conv.unreadCount > 0 && <span className="ml-2 px-2 py-0.5 bg-[#E84545] text-white text-xs rounded-full flex-shrink-0 min-w-[1.25rem] text-center">{conv.unreadCount}</span>}
+                          {conv.unreadCount > 0 && (
+                            <span className="ml-2 px-2 py-0.5 bg-[#E84545] text-white text-xs rounded-full flex-shrink-0 min-w-[1.25rem] text-center">
+                              {conv.unreadCount}
+                            </span>
+                          )}
                         </div>
                         <p className="text-gray-500 text-xs md:text-sm truncate">
-                          {conv.lastMessage.type === "voice" ? "🎤 Voice message" : conv.lastMessage.type === "image" ? "📷 Image" : conv.lastMessage.content}
+                          {conv.lastMessage.type === "voice" ? "🎤 Voice message"
+                            : conv.lastMessage.type === "image" ? "📷 Image"
+                            : conv.lastMessage.content}
                         </p>
                       </>
                     ) : (
@@ -615,24 +692,32 @@ export default function MessagesPage() {
             </div>
           </div>
 
-          {/* Chat area */}
+          {/* ── Chat area ────────────────────────────────────────────────── */}
           <div className={`${!selectedUser ? "hidden" : "flex"} md:flex flex-1 flex-col bg-black relative overflow-hidden min-h-0`}>
             {selectedUser ? (
               <>
                 {/* Header */}
                 <div className="p-2 mt-14 md:mt-0 border-b border-gray-800 bg-black flex-shrink-0">
                   <div className="flex items-center space-x-3">
-                    <button onClick={handleBackToList} className="md:hidden p-2 hover:bg-gray-800 rounded-lg active:bg-gray-700 active:scale-95 touch-manipulation">
+                    <button
+                      onClick={handleBackToList}
+                      className="md:hidden p-2 hover:bg-gray-800 rounded-lg active:bg-gray-700 active:scale-95 touch-manipulation"
+                    >
                       <ArrowLeft className="h-5 w-5 text-white" />
                     </button>
                     <div className="w-9 h-9 rounded-full bg-[#E84545]/20 flex items-center justify-center border border-[#E84545]/30">
-                      <span className="text-[#E84545] font-semibold text-sm">{selectedUser.firstName?.[0]}{selectedUser.lastName?.[0]}</span>
+                      <span className="text-[#E84545] font-semibold text-sm">
+                        {selectedUser.firstName?.[0]}{selectedUser.lastName?.[0]}
+                      </span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-white font-medium text-sm truncate">{selectedUser.firstName} {selectedUser.lastName}</p>
                       <div className="flex items-center space-x-1.5">
                         {recipientStatus.isOnline ? (
-                          <><div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div><p className="text-green-400 text-xs font-medium">online</p></>
+                          <>
+                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                            <p className="text-green-400 text-xs font-medium">online</p>
+                          </>
                         ) : (
                           <p className="text-gray-400 text-xs truncate">{formatLastSeen(recipientStatus.lastActiveAt)}</p>
                         )}
@@ -643,7 +728,13 @@ export default function MessagesPage() {
 
                 {/* Pull-to-refresh indicator */}
                 {isPulling && (
-                  <div className="absolute top-16 left-1/2 z-10 transition-all" style={{ opacity: Math.min(pullDistance / pullThreshold, 1), transform: `translateX(-50%) translateY(${Math.min(pullDistance / 2, 40)}px)` }}>
+                  <div
+                    className="absolute top-16 left-1/2 z-10 transition-all"
+                    style={{
+                      opacity: Math.min(pullDistance / pullThreshold, 1),
+                      transform: `translateX(-50%) translateY(${Math.min(pullDistance / 2, 40)}px)`,
+                    }}
+                  >
                     <div className="bg-gray-800 rounded-full p-2">
                       <RefreshCw className={`h-5 w-5 text-white ${pullDistance > pullThreshold ? "animate-spin" : ""}`} />
                     </div>
@@ -662,7 +753,7 @@ export default function MessagesPage() {
                     WebkitOverflowScrolling: "touch",
                     overscrollBehavior: "contain",
                     touchAction: "pan-y",
-                    backgroundImage: WALLPAPER_BG_URL,  // ← pre-computed constant
+                    backgroundImage: WALLPAPER_BG_URL,
                     backgroundSize: "380px 380px",
                     backgroundRepeat: "repeat",
                   }}
@@ -670,13 +761,15 @@ export default function MessagesPage() {
                   {messages.map((msg, index) => {
                     const isMe     = !!user && msg.senderId._id === user._id;
                     const showDate = index === 0 || formatDate(messages[index - 1].createdAt) !== formatDate(msg.createdAt);
-                    const waveform = msg.type === "voice" ? getWaveform(msg._id) : null; // uses cache
+                    const waveform = msg.type === "voice" ? getWaveform(msg._id) : null;
 
                     return (
                       <div key={msg._id}>
                         {showDate && (
                           <div className="flex justify-center my-2 md:my-3">
-                            <span className="px-3 py-1 bg-gray-800 text-gray-400 text-xs rounded-full">{formatDate(msg.createdAt)}</span>
+                            <span className="px-3 py-1 bg-gray-800 text-gray-400 text-xs rounded-full">
+                              {formatDate(msg.createdAt)}
+                            </span>
                           </div>
                         )}
 
@@ -686,18 +779,31 @@ export default function MessagesPage() {
                             onTouchStart={(e) => {
                               const el = e.currentTarget;
                               let t: ReturnType<typeof setTimeout> | null = null;
-                              const clear = () => { if (t) clearTimeout(t); el.removeEventListener("touchend", clear); el.removeEventListener("touchmove", clear); };
+                              const clear = () => {
+                                if (t) clearTimeout(t);
+                                el.removeEventListener("touchend",  clear);
+                                el.removeEventListener("touchmove", clear);
+                              };
                               t = setTimeout(() => handleLongPress(msg), 500);
-                              el.addEventListener("touchend", clear, { once: true });
+                              el.addEventListener("touchend",  clear, { once: true });
                               el.addEventListener("touchmove", clear, { once: true });
                             }}
-                            className={`${msg.type === "voice" ? "max-w-[92%] md:max-w-sm px-3 py-3" : "max-w-[85%] md:max-w-md px-3 md:px-4 py-2"} rounded-2xl ${
-                              isMe ? "bg-[#005C4B] text-white rounded-br-md" : "bg-gray-800 text-white rounded-bl-md"
+                            className={`${msg.type === "voice"
+                              ? "max-w-[92%] md:max-w-sm px-3 py-3"
+                              : "max-w-[85%] md:max-w-md px-3 md:px-4 py-2"
+                            } rounded-2xl ${isMe
+                              ? "bg-[#005C4B] text-white rounded-br-md"
+                              : "bg-gray-800 text-white rounded-bl-md"
                             }`}
                           >
                             {msg.type === "image" ? (
                               <div className="space-y-2">
-                                <img src={msg.imageUrl} alt="Shared image" className="rounded-lg max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity active:opacity-75" onClick={() => handleImageView(msg.imageUrl!, msg.content)} />
+                                <img
+                                  src={msg.imageUrl}
+                                  alt="Shared image"
+                                  className="rounded-lg max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity active:opacity-75"
+                                  onClick={() => handleImageView(msg.imageUrl!, msg.content)}
+                                />
                                 {msg.content && msg.content !== "Image" && <p className="text-sm">{msg.content}</p>}
                               </div>
                             ) : msg.type === "voice" && waveform ? (
@@ -713,17 +819,36 @@ export default function MessagesPage() {
                                       </div>
                                     </div>
                                   )}
-                                  <button onClick={() => playVoiceMessage(msg._id, msg.voiceUrl ?? "")} className="flex-shrink-0 w-8 h-8 flex items-center justify-center hover:opacity-75 active:scale-90 touch-manipulation transition-transform">
-                                    {playingId === msg._id ? <Pause className="h-5 w-5 text-white fill-white" /> : <Play className="h-5 w-5 text-white fill-white" />}
+                                  <button
+                                    onClick={() => playVoiceMessage(msg._id, msg.voiceUrl ?? "")}
+                                    className="flex-shrink-0 w-8 h-8 flex items-center justify-center hover:opacity-75 active:scale-90 touch-manipulation transition-transform"
+                                  >
+                                    {playingId === msg._id
+                                      ? <Pause className="h-5 w-5 text-white fill-white" />
+                                      : <Play  className="h-5 w-5 text-white fill-white" />}
                                   </button>
                                   <div className="flex-1 relative h-9 flex items-center">
                                     <div className="flex items-center justify-between w-full h-full gap-[2px]">
                                       {waveform.map((height, i) => {
                                         const played = ((i / (waveform.length - 1)) * 100) <= (audioProgress[msg._id] ?? 0);
-                                        return <div key={i} className={`rounded-full flex-1 transition-colors duration-100 ${played ? "bg-white" : "bg-white/35"}`} style={{ height: `${Math.max(12, height * 100)}%` }} />;
+                                        return (
+                                          <div
+                                            key={i}
+                                            className={`rounded-full flex-1 transition-colors duration-100 ${played ? "bg-white" : "bg-white/35"}`}
+                                            style={{ height: `${Math.max(12, height * 100)}%` }}
+                                          />
+                                        );
                                       })}
                                     </div>
-                                    <div className="absolute w-3 h-3 bg-[#64B5F6] rounded-full shadow-md pointer-events-none" style={{ left: `${audioProgress[msg._id] ?? 0}%`, top: "50%", transform: "translateX(-50%) translateY(-50%)", transition: "left 0.1s linear" }} />
+                                    <div
+                                      className="absolute w-3 h-3 bg-[#64B5F6] rounded-full shadow-md pointer-events-none"
+                                      style={{
+                                        left: `${audioProgress[msg._id] ?? 0}%`,
+                                        top: "50%",
+                                        transform: "translateX(-50%) translateY(-50%)",
+                                        transition: "left 0.1s linear",
+                                      }}
+                                    />
                                   </div>
                                   {!isMe && (
                                     <div className="relative flex-shrink-0">
@@ -738,11 +863,15 @@ export default function MessagesPage() {
                                 </div>
                                 <div className="flex items-center justify-between px-0.5">
                                   <span className="text-[11px] text-white/60 font-mono tabular-nums">
-                                    {playingId === msg._id && audioRef.current ? formatAudioTime(audioRef.current.currentTime) : formatAudioTime(msg.voiceDuration ?? 0)}
+                                    {playingId === msg._id && audioRef.current
+                                      ? formatAudioTime(audioRef.current.currentTime)
+                                      : formatAudioTime(msg.voiceDuration ?? 0)}
                                   </span>
                                   <div className="flex items-center space-x-1">
                                     <span className="text-[10px] text-white/60">{formatTime(msg.createdAt)}</span>
-                                    {isMe && (msg.isRead ? <CheckCheck className="h-3.5 w-3.5 text-[#53BDEB]" /> : <Check className="h-3.5 w-3.5 text-gray-400" />)}
+                                    {isMe && (msg.isRead
+                                      ? <CheckCheck className="h-3.5 w-3.5 text-[#53BDEB]" />
+                                      : <Check      className="h-3.5 w-3.5 text-gray-400"  />)}
                                   </div>
                                 </div>
                               </div>
@@ -753,7 +882,9 @@ export default function MessagesPage() {
                             {msg.type !== "voice" && (
                               <div className="flex items-center justify-between mt-1 space-x-2">
                                 <span className="text-[10px] md:text-xs opacity-70">{formatTime(msg.createdAt)}</span>
-                                {isMe && (msg.isRead ? <CheckCheck className="h-3.5 w-3.5 md:h-4 md:w-4 text-[#53BDEB]" /> : <Check className="h-3.5 w-3.5 md:h-4 md:w-4 text-gray-400" />)}
+                                {isMe && (msg.isRead
+                                  ? <CheckCheck className="h-3.5 w-3.5 md:h-4 md:w-4 text-[#53BDEB]" />
+                                  : <Check      className="h-3.5 w-3.5 md:h-4 md:w-4 text-gray-400"  />)}
                               </div>
                             )}
                           </div>
@@ -766,68 +897,203 @@ export default function MessagesPage() {
                 </div>
 
                 {showScrollButton && (
-                  <button onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })} className="absolute bottom-28 md:bottom-24 right-4 p-3 bg-[#2e3333] text-white rounded-full shadow-lg hover:bg-[#cc3c3c] active:bg-[#b33535] active:scale-95 transition-all z-10 touch-manipulation">
+                  <button
+                    onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })}
+                    className="absolute bottom-28 md:bottom-24 right-4 p-3 bg-[#2e3333] text-white rounded-full shadow-lg hover:bg-[#cc3c3c] active:bg-[#b33535] active:scale-95 transition-all z-10 touch-manipulation"
+                  >
                     <ChevronDown className="h-5 w-5" />
                   </button>
                 )}
 
                 <audio ref={audioRef} onTimeUpdate={handleAudioTimeUpdate} onEnded={handleAudioEnded} />
 
-                {/* Input bar */}
-                <div className="bg-[#111112] border-t border-white/5 flex-shrink-0" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+                {/* ── Input bar ──────────────────────────────────────────── */}
+                <div
+                  className="bg-[#111112] border-t border-white/5 flex-shrink-0"
+                  style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+                >
                   <div className="px-1 py-2">
-                    {imagePreview && (
-                      <div className="mb-2 md:mb-3 relative inline-block">
-                        <img src={imagePreview} alt="Preview" className="max-h-20 md:max-h-32 rounded-lg" />
-                        <button onClick={() => { setSelectedImage(null); setImagePreview(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 active:scale-95 touch-manipulation">
-                          <X className="h-3.5 w-3.5 md:h-4 md:w-4" />
+
+                    {/* ── HOLDING: show cancel ← and lock ↑ hints ────────── */}
+                    {holdState === "holding" && (
+                      <div className="flex items-center gap-2 select-none h-12 px-1">
+                        {/* Slide-left cancel hint */}
+                        <div
+                          className="flex items-center gap-1 transition-opacity duration-75"
+                          style={{ opacity: slideLeft > 10 ? Math.min(1, slideLeft / CANCEL_THRESHOLD) : 0.35 }}
+                        >
+                          <ChevronLeft className="h-4 w-4 text-gray-400" />
+                          <span className="text-gray-400 text-sm whitespace-nowrap">Cancel</span>
+                        </div>
+
+                        {/* Centre: live timer */}
+                        <div className="flex-1 flex items-center justify-center gap-2 bg-[#1F2023] rounded-full px-4 py-2.5 border border-white/5">
+                          <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse flex-shrink-0" />
+                          <span className="text-white font-mono tabular-nums text-sm">
+                            {formatAudioTime(voiceRecorder.duration)}
+                          </span>
+                        </div>
+
+                        {/* Slide-up lock hint */}
+                        <div
+                          className="flex flex-col items-center gap-0.5 transition-opacity duration-75"
+                          style={{ opacity: slideUp > 10 ? Math.min(1, slideUp / LOCK_THRESHOLD) : 0.35 }}
+                        >
+                          <Lock      className="h-4 w-4 text-gray-400" />
+                          <ChevronUp className="h-3 w-3 text-gray-400" />
+                        </div>
+
+                        {/* Spacer keeps layout stable while pointer is captured */}
+                        <div className="w-10 h-10 flex-shrink-0" />
+                      </div>
+                    )}
+
+                    {/* ── LOCKED: free hands, trash / send buttons ────────── */}
+                    {holdState === "locked" && (
+                      <div className="flex items-center gap-2.5 select-none">
+                        <button
+                          onClick={handleLockedCancel}
+                          className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white/70 hover:text-white active:scale-90 touch-manipulation transition-transform"
+                        >
+                          <Trash2 className="h-[22px] w-[22px]" />
+                        </button>
+                        <div className="flex-1 flex items-center gap-2.5 bg-[#1F2023] rounded-full px-4 py-2.5 border border-white/5">
+                          <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse flex-shrink-0" />
+                          <span className="text-white text-[15px] font-mono tabular-nums">
+                            {formatAudioTime(voiceRecorder.duration)}
+                          </span>
+                          <div className="flex-1 h-1 bg-gray-700 rounded-full overflow-hidden">
+                            <div className="h-full bg-red-500 rounded-full animate-pulse w-full" />
+                          </div>
+                          <Lock className="h-3.5 w-3.5 text-[#E84545] flex-shrink-0" />
+                        </div>
+                        <button
+                          onClick={handleLockedSend}
+                          className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white hover:text-white/80 active:scale-90 touch-manipulation transition-transform"
+                        >
+                          <Send className="h-5 w-5" />
                         </button>
                       </div>
                     )}
 
-                    {voiceRecorder.isRecording ? (
-                      <div className="flex items-center gap-2.5">
-                        <button onClick={voiceRecorder.cancelRecording} className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white/70 hover:text-white active:scale-90 touch-manipulation transition-transform"><X className="h-6 w-6" /></button>
-                        <div className="flex-1 flex items-center gap-2.5 bg-[#1F2023] rounded-full px-4 py-2.5 border border-white/5">
-                          <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse flex-shrink-0" />
-                          <span className="text-white text-[15px] font-mono tabular-nums">{formatAudioTime(voiceRecorder.duration)}</span>
-                          <div className="flex-1 h-1 bg-gray-700 rounded-full overflow-hidden"><div className="h-full bg-red-500 rounded-full animate-pulse w-full" /></div>
-                        </div>
-                        <button onClick={voiceRecorder.stopRecording} className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white hover:text-white/80 active:scale-90 touch-manipulation transition-transform"><Send className="h-5 w-5" /></button>
-                      </div>
-                    ) : (voiceRecorder.audioBlob && !justSentVoice) ? (
-                      <div className="flex items-center gap-2.5">
-                        <button onClick={voiceRecorder.cancelRecording} className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white/70 hover:text-white active:scale-90 touch-manipulation transition-transform"><Trash2 className="h-[22px] w-[22px]" /></button>
-                        <div className="flex-1 flex items-center gap-2.5 bg-[#1F2023] rounded-full px-4 py-2.5 border border-white/5">
-                          <Play className="h-4 w-4 text-white/70 flex-shrink-0" />
-                          <div className="flex-1 h-1 bg-gray-600 rounded-full"><div className="h-1 bg-white rounded-full w-0" /></div>
-                          <span className="text-white/70 text-[13px] font-mono tabular-nums flex-shrink-0">{formatAudioTime(voiceRecorder.duration)}</span>
-                        </div>
-                        <button onClick={handleSendMessage} disabled={sending} className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white hover:text-white/80 active:scale-90 disabled:opacity-50 touch-manipulation transition-transform"><Send className="h-5 w-5" /></button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2.5">
-                        <input type="file" ref={fileInputRef} onChange={handleImageSelect} accept="image/*" className="hidden" />
-                        <button onClick={() => fileInputRef.current?.click()} className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white/70 hover:text-white active:scale-90 touch-manipulation transition-transform"><Plus className="h-6 w-6" strokeWidth={2.2} /></button>
-                        <div className="flex-1 flex items-center bg-[#1F2023] rounded-full px-4 py-0 min-w-0 border border-white/5">
-                          <input
-                            type="text"
-                            value={message}
-                            onChange={(e) => setMessage(e.target.value)}
-                            onKeyPress={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
-                            className="flex-1 bg-transparent text-white placeholder-gray-500 outline-none py-2.5 text-[15px] min-w-0"
-                            style={{ fontSize: "16px" }}
-                          />
-                        </div>
-                        {message.trim() || selectedImage ? (
-                          <button onClick={handleSendMessage} disabled={sending} className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white hover:text-white/80 active:scale-90 disabled:opacity-50 touch-manipulation transition-transform"><Send className="h-5 w-5" /></button>
-                        ) : (
-                          <>
-                            <button onClick={() => fileInputRef.current?.click()} className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white/70 hover:text-white active:scale-90 touch-manipulation transition-transform"><Camera className="h-[22px] w-[22px]" strokeWidth={1.8} /></button>
-                            <button onClick={voiceRecorder.startRecording} className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white/70 hover:text-white active:scale-90 touch-manipulation transition-transform"><Mic className="h-[22px] w-[22px]" strokeWidth={1.8} /></button>
-                          </>
+                    {/* ── IDLE: normal text / image / voice-preview bar ───── */}
+                    {holdState === "idle" && (
+                      <>
+                        {/* Image preview */}
+                        {imagePreview && (
+                          <div className="mb-2 md:mb-3 relative inline-block">
+                            <img src={imagePreview} alt="Preview" className="max-h-20 md:max-h-32 rounded-lg" />
+                            <button
+                              onClick={() => {
+                                setSelectedImage(null);
+                                setImagePreview(null);
+                                if (fileInputRef.current) fileInputRef.current.value = "";
+                              }}
+                              className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 active:scale-95 touch-manipulation"
+                            >
+                              <X className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                            </button>
+                          </div>
                         )}
-                      </div>
+
+                        {/* Voice preview (after locked recording is stopped) */}
+                        {voiceRecorder.audioBlob && !justSentVoice ? (
+                          <div className="flex items-center gap-2.5">
+                            <button
+                              onClick={voiceRecorder.cancelRecording}
+                              className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white/70 hover:text-white active:scale-90 touch-manipulation transition-transform"
+                            >
+                              <Trash2 className="h-[22px] w-[22px]" />
+                            </button>
+                            <div className="flex-1 flex items-center gap-2.5 bg-[#1F2023] rounded-full px-4 py-2.5 border border-white/5">
+                              <Play className="h-4 w-4 text-white/70 flex-shrink-0" />
+                              <div className="flex-1 h-1 bg-gray-600 rounded-full">
+                                <div className="h-1 bg-white rounded-full w-0" />
+                              </div>
+                              <span className="text-white/70 text-[13px] font-mono tabular-nums flex-shrink-0">
+                                {formatAudioTime(voiceRecorder.duration)}
+                              </span>
+                            </div>
+                            <button
+                              onClick={handleSendMessage}
+                              disabled={sending}
+                              className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white hover:text-white/80 active:scale-90 disabled:opacity-50 touch-manipulation transition-transform"
+                            >
+                              <Send className="h-5 w-5" />
+                            </button>
+                          </div>
+                        ) : (
+                          /* Default text + action buttons */
+                          <div className="flex items-center gap-2.5">
+                            <input
+                              type="file"
+                              ref={fileInputRef}
+                              onChange={handleImageSelect}
+                              accept="image/*"
+                              className="hidden"
+                            />
+                            <button
+                              onClick={() => fileInputRef.current?.click()}
+                              className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white/70 hover:text-white active:scale-90 touch-manipulation transition-transform"
+                            >
+                              <Plus className="h-6 w-6" strokeWidth={2.2} />
+                            </button>
+
+                            <div className="flex-1 flex items-center bg-[#1F2023] rounded-full px-4 py-0 min-w-0 border border-white/5">
+                              <input
+                                type="text"
+                                value={message}
+                                onChange={(e) => setMessage(e.target.value)}
+                                onKeyPress={(e) => {
+                                  if (e.key === "Enter" && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleSendMessage();
+                                  }
+                                }}
+                                placeholder="Message"
+                                className="flex-1 bg-transparent text-white placeholder-gray-500 outline-none py-2.5 text-[15px] min-w-0"
+                                style={{ fontSize: "16px" }}
+                              />
+                            </div>
+
+                            {message.trim() || selectedImage ? (
+                              /* Send text / image */
+                              <button
+                                onClick={handleSendMessage}
+                                disabled={sending}
+                                className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white hover:text-white/80 active:scale-90 disabled:opacity-50 touch-manipulation transition-transform"
+                              >
+                                <Send className="h-5 w-5" />
+                              </button>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => fileInputRef.current?.click()}
+                                  className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white/70 hover:text-white active:scale-90 touch-manipulation transition-transform"
+                                >
+                                  <Camera className="h-[22px] w-[22px]" strokeWidth={1.8} />
+                                </button>
+
+                                {/* ★ MIC: hold to record, slide up to lock, slide left to cancel ★ */}
+                                <button
+                                  onPointerDown={handleMicPointerDown}
+                                  onPointerMove={handleMicPointerMove}
+                                  onPointerUp={handleMicPointerUp}
+                                  onPointerCancel={handleMicPointerCancel}
+                                  className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white/70 hover:text-white active:scale-90 touch-manipulation transition-all cursor-pointer select-none"
+                                  style={{ touchAction: "none", userSelect: "none" }}
+                                >
+                                  <Mic
+                                    className="h-[22px] w-[22px] transition-transform duration-100"
+                                    strokeWidth={1.8}
+                                    style={{ transform: (holdState as string) === "holding" ? "scale(1.25)" : "scale(1)" }}
+                                  />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -844,39 +1110,84 @@ export default function MessagesPage() {
         </div>
       </div>
 
-      {/* Message Options Modal */}
+      {/* ── Message Options Modal ──────────────────────────────────────────── */}
       {selectedMessage && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-end md:items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setSelectedMessage(null)}>
-          <div className="bg-gray-900 rounded-2xl w-full md:w-96 overflow-hidden animate-in slide-in-from-bottom duration-300" onClick={(e) => e.stopPropagation()} style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}>
-            <div className="p-4 border-b border-gray-800"><p className="text-white font-medium">Message Options</p></div>
+        <div
+          className="fixed inset-0 z-50 bg-black/50 flex items-end md:items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setSelectedMessage(null)}
+        >
+          <div
+            className="bg-gray-900 rounded-2xl w-full md:w-96 overflow-hidden animate-in slide-in-from-bottom duration-300"
+            onClick={(e) => e.stopPropagation()}
+            style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
+          >
+            <div className="p-4 border-b border-gray-800">
+              <p className="text-white font-medium">Message Options</p>
+            </div>
             <div className="p-2">
               {selectedMessage.type === "text" && (
-                <button onClick={() => handleCopyMessage(selectedMessage.content)} className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-gray-800 rounded-lg transition-colors text-left active:bg-gray-700 touch-manipulation">
-                  <Copy className="h-5 w-5 text-gray-400" /><span className="text-white">Copy Text</span>
+                <button
+                  onClick={() => handleCopyMessage(selectedMessage.content)}
+                  className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-gray-800 rounded-lg transition-colors text-left active:bg-gray-700 touch-manipulation"
+                >
+                  <Copy className="h-5 w-5 text-gray-400" />
+                  <span className="text-white">Copy Text</span>
                 </button>
               )}
               {selectedMessage.type === "image" && (
-                <button onClick={() => { handleImageDownload(selectedMessage.imageUrl!, selectedMessage.content); setSelectedMessage(null); }} className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-gray-800 rounded-lg transition-colors text-left active:bg-gray-700 touch-manipulation">
-                  <Download className="h-5 w-5 text-gray-400" /><span className="text-white">Download Image</span>
+                <button
+                  onClick={() => { handleImageDownload(selectedMessage.imageUrl!, selectedMessage.content); setSelectedMessage(null); }}
+                  className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-gray-800 rounded-lg transition-colors text-left active:bg-gray-700 touch-manipulation"
+                >
+                  <Download className="h-5 w-5 text-gray-400" />
+                  <span className="text-white">Download Image</span>
                 </button>
               )}
-              <button onClick={() => setSelectedMessage(null)} className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-gray-800 rounded-lg transition-colors text-left active:bg-gray-700 touch-manipulation">
-                <X className="h-5 w-5 text-gray-400" /><span className="text-white">Cancel</span>
+              <button
+                onClick={() => setSelectedMessage(null)}
+                className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-gray-800 rounded-lg transition-colors text-left active:bg-gray-700 touch-manipulation"
+              >
+                <X className="h-5 w-5 text-gray-400" />
+                <span className="text-white">Cancel</span>
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Image Viewer */}
+      {/* ── Image Viewer ───────────────────────────────────────────────────── */}
       {viewingImage && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col animate-in fade-in duration-200" onClick={(e) => { if (e.target === e.currentTarget) setViewingImage(null); }}>
+        <div
+          className="fixed inset-0 z-50 bg-black flex flex-col animate-in fade-in duration-200"
+          onClick={(e) => { if (e.target === e.currentTarget) setViewingImage(null); }}
+        >
           <div className="flex items-center justify-between p-3 md:p-4 bg-gradient-to-b from-black/80 to-transparent backdrop-blur-sm z-10">
-            <button onClick={() => setViewingImage(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors active:scale-95 touch-manipulation"><X className="h-6 w-6 text-white" /></button>
-            <button onClick={() => handleImageDownload(viewingImage.url, viewingImage.content)} className="p-2 hover:bg-white/10 rounded-full transition-colors active:scale-95 touch-manipulation"><Download className="h-6 w-6 text-white" /></button>
+            <button
+              onClick={() => setViewingImage(null)}
+              className="p-2 hover:bg-white/10 rounded-full transition-colors active:scale-95 touch-manipulation"
+            >
+              <X className="h-6 w-6 text-white" />
+            </button>
+            <button
+              onClick={() => handleImageDownload(viewingImage.url, viewingImage.content)}
+              className="p-2 hover:bg-white/10 rounded-full transition-colors active:scale-95 touch-manipulation"
+            >
+              <Download className="h-6 w-6 text-white" />
+            </button>
           </div>
-          <div className="flex-1 flex items-center justify-center p-4 overflow-hidden touch-none" onClick={() => setViewingImage(null)}>
-            <img src={viewingImage.url} alt="Full size" className="max-w-full max-h-full object-contain select-none" style={{ transform: `scale(${imageZoom})`, transition: "transform 0.2s ease-out" }} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => { e.stopPropagation(); setImageZoom((z) => (z === 1 ? 2 : 1)); }} draggable={false} />
+          <div
+            className="flex-1 flex items-center justify-center p-4 overflow-hidden touch-none"
+            onClick={() => setViewingImage(null)}
+          >
+            <img
+              src={viewingImage.url}
+              alt="Full size"
+              className="max-w-full max-h-full object-contain select-none"
+              style={{ transform: `scale(${imageZoom})`, transition: "transform 0.2s ease-out" }}
+              onClick={(e) => e.stopPropagation()}
+              onDoubleClick={(e) => { e.stopPropagation(); setImageZoom((z) => (z === 1 ? 2 : 1)); }}
+              draggable={false}
+            />
           </div>
           {viewingImage.content && viewingImage.content !== "Image" && (
             <div className="p-3 md:p-4 bg-gradient-to-t from-black/80 to-transparent backdrop-blur-sm">
@@ -887,8 +1198,17 @@ export default function MessagesPage() {
       )}
 
       <style jsx>{`
-        .messages-container-height { height: calc(100dvh - 5rem); }
-        @media (min-width: 768px) { .messages-container-height { height: 100dvh; } }
+        .messages-container-height {
+          height: calc(100dvh );
+          
+          height: calc(var(--vvh, 100dvh));
+        }
+        @media (min-width: 768px) {
+          .messages-container-height {
+            height: 100dvh;
+            height: var(--vvh, 100dvh);
+          }
+        }
       `}</style>
     </MainLayout>
   );

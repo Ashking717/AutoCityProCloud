@@ -765,7 +765,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
                           className={`h-5 w-5 ${pathname === "/autocityPro/messages" ? 'text-[#E84545]' : 'text-gray-400'}`}
                         />
                       </div>
-                      <span className="font-medium">Messages</span>
+                      <span className="font-medium">Chat+</span>
                     </div>
                     {unreadCount > 0 && (
                       <span className="px-2 py-0.5 text-xs font-bold bg-[#E84545] text-white rounded-full animate-pulse">

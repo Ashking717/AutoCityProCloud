@@ -1,4 +1,4 @@
-// app/autocityPro/messages/page.tsx - OPTIMIZED FOR MOBILE WITH SIDEBAR
+// app/autocityPro/mesages/page.tsx - OPTIMIZED FOR MOBILE WITH SIDEBAR
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -27,8 +27,6 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 
-// WhatsApp-style dark doodle wallpaper — 380×380 repeating tile
-// Uses single-quoted XML attributes + %23 for # so it embeds safely in CSS url("data:image/svg+xml,...")
 const WALLPAPER_SVG = `<svg xmlns='http://www.w3.org/2000/svg' width='380' height='380'>
   <rect width='380' height='380' fill='%230D1117'/>
   <g stroke='rgba(255,255,255,0.11)' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'>
@@ -112,7 +110,6 @@ interface Conversation {
   unreadCount: number;
 }
 
-// Deterministic waveform generator seeded by message ID
 const generateWaveform = (seed: string, bars: number = 28): number[] => {
   let hash = 5381;
   for (let i = 0; i < seed.length; i++) {
@@ -123,7 +120,6 @@ const generateWaveform = (seed: string, bars: number = 28): number[] => {
   for (let i = 0; i < bars; i++) {
     hash = (hash * 1103515245 + 12345) & 0x7fffffff;
     const normalized = (hash % 1000) / 1000;
-    // Natural speech-like envelope - slight center emphasis
     const pos = i / bars;
     const envelope = 0.35 + 0.65 * Math.sin(pos * Math.PI);
     result.push(Math.max(0.08, Math.min(0.95, normalized * envelope + 0.08)));
@@ -178,10 +174,7 @@ export default function MessagesPage() {
     sendActivityPing();
 
     const activityInterval = setInterval(sendActivityPing, 30000);
-
-    return () => {
-      clearInterval(activityInterval);
-    };
+    return () => { clearInterval(activityInterval); };
   }, []);
 
   useEffect(() => {
@@ -197,7 +190,6 @@ export default function MessagesPage() {
           fetchRecipientStatus(selectedUser._id);
         }
       }, 10000);
-
       conversationsInterval = setInterval(() => {
         fetchConversations();
       }, 30000);
@@ -235,14 +227,10 @@ export default function MessagesPage() {
 
   useEffect(() => {
     if (selectedUser) return;
-
     const conversationsInterval = setInterval(() => {
       fetchConversations();
     }, 30000);
-
-    return () => {
-      clearInterval(conversationsInterval);
-    };
+    return () => { clearInterval(conversationsInterval); };
   }, [selectedUser]);
 
   useEffect(() => {
@@ -268,6 +256,26 @@ export default function MessagesPage() {
     }
   }, [voiceRecorder.error]);
 
+  // ── Lock body scroll on mobile when chat is open ──────────────────────────
+  // Only overflow:hidden — no position:fixed (that collapses body height and
+  // breaks the input bar position).
+  useEffect(() => {
+    if (typeof window === 'undefined' || window.innerWidth >= 768) return;
+
+    if (selectedUser) {
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
+    }
+
+    return () => {
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
+    };
+  }, [selectedUser]);
+
   const handleScroll = () => {
     const container = messagesContainerRef.current;
     if (!container) return;
@@ -282,20 +290,23 @@ export default function MessagesPage() {
   const handleTouchStart = (e: React.TouchEvent) => {
     const container = messagesContainerRef.current;
     if (!container || container.scrollTop > 0) return;
-    
     touchStartYRef.current = e.touches[0].clientY;
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     const container = messagesContainerRef.current;
-    if (!container || container.scrollTop > 0) return;
+    if (!container) return;
 
     const currentY = e.touches[0].clientY;
     const distance = currentY - touchStartYRef.current;
 
-    if (distance > 0 && distance < pullThreshold * 1.5) {
-      setPullDistance(distance);
-      setIsPulling(true);
+    // Intercept downward pull when at top — stop it reaching the page
+    if (container.scrollTop <= 0 && distance > 0) {
+      e.stopPropagation();
+      if (distance < pullThreshold * 1.5) {
+        setPullDistance(distance);
+        setIsPulling(true);
+      }
     }
   };
 
@@ -303,7 +314,6 @@ export default function MessagesPage() {
     if (pullDistance > pullThreshold) {
       await handleManualRefresh();
     }
-    
     setIsPulling(false);
     setPullDistance(0);
   };
@@ -311,7 +321,6 @@ export default function MessagesPage() {
   const checkIfNearBottom = () => {
     const container = messagesContainerRef.current;
     if (!container) return false;
-
     const threshold = 150;
     const position = container.scrollHeight - container.scrollTop - container.clientHeight;
     return position < threshold;
@@ -328,10 +337,7 @@ export default function MessagesPage() {
       const res = await fetch("/api/auth/me", { credentials: "include" });
       const data = await res.json();
       if (res.ok) {
-        setUser({
-          ...data.user,
-          _id: data.user.id,
-        });
+        setUser({ ...data.user, _id: data.user.id });
       }
     } catch (error) {
       console.error("Failed to fetch user", error);
@@ -374,9 +380,7 @@ export default function MessagesPage() {
         setMessages(data.messages || []);
 
         const unreadIds = data.messages
-          .filter(
-            (msg: Message) => !msg.isRead && msg.recipientId._id === user?._id
-          )
+          .filter((msg: Message) => !msg.isRead && msg.recipientId._id === user?._id)
           .map((msg: Message) => msg._id);
 
         if (unreadIds.length > 0) {
@@ -409,10 +413,7 @@ export default function MessagesPage() {
     setShowSidebar(false);
     userScrolledRef.current = false;
     prevMessagesLengthRef.current = 0;
-    
-    if ('vibrate' in navigator) {
-      navigator.vibrate(10);
-    }
+    if ('vibrate' in navigator) { navigator.vibrate(10); }
   };
 
   const handleBackToList = () => {
@@ -431,12 +432,9 @@ export default function MessagesPage() {
         toast.error("Image must be less than 5MB");
         return;
       }
-
       setSelectedImage(file);
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
+      reader.onloadend = () => { setImagePreview(reader.result as string); };
       reader.readAsDataURL(file);
     }
   };
@@ -451,9 +449,7 @@ export default function MessagesPage() {
     const voiceBlob = voiceRecorder.audioBlob;
     const voiceDuration = voiceRecorder.duration;
 
-    if ('vibrate' in navigator) {
-      navigator.vibrate(10);
-    }
+    if ('vibrate' in navigator) { navigator.vibrate(10); }
 
     try {
       let messageData: any = {
@@ -472,11 +468,8 @@ export default function MessagesPage() {
           credentials: "include",
           body: formData,
         });
-
         if (!uploadRes.ok) throw new Error("Failed to upload image");
-
         const uploadData = await uploadRes.json();
-
         messageData = {
           recipientId: selectedUser._id,
           type: "image",
@@ -493,11 +486,8 @@ export default function MessagesPage() {
           credentials: "include",
           body: formData,
         });
-
         if (!uploadRes.ok) throw new Error("Failed to upload voice note");
-
         const uploadData = await uploadRes.json();
-
         messageData = {
           recipientId: selectedUser._id,
           type: "voice",
@@ -515,24 +505,18 @@ export default function MessagesPage() {
       });
 
       if (res.ok) {
-        if (hasVoiceMessage) {
-          setJustSentVoice(true);
-        }
+        if (hasVoiceMessage) { setJustSentVoice(true); }
 
         setMessage("");
         setSelectedImage(null);
         setImagePreview(null);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
-        }
+        if (fileInputRef.current) { fileInputRef.current.value = ""; }
         voiceRecorder.cancelRecording();
 
         await fetchMessages(selectedUser._id);
         await fetchConversations();
 
-        if (hasVoiceMessage) {
-          setTimeout(() => setJustSentVoice(false), 300);
-        }
+        if (hasVoiceMessage) { setTimeout(() => setJustSentVoice(false), 300); }
       } else {
         throw new Error("Failed to send message");
       }
@@ -547,12 +531,8 @@ export default function MessagesPage() {
 
   const handleManualRefresh = async () => {
     if (isRefreshing) return;
-    
     setIsRefreshing(true);
-    
-    if ('vibrate' in navigator) {
-      navigator.vibrate([10, 50, 10]);
-    }
+    if ('vibrate' in navigator) { navigator.vibrate([10, 50, 10]); }
 
     try {
       if (selectedUser) {
@@ -572,10 +552,7 @@ export default function MessagesPage() {
 
   const handleLongPress = useCallback((message: Message) => {
     setSelectedMessage(message);
-    
-    if ('vibrate' in navigator) {
-      navigator.vibrate(50);
-    }
+    if ('vibrate' in navigator) { navigator.vibrate(50); }
   }, []);
 
   const handleCopyMessage = async (content: string) => {
@@ -590,10 +567,7 @@ export default function MessagesPage() {
 
   const formatTime = (date: string) => {
     const d = new Date(date);
-    return d.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
   };
 
   const formatDate = (date: string) => {
@@ -605,18 +579,12 @@ export default function MessagesPage() {
     if (d.toDateString() === today.toDateString()) return "Today";
     if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
 
-    return d.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric"
-    });
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
 
   const sendActivityPing = async () => {
     try {
-      await fetch("/api/users/activity", {
-        method: "POST",
-        credentials: "include",
-      });
+      await fetch("/api/users/activity", { method: "POST", credentials: "include" });
     } catch (error) {
       console.error("Failed to send activity ping");
     }
@@ -624,15 +592,10 @@ export default function MessagesPage() {
 
   const fetchRecipientStatus = async (userId: string) => {
     try {
-      const res = await fetch(`/api/users/${userId}/status`, {
-        credentials: "include",
-      });
+      const res = await fetch(`/api/users/${userId}/status`, { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
-        setRecipientStatus({
-          isOnline: data.isOnline,
-          lastActiveAt: data.lastActiveAt,
-        });
+        setRecipientStatus({ isOnline: data.isOnline, lastActiveAt: data.lastActiveAt });
       }
     } catch (error) {
       console.error("Failed to fetch recipient status");
@@ -655,10 +618,7 @@ export default function MessagesPage() {
     if (diffDays === 1) return "last seen yesterday";
     if (diffDays < 7) return `last seen ${diffDays} days ago`;
 
-    return `last seen ${lastSeen.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric"
-    })}`;
+    return `last seen ${lastSeen.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
   };
 
   const formatAudioTime = (seconds: number) => {
@@ -705,24 +665,20 @@ export default function MessagesPage() {
   const handleImageDownload = async (imageUrl: string, content: string) => {
     try {
       const loadingToast = toast.loading("Downloading image...");
-
       const response = await fetch(imageUrl);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-
       const timestamp = new Date().getTime();
       const filename = content && content !== "Image"
         ? `${content.substring(0, 20)}-${timestamp}.jpg`
         : `image-${timestamp}.jpg`;
-
       link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-
       toast.dismiss(loadingToast);
       toast.success("Image downloaded");
     } catch (error) {
@@ -745,15 +701,23 @@ export default function MessagesPage() {
 
   return (
     <MainLayout user={user} onLogout={handleLogout}>
-      {/* ✅ UPDATED: Container height - adjusted for mobile bottom bar, full height on desktop */}
-      <div className="flex flex-col bg-[#050505] messages-container-height">
+      {/*
+        overflow-hidden: clamps the outer box so the page itself can never scroll.
+        All scrolling is isolated to the inner messages div only.
+      */}
+      <div className="flex flex-col bg-[#050505] messages-container-height overflow-hidden">
         
         {/* Main Content Area */}
         <div className="flex-1 flex overflow-hidden min-h-0">
-          {/* Conversations Sidebar */}
+
+          {/*
+            Conversations Sidebar
+            overflow-hidden: prevents the sidebar column itself from being a scroll target.
+            The inner list div has overflow-y-auto + min-h-0 to scroll independently.
+          */}
           <div className={`${
             showSidebar ? 'flex' : 'hidden'
-          } md:flex w-full md:w-80 bg-black border-r border-gray-800 flex-col`}>
+          } md:flex w-full md:w-80 bg-black border-r border-gray-800 flex-col overflow-hidden`}>
             
             {/* Search */}
             <div className="p-3 md:p-4 border-b border-gray-800 flex-shrink-0">
@@ -780,8 +744,8 @@ export default function MessagesPage() {
               </div>
             </div>
 
-            {/* Conversations List */}
-            <div className="flex-1 overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+            {/* Conversations List — only this scrolls inside the sidebar */}
+            <div className="flex-1 overflow-y-auto min-h-0" style={{ WebkitOverflowScrolling: 'touch' }}>
               {searchTerm
                 ? filteredUsers.map((u) => (
                     <button
@@ -858,14 +822,18 @@ export default function MessagesPage() {
             </div>
           </div>
 
-          {/* Chat Area */}
+          {/*
+            Chat Area
+            overflow-hidden + min-h-0: clamps the column so flex children respect
+            the parent height and only the messages div scrolls, not this wrapper.
+          */}
           <div className={`${
             !selectedUser ? 'hidden' : 'flex'
-          } md:flex flex-1 flex-col bg-[#0D1117] relative`}>
+          } md:flex flex-1 flex-col bg-black relative overflow-hidden min-h-0`}>
             {selectedUser ? (
               <>
                 {/* Chat Header - Compact */}
-                <div className="p-2 mt-8 md:mt-0 border-b border-gray-800 bg-black flex-shrink-0">
+                <div className="p-2 mt-14 md:mt-0 border-b border-gray-800 bg-black flex-shrink-0">
                   <div className="flex items-center space-x-3">
                     <button
                       onClick={handleBackToList}
@@ -887,9 +855,7 @@ export default function MessagesPage() {
                         {recipientStatus.isOnline ? (
                           <>
                             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                            <p className="text-green-400 text-xs font-medium">
-                              online
-                            </p>
+                            <p className="text-green-400 text-xs font-medium">online</p>
                           </>
                         ) : (
                           <p className="text-gray-400 text-xs truncate">
@@ -916,17 +882,25 @@ export default function MessagesPage() {
                   </div>
                 )}
 
-                {/* Messages */}
+                {/*
+                  Messages scroll container
+                  min-h-0: critical for flex children — without it the div ignores
+                    the parent's constrained height and overflows the page.
+                  touchAction pan-y: tells the browser this element owns vertical
+                    touch gestures, preventing them from bubbling to the page.
+                  overscrollBehavior contain: stops pull-to-refresh on the page.
+                */}
                 <div 
                   ref={messagesContainerRef}
                   onScroll={handleScroll}
                   onTouchStart={handleTouchStart}
                   onTouchMove={handleTouchMove}
                   onTouchEnd={handleTouchEnd}
-                  className="flex-1 overflow-y-auto p-3 md:p-4 space-y-2 md:space-y-3"
+                  className="flex-1 overflow-y-auto min-h-0 p-3 md:p-4 space-y-2 md:space-y-3"
                   style={{ 
                     WebkitOverflowScrolling: 'touch',
                     overscrollBehavior: 'contain',
+                    touchAction: 'pan-y',
                     backgroundImage: `url("data:image/svg+xml,${WALLPAPER_SVG.replace(/#/g,'%23').replace(/\n\s*/g,' ')}")`,
                     backgroundSize: '380px 380px',
                     backgroundRepeat: 'repeat',
@@ -959,20 +933,15 @@ export default function MessagesPage() {
                               const element = e.currentTarget;
                               let timer: NodeJS.Timeout | null = null;
                               
-                              const handleTouchEnd = () => {
+                              const clearTimer = () => {
                                 if (timer) clearTimeout(timer);
-                                if (element) {
-                                  element.removeEventListener('touchend', handleTouchEnd);
-                                  element.removeEventListener('touchmove', handleTouchEnd);
-                                }
+                                element.removeEventListener('touchend', clearTimer);
+                                element.removeEventListener('touchmove', clearTimer);
                               };
                               
-                              timer = setTimeout(() => {
-                                handleLongPress(msg);
-                              }, 500);
-                              
-                              element.addEventListener('touchend', handleTouchEnd, { once: false });
-                              element.addEventListener('touchmove', handleTouchEnd, { once: true });
+                              timer = setTimeout(() => { handleLongPress(msg); }, 500);
+                              element.addEventListener('touchend', clearTimer, { once: true });
+                              element.addEventListener('touchmove', clearTimer, { once: true });
                             }}
                             className={`${
                               msg.type === 'voice'
@@ -984,7 +953,6 @@ export default function MessagesPage() {
                                 : "bg-gray-800 text-white rounded-bl-md"
                             }`}
                           >
-                          
                             {msg.type === "image" ? (
                               <div className="space-y-2">
                                 <img
@@ -999,11 +967,8 @@ export default function MessagesPage() {
                               </div>
 
                             ) : msg.type === "voice" ? (
-                              /* ── WhatsApp-style voice bubble ── */
                               <div className="space-y-1.5 min-w-[220px]">
                                 <div className="flex items-center space-x-2.5">
-
-                                  {/* Avatar with mic badge — LEFT for sent messages */}
                                   {isMe && (
                                     <div className="relative flex-shrink-0">
                                       <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center border border-white/10">
@@ -1016,8 +981,6 @@ export default function MessagesPage() {
                                       </div>
                                     </div>
                                   )}
-
-                                  {/* Play / Pause button */}
                                   <button
                                     onClick={() => playVoiceMessage(msg._id, msg.voiceUrl || "")}
                                     className="flex-shrink-0 w-8 h-8 flex items-center justify-center hover:opacity-75 active:scale-90 touch-manipulation transition-transform"
@@ -1028,8 +991,6 @@ export default function MessagesPage() {
                                       <Play className="h-5 w-5 text-white fill-white" />
                                     )}
                                   </button>
-
-                                  {/* Waveform */}
                                   <div className="flex-1 relative h-9 flex items-center">
                                     <div className="flex items-center justify-between w-full h-full gap-[2px]">
                                       {generateWaveform(msg._id).map((height, i, arr) => {
@@ -1047,7 +1008,6 @@ export default function MessagesPage() {
                                         );
                                       })}
                                     </div>
-                                    {/* Blue scrubber dot */}
                                     <div
                                       className="absolute w-3 h-3 bg-[#64B5F6] rounded-full shadow-md pointer-events-none"
                                       style={{
@@ -1058,8 +1018,6 @@ export default function MessagesPage() {
                                       }}
                                     />
                                   </div>
-
-                                  {/* Avatar with mic badge — RIGHT for received messages */}
                                   {!isMe && (
                                     <div className="relative flex-shrink-0">
                                       <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center border border-white/10">
@@ -1073,8 +1031,6 @@ export default function MessagesPage() {
                                     </div>
                                   )}
                                 </div>
-
-                                {/* Duration + timestamp row */}
                                 <div className="flex items-center justify-between px-0.5">
                                   <span className="text-[11px] text-white/60 font-mono tabular-nums">
                                     {playingId === msg._id && audioRef.current
@@ -1103,7 +1059,6 @@ export default function MessagesPage() {
                               </p>
                             )}
 
-                            {/* Common footer — hidden for voice (voice has its own) */}
                             {msg.type !== "voice" && (
                               <div className="flex items-center justify-between mt-1 space-x-2">
                                 <span className="text-[10px] md:text-xs opacity-70">
@@ -1126,8 +1081,6 @@ export default function MessagesPage() {
                     );
                   })}
                   <div ref={messagesEndRef} />
-                  
-                  {/* Extra bottom padding for mobile */}
                   <div className="h-4 md:h-0" />
                 </div>
 
@@ -1150,7 +1103,6 @@ export default function MessagesPage() {
                 {/* Input Area — WhatsApp-style bottom bar */}
                 <div className="bg-[#111112] border-t border-white/5 flex-shrink-0" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
                   <div className="px-1 py-2">
-                    {/* Image Preview */}
                     {imagePreview && (
                       <div className="mb-2 md:mb-3 relative inline-block">
                         <img
@@ -1162,9 +1114,7 @@ export default function MessagesPage() {
                           onClick={() => {
                             setSelectedImage(null);
                             setImagePreview(null);
-                            if (fileInputRef.current) {
-                              fileInputRef.current.value = "";
-                            }
+                            if (fileInputRef.current) { fileInputRef.current.value = ""; }
                           }}
                           className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 active:bg-red-700 active:scale-95 touch-manipulation"
                         >
@@ -1174,7 +1124,6 @@ export default function MessagesPage() {
                     )}
 
                     {voiceRecorder.isRecording ? (
-                      /* ── Recording state ── */
                       <div className="flex items-center gap-2.5">
                         <button
                           onClick={voiceRecorder.cancelRecording}
@@ -1199,7 +1148,6 @@ export default function MessagesPage() {
                         </button>
                       </div>
                     ) : (voiceRecorder.audioBlob && !justSentVoice) ? (
-                      /* ── Voice preview state ── */
                       <div className="flex items-center gap-2.5">
                         <button
                           onClick={voiceRecorder.cancelRecording}
@@ -1225,7 +1173,6 @@ export default function MessagesPage() {
                         </button>
                       </div>
                     ) : (
-                      /* ── WhatsApp-style input tray ── */
                       <div className="flex items-center gap-2.5">
                         <input
                           type="file"
@@ -1234,16 +1181,12 @@ export default function MessagesPage() {
                           accept="image/*"
                           className="hidden"
                         />
-
-                        {/* + button — left, bare icon */}
                         <button
                           onClick={() => fileInputRef.current?.click()}
                           className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white/70 hover:text-white active:scale-90 touch-manipulation transition-transform"
                         >
                           <Plus className="h-6 w-6" strokeWidth={2.2} />
                         </button>
-
-                        {/* Pill input */}
                         <div className="flex-1 flex items-center bg-[#1F2023] rounded-full px-4 py-0 min-w-0 border border-white/5">
                           <input
                             type="text"
@@ -1255,16 +1198,11 @@ export default function MessagesPage() {
                                 handleSendMessage();
                               }
                             }}
-                            
                             className="flex-1 bg-transparent text-white placeholder-gray-500 outline-none py-2.5 text-[15px] min-w-0"
                             style={{ fontSize: '16px' }}
                           />
-                          
                         </div>
-
-                        {/* Right icons — bare, no background */}
                         {message.trim() || selectedImage ? (
-                          /* Send replaces all three when typing */
                           <button
                             onClick={handleSendMessage}
                             disabled={sending}
@@ -1274,14 +1212,12 @@ export default function MessagesPage() {
                           </button>
                         ) : (
                           <>
-                            {/* Camera */}
                             <button
                               onClick={() => fileInputRef.current?.click()}
                               className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white/70 hover:text-white active:scale-90 touch-manipulation transition-transform"
                             >
                               <Camera className="h-[22px] w-[22px]" strokeWidth={1.8} />
                             </button>
-                            {/* Mic */}
                             <button
                               onClick={voiceRecorder.startRecording}
                               className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white/70 hover:text-white active:scale-90 touch-manipulation transition-transform"
@@ -1362,9 +1298,7 @@ export default function MessagesPage() {
         <div 
           className="fixed inset-0 z-50 bg-black flex flex-col animate-in fade-in duration-200"
           onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setViewingImage(null);
-            }
+            if (e.target === e.currentTarget) { setViewingImage(null); }
           }}
         >
           <div className="flex items-center justify-between p-3 md:p-4 bg-gradient-to-b from-black/80 to-transparent backdrop-blur-sm z-10">
@@ -1375,7 +1309,6 @@ export default function MessagesPage() {
             >
               <X className="h-6 w-6 text-white" />
             </button>
-            
             <button
               onClick={() => handleImageDownload(viewingImage.url, viewingImage.content)}
               className="p-2 hover:bg-white/10 rounded-full transition-colors active:bg-white/20 active:scale-95 touch-manipulation"
@@ -1384,7 +1317,6 @@ export default function MessagesPage() {
               <Download className="h-6 w-6 text-white" />
             </button>
           </div>
-
           <div 
             className="flex-1 flex items-center justify-center p-4 overflow-hidden touch-none"
             onClick={() => setViewingImage(null)}
@@ -1405,7 +1337,6 @@ export default function MessagesPage() {
               draggable={false}
             />
           </div>
-
           {viewingImage.content && viewingImage.content !== "Image" && (
             <div className="p-3 md:p-4 bg-gradient-to-t from-black/80 to-transparent backdrop-blur-sm">
               <p className="text-white text-center text-sm md:text-base break-words">
@@ -1416,7 +1347,7 @@ export default function MessagesPage() {
         </div>
       )}
       
-      {/* Responsive height styling */}
+      {/* Responsive height styling — unchanged from original */}
       <style jsx>{`
         .messages-container-height {
           height: calc(100vh - 5rem);

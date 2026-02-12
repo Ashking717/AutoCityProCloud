@@ -1,5 +1,8 @@
-// app/api/analytics/dashboard/route.ts - WITH FIXED TIMESTAMPS
+// app/api/analytics/dashboard/route.ts - OPTIMIZED FOR VERCEL HOBBY
 import { NextRequest, NextResponse } from 'next/server';
+
+// ✅ Cache analytics data for 60 seconds to reduce CPU usage
+export const revalidate = 60;
 import Sale from '@/lib/models/Sale';
 import Customer from '@/lib/models/Customer';
 import ActivityLog from '@/lib/models/ActivityLog';
@@ -38,50 +41,18 @@ export async function GET(request: NextRequest) {
     const outletId = user.outletId;
     const outletObjectId = new mongoose.Types.ObjectId(outletId as string);
     
-    // Get period from query params
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') || 'month';
     
-    // Get all analytics data
-    const [
-      stats,
-      salesTrend,
-      topProductsData,
-      recentActivityData,
-      percentageChanges
-    ] = await Promise.all([
-      getDashboardStats(outletObjectId, period, now),
-      getSalesTrend(outletObjectId, period, now),
-      getTopProducts(outletObjectId, period, now),
-      getRecentActivity(outletObjectId),
-      getPercentageChanges(outletObjectId, period, now)
-    ]);
-    
-    // ✅ FIXED: Format recent activity with ISO timestamp
-    const formattedActivity = recentActivityData.map((activity: any) => ({
-      id: activity._id.toString(),
-      description: activity.description || 'No description',
-      user: activity.username || 'Unknown',
-      // ✅ CRITICAL FIX: Return ISO string instead of formatted string
-      // The frontend timezone utility will handle the display formatting
-      timestamp: activity.timestamp instanceof Date 
-        ? activity.timestamp.toISOString() 
-        : new Date(activity.timestamp).toISOString(),
-      type: activity.actionType || 'info'
-    }));
-    
-    // Format top products
-    const formattedTopProducts = topProductsData.map((product: any) => ({
-      ...product,
-      revenue: Math.round(product.revenue)
-    }));
+    // ✅ OPTIMIZATION 1: Single unified query for all sales data
+    const allData = await getUnifiedDashboardData(outletObjectId, period, now);
     
     return NextResponse.json({
-      stats,
-      salesTrend,
-      topProducts: formattedTopProducts,
-      recentActivity: formattedActivity,
-      percentageChanges,
+      stats: allData.stats,
+      salesTrend: allData.salesTrend,
+      topProducts: allData.topProducts,
+      recentActivity: allData.recentActivity,
+      percentageChanges: allData.percentageChanges,
       period
     });
     
@@ -93,347 +64,338 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Helper function to get dashboard statistics with FIXED profit calculation
-async function getDashboardStats(outletId: mongoose.Types.ObjectId, period: string, now: Date) {
-  const { startDate, endDate } = getDateRange(period, now);
-  
-  // Today's sales
-  const todayStart = startOfDay(now);
-  const todayEnd = endOfDay(now);
-  
-  const todaySalesAgg = await Sale.aggregate([
-    {
-      $match: {
-        outletId,
-        saleDate: { $gte: todayStart, $lte: todayEnd },
-        status: 'COMPLETED'
-      }
-    },
-    {
-      $group: {
-        _id: null,
-        total: { $sum: '$grandTotal' }
-      }
-    }
-  ]);
-  
-  const todaySales = todaySalesAgg[0]?.total || 0;
-
-  // Period sales - Get all sales with items to calculate profit properly
-  const periodSalesData = await Sale.find({
-    outletId,
-    saleDate: { $gte: startDate, $lte: endDate },
-    status: 'COMPLETED'
-  }).populate({
-    path: 'items.productId',
-    select: 'costPrice'
-  }).lean();
-
-  let periodSales = 0;
-  let periodProfit = 0;
-  let periodOrders = periodSalesData.length;
-
-  // Calculate sales and profit manually
-  for (const sale of periodSalesData) {
-    periodSales += sale.grandTotal;
-    
-    // Calculate profit for this sale
-    let saleCost = 0;
-    
-    for (const item of sale.items) {
-      // Skip labor items
-      if (item.isLabor) continue;
-      
-      // Get product cost
-      let itemCost = 0;
-      if (item.productId && typeof item.productId === 'object' && 'costPrice' in item.productId) {
-        itemCost = (item.productId as any).costPrice || 0;
-      }
-      
-      saleCost += itemCost * item.quantity;
-    }
-    
-    const saleProfit = sale.grandTotal - saleCost;
-    periodProfit += saleProfit;
-  }
-
-  const profitMargin = periodSales > 0 ? (periodProfit / periodSales) * 100 : 0;
-
-  // Low stock items
-  const lowStockItems = await Product.countDocuments({
-    outletId,
-    $expr: { 
-      $and: [
-        { $lte: ['$currentStock', '$reorderPoint'] },
-        { $gt: ['$currentStock', 0] }
-      ]
-    },
-    isActive: true
-  });
-
-  // Total customers
-  const totalCustomers = await Customer.countDocuments({ outletId });
-
-  // Pending payments
-  const pendingPaymentsAgg = await Sale.aggregate([
-    {
-      $match: {
-        outletId,
-        balanceDue: { $gt: 0 },
-        status: 'COMPLETED'
-      }
-    },
-    {
-      $group: {
-        _id: null,
-        total: { $sum: '$balanceDue' }
-      }
-    }
-  ]);
-
-  const pendingPayments = pendingPaymentsAgg[0]?.total || 0;
-
-  // Average order value
-  const avgOrderValue = periodOrders > 0 ? periodSales / periodOrders : 0;
-
-  return {
-    todaySales: Math.round(todaySales),
-    monthSales: Math.round(periodSales),
-    totalProfit: Math.round(periodProfit),
-    profitMargin: parseFloat(profitMargin.toFixed(1)),
-    lowStockItems,
-    totalCustomers,
-    totalOrders: periodOrders,
-    averageOrderValue: Math.round(avgOrderValue),
-    pendingPayments: Math.round(pendingPayments)
-  };
-}
-
-// Helper function to get sales trend with profit
-async function getSalesTrend(
+// ✅ OPTIMIZATION: Unified function that fetches all data in minimal queries
+async function getUnifiedDashboardData(
   outletId: mongoose.Types.ObjectId,
   period: string,
   now: Date
 ) {
+  const { startDate, endDate } = getDateRange(period, now);
+  const { previousStart, previousEnd } = getPreviousDateRange(period, now);
+  
+  const todayStart = startOfDay(now);
+  const todayEnd = endOfDay(now);
+  const yesterdayStart = startOfDay(subDays(now, 1));
+  const yesterdayEnd = endOfDay(subDays(now, 1));
+  
+  // ✅ OPTIMIZATION 2: Parallel execution of independent queries
+  const [
+    salesData,
+    lowStockCount,
+    totalCustomers,
+    currentCustomers,
+    previousCustomers,
+    recentActivity
+  ] = await Promise.all([
+    // Single comprehensive sales query covering ALL time periods
+    Sale.find({
+      outletId,
+      saleDate: { 
+        $gte: Math.min(previousStart.getTime(), todayStart.getTime()),
+        $lte: endDate
+      },
+      status: 'COMPLETED'
+    })
+    .select('saleDate grandTotal balanceDue items')
+    .lean(),
+    
+    // Low stock items
+    Product.countDocuments({
+      outletId,
+      $expr: { 
+        $and: [
+          { $lte: ['$currentStock', '$reorderPoint'] },
+          { $gt: ['$currentStock', 0] }
+        ]
+      },
+      isActive: true
+    }),
+    
+    // Total customers (no date filter)
+    Customer.countDocuments({ outletId }),
+    
+    // Current period customers
+    Customer.countDocuments({
+      outletId,
+      createdAt: { $gte: startDate, $lte: endDate }
+    }),
+    
+    // Previous period customers
+    Customer.countDocuments({
+      outletId,
+      createdAt: { $gte: previousStart, $lte: previousEnd }
+    }),
+    
+    // Recent activity
+    ActivityLog.find({ outletId })
+      .sort({ timestamp: -1 })
+      .limit(10)
+      .select('description username timestamp actionType')
+      .lean()
+  ]);
+
+  // ✅ OPTIMIZATION 3: Process all data in-memory (single pass)
+  const analytics = processSalesData(
+    salesData,
+    {
+      period,
+      now,
+      startDate,
+      endDate,
+      previousStart,
+      previousEnd,
+      todayStart,
+      todayEnd,
+      yesterdayStart,
+      yesterdayEnd
+    }
+  );
+
+  // Calculate stats
+  const stats = {
+    todaySales: Math.round(analytics.todaySales),
+    monthSales: Math.round(analytics.periodSales),
+    totalProfit: Math.round(analytics.periodProfit),
+    profitMargin: parseFloat(analytics.profitMargin.toFixed(1)),
+    lowStockItems: lowStockCount,
+    totalCustomers,
+    totalOrders: analytics.periodOrders,
+    averageOrderValue: Math.round(analytics.avgOrderValue),
+    pendingPayments: Math.round(analytics.pendingPayments)
+  };
+
+  // Calculate percentage changes
+  const percentageChanges = {
+    salesChange: parseFloat(analytics.salesChange.toFixed(1)),
+    profitChange: 0,
+    customerChange: calculatePercentageChange(currentCustomers, previousCustomers),
+    lowStockChange: 0,
+    todayVsYesterday: {
+      sales: parseFloat(analytics.todayVsYesterday.toFixed(1)),
+      profit: 0
+    }
+  };
+
+  // Format recent activity
+  const formattedActivity = recentActivity.map((activity: any) => ({
+    id: activity._id.toString(),
+    description: activity.description || 'No description',
+    user: activity.username || 'Unknown',
+    timestamp: activity.timestamp instanceof Date 
+      ? activity.timestamp.toISOString() 
+      : new Date(activity.timestamp).toISOString(),
+    type: activity.actionType || 'info'
+  }));
+
+  return {
+    stats,
+    salesTrend: analytics.salesTrend,
+    topProducts: analytics.topProducts,
+    recentActivity: formattedActivity,
+    percentageChanges
+  };
+}
+
+// ✅ OPTIMIZATION 4: Single-pass data processing
+function processSalesData(salesData: any[], config: any) {
+  const {
+    period,
+    now,
+    startDate,
+    endDate,
+    previousStart,
+    previousEnd,
+    todayStart,
+    todayEnd,
+    yesterdayStart,
+    yesterdayEnd
+  } = config;
+
+  // Initialize accumulators
+  let todaySales = 0;
+  let yesterdaySales = 0;
+  let periodSales = 0;
+  let periodProfit = 0;
+  let periodOrders = 0;
+  let previousPeriodSales = 0;
+  let pendingPayments = 0;
+  
+  // For sales trend
+  const trendMap = new Map<string, { sales: number; profit: number }>();
+  
+  // For top products
+  const productMap = new Map<string, { quantity: number; revenue: number }>();
+
+  // ✅ Single loop through all sales
+  for (const sale of salesData) {
+    const saleDate = new Date(sale.saleDate);
+    const saleTime = saleDate.getTime();
+    
+    // Calculate profit for this sale
+    let saleCost = 0;
+    let saleProfit = 0;
+    
+    for (const item of sale.items) {
+      if (item.isLabor) continue;
+      
+      const itemCost = item.costPrice || 0;
+      const itemProfit = (item.unitPrice - itemCost) * item.quantity;
+      
+      saleCost += itemCost * item.quantity;
+      saleProfit += itemProfit;
+      
+      // Track top products (current period only)
+      if (saleTime >= startDate.getTime() && saleTime <= endDate.getTime()) {
+        const productKey = item.name;
+        const existing = productMap.get(productKey) || { quantity: 0, revenue: 0 };
+        productMap.set(productKey, {
+          quantity: existing.quantity + item.quantity,
+          revenue: existing.revenue + item.total
+        });
+      }
+    }
+    
+    // Today's sales
+    if (saleTime >= todayStart.getTime() && saleTime <= todayEnd.getTime()) {
+      todaySales += sale.grandTotal;
+    }
+    
+    // Yesterday's sales
+    if (saleTime >= yesterdayStart.getTime() && saleTime <= yesterdayEnd.getTime()) {
+      yesterdaySales += sale.grandTotal;
+    }
+    
+    // Current period
+    if (saleTime >= startDate.getTime() && saleTime <= endDate.getTime()) {
+      periodSales += sale.grandTotal;
+      periodProfit += saleProfit;
+      periodOrders++;
+      
+      // Pending payments
+      if (sale.balanceDue > 0) {
+        pendingPayments += sale.balanceDue;
+      }
+      
+      // Sales trend data
+      const trendKey = getTrendKey(saleDate, period, now);
+      const existing = trendMap.get(trendKey) || { sales: 0, profit: 0 };
+      trendMap.set(trendKey, {
+        sales: existing.sales + sale.grandTotal,
+        profit: existing.profit + saleProfit
+      });
+    }
+    
+    // Previous period
+    if (saleTime >= previousStart.getTime() && saleTime <= previousEnd.getTime()) {
+      previousPeriodSales += sale.grandTotal;
+    }
+  }
+
+  // Build sales trend
+  const salesTrend = buildSalesTrend(period, now, trendMap);
+  
+  // Build top products
+  const topProducts = Array.from(productMap.entries())
+    .map(([name, data]) => ({
+      id: name,
+      name,
+      quantity: data.quantity,
+      revenue: Math.round(data.revenue)
+    }))
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 5);
+
+  // Calculate metrics
+  const profitMargin = periodSales > 0 ? (periodProfit / periodSales) * 100 : 0;
+  const avgOrderValue = periodOrders > 0 ? periodSales / periodOrders : 0;
+  const salesChange = calculatePercentageChange(periodSales, previousPeriodSales);
+  const todayVsYesterday = calculatePercentageChange(todaySales, yesterdaySales);
+
+  return {
+    todaySales,
+    yesterdaySales,
+    periodSales,
+    periodProfit,
+    periodOrders,
+    previousPeriodSales,
+    pendingPayments,
+    profitMargin,
+    avgOrderValue,
+    salesChange,
+    todayVsYesterday,
+    salesTrend,
+    topProducts
+  };
+}
+
+// ✅ Helper: Get trend key for grouping
+function getTrendKey(date: Date, period: string, now: Date): string {
+  switch (period) {
+    case 'today':
+      return date.getHours().toString().padStart(2, '0');
+    case 'week':
+    case 'month':
+      return format(date, 'yyyy-MM-dd');
+    case 'year':
+      return date.getMonth().toString();
+    default:
+      return format(date, 'yyyy-MM-dd');
+  }
+}
+
+// ✅ Helper: Build sales trend from map
+function buildSalesTrend(period: string, now: Date, trendMap: Map<string, { sales: number; profit: number }>) {
   let labels: string[] = [];
   let data: number[] = [];
   let profits: number[] = [];
 
-  /* ───────────────── TODAY (hourly – profit skipped) ───────────────── */
   if (period === 'today') {
-    const hourlySales = await Sale.aggregate([
-      {
-        $match: {
-          outletId,
-          saleDate: { $gte: startOfDay(now), $lte: endOfDay(now) },
-          status: 'COMPLETED',
-        },
-      },
-      {
-        $group: {
-          _id: { $hour: '$saleDate' },
-          sales: { $sum: '$grandTotal' },
-        },
-      },
-      { $sort: { _id: 1 } },
-    ]);
-
-    labels = Array.from({ length: 24 }, (_, i) =>
-      `${i.toString().padStart(2, '0')}:00`
-    );
-
+    labels = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`);
     data = labels.map((_, hour) => {
-      const sale = hourlySales.find((s) => s._id === hour);
-      return sale?.sales || 0;
+      const key = hour.toString().padStart(2, '0');
+      return Math.round(trendMap.get(key)?.sales || 0);
     });
-
     profits = Array(24).fill(0);
   }
-
-  /* ───────────────── WEEK (daily with profit) ───────────────── */
   else if (period === 'week') {
-    const days = eachDayOfInterval({
-      start: subDays(now, 6),
-      end: now,
+    const days = eachDayOfInterval({ start: subDays(now, 6), end: now });
+    labels = days.map(d => format(d, 'EEE'));
+    data = days.map(day => {
+      const key = format(day, 'yyyy-MM-dd');
+      return Math.round(trendMap.get(key)?.sales || 0);
     });
-
-    labels = days.map((d) => format(d, 'EEE'));
-
-    const sales = await Sale.find({
-      outletId,
-      saleDate: {
-        $gte: startOfDay(subDays(now, 6)),
-        $lte: endOfDay(now),
-      },
-      status: 'COMPLETED',
-    }).lean();
-
-    data = days.map((day) => {
-      const dateKey = format(day, 'yyyy-MM-dd');
-      return sales
-        .filter(
-          (s) => format(new Date(s.saleDate), 'yyyy-MM-dd') === dateKey
-        )
-        .reduce((sum, s) => sum + s.grandTotal, 0);
-    });
-
-    profits = days.map((day) => {
-      const dateKey = format(day, 'yyyy-MM-dd');
-      let profit = 0;
-
-      for (const sale of sales) {
-        if (format(new Date(sale.saleDate), 'yyyy-MM-dd') !== dateKey) continue;
-
-        for (const item of sale.items) {
-          if (item.isLabor) continue;
-          const cost = item.costPrice || 0;
-          profit += (item.unitPrice - cost) * item.quantity;
-        }
-      }
-
-      return profit;
+    profits = days.map(day => {
+      const key = format(day, 'yyyy-MM-dd');
+      return Math.round(trendMap.get(key)?.profit || 0);
     });
   }
-
-  /* ───────────────── MONTH (last 30 days with profit) ───────────────── */
   else if (period === 'month') {
-    const days = eachDayOfInterval({
-      start: subDays(now, 29),
-      end: now,
+    const days = eachDayOfInterval({ start: subDays(now, 29), end: now });
+    labels = days.map(d => format(d, 'MMM d'));
+    data = days.map(day => {
+      const key = format(day, 'yyyy-MM-dd');
+      return Math.round(trendMap.get(key)?.sales || 0);
     });
-
-    labels = days.map((d) => format(d, 'MMM d'));
-
-    const sales = await Sale.find({
-      outletId,
-      saleDate: {
-        $gte: startOfDay(subDays(now, 29)),
-        $lte: endOfDay(now),
-      },
-      status: 'COMPLETED',
-    }).lean();
-
-    data = days.map((day) => {
-      const dateKey = format(day, 'yyyy-MM-dd');
-      return sales
-        .filter(
-          (s) => format(new Date(s.saleDate), 'yyyy-MM-dd') === dateKey
-        )
-        .reduce((sum, s) => sum + s.grandTotal, 0);
-    });
-
-    profits = days.map((day) => {
-      const dateKey = format(day, 'yyyy-MM-dd');
-      let profit = 0;
-
-      for (const sale of sales) {
-        if (format(new Date(sale.saleDate), 'yyyy-MM-dd') !== dateKey) continue;
-
-        for (const item of sale.items) {
-          if (item.isLabor) continue;
-          const cost = item.costPrice || 0;
-          profit += (item.unitPrice - cost) * item.quantity;
-        }
-      }
-
-      return profit;
+    profits = days.map(day => {
+      const key = format(day, 'yyyy-MM-dd');
+      return Math.round(trendMap.get(key)?.profit || 0);
     });
   }
-
-  /* ───────────────── YEAR (monthly with profit) ───────────────── */
   else if (period === 'year') {
-    labels = Array.from({ length: 12 }, (_, i) =>
-      format(new Date(now.getFullYear(), i, 1), 'MMM')
-    );
-
-    const sales = await Sale.find({
-      outletId,
-      saleDate: {
-        $gte: new Date(now.getFullYear(), 0, 1),
-        $lte: new Date(now.getFullYear(), 11, 31, 23, 59, 59),
-      },
-      status: 'COMPLETED',
-    }).lean();
-
-    data = Array(12).fill(0);
-    profits = Array(12).fill(0);
-
-    for (const sale of sales) {
-      const month = new Date(sale.saleDate).getMonth();
-      data[month] += sale.grandTotal;
-
-      for (const item of sale.items) {
-        if (item.isLabor) continue;
-        const cost = item.costPrice || 0;
-        profits[month] += (item.unitPrice - cost) * item.quantity;
-      }
-    }
+    labels = Array.from({ length: 12 }, (_, i) => format(new Date(now.getFullYear(), i, 1), 'MMM'));
+    data = Array.from({ length: 12 }, (_, i) => Math.round(trendMap.get(i.toString())?.sales || 0));
+    profits = Array.from({ length: 12 }, (_, i) => Math.round(trendMap.get(i.toString())?.profit || 0));
   }
 
-  return {
-    labels,
-    data: data.map((v) => Math.round(v)),
-    profits: profits.map((v) => Math.round(v)),
-  };
+  return { labels, data, profits };
 }
 
-// Helper function to get top products - SIMPLIFIED VERSION
-async function getTopProducts(outletId: mongoose.Types.ObjectId, period: string, now: Date) {
-  const { startDate, endDate } = getDateRange(period, now);
-  
-  // Simplified aggregation that should work
-  const topProducts = await Sale.aggregate([
-    {
-      $match: {
-        outletId,
-        saleDate: { $gte: startDate, $lte: endDate },
-        status: 'COMPLETED'
-      }
-    },
-    { $unwind: '$items' },
-    // Filter out labor items
-    {
-      $match: {
-        'items.isLabor': { $ne: true }
-      }
-    },
-    // Group by product name
-    {
-      $group: {
-        _id: '$items.name',
-        quantity: { $sum: '$items.quantity' },
-        revenue: { $sum: '$items.total' }
-      }
-    },
-    // Sort by revenue descending
-    { $sort: { revenue: -1 } },
-    // Limit to top 5
-    { $limit: 5 },
-    // Format the output
-    {
-      $project: {
-        id: '$_id',
-        name: '$_id',
-        quantity: 1,
-        revenue: 1,
-        _id: 0
-      }
-    }
-  ]);
-
-  return topProducts;
-}
-
-// Helper function to get recent activity
-async function getRecentActivity(outletId: mongoose.Types.ObjectId) {
-  const activity = await ActivityLog.find({
-    outletId
-  })
-    .sort({ timestamp: -1 })
-    .limit(10)
-    .lean();
-
-  return activity;
+// ✅ Helper: Calculate percentage change
+function calculatePercentageChange(current: number, previous: number): number {
+  if (previous > 0) {
+    return parseFloat((((current - previous) / previous) * 100).toFixed(1));
+  }
+  return current > 0 ? 100 : 0;
 }
 
 // Helper function to get date range based on period
@@ -464,12 +426,10 @@ function getDateRange(period: string, now: Date) {
   return { startDate, endDate };
 }
 
-// Add this helper function to calculate percentage changes
-async function getPercentageChanges(outletId: mongoose.Types.ObjectId, period: string, now: Date) {
-  const { startDate: currentStart, endDate: currentEnd } = getDateRange(period, now);
-  
-  // Calculate previous period
-  let previousStart: Date, previousEnd: Date;
+// Helper function to get previous date range
+function getPreviousDateRange(period: string, now: Date) {
+  let previousStart: Date;
+  let previousEnd: Date;
   
   switch (period) {
     case 'today':
@@ -493,116 +453,5 @@ async function getPercentageChanges(outletId: mongoose.Types.ObjectId, period: s
       previousEnd = endOfMonth(subMonths(now, 1));
   }
 
-  // Get current period sales
-  const currentPeriodSales = await Sale.aggregate([
-    {
-      $match: {
-        outletId,
-        saleDate: { $gte: currentStart, $lte: currentEnd },
-        status: 'COMPLETED'
-      }
-    },
-    {
-      $group: {
-        _id: null,
-        total: { $sum: '$grandTotal' }
-      }
-    }
-  ]);
-
-  // Get previous period sales
-  const previousPeriodSales = await Sale.aggregate([
-    {
-      $match: {
-        outletId,
-        saleDate: { $gte: previousStart, $lte: previousEnd },
-        status: 'COMPLETED'
-      }
-    },
-    {
-      $group: {
-        _id: null,
-        total: { $sum: '$grandTotal' }
-      }
-    }
-  ]);
-
-  const currentSales = currentPeriodSales[0]?.total || 0;
-  const previousSales = previousPeriodSales[0]?.total || 0;
-
-  // Calculate percentage change
-  const salesChange = previousSales > 0 
-    ? ((currentSales - previousSales) / previousSales) * 100 
-    : currentSales > 0 ? 100 : 0;
-
-  // For today vs yesterday
-  const todayStart = startOfDay(now);
-  const todayEnd = endOfDay(now);
-  const yesterdayStart = startOfDay(subDays(now, 1));
-  const yesterdayEnd = endOfDay(subDays(now, 1));
-  
-  const todaySalesAgg = await Sale.aggregate([
-    {
-      $match: {
-        outletId,
-        saleDate: { $gte: todayStart, $lte: todayEnd },
-        status: 'COMPLETED'
-      }
-    },
-    {
-      $group: {
-        _id: null,
-        total: { $sum: '$grandTotal' }
-      }
-    }
-  ]);
-  
-  const yesterdaySalesAgg = await Sale.aggregate([
-    {
-      $match: {
-        outletId,
-        saleDate: { $gte: yesterdayStart, $lte: yesterdayEnd },
-        status: 'COMPLETED'
-      }
-    },
-    {
-      $group: {
-        _id: null,
-        total: { $sum: '$grandTotal' }
-      }
-    }
-  ]);
-  
-  const todaySales = todaySalesAgg[0]?.total || 0;
-  const yesterdaySales = yesterdaySalesAgg[0]?.total || 0;
-  
-  const todayVsYesterday = yesterdaySales > 0 
-    ? ((todaySales - yesterdaySales) / yesterdaySales) * 100 
-    : todaySales > 0 ? 100 : 0;
-
-  // Get customer count changes
-  const currentCustomers = await Customer.countDocuments({
-    outletId,
-    createdAt: { $gte: currentStart, $lte: currentEnd }
-  });
-
-  const previousCustomers = await Customer.countDocuments({
-    outletId,
-    createdAt: { $gte: previousStart, $lte: previousEnd }
-  });
-
-  const customerChange = previousCustomers > 0 
-    ? ((currentCustomers - previousCustomers) / previousCustomers) * 100 
-    : currentCustomers > 0 ? 100 : 0;
-
-  return {
-    salesChange: parseFloat(salesChange.toFixed(1)),
-    profitChange: 0, // We'll calculate this if needed
-    customerChange: parseFloat(customerChange.toFixed(1)),
-    lowStockChange: 0,
-    todayVsYesterday: {
-      sales: parseFloat(todayVsYesterday.toFixed(1)),
-      profit: 0
-    }
-  };
+  return { previousStart, previousEnd };
 }

@@ -372,7 +372,7 @@ export default function MessagesPage() {
         fetchRecipientStatus(selectedUser._id),
       ]);
       await fetchConversations();
-      toast.success("Refreshed", { duration: 1500 });
+      
     } catch {
       toast.error("Failed to refresh");
     } finally {
@@ -887,8 +887,8 @@ export default function MessagesPage() {
       )}
 
       <style jsx>{`
-        .messages-container-height { height: calc(100vh - 5rem); }
-        @media (min-width: 768px) { .messages-container-height { height: 100vh; } }
+        .messages-container-height { height: calc(100dvh - 5rem); }
+        @media (min-width: 768px) { .messages-container-height { height: 100dvh; } }
       `}</style>
     </MainLayout>
   );

@@ -21,8 +21,69 @@ import {
   RefreshCw,
   ChevronDown,
   Copy,
+  Plus,
+  Smile,
+  Camera,
 } from "lucide-react";
 import toast from "react-hot-toast";
+
+// WhatsApp-style dark doodle wallpaper — 380×380 repeating tile
+// Uses single-quoted XML attributes + %23 for # so it embeds safely in CSS url("data:image/svg+xml,...")
+const WALLPAPER_SVG = `<svg xmlns='http://www.w3.org/2000/svg' width='380' height='380'>
+  <rect width='380' height='380' fill='%230D1117'/>
+  <g stroke='rgba(255,255,255,0.11)' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'>
+    <path d='M20,48 A18,18 0 0,1 56,48'/>
+    <rect x='15' y='48' width='9' height='14' rx='3'/>
+    <rect x='52' y='48' width='9' height='14' rx='3'/>
+    <polygon points='200,18 203,26 212,26 205,31 208,39 200,34 192,39 195,31 188,26 197,26'/>
+    <path d='M318,68 C318,58 306,54 306,64 C306,54 294,58 294,68 C294,76 306,85 306,85 C306,85 318,76 318,68 Z'/>
+    <path d='M85,148 L85,168 M85,168 A5,5 0 1,1 75,168 A5,5 0 0,1 85,168'/>
+    <path d='M85,148 L99,145 L99,155 L85,158'/>
+    <path d='M290,115 L265,155 L315,155 Z'/>
+    <path d='M271,150 A30,30 0 0,1 309,150'/>
+    <circle cx='285' cy='138' r='3' fill='rgba(255,255,255,0.11)'/>
+    <circle cx='298' cy='143' r='2.5' fill='rgba(255,255,255,0.11)'/>
+    <path d='M34,258 L34,280 Q34,286 40,286 L60,286 Q66,286 66,280 L66,258 Z'/>
+    <path d='M66,263 Q76,263 76,270 Q76,277 66,277'/>
+    <path d='M40,258 Q43,250 50,250 Q57,250 60,258'/>
+    <circle cx='170' cy='70' r='2.5' fill='rgba(255,255,255,0.11)' stroke='none'/>
+    <circle cx='145' cy='315' r='2' fill='rgba(255,255,255,0.11)' stroke='none'/>
+    <circle cx='340' cy='170' r='2.5' fill='rgba(255,255,255,0.11)' stroke='none'/>
+    <circle cx='230' cy='240' r='2' fill='rgba(255,255,255,0.11)' stroke='none'/>
+    <circle cx='100' cy='330' r='2' fill='rgba(255,255,255,0.11)' stroke='none'/>
+    <circle cx='345' cy='235' r='5'/>
+    <ellipse cx='345' cy='222' rx='4' ry='7'/>
+    <ellipse cx='358' cy='235' rx='7' ry='4'/>
+    <ellipse cx='345' cy='248' rx='4' ry='7'/>
+    <ellipse cx='332' cy='235' rx='7' ry='4'/>
+    <rect x='283' y='312' width='46' height='30' rx='8'/>
+    <path d='M293,342 L288,352 L300,342'/>
+    <line x1='292' y1='322' x2='320' y2='322'/>
+    <line x1='292' y1='330' x2='314' y2='330'/>
+    <path d='M160,274 L175,283 L160,310 L145,283 Z'/>
+    <line x1='145' y1='283' x2='175' y2='283'/>
+    <path d='M248,60 L250,68 M248,60 L246,68 M248,60 L256,62 M248,60 L240,62 M248,60 L254,54 M248,60 L242,54'/>
+    <circle cx='130' cy='178' r='20'/>
+    <line x1='130' y1='163' x2='130' y2='178'/>
+    <line x1='130' y1='178' x2='141' y2='178'/>
+    <circle cx='130' cy='178' r='2' fill='rgba(255,255,255,0.11)'/>
+    <polygon points='45,170 47,177 55,177 49,182 51,189 45,185 39,189 41,182 35,177 43,177'/>
+    <path d='M237,336 A15,15 0 0,1 261,336'/>
+    <rect x='233' y='336' width='7' height='11' rx='2.5'/>
+    <rect x='260' y='336' width='7' height='11' rx='2.5'/>
+    <line x1='324' y1='100' x2='352' y2='94'/>
+    <line x1='324' y1='94' x2='352' y2='88'/>
+    <line x1='324' y1='88' x2='324' y2='108'/>
+    <circle cx='319' cy='108' r='5' fill='rgba(255,255,255,0.11)'/>
+    <line x1='352' y1='82' x2='352' y2='102'/>
+    <circle cx='347' cy='102' r='5' fill='rgba(255,255,255,0.11)'/>
+    <circle cx='195' cy='215' r='18'/>
+    <circle cx='189' cy='210' r='2' fill='rgba(255,255,255,0.11)'/>
+    <circle cx='201' cy='210' r='2' fill='rgba(255,255,255,0.11)'/>
+    <path d='M187,220 Q195,228 203,220'/>
+    <path d='M88,92 C88,86 80,84 80,90 C80,84 72,86 72,92 C72,97 80,103 80,103 C80,103 88,97 88,92 Z'/>
+  </g>
+</svg>`;
 
 interface User {
   _id: string;
@@ -50,6 +111,25 @@ interface Conversation {
   lastMessage: Message;
   unreadCount: number;
 }
+
+// Deterministic waveform generator seeded by message ID
+const generateWaveform = (seed: string, bars: number = 28): number[] => {
+  let hash = 5381;
+  for (let i = 0; i < seed.length; i++) {
+    hash = ((hash << 5) + hash) + seed.charCodeAt(i);
+    hash = hash & 0x7fffffff;
+  }
+  const result: number[] = [];
+  for (let i = 0; i < bars; i++) {
+    hash = (hash * 1103515245 + 12345) & 0x7fffffff;
+    const normalized = (hash % 1000) / 1000;
+    // Natural speech-like envelope - slight center emphasis
+    const pos = i / bars;
+    const envelope = 0.35 + 0.65 * Math.sin(pos * Math.PI);
+    result.push(Math.max(0.08, Math.min(0.95, normalized * envelope + 0.08)));
+  }
+  return result;
+};
 
 export default function MessagesPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -781,7 +861,7 @@ export default function MessagesPage() {
           {/* Chat Area */}
           <div className={`${
             !selectedUser ? 'hidden' : 'flex'
-          } md:flex flex-1 flex-col bg-[#0A0A0A] relative`}>
+          } md:flex flex-1 flex-col bg-[#0D1117] relative`}>
             {selectedUser ? (
               <>
                 {/* Chat Header - Compact */}
@@ -846,7 +926,10 @@ export default function MessagesPage() {
                   className="flex-1 overflow-y-auto p-3 md:p-4 space-y-2 md:space-y-3"
                   style={{ 
                     WebkitOverflowScrolling: 'touch',
-                    overscrollBehavior: 'contain'
+                    overscrollBehavior: 'contain',
+                    backgroundImage: `url("data:image/svg+xml,${WALLPAPER_SVG.replace(/#/g,'%23').replace(/\n\s*/g,' ')}")`,
+                    backgroundSize: '380px 380px',
+                    backgroundRepeat: 'repeat',
                   }}
                 >
                   {messages.map((msg, index) => {
@@ -873,7 +956,6 @@ export default function MessagesPage() {
                               handleLongPress(msg);
                             }}
                             onTouchStart={(e) => {
-                              // Store reference to the element to avoid null error
                               const element = e.currentTarget;
                               let timer: NodeJS.Timeout | null = null;
                               
@@ -892,7 +974,11 @@ export default function MessagesPage() {
                               element.addEventListener('touchend', handleTouchEnd, { once: false });
                               element.addEventListener('touchmove', handleTouchEnd, { once: true });
                             }}
-                            className={`max-w-[85%] md:max-w-md px-3 md:px-4 py-2 rounded-2xl ${
+                            className={`${
+                              msg.type === 'voice'
+                                ? 'max-w-[92%] md:max-w-sm px-3 py-3'
+                                : 'max-w-[85%] md:max-w-md px-3 md:px-4 py-2'
+                            } rounded-2xl ${
                               isMe
                                 ? "bg-[#005C4B] text-white rounded-br-md"
                                 : "bg-gray-800 text-white rounded-bl-md"
@@ -911,57 +997,129 @@ export default function MessagesPage() {
                                   <p className="text-sm">{msg.content}</p>
                                 )}
                               </div>
+
                             ) : msg.type === "voice" ? (
-                              <div className="space-y-1.5">
-                                <div className="flex items-center space-x-2 min-w-[200px]">
+                              /* ── WhatsApp-style voice bubble ── */
+                              <div className="space-y-1.5 min-w-[220px]">
+                                <div className="flex items-center space-x-2.5">
+
+                                  {/* Avatar with mic badge — LEFT for sent messages */}
+                                  {isMe && (
+                                    <div className="relative flex-shrink-0">
+                                      <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center border border-white/10">
+                                        <span className="text-white font-semibold text-xs">
+                                          {user?.firstName?.[0]}{user?.lastName?.[0]}
+                                        </span>
+                                      </div>
+                                      <div className="absolute -bottom-0.5 -right-0.5 w-[18px] h-[18px] bg-[#2196F3] rounded-full flex items-center justify-center border-2 border-[#005C4B]">
+                                        <Mic className="h-2.5 w-2.5 text-white" />
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Play / Pause button */}
                                   <button
                                     onClick={() => playVoiceMessage(msg._id, msg.voiceUrl || "")}
-                                    className="p-1.5 hover:bg-white/10 rounded-full active:bg-white/20 active:scale-95 touch-manipulation flex-shrink-0"
+                                    className="flex-shrink-0 w-8 h-8 flex items-center justify-center hover:opacity-75 active:scale-90 touch-manipulation transition-transform"
                                   >
                                     {playingId === msg._id ? (
-                                      <Pause className="h-4 w-4" />
+                                      <Pause className="h-5 w-5 text-white fill-white" />
                                     ) : (
-                                      <Play className="h-4 w-4" />
+                                      <Play className="h-5 w-5 text-white fill-white" />
                                     )}
                                   </button>
 
-                                  <div className="flex-1 h-1.5 bg-white/30 rounded-full overflow-hidden">
-                                    <div 
-                                      className="h-full bg-white rounded-full transition-all duration-100"
-                                      style={{ width: `${audioProgress[msg._id] || 0}%` }}
+                                  {/* Waveform */}
+                                  <div className="flex-1 relative h-9 flex items-center">
+                                    <div className="flex items-center justify-between w-full h-full gap-[2px]">
+                                      {generateWaveform(msg._id).map((height, i, arr) => {
+                                        const barPos = (i / (arr.length - 1)) * 100;
+                                        const progress = audioProgress[msg._id] || 0;
+                                        const isPlayed = barPos <= progress;
+                                        return (
+                                          <div
+                                            key={i}
+                                            className={`rounded-full flex-1 transition-colors duration-100 ${
+                                              isPlayed ? 'bg-white' : 'bg-white/35'
+                                            }`}
+                                            style={{ height: `${Math.max(12, height * 100)}%` }}
+                                          />
+                                        );
+                                      })}
+                                    </div>
+                                    {/* Blue scrubber dot */}
+                                    <div
+                                      className="absolute w-3 h-3 bg-[#64B5F6] rounded-full shadow-md pointer-events-none"
+                                      style={{
+                                        left: `${audioProgress[msg._id] || 0}%`,
+                                        top: '50%',
+                                        transform: 'translateX(-50%) translateY(-50%)',
+                                        transition: 'left 0.1s linear',
+                                      }}
                                     />
                                   </div>
 
-                                  <span className="text-xs opacity-80 font-mono tabular-nums">
+                                  {/* Avatar with mic badge — RIGHT for received messages */}
+                                  {!isMe && (
+                                    <div className="relative flex-shrink-0">
+                                      <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center border border-white/10">
+                                        <span className="text-white font-semibold text-xs">
+                                          {msg.senderId.firstName?.[0]}{msg.senderId.lastName?.[0]}
+                                        </span>
+                                      </div>
+                                      <div className="absolute -bottom-0.5 -right-0.5 w-[18px] h-[18px] bg-[#2196F3] rounded-full flex items-center justify-center border-2 border-gray-800">
+                                        <Mic className="h-2.5 w-2.5 text-white" />
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Duration + timestamp row */}
+                                <div className="flex items-center justify-between px-0.5">
+                                  <span className="text-[11px] text-white/60 font-mono tabular-nums">
                                     {playingId === msg._id && audioRef.current
                                       ? formatAudioTime(audioRef.current.currentTime)
-                                      : formatAudioTime(0)
+                                      : formatAudioTime(msg.voiceDuration || 0)
                                     }
-                                    {' / '}
-                                    {formatAudioTime(msg.voiceDuration || 0)}
                                   </span>
+                                  <div className="flex items-center space-x-1">
+                                    <span className="text-[10px] text-white/60">
+                                      {formatTime(msg.createdAt)}
+                                    </span>
+                                    {isMe && (
+                                      msg.isRead ? (
+                                        <CheckCheck className="h-3.5 w-3.5 text-[#53BDEB]" />
+                                      ) : (
+                                        <Check className="h-3.5 w-3.5 text-gray-400" />
+                                      )
+                                    )}
+                                  </div>
                                 </div>
                               </div>
+
                             ) : (
                               <p className="text-sm md:text-base break-words whitespace-pre-wrap">
                                 {msg.content}
                               </p>
                             )}
 
-                            <div className="flex items-center justify-between mt-1 space-x-2">
-                              <span className="text-[10px] md:text-xs opacity-70">
-                                {formatTime(msg.createdAt)}
-                              </span>
-                              {isMe && (
-                                <span>
-                                  {msg.isRead ? (
-                                    <CheckCheck className="h-3.5 w-3.5 md:h-4 md:w-4 text-[#53BDEB]" />
-                                  ) : (
-                                    <Check className="h-3.5 w-3.5 md:h-4 md:w-4 text-gray-400" />
-                                  )}
+                            {/* Common footer — hidden for voice (voice has its own) */}
+                            {msg.type !== "voice" && (
+                              <div className="flex items-center justify-between mt-1 space-x-2">
+                                <span className="text-[10px] md:text-xs opacity-70">
+                                  {formatTime(msg.createdAt)}
                                 </span>
-                              )}
-                            </div>
+                                {isMe && (
+                                  <span>
+                                    {msg.isRead ? (
+                                      <CheckCheck className="h-3.5 w-3.5 md:h-4 md:w-4 text-[#53BDEB]" />
+                                    ) : (
+                                      <Check className="h-3.5 w-3.5 md:h-4 md:w-4 text-gray-400" />
+                                    )}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -969,7 +1127,7 @@ export default function MessagesPage() {
                   })}
                   <div ref={messagesEndRef} />
                   
-                  {/* ✅ Extra bottom padding for mobile to prevent last message from being under input */}
+                  {/* Extra bottom padding for mobile */}
                   <div className="h-4 md:h-0" />
                 </div>
 
@@ -977,7 +1135,7 @@ export default function MessagesPage() {
                 {showScrollButton && (
                   <button
                     onClick={() => scrollToBottom(true)}
-                    className="absolute bottom-28 md:bottom-24 right-4 p-3 bg-[#E84545] text-white rounded-full shadow-lg hover:bg-[#cc3c3c] active:bg-[#b33535] active:scale-95 transition-all z-10 touch-manipulation"
+                    className="absolute bottom-28 md:bottom-24 right-4 p-3 bg-[#2e3333] text-white rounded-full shadow-lg hover:bg-[#cc3c3c] active:bg-[#b33535] active:scale-95 transition-all z-10 touch-manipulation"
                   >
                     <ChevronDown className="h-5 w-5" />
                   </button>
@@ -989,9 +1147,9 @@ export default function MessagesPage() {
                   onEnded={handleAudioEnded}
                 />
 
-                {/* ✅ UPDATED: Input Area with mobile bottom bar accommodation */}
-                <div className="border-t border-gray-800 bg-black flex-shrink-0">
-                  <div className="p-2.5 md:p-4">
+                {/* Input Area — WhatsApp-style bottom bar */}
+                <div className="bg-[#111112] border-t border-white/5 flex-shrink-0" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+                  <div className="px-1 py-2">
                     {/* Image Preview */}
                     {imagePreview && (
                       <div className="mb-2 md:mb-3 relative inline-block">
@@ -1016,58 +1174,59 @@ export default function MessagesPage() {
                     )}
 
                     {voiceRecorder.isRecording ? (
-                      <div className="flex items-center space-x-2">
-                        <div className="flex-1 flex items-center space-x-2 md:space-x-3 px-3 md:px-4 py-2.5 md:py-3 bg-gray-900 rounded-xl">
+                      /* ── Recording state ── */
+                      <div className="flex items-center gap-2.5">
+                        <button
+                          onClick={voiceRecorder.cancelRecording}
+                          className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white/70 hover:text-white active:scale-90 touch-manipulation transition-transform"
+                        >
+                          <X className="h-6 w-6" />
+                        </button>
+                        <div className="flex-1 flex items-center gap-2.5 bg-[#1F2023] rounded-full px-4 py-2.5 border border-white/5">
                           <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse flex-shrink-0" />
-                          <span className="text-white text-sm md:text-base font-medium font-mono tabular-nums">
+                          <span className="text-white text-[15px] font-mono tabular-nums">
                             {formatAudioTime(voiceRecorder.duration)}
                           </span>
-                          <div className="flex-1 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                          <div className="flex-1 h-1 bg-gray-700 rounded-full overflow-hidden">
                             <div className="h-full bg-red-500 rounded-full animate-pulse w-full" />
                           </div>
                         </div>
                         <button
-                          onClick={voiceRecorder.cancelRecording}
-                          className="p-2.5 md:p-3 bg-gray-800 text-white rounded-xl hover:bg-gray-700 active:bg-gray-600 active:scale-95 touch-manipulation"
-                        >
-                          <X className="h-5 w-5" />
-                        </button>
-                        <button
                           onClick={voiceRecorder.stopRecording}
-                          className="p-2.5 md:p-3 bg-[#E84545] text-white rounded-xl hover:bg-[#cc3c3c] active:bg-[#b33535] active:scale-95 touch-manipulation"
+                          className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white hover:text-white/80 active:scale-90 touch-manipulation transition-transform"
                         >
                           <Send className="h-5 w-5" />
                         </button>
                       </div>
                     ) : (voiceRecorder.audioBlob && !justSentVoice) ? (
-                      <div className="flex items-center space-x-2">
-                        <div className="flex-1 flex items-center space-x-2 md:space-x-3 px-3 md:px-4 py-2.5 md:py-3 bg-gray-900 rounded-xl">
-                          <div className="p-1 hover:bg-white/10 rounded-full touch-manipulation">
-                            <Play className="h-4 w-4 text-white" />
+                      /* ── Voice preview state ── */
+                      <div className="flex items-center gap-2.5">
+                        <button
+                          onClick={voiceRecorder.cancelRecording}
+                          className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white/70 hover:text-white active:scale-90 touch-manipulation transition-transform"
+                        >
+                          <Trash2 className="h-[22px] w-[22px]" />
+                        </button>
+                        <div className="flex-1 flex items-center gap-2.5 bg-[#1F2023] rounded-full px-4 py-2.5 border border-white/5">
+                          <Play className="h-4 w-4 text-white/70 flex-shrink-0" />
+                          <div className="flex-1 h-1 bg-gray-600 rounded-full">
+                            <div className="h-1 bg-white rounded-full w-0" />
                           </div>
-                          <div className="flex-1 h-1.5 bg-gray-700 rounded-full">
-                            <div className="h-1.5 bg-white rounded-full w-0" />
-                          </div>
-                          <span className="text-white text-sm font-mono tabular-nums">
+                          <span className="text-white/70 text-[13px] font-mono tabular-nums flex-shrink-0">
                             {formatAudioTime(voiceRecorder.duration)}
                           </span>
                         </div>
                         <button
-                          onClick={voiceRecorder.cancelRecording}
-                          className="p-2.5 md:p-3 bg-gray-800 text-white rounded-xl hover:bg-gray-700 active:bg-gray-600 active:scale-95 touch-manipulation"
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </button>
-                        <button
                           onClick={handleSendMessage}
                           disabled={sending}
-                          className="p-2.5 md:p-3 bg-[#E84545] text-white rounded-xl hover:bg-[#cc3c3c] active:bg-[#b33535] active:scale-95 disabled:opacity-50 touch-manipulation"
+                          className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white hover:text-white/80 active:scale-90 disabled:opacity-50 touch-manipulation transition-transform"
                         >
                           <Send className="h-5 w-5" />
                         </button>
                       </div>
                     ) : (
-                      <div className="flex items-center space-x-2">
+                      /* ── WhatsApp-style input tray ── */
+                      <div className="flex items-center gap-2.5">
                         <input
                           type="file"
                           ref={fileInputRef}
@@ -1075,40 +1234,62 @@ export default function MessagesPage() {
                           accept="image/*"
                           className="hidden"
                         />
+
+                        {/* + button — left, bare icon */}
                         <button
                           onClick={() => fileInputRef.current?.click()}
-                          className="p-2.5 md:p-3 bg-gray-800 text-white rounded-xl hover:bg-gray-700 active:bg-gray-600 active:scale-95 touch-manipulation flex-shrink-0"
+                          className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white/70 hover:text-white active:scale-90 touch-manipulation transition-transform"
                         >
-                          <ImageIcon className="h-5 w-5" />
+                          <Plus className="h-6 w-6" strokeWidth={2.2} />
                         </button>
-                        <input
-                          type="text"
-                          value={message}
-                          onChange={(e) => setMessage(e.target.value)}
-                          onKeyPress={(e) => {
-                            if (e.key === "Enter" && !e.shiftKey) {
-                              e.preventDefault();
-                              handleSendMessage();
-                            }
-                          }}
-                          placeholder="Type a message..."
-                          className="flex-1 px-3 md:px-4 py-2.5 md:py-3 bg-gray-900 border border-gray-800 rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-sm md:text-base min-w-0"
-                          style={{ fontSize: '16px' }}
-                        />
-                        <button
-                          onClick={voiceRecorder.startRecording}
-                          disabled={voiceRecorder.isRecording}
-                          className="p-2.5 md:p-3 bg-gray-800 text-white rounded-xl hover:bg-gray-700 active:bg-gray-600 active:scale-95 disabled:opacity-50 touch-manipulation flex-shrink-0"
-                        >
-                          <Mic className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={handleSendMessage}
-                          disabled={(!message.trim() && !selectedImage) || sending}
-                          className="p-2.5 md:p-3 bg-[#E84545] text-white rounded-xl hover:bg-[#cc3c3c] active:bg-[#b33535] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation flex-shrink-0"
-                        >
-                          <Send className="h-5 w-5" />
-                        </button>
+
+                        {/* Pill input */}
+                        <div className="flex-1 flex items-center bg-[#1F2023] rounded-full px-4 py-0 min-w-0 border border-white/5">
+                          <input
+                            type="text"
+                            value={message}
+                            onChange={(e) => setMessage(e.target.value)}
+                            onKeyPress={(e) => {
+                              if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSendMessage();
+                              }
+                            }}
+                            
+                            className="flex-1 bg-transparent text-white placeholder-gray-500 outline-none py-2.5 text-[15px] min-w-0"
+                            style={{ fontSize: '16px' }}
+                          />
+                          
+                        </div>
+
+                        {/* Right icons — bare, no background */}
+                        {message.trim() || selectedImage ? (
+                          /* Send replaces all three when typing */
+                          <button
+                            onClick={handleSendMessage}
+                            disabled={sending}
+                            className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white hover:text-white/80 active:scale-90 disabled:opacity-50 touch-manipulation transition-transform"
+                          >
+                            <Send className="h-5 w-5" />
+                          </button>
+                        ) : (
+                          <>
+                            {/* Camera */}
+                            <button
+                              onClick={() => fileInputRef.current?.click()}
+                              className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white/70 hover:text-white active:scale-90 touch-manipulation transition-transform"
+                            >
+                              <Camera className="h-[22px] w-[22px]" strokeWidth={1.8} />
+                            </button>
+                            {/* Mic */}
+                            <button
+                              onClick={voiceRecorder.startRecording}
+                              className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white/70 hover:text-white active:scale-90 touch-manipulation transition-transform"
+                            >
+                              <Mic className="h-[22px] w-[22px]" strokeWidth={1.8} />
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1235,15 +1416,15 @@ export default function MessagesPage() {
         </div>
       )}
       
-      {/* ✅ Responsive height styling */}
+      {/* Responsive height styling */}
       <style jsx>{`
         .messages-container-height {
-          height: calc(100vh - 5rem); /* Mobile: account for bottom bar */
+          height: calc(100vh - 5rem);
         }
         
         @media (min-width: 768px) {
           .messages-container-height {
-            height: 100vh; /* Desktop: full height */
+            height: 100vh;
           }
         }
       `}</style>

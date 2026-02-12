@@ -1,4 +1,4 @@
-// app/api/upload/route.ts - VERCEL VERSION WITH CLOUDINARY
+// app/api/upload/route.ts WITH CLOUDINARY
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth/jwt';

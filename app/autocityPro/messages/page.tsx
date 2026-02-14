@@ -689,6 +689,7 @@ export default function MessagesPage() {
       // ⭐ KEY FIX: Wait 300ms before starting recording
       const holdTimer = setTimeout(() => {
         console.log("⏱️ Hold timer fired - starting recording");
+        recordTimerRef.current = null; // ⭐ CRITICAL: Clear the ref so pointer up knows recording started
         applyHoldState("holding");
         setSlideUp(0);
         setSlideLeft(0);
@@ -710,29 +711,42 @@ export default function MessagesPage() {
     [applyHoldState]
   );
 
-  const handleMicPointerMove = useCallback(
-    (e: React.PointerEvent<HTMLButtonElement>) => {
-      if (holdStateRef.current !== "holding") return;
+  // ⭐ NEW: Document-level listeners for reliable pointer tracking
+  useEffect(() => {
+    const handleDocumentPointerMove = (e: PointerEvent) => {
+      // Only track if this is our active pointer
+      if (pointerIdRef.current === null || e.pointerId !== pointerIdRef.current) {
+        return;
+      }
+      
+      // Only track movement during holding state
+      if (holdStateRef.current !== "holding") {
+        return;
+      }
 
       const dy = recordOriginRef.current.y - e.clientY;
       const dx = recordOriginRef.current.x - e.clientX;
       
-      setSlideUp(Math.max(0, dy));
-      setSlideLeft(Math.max(0, dx));
+      const newSlideUp = Math.max(0, dy);
+      const newSlideLeft = Math.max(0, dx);
+      
+      setSlideUp(newSlideUp);
+      setSlideLeft(newSlideLeft);
 
-      if (dy > LOCK_THRESHOLD) {
+      // Log every 20px of movement for debugging
+      if (Math.abs(dy) > 20 && Math.abs(dy) % 20 < 5) {
+        console.log(`📍 Slide: up=${Math.round(newSlideUp)}px, left=${Math.round(newSlideLeft)}px`);
+      }
+
+      if (newSlideUp > LOCK_THRESHOLD) {
         console.log("🔒 Locking into hands-free mode");
         applyHoldState("locked");
         setSlideUp(0);
         setSlideLeft(0);
         if ("vibrate" in navigator) navigator.vibrate([10, 40, 10]);
       }
-    },
-    [applyHoldState]
-  );
+    };
 
-  // ⭐ NEW: Document-level pointerup listener for more reliable detection
-  useEffect(() => {
     const handleDocumentPointerUp = (e: PointerEvent) => {
       // Only handle if we have an active pointer
       if (pointerIdRef.current === null || e.pointerId !== pointerIdRef.current) {
@@ -798,10 +812,12 @@ export default function MessagesPage() {
     };
 
     // Add document-level listeners
+    document.addEventListener("pointermove", handleDocumentPointerMove);
     document.addEventListener("pointerup", handleDocumentPointerUp);
     document.addEventListener("pointercancel", handleDocumentPointerCancel);
     
     return () => {
+      document.removeEventListener("pointermove", handleDocumentPointerMove);
       document.removeEventListener("pointerup", handleDocumentPointerUp);
       document.removeEventListener("pointercancel", handleDocumentPointerCancel);
       if (recordTimerRef.current) {
@@ -969,7 +985,7 @@ export default function MessagesPage() {
             {selectedUser ? (
               <>
                 {/* Header */}
-                <div className="p-2 mt-14 md:mt-0 border-b border-gray-800 bg-black flex-shrink-0">
+                <div className="p-2 mt-12 md:mt-0 border-b border-gray-800 bg-black flex-shrink-0">
                   <div className="flex items-center space-x-3">
                     <button
                       onClick={handleBackToList}
@@ -1396,7 +1412,7 @@ export default function MessagesPage() {
                           </div>
                         ) : (
                           /* Normal text / camera / mic row */
-                          <div className="flex items-center gap-2.5">
+                          <div className="flex items-center gap-3">
                             <input
                               type="file"
                               ref={fileInputRef}
@@ -1406,9 +1422,9 @@ export default function MessagesPage() {
                             />
                             <button
                               onClick={() => fileInputRef.current?.click()}
-                              className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white/70 hover:text-white active:scale-90 touch-manipulation transition-transform"
+                              className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white/70 hover:text-white active:scale-90 touch-manipulation transition-transform ml-1 "
                             >
-                              <Plus className="h-6 w-6" strokeWidth={2.2} />
+                              <Camera className="h-6 w-6" strokeWidth={2.2} />
                             </button>
 
                             <div className="flex-1 flex items-center bg-[#1F2023] rounded-full px-4 py-0 min-w-0 border border-white/5">
@@ -1422,7 +1438,7 @@ export default function MessagesPage() {
                                     handleSendMessage();
                                   }
                                 }}
-                                placeholder="Message"
+                                placeholder="Type a message"
                                 className="flex-1 bg-transparent text-white placeholder-gray-500 outline-none py-2.5 text-[15px] min-w-0"
                                 style={{ fontSize: "16px" }}
                               />
@@ -1432,37 +1448,36 @@ export default function MessagesPage() {
                               <button
                                 onClick={handleSendMessage}
                                 disabled={sending}
-                                className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white hover:text-white/80 active:scale-90 disabled:opacity-50 touch-manipulation transition-transform"
+                                className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white hover:text-white/80 active:scale-90 disabled:opacity-50 touch-manipulation transition-transform mr-2"
                               >
                                 <Send className="h-5 w-5" />
                               </button>
                             ) : (
                               <>
-                                <button
+                                {/* <button
                                   onClick={() => fileInputRef.current?.click()}
                                   className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white/70 hover:text-white active:scale-90 touch-manipulation transition-transform"
                                 >
                                   <Camera
                                     className="h-[22px] w-[22px]"
-                                    strokeWidth={1.8}
+                                    strokeWidth={1.6}
                                   />
-                                </button>
-                                {/* ⭐ FIXED: Mic button - only pointerDown and pointerMove */}
+                                </button> */}
+                                {/* ⭐ FIXED: Mic button - only pointerDown, move/up handled at document level */}
                                 <button
-                                  onPointerDown={handleMicPointerDown}
-                                  onPointerMove={handleMicPointerMove}
-                                  className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white/70 active:text-[#E84545] active:scale-110 transition-all select-none"
-                                  style={{
-                                    touchAction: "none",
-                                    userSelect: "none",
-                                    cursor: "pointer",
-                                  }}
-                                >
-                                  <Mic
-                                    className="h-[22px] w-[22px]"
-                                    strokeWidth={1.8}
-                                  />
-                                </button>
+  onPointerDown={handleMicPointerDown}
+  className="flex-shrink-0 w-10 h-10 flex items-center justify-center 
+             text-white/70 active:text-[#E84545] active:scale-110 
+             transition-all select-none ml-6 mr-8"
+  style={{
+    touchAction: "none",
+    userSelect: "none",
+    cursor: "pointer",
+  }}
+>
+  <Mic className="h-[28px] w-[28px]" strokeWidth={1.8} />
+</button>
+
                               </>
                             )}
                           </div>
@@ -1593,8 +1608,8 @@ export default function MessagesPage() {
 
       <style jsx>{`
         .messages-container-height {
-          height: calc(100dvh);
-          height: calc(var(--vvh, 100dvh));
+          height: calc(100dvh - 1rem);
+          height: calc(var(--vvh, 100dvh)- 3rem);
         }
         @media (min-width: 768px) {
           .messages-container-height {

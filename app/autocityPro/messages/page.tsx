@@ -1,4 +1,4 @@
-// app/autocityPro/messages/page.tsx — PERFORMANCE OPTIMISED
+// app/autocityPro/messages/page.tsx — FIXED VERSION WITH PROPER TOUCH RECORDING
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
@@ -217,26 +217,24 @@ export default function MessagesPage() {
   const pullThreshold = 80;
 
   // ── Refs for pointer handlers — always current, zero stale-closure risk ──
-  // Rule: pointer handlers ONLY read from refs, never from state.
   const holdStateRef = useRef<"idle" | "holding" | "locked">("idle");
   const recordOriginRef = useRef({ x: 0, y: 0 });
-  const autoSendRef = useRef(false); // set synchronously on pointer-up; effect reads it
+  const autoSendRef = useRef(false);
   const selectedUserRef = useRef<User | null>(null);
+  const pointerIdRef = useRef<number | null>(null);
 
   const voiceRecorder = useVoiceRecorder();
-  // Always-current mirror so pointer handlers don't capture a stale object
   const vrRef = useRef(voiceRecorder);
   useEffect(() => {
     vrRef.current = voiceRecorder;
   }, [voiceRecorder]);
 
-  // Keep selectedUser ref current
   useEffect(() => {
     selectedUserRef.current = selectedUser;
   }, [selectedUser]);
 
-  // Atomic helper: keep ref and state in sync
   const applyHoldState = useCallback((s: "idle" | "holding" | "locked") => {
+    console.log("🎯 Hold state change:", holdStateRef.current, "→", s);
     holdStateRef.current = s;
     setHoldState(s);
   }, []);
@@ -339,8 +337,6 @@ export default function MessagesPage() {
   }, []);
 
   // ── Send message ──────────────────────────────────────────────────────────
-  // Reads selectedUser and voiceRecorder via refs so it's always up-to-date
-  // even when called from the auto-send effect.
   const handleSendMessage = useCallback(async () => {
     const su = selectedUserRef.current;
     const vr = vrRef.current;
@@ -422,9 +418,6 @@ export default function MessagesPage() {
     } finally {
       setSending(false);
     }
-    // message and selectedImage are the only reactive deps here;
-    // selectedUser and voiceRecorder are accessed via stable refs.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [message, selectedImage, fetchMessages, fetchConversations]);
 
   // ── Effects ───────────────────────────────────────────────────────────────
@@ -479,19 +472,19 @@ export default function MessagesPage() {
   }, [messages]);
 
   useEffect(() => {
-    if (voiceRecorder.error) toast.error(voiceRecorder.error);
+    if (voiceRecorder.error) {
+      console.error("🎤 Voice recorder error:", voiceRecorder.error);
+      toast.error(voiceRecorder.error);
+    }
   }, [voiceRecorder.error]);
 
-  // Auto-send: fires as soon as the blob appears after a quick-release.
-  // autoSendRef is set SYNCHRONOUSLY in the pointer-up handler before
-  // stopRecording() is called, so this effect will never miss it.
   useEffect(() => {
     if (autoSendRef.current && voiceRecorder.audioBlob) {
+      console.log("✅ Auto-sending voice message");
       autoSendRef.current = false;
       handleSendMessage();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [voiceRecorder.audioBlob]);
+  }, [voiceRecorder.audioBlob, handleSendMessage]);
 
   useEffect(() => {
     if (typeof window === "undefined" || window.innerWidth >= 768) return;
@@ -672,35 +665,60 @@ export default function MessagesPage() {
     window.location.href = "/autocityPro/login";
   }, []);
 
-  // ── WhatsApp hold-to-record — ALL via refs, zero stale closures ───────────
+  // ── FIXED: Hold-to-record handlers ────────────────────────────────────────
 
   const handleMicPointerDown = useCallback(
     (e: React.PointerEvent<HTMLButtonElement>) => {
+      console.log("🎤 Pointer down - ID:", e.pointerId);
       e.preventDefault();
-      // Capture pointer so move/up fire even if finger leaves the button
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      e.stopPropagation();
+      
+      pointerIdRef.current = e.pointerId;
       recordOriginRef.current = { x: e.clientX, y: e.clientY };
-      applyHoldState("holding");
-      setSlideUp(0);
-      setSlideLeft(0);
-      vrRef.current.startRecording();
-      if ("vibrate" in navigator) navigator.vibrate(15);
+      
+      try {
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        console.log("✓ Pointer captured");
+      } catch (err) {
+        console.error("❌ Failed to capture pointer:", err);
+      }
+      
+      // ⭐ KEY FIX: Wait 300ms before starting recording
+      const holdTimer = setTimeout(() => {
+        console.log("⏱️ Hold timer fired - starting recording");
+        applyHoldState("holding");
+        setSlideUp(0);
+        setSlideLeft(0);
+        
+        vrRef.current.startRecording()
+          .then(() => {
+            console.log("✓ Recording started successfully");
+            if ("vibrate" in navigator) navigator.vibrate(15);
+          })
+          .catch((err: Error) => {
+            console.error("❌ Failed to start recording:", err);
+            toast.error("Microphone access denied");
+            applyHoldState("idle");
+          });
+      }, 300);
+      
+      (e.currentTarget as any)._recordTimer = holdTimer;
     },
     [applyHoldState]
   );
 
   const handleMicPointerMove = useCallback(
     (e: React.PointerEvent<HTMLButtonElement>) => {
-      // Read from REF — never stale, regardless of React render cycle
       if (holdStateRef.current !== "holding") return;
 
-      const dy = recordOriginRef.current.y - e.clientY; // positive = upward
-      const dx = recordOriginRef.current.x - e.clientX; // positive = leftward
-
+      const dy = recordOriginRef.current.y - e.clientY;
+      const dx = recordOriginRef.current.x - e.clientX;
+      
       setSlideUp(Math.max(0, dy));
       setSlideLeft(Math.max(0, dx));
 
       if (dy > LOCK_THRESHOLD) {
+        console.log("🔒 Locking into hands-free mode");
         applyHoldState("locked");
         setSlideUp(0);
         setSlideLeft(0);
@@ -712,16 +730,45 @@ export default function MessagesPage() {
 
   const handleMicPointerUp = useCallback(
     (e: React.PointerEvent<HTMLButtonElement>) => {
-      if (holdStateRef.current !== "holding") return;
-
+      console.log("🎤 Pointer up - ID:", e.pointerId, "State:", holdStateRef.current);
+      
+      const currentState = holdStateRef.current;
+      const target = e.currentTarget as any;
+      
+      // ⭐ KEY FIX: Cancel timer if finger lifted before 300ms
+      if (target._recordTimer) {
+        console.log("⏱️ Canceling hold timer - was just a quick tap");
+        clearTimeout(target._recordTimer);
+        delete target._recordTimer;
+        
+        if (pointerIdRef.current !== null) {
+          try {
+            (e.currentTarget as HTMLElement).releasePointerCapture(pointerIdRef.current);
+            console.log("✓ Pointer released (tap canceled)");
+          } catch (err) {}
+          pointerIdRef.current = null;
+        }
+        return;
+      }
+      
+      // Release pointer
+      if (pointerIdRef.current !== null) {
+        try {
+          (e.currentTarget as HTMLElement).releasePointerCapture(pointerIdRef.current);
+          console.log("✓ Pointer released");
+        } catch (err) {}
+        pointerIdRef.current = null;
+      }
+      
+      if (currentState !== "holding") return;
+      
       const dx = recordOriginRef.current.x - e.clientX;
 
       if (dx > CANCEL_THRESHOLD) {
-        // Slid left → discard
+        console.log("❌ Canceling recording (slid left)");
         vrRef.current.cancelRecording();
       } else {
-        // Normal release → stop & auto-send
-        // Set flag BEFORE stopRecording so the effect can't race
+        console.log("✅ Stopping recording (normal release)");
         autoSendRef.current = true;
         vrRef.current.stopRecording();
       }
@@ -733,21 +780,52 @@ export default function MessagesPage() {
     [applyHoldState]
   );
 
-  const handleMicPointerCancel = useCallback(() => {
-    if (holdStateRef.current === "idle") return;
-    vrRef.current.cancelRecording();
-    applyHoldState("idle");
-    setSlideUp(0);
-    setSlideLeft(0);
+  const handleMicPointerCancel = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    console.log("🎤 Pointer cancel");
+    
+    const target = e.currentTarget as any;
+    
+    if (target._recordTimer) {
+      clearTimeout(target._recordTimer);
+      delete target._recordTimer;
+    }
+    
+    if (pointerIdRef.current !== null) {
+      try {
+        (e.currentTarget as HTMLElement).releasePointerCapture(pointerIdRef.current);
+      } catch (err) {}
+      pointerIdRef.current = null;
+    }
+    
+    if (holdStateRef.current !== "idle") {
+      vrRef.current.cancelRecording();
+      applyHoldState("idle");
+      setSlideUp(0);
+      setSlideLeft(0);
+    }
   }, [applyHoldState]);
 
-  // Locked-mode: trash / send
+  // ⭐ NEW: Emergency cancel
+  const handleEmergencyCancel = useCallback(() => {
+    console.log("🚨 EMERGENCY CANCEL");
+    if (holdStateRef.current !== "idle") {
+      vrRef.current.cancelRecording();
+      applyHoldState("idle");
+      setSlideUp(0);
+      setSlideLeft(0);
+      if ("vibrate" in navigator) navigator.vibrate(50);
+      toast.success("Recording canceled");
+    }
+  }, [applyHoldState]);
+
   const handleLockedCancel = useCallback(() => {
+    console.log("🗑️ Canceling locked recording");
     vrRef.current.cancelRecording();
     applyHoldState("idle");
   }, [applyHoldState]);
 
   const handleLockedSend = useCallback(() => {
+    console.log("📤 Sending locked recording");
     autoSendRef.current = true;
     vrRef.current.stopRecording();
     applyHoldState("idle");
@@ -1181,10 +1259,10 @@ export default function MessagesPage() {
                   style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
                 >
                   <div className="px-1 py-2">
-                    {/* HOLDING — finger still pressed; hints fade in as you drag */}
+                    {/* HOLDING — finger still pressed */}
                     {holdState === "holding" && (
                       <div className="flex items-center h-14 px-2 gap-2 select-none">
-                        {/* ← cancel hint */}
+                        {/* Cancel hint (left) */}
                         <div
                           className="flex items-center gap-1 flex-shrink-0 transition-opacity duration-75"
                           style={{
@@ -1200,15 +1278,15 @@ export default function MessagesPage() {
                           </span>
                         </div>
 
-                        {/* Live timer */}
-                        <div className="flex-1 flex items-center justify-center gap-2.5 bg-[#1F2023] rounded-full px-4 py-2.5 border border-white/5 min-w-0 overflow-hidden">
+                        {/* Timer */}
+                        <div className="flex-1 flex items-center justify-center gap-2.5 bg-[#1F2023] rounded-full px-4 py-2.5 border border-white/5">
                           <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse flex-shrink-0" />
                           <span className="text-white font-mono tabular-nums text-sm">
                             {formatAudioTime(voiceRecorder.duration)}
                           </span>
                         </div>
 
-                        {/* ↑ lock hint */}
+                        {/* Lock hint (up) */}
                         <div
                           className="flex flex-col items-center gap-0.5 flex-shrink-0 transition-opacity duration-75"
                           style={{
@@ -1222,12 +1300,17 @@ export default function MessagesPage() {
                           <ChevronUp className="h-3 w-3 text-gray-300" />
                         </div>
 
-                        {/* Width spacer matching the mic button so layout doesn't shift */}
-                        <div className="w-10 h-10 flex-shrink-0" />
+                        {/* ⭐ NEW: Emergency cancel button */}
+                        <button
+                          onClick={handleEmergencyCancel}
+                          className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-red-400 hover:text-red-300 active:scale-90 touch-manipulation transition-all"
+                        >
+                          <X className="h-5 w-5" strokeWidth={2.5} />
+                        </button>
                       </div>
                     )}
 
-                    {/* LOCKED — hands-free continuous recording */}
+                    {/* LOCKED — hands-free mode */}
                     {holdState === "locked" && (
                       <div className="flex items-center gap-2.5 select-none">
                         <button
@@ -1255,7 +1338,7 @@ export default function MessagesPage() {
                       </div>
                     )}
 
-                    {/* IDLE — normal text / voice preview / image preview bar */}
+                    {/* IDLE — normal input */}
                     {holdState === "idle" && (
                       <>
                         {imagePreview && (
@@ -1280,7 +1363,7 @@ export default function MessagesPage() {
                         )}
 
                         {voiceRecorder.audioBlob && !justSentVoice ? (
-                          /* Voice preview — shown after locked recording is stopped manually */
+                          /* Voice preview */
                           <div className="flex items-center gap-2.5">
                             <button
                               onClick={() => vrRef.current.cancelRecording()}
@@ -1358,7 +1441,7 @@ export default function MessagesPage() {
                                     strokeWidth={1.8}
                                   />
                                 </button>
-                                {/* ★ MIC — hold to record ★ */}
+                                {/* ⭐ FIXED: Mic button */}
                                 <button
                                   onPointerDown={handleMicPointerDown}
                                   onPointerMove={handleMicPointerMove}
@@ -1375,7 +1458,7 @@ export default function MessagesPage() {
                                     className="h-[22px] w-[22px]"
                                     strokeWidth={1.8}
                                   />
-                                </button>{" "}
+                                </button>
                               </>
                             )}
                           </div>

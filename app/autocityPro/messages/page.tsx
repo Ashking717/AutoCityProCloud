@@ -667,45 +667,43 @@ export default function MessagesPage() {
 
   // ── FIXED: Hold-to-record handlers ────────────────────────────────────────
 
-  const handleMicPointerDown = useCallback(
-    (e: React.PointerEvent<HTMLButtonElement>) => {
-      console.log("🎤 Pointer down - ID:", e.pointerId);
-      e.preventDefault();
-      e.stopPropagation();
-      
-      pointerIdRef.current = e.pointerId;
-      recordOriginRef.current = { x: e.clientX, y: e.clientY };
-      
+const handleMicPointerDown = useCallback(
+  (e: React.PointerEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const el = e.currentTarget; // ✅ capture immediately
+
+    pointerIdRef.current = e.pointerId;
+    recordOriginRef.current = { x: e.clientX, y: e.clientY };
+
+    (el as any)._holdFired = false;
+
+    try {
+      el.setPointerCapture(e.pointerId);
+    } catch {}
+
+    const holdTimer = setTimeout(async () => {
+      (el as any)._holdFired = true; // ✅ safe
+
+      applyHoldState("holding");
+      setSlideUp(0);
+      setSlideLeft(0);
+
       try {
-        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-        console.log("✓ Pointer captured");
-      } catch (err) {
-        console.error("❌ Failed to capture pointer:", err);
+        await vrRef.current.startRecording();
+        if ("vibrate" in navigator) navigator.vibrate(15);
+      } catch {
+        toast.error("Microphone access denied");
+        applyHoldState("idle");
       }
-      
-      // ⭐ KEY FIX: Wait 300ms before starting recording
-      const holdTimer = setTimeout(() => {
-        console.log("⏱️ Hold timer fired - starting recording");
-        applyHoldState("holding");
-        setSlideUp(0);
-        setSlideLeft(0);
-        
-        vrRef.current.startRecording()
-          .then(() => {
-            console.log("✓ Recording started successfully");
-            if ("vibrate" in navigator) navigator.vibrate(15);
-          })
-          .catch((err: Error) => {
-            console.error("❌ Failed to start recording:", err);
-            toast.error("Microphone access denied");
-            applyHoldState("idle");
-          });
-      }, 300);
-      
-      (e.currentTarget as any)._recordTimer = holdTimer;
-    },
-    [applyHoldState]
-  );
+    }, 300);
+
+    (el as any)._recordTimer = holdTimer;
+  },
+  [applyHoldState]
+);
+
 
   const handleMicPointerMove = useCallback(
     (e: React.PointerEvent<HTMLButtonElement>) => {
@@ -728,82 +726,81 @@ export default function MessagesPage() {
     [applyHoldState]
   );
 
-  const handleMicPointerUp = useCallback(
-    (e: React.PointerEvent<HTMLButtonElement>) => {
-      console.log("🎤 Pointer up - ID:", e.pointerId, "State:", holdStateRef.current);
-      
-      const currentState = holdStateRef.current;
-      const target = e.currentTarget as any;
-      
-      // ⭐ KEY FIX: Cancel timer if finger lifted before 300ms
-      if (target._recordTimer) {
-        console.log("⏱️ Canceling hold timer - was just a quick tap");
-        clearTimeout(target._recordTimer);
-        delete target._recordTimer;
-        
-        if (pointerIdRef.current !== null) {
-          try {
-            (e.currentTarget as HTMLElement).releasePointerCapture(pointerIdRef.current);
-            console.log("✓ Pointer released (tap canceled)");
-          } catch (err) {}
-          pointerIdRef.current = null;
-        }
-        return;
-      }
-      
-      // Release pointer
-      if (pointerIdRef.current !== null) {
-        try {
-          (e.currentTarget as HTMLElement).releasePointerCapture(pointerIdRef.current);
-          console.log("✓ Pointer released");
-        } catch (err) {}
-        pointerIdRef.current = null;
-      }
-      
-      if (currentState !== "holding") return;
-      
-      const dx = recordOriginRef.current.x - e.clientX;
-
-      if (dx > CANCEL_THRESHOLD) {
-        console.log("❌ Canceling recording (slid left)");
-        vrRef.current.cancelRecording();
-      } else {
-        console.log("✅ Stopping recording (normal release)");
-        autoSendRef.current = true;
-        vrRef.current.stopRecording();
-      }
-
-      applyHoldState("idle");
-      setSlideUp(0);
-      setSlideLeft(0);
-    },
-    [applyHoldState]
-  );
-
-  const handleMicPointerCancel = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
-    console.log("🎤 Pointer cancel");
-    
+const handleMicPointerUp = useCallback(
+  (e: React.PointerEvent<HTMLButtonElement>) => {
     const target = e.currentTarget as any;
-    
+    const holdFired = target._holdFired === true;
+
+    // Cleanup timer
     if (target._recordTimer) {
       clearTimeout(target._recordTimer);
       delete target._recordTimer;
     }
-    
+
     if (pointerIdRef.current !== null) {
       try {
-        (e.currentTarget as HTMLElement).releasePointerCapture(pointerIdRef.current);
-      } catch (err) {}
+        e.currentTarget.releasePointerCapture(pointerIdRef.current);
+      } catch {}
       pointerIdRef.current = null;
     }
-    
+
+    // 👉 Quick tap (never held long enough)
+    if (!holdFired) return;
+
+    const currentState = holdStateRef.current;
+
+    if (currentState !== "holding") return;
+
+    const dx = recordOriginRef.current.x - e.clientX;
+
+    if (dx > CANCEL_THRESHOLD) {
+      vrRef.current.cancelRecording();
+    } else {
+      autoSendRef.current = true;
+      vrRef.current.stopRecording();
+    }
+
+    applyHoldState("idle");
+    setSlideUp(0);
+    setSlideLeft(0);
+  },
+  [applyHoldState]
+);
+
+  const handleMicPointerCancel = useCallback(
+  (e: React.PointerEvent<HTMLButtonElement>) => {
+    console.log("🎤 Pointer cancel");
+
+    const target = e.currentTarget as any;
+
+    // Clear hold timer
+    if (target._recordTimer) {
+      clearTimeout(target._recordTimer);
+      delete target._recordTimer;
+    }
+
+    // Reset hold-fired flag
+    target._holdFired = false;
+
+    // Release pointer
+    if (pointerIdRef.current !== null) {
+      try {
+        e.currentTarget.releasePointerCapture(pointerIdRef.current);
+      } catch {}
+      pointerIdRef.current = null;
+    }
+
+    // If recording was active → cancel it
     if (holdStateRef.current !== "idle") {
       vrRef.current.cancelRecording();
       applyHoldState("idle");
       setSlideUp(0);
       setSlideLeft(0);
     }
-  }, [applyHoldState]);
+  },
+  [applyHoldState]
+);
+
 
   // ⭐ NEW: Emergency cancel
   const handleEmergencyCancel = useCallback(() => {
@@ -1443,10 +1440,13 @@ export default function MessagesPage() {
                                 </button>
                                 {/* ⭐ FIXED: Mic button */}
                                 <button
-                                  onPointerDown={handleMicPointerDown}
-                                  onPointerMove={handleMicPointerMove}
-                                  onPointerUp={handleMicPointerUp}
-                                  onPointerCancel={handleMicPointerCancel}
+  onPointerDown={handleMicPointerDown}
+  onPointerMove={handleMicPointerMove}
+  onPointerUp={handleMicPointerUp}
+  onPointerLeave={handleMicPointerUp}     // ✅ ADD THIS
+  onPointerCancel={handleMicPointerCancel}
+
+                                  
                                   className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white/70 active:text-[#E84545] active:scale-110 transition-all select-none"
                                   style={{
                                     touchAction: "none",

@@ -1632,7 +1632,7 @@ export default function MessagesPage() {
 
       <style jsx>{`
         .messages-container-height {
-          height: calc(100dvh - 1rem);
+          height: calc(100dvh );
           height: calc(var(--vvh, 100dvh)- 3rem);
         }
         @media (min-width: 768px) {

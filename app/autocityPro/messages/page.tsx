@@ -1007,7 +1007,7 @@ export default function MessagesPage() {
             {selectedUser ? (
               <>
                 {/* Header */}
-                <div className="p-2 mt-12 md:mt-0 border-b border-gray-800 bg-black flex-shrink-0">
+                <div className="p-2 mt-14 md:mt-0 border-b border-gray-800 bg-black flex-shrink-0">
                   <div className="flex items-center space-x-3">
                     <button
                       onClick={handleBackToList}

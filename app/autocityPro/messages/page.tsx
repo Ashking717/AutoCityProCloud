@@ -667,7 +667,7 @@ export default function MessagesPage() {
   }, []);
 
   // ── FIXED: Hold-to-record handlers with document-level listeners ─────────
-  
+
   const recordTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleMicPointerDown = useCallback(
@@ -675,17 +675,17 @@ export default function MessagesPage() {
       console.log("🎤 Pointer down - ID:", e.pointerId);
       e.preventDefault();
       e.stopPropagation();
-      
+
       pointerIdRef.current = e.pointerId;
       recordOriginRef.current = { x: e.clientX, y: e.clientY };
-      
+
       try {
         (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
         console.log("✓ Pointer captured");
       } catch (err) {
         console.error("❌ Failed to capture pointer:", err);
       }
-      
+
       // ⭐ KEY FIX: Wait 300ms before starting recording
       const holdTimer = setTimeout(() => {
         console.log("⏱️ Hold timer fired - starting recording");
@@ -693,8 +693,9 @@ export default function MessagesPage() {
         applyHoldState("holding");
         setSlideUp(0);
         setSlideLeft(0);
-        
-        vrRef.current.startRecording()
+
+        vrRef.current
+          .startRecording()
           .then(() => {
             console.log("✓ Recording started successfully");
             if ("vibrate" in navigator) navigator.vibrate(15);
@@ -705,7 +706,7 @@ export default function MessagesPage() {
             applyHoldState("idle");
           });
       }, 300);
-      
+
       recordTimerRef.current = holdTimer;
     },
     [applyHoldState]
@@ -715,10 +716,13 @@ export default function MessagesPage() {
   useEffect(() => {
     const handleDocumentPointerMove = (e: PointerEvent) => {
       // Only track if this is our active pointer
-      if (pointerIdRef.current === null || e.pointerId !== pointerIdRef.current) {
+      if (
+        pointerIdRef.current === null ||
+        e.pointerId !== pointerIdRef.current
+      ) {
         return;
       }
-      
+
       // Only track movement during holding state
       if (holdStateRef.current !== "holding") {
         return;
@@ -726,16 +730,20 @@ export default function MessagesPage() {
 
       const dy = recordOriginRef.current.y - e.clientY;
       const dx = recordOriginRef.current.x - e.clientX;
-      
+
       const newSlideUp = Math.max(0, dy);
       const newSlideLeft = Math.max(0, dx);
-      
+
       setSlideUp(newSlideUp);
       setSlideLeft(newSlideLeft);
 
       // Log every 20px of movement for debugging
       if (Math.abs(dy) > 20 && Math.abs(dy) % 20 < 5) {
-        console.log(`📍 Slide: up=${Math.round(newSlideUp)}px, left=${Math.round(newSlideLeft)}px`);
+        console.log(
+          `📍 Slide: up=${Math.round(newSlideUp)}px, left=${Math.round(
+            newSlideLeft
+          )}px`
+        );
       }
 
       if (newSlideUp > LOCK_THRESHOLD) {
@@ -749,12 +757,20 @@ export default function MessagesPage() {
 
     const handleDocumentPointerUp = (e: PointerEvent) => {
       // Only handle if we have an active pointer
-      if (pointerIdRef.current === null || e.pointerId !== pointerIdRef.current) {
+      if (
+        pointerIdRef.current === null ||
+        e.pointerId !== pointerIdRef.current
+      ) {
         return;
       }
-      
-      console.log("🎤 Document pointer up - ID:", e.pointerId, "State:", holdStateRef.current);
-      
+
+      console.log(
+        "🎤 Document pointer up - ID:",
+        e.pointerId,
+        "State:",
+        holdStateRef.current
+      );
+
       // Clear timer if it exists
       if (recordTimerRef.current) {
         console.log("⏱️ Canceling hold timer - was just a quick tap");
@@ -763,16 +779,16 @@ export default function MessagesPage() {
         pointerIdRef.current = null;
         return;
       }
-      
+
       const currentState = holdStateRef.current;
       pointerIdRef.current = null;
-      
+
       // If not holding, nothing to do
       if (currentState !== "holding") {
         console.log("ℹ️ Not in holding state, ignoring");
         return;
       }
-      
+
       const dx = recordOriginRef.current.x - e.clientX;
 
       if (dx > CANCEL_THRESHOLD) {
@@ -790,19 +806,22 @@ export default function MessagesPage() {
     };
 
     const handleDocumentPointerCancel = (e: PointerEvent) => {
-      if (pointerIdRef.current === null || e.pointerId !== pointerIdRef.current) {
+      if (
+        pointerIdRef.current === null ||
+        e.pointerId !== pointerIdRef.current
+      ) {
         return;
       }
-      
+
       console.log("🎤 Document pointer cancel");
-      
+
       if (recordTimerRef.current) {
         clearTimeout(recordTimerRef.current);
         recordTimerRef.current = null;
       }
-      
+
       pointerIdRef.current = null;
-      
+
       if (holdStateRef.current !== "idle") {
         vrRef.current.cancelRecording();
         applyHoldState("idle");
@@ -815,11 +834,14 @@ export default function MessagesPage() {
     document.addEventListener("pointermove", handleDocumentPointerMove);
     document.addEventListener("pointerup", handleDocumentPointerUp);
     document.addEventListener("pointercancel", handleDocumentPointerCancel);
-    
+
     return () => {
       document.removeEventListener("pointermove", handleDocumentPointerMove);
       document.removeEventListener("pointerup", handleDocumentPointerUp);
-      document.removeEventListener("pointercancel", handleDocumentPointerCancel);
+      document.removeEventListener(
+        "pointercancel",
+        handleDocumentPointerCancel
+      );
       if (recordTimerRef.current) {
         clearTimeout(recordTimerRef.current);
         recordTimerRef.current = null;
@@ -1465,19 +1487,21 @@ export default function MessagesPage() {
                                 </button> */}
                                 {/* ⭐ FIXED: Mic button - only pointerDown, move/up handled at document level */}
                                 <button
-  onPointerDown={handleMicPointerDown}
-  className="flex-shrink-0 w-10 h-10 flex items-center justify-center 
+                                  onPointerDown={handleMicPointerDown}
+                                  className="flex-shrink-0 w-10 h-10 flex items-center justify-center 
              text-white/70 active:text-[#E84545] active:scale-110 
              transition-all select-none ml-6 mr-8"
-  style={{
-    touchAction: "none",
-    userSelect: "none",
-    cursor: "pointer",
-  }}
->
-  <Mic className="h-[28px] w-[28px]" strokeWidth={1.8} />
-</button>
-
+                                  style={{
+                                    touchAction: "none",
+                                    userSelect: "none",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  <Mic
+                                    className="h-[28px] w-[28px]"
+                                    strokeWidth={1.8}
+                                  />
+                                </button>
                               </>
                             )}
                           </div>

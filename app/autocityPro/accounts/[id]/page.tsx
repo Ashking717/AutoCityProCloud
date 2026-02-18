@@ -336,10 +336,7 @@ export default function AccountDetailPage() {
                       <h1 className="text-3xl font-bold" style={{ color: th.headerTitle }}>
                         {isEditing ? 'Edit Account' : accountName}
                       </h1>
-                      <div className="flex items-center gap-1 px-2 py-1 rounded-full text-xs"
-                        style={{ background: isDark ? 'rgba(0,0,0,0.30)' : 'rgba(255,255,255,0.60)', border: `1px solid ${th.headerBorder}`, color: th.headerTitle }}>
-                        {isDark ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
-                      </div>
+                      
                     </div>
                     <p className="mt-1" style={{ color: th.headerSub }}>{accountCode} · {accountType}</p>
                   </div>

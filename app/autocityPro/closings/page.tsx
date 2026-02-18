@@ -303,10 +303,7 @@ export default function ClosingsPage() {
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-xl font-bold tracking-tight" style={{ color: th.mobileHdrTitle }}>Period Closings</h1>
-                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs"
-                    style={{ background: th.badgeBg, border: `1px solid ${th.badgeBorder}`, color: th.badgeText }}>
-                    {isDark ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
-                  </div>
+                  
                 </div>
                 <p className="text-xs mt-0.5" style={{ color: th.mobileHdrSub }}>{filteredClosings.length} records</p>
               </div>
@@ -345,10 +342,7 @@ export default function ClosingsPage() {
                   <div>
                     <div className="flex items-center gap-3">
                       <h1 className="text-4xl font-bold tracking-tight" style={{ color: th.desktopHdrTitle }}>Period Closings</h1>
-                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
-                        style={{ background: th.badgeBg, border: `1px solid ${th.badgeBorder}`, color: th.badgeText }}>
-                        {isDark ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
-                      </div>
+                      
                     </div>
                     <p className="text-sm mt-1" style={{ color: th.desktopHdrSub }}>Ledger-driven accounting with COGS tracking</p>
                   </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import Sidebar from './Sidebar';
 import { useActivityTracker } from '@/hooks/useActivityTracker';
 
@@ -10,50 +10,71 @@ interface MainLayoutProps {
   onLogout: () => void;
 }
 
-export default function MainLayout({ children, user, onLogout }: MainLayoutProps) {
-  // Activity tracker for online status
+/* -------------------------------
+   Time Based Theme
+--------------------------------*/
+function useTimeBasedTheme() {
+  const [isDark, setIsDark] = useState(true);
+
+  useEffect(() => {
+    const check = () => {
+      const hour = new Date().getHours();
+      setIsDark(hour < 6 || hour >= 18);
+    };
+    check();
+    const id = setInterval(check, 60000);
+    return () => clearInterval(id);
+  }, []);
+
+  return isDark;
+}
+
+export default function MainLayout({
+  children,
+  user,
+  onLogout,
+}: MainLayoutProps) {
+
   useActivityTracker(true);
+  const isDark = useTimeBasedTheme();
 
   return (
     <>
-      <div className="flex min-h-screen">
-        {/*
-          Sidebar renders itself as:
-            - Desktop: fixed left panel (w-64, h-screen) via its own internal markup
-            - Mobile:  fixed bottom nav bar + slide-up overlay via its own internal markup
-          No className wiring needed here — Sidebar is fully self-contained.
-        */}
+      {/* Root Layout */}
+      <div
+        className={`flex min-h-[100dvh] ${
+          isDark ? 'bg-black text-white' : 'bg-white text-black'
+        }`}
+      >
+        {/* Sidebar */}
         <Sidebar user={user} onLogout={onLogout} />
 
-        {/*
-          ml-0 md:ml-64   → on mobile the sidebar is a bottom bar, not a left panel
-          pb-20 md:pb-0   → mobile bottom nav bar is ~80px tall; prevent content hiding behind it
-          min-w-0         → flex child must be told it can shrink, prevents overflow bugs
-        */}
+        {/* Main Content */}
         <main className="flex-1 min-w-0 ml-0 md:ml-64 pb-20 md:pb-0">
           {children}
         </main>
       </div>
 
+      {/* Global Styles */}
       <style jsx global>{`
-        /* Prevent iOS rubber-band bounce */
-        body {
-          overscroll-behavior-y: none;
+        html, body {
+          height: 100%;
+          background-color: ${isDark ? '#000000' : '#ffffff'};
         }
 
-        /* Account for iPhone home indicator */
+        body {
+          overscroll-behavior-y: none;
+          overflow-x: hidden;
+        }
+
+        /* iOS home indicator */
         @media (max-width: 768px) {
           body {
             padding-bottom: env(safe-area-inset-bottom);
           }
         }
 
-        /* Use dynamic viewport height so mobile chrome/safari bars are handled */
-        html, body {
-          height: 100dvh;
-        }
-
-        /* Hardware-accelerated scrolling on iOS */
+        /* Smooth scrolling */
         * {
           -webkit-overflow-scrolling: touch;
         }

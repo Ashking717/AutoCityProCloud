@@ -316,7 +316,7 @@ export default function ExpensesPage() {
                 <div>
                   <h1 className="text-3xl font-bold flex items-center gap-2" style={{ color: th.desktopHeaderTitle }}>
                     Expenses Management
-                    {isDark ? <Moon className="h-5 w-5 text-[#E84545]" /> : <Sun className="h-5 w-5 text-[#E84545]" />}
+                    
                   </h1>
                   <p className="mt-1" style={{ color: th.desktopHeaderSub }}>Track and manage business expenses</p>
                 </div>

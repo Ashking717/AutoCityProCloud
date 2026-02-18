@@ -291,10 +291,7 @@ setLedgerSummary({
                       <BookOpen className="h-7 w-7" />
                       {view === "accounts" ? "General Ledger" : view === "ledger" ? selectedAccount?.name : "Trial Balance"}
                     </h1>
-                    <div className="flex items-center gap-1 px-2 py-1 rounded-full text-xs"
-                      style={{ background: isDark ? "rgba(0,0,0,0.30)" : "rgba(255,255,255,0.60)", border: `1px solid ${isDark ? "rgba(255,255,255,0.15)" : "rgba(127,29,29,0.20)"}`, color: isDark ? "rgba(255,255,255,0.70)" : "#7f1d1d" }}>
-                      {isDark ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
-                    </div>
+                    
                   </div>
                   <p className="mt-1" style={{ color: th.headerSub }}>
                     {view === "accounts" ? "View and manage account ledgers" : view === "ledger" ? `Account: ${selectedAccount?.code}` : "Debit/Credit balance report"}

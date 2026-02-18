@@ -665,14 +665,20 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
 
       {/* ── Mobile Bottom Navigation Bar ───────────────────────────────────── */}
       <div
-        className="md:hidden fixed bottom-0 left-0 right-0 z-50"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-      >
+  className="md:hidden fixed bottom-0 left-0 right-0 z-50"
+  style={{
+    paddingBottom: "env(safe-area-inset-bottom)",
+    transform: "translateZ(0)",
+    willChange: "transform",
+    WebkitBackfaceVisibility: "hidden",
+    backfaceVisibility: "hidden",
+  }}
+>
         <div
           className="relative overflow-hidden transition-colors duration-500"
           style={{
             background: th.mobileBarBg,
-            backdropFilter: "blur(28px) saturate(180%)",
+            backdropFilter: "blur(16px) saturate(180%)",
             WebkitBackdropFilter: "blur(28px) saturate(180%)",
             borderTop: `1px solid ${th.mobileBarBorder}`,
             boxShadow: th.mobileBarShadow,

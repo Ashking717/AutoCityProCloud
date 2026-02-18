@@ -244,10 +244,7 @@ export default function AdminProfilePage() {
               <div>
                 <div className="flex items-center gap-3">
                   <h1 className="text-3xl font-bold" style={{ color: th.desktopHdrTitle }}>My Profile</h1>
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
-                    style={{ background: th.badgeBg, border: `1px solid ${th.badgeBorder}`, color: th.badgeText }}>
-                    {isDark ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
-                  </div>
+                  
                 </div>
                 <p className="mt-1" style={{ color: th.desktopHdrSub }}>Manage your account settings and preferences</p>
               </div>

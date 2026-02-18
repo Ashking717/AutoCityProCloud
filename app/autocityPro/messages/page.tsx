@@ -1109,7 +1109,7 @@ export default function MessagesPage() {
       )}
 
       <style jsx>{`
-        .messages-container-height { height: calc(100dvh); height: calc(var(--vvh, 100dvh) - 3rem); }
+        .messages-container-height { height: calc(100dvh); height: calc(var(--vvh, 100dvh) - 2rem); }
         @media (min-width: 768px) { .messages-container-height { height: 100dvh; height: var(--vvh, 100dvh); } }
 
         /* ── Bubble animations ── */

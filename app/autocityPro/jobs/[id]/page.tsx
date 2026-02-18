@@ -4,108 +4,119 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import {
-  ChevronLeft,
-  Edit,
-  Trash2,
-  User,
-  Car,
-  Calendar,
-  FileText,
-  Wrench,
-  Clock,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  ArrowRight,
-  Package,
-  UserCog,
-  RefreshCw,
+  ChevronLeft, Edit, Trash2, User, Car, Calendar, FileText,
+  Wrench, Clock, CheckCircle, XCircle, AlertCircle, ArrowRight,
+  Package, UserCog, RefreshCw, Sun, Moon,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import VoiceNoteRecorder, {
-  type VoiceNoteEntry,
-} from "@/components/ui/Voicenoterecorder";
+import VoiceNoteRecorder, { type VoiceNoteEntry } from "@/components/ui/Voicenoterecorder";
+
+// ─── Time-based theme hook ────────────────────────────────────────────────────
+function useTimeBasedTheme() {
+  const [isDark, setIsDark] = useState(true);
+  useEffect(() => {
+    const check = () => { const h = new Date().getHours(); setIsDark(h < 6 || h >= 18); };
+    check();
+    const id = setInterval(check, 60_000);
+    return () => clearInterval(id);
+  }, []);
+  return isDark;
+}
 
 interface IJob {
-  _id: string;
-  jobNumber: string;
-  customerId: any;
-  customerName: string;
-  vehicleRegistrationNumber?: string;
-  vehicleMake?: string;
-  vehicleModel?: string;
-  vehicleYear?: number;
-  vehicleColor?: string;
-  vehicleVIN?: string;
-  vehicleMileage?: number;
-  title: string;
-  description?: string;
-  items: any[];
-  status: string;
-  priority: string;
-  assignedTo?: any;
-  estimatedStartDate?: string;
-  estimatedCompletionDate?: string;
-  actualStartDate?: string;
-  actualCompletionDate?: string;
-  internalNotes?: string;
-  customerNotes?: string;
-  voiceNotes: VoiceNoteEntry[];
-  convertedToSale: boolean;
-  saleId?: string;
-  saleInvoiceNumber?: string;
-  createdAt: string;
-  updatedAt: string;
+  _id: string; jobNumber: string; customerId: any; customerName: string;
+  vehicleRegistrationNumber?: string; vehicleMake?: string; vehicleModel?: string;
+  vehicleYear?: number; vehicleColor?: string; vehicleVIN?: string; vehicleMileage?: number;
+  title: string; description?: string; items: any[]; status: string; priority: string;
+  assignedTo?: any; estimatedStartDate?: string; estimatedCompletionDate?: string;
+  actualStartDate?: string; actualCompletionDate?: string; internalNotes?: string;
+  customerNotes?: string; voiceNotes: VoiceNoteEntry[];
+  convertedToSale: boolean; saleId?: string; saleInvoiceNumber?: string;
+  createdAt: string; updatedAt: string;
 }
 
 export default function JobDetailPage() {
   const router = useRouter();
   const params = useParams();
   const jobId = params?.id as string;
+  const isDark = useTimeBasedTheme();
 
   const [user, setUser] = useState<any>(null);
   const [job, setJob] = useState<IJob | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
 
   const isAdmin = user?.role === "admin" || user?.role === "manager";
 
-  useEffect(() => {
-    fetchUser();
-    if (jobId) fetchJob();
-  }, [jobId]);
+  // ── Theme tokens ──────────────────────────────────────────────────────────
+  const th = {
+    pageBg:            isDark ? "#050505"                                               : "#f3f4f6",
+    // Desktop header
+    headerBgFrom:      isDark ? "#932222"                                               : "#fef2f2",
+    headerBgVia:       isDark ? "#411010"                                               : "#fee2e2",
+    headerBgTo:        isDark ? "#a20c0c"                                               : "#fecaca",
+    headerBorder:      isDark ? "rgba(255,255,255,0.05)"                                : "rgba(0,0,0,0.06)",
+    headerTitle:       isDark ? "#ffffff"                                               : "#7f1d1d",
+    headerSub:         isDark ? "rgba(255,255,255,0.80)"                                : "#991b1b",
+    headerBtnBg:       isDark ? "rgba(255,255,255,0.10)"                                : "rgba(127,29,29,0.10)",
+    headerBtnText:     isDark ? "#ffffff"                                               : "#7f1d1d",
+    headerBtnHover:    isDark ? "rgba(255,255,255,0.20)"                                : "rgba(127,29,29,0.20)",
+    headerDeleteBg:    isDark ? "rgba(239,68,68,0.20)"                                  : "rgba(239,68,68,0.10)",
+    headerDeleteText:  isDark ? "#fca5a5"                                               : "#dc2626",
+    // Mobile header
+    mobileHeaderBg:    isDark ? "linear-gradient(135deg,#0A0A0A,#050505,#0A0A0A)"      : "linear-gradient(135deg,#ffffff,#f9fafb,#ffffff)",
+    mobileHeaderBorder:isDark ? "rgba(255,255,255,0.05)"                                : "rgba(0,0,0,0.08)",
+    mobileHeaderTitle: isDark ? "#ffffff"                                               : "#111827",
+    mobileHeaderSub:   isDark ? "rgba(255,255,255,0.60)"                                : "#6b7280",
+    mobileBtnBg:       isDark ? "rgba(255,255,255,0.05)"                                : "rgba(0,0,0,0.05)",
+    mobileBtnText:     isDark ? "rgba(255,255,255,0.80)"                                : "#374151",
+    // Cards / panels
+    cardBg:            isDark ? "#0A0A0A"                                               : "#ffffff",
+    cardBorder:        isDark ? "rgba(255,255,255,0.05)"                                : "rgba(0,0,0,0.08)",
+    cardTitle:         isDark ? "#ffffff"                                               : "#111827",
+    cardSubtext:       isDark ? "#9ca3af"                                               : "#6b7280",
+    cardMuted:         isDark ? "#6b7280"                                               : "#9ca3af",
+    innerBg:           isDark ? "#111111"                                               : "#f3f4f6",
+    innerBorder:       isDark ? "rgba(255,255,255,0.05)"                                : "rgba(0,0,0,0.08)",
+    innerText:         isDark ? "#ffffff"                                               : "#111827",
+    innerMuted:        isDark ? "#9ca3af"                                               : "#6b7280",
+    // Status change buttons
+    statusBtnBg:       isDark ? "#111111"                                               : "#f3f4f6",
+    statusBtnBorder:   isDark ? "rgba(255,255,255,0.05)"                                : "rgba(0,0,0,0.08)",
+    statusBtnText:     isDark ? "#ffffff"                                               : "#111827",
+    // Blue staff card
+    staffBg:           isDark ? "rgba(59,130,246,0.10)"                                 : "rgba(59,130,246,0.06)",
+    staffBorder:       isDark ? "rgba(59,130,246,0.20)"                                 : "rgba(59,130,246,0.15)",
+    staffText:         isDark ? "#93c5fd"                                               : "#1d4ed8",
+    staffSubText:      isDark ? "#60a5fa"                                               : "#3b82f6",
+    // Green converted banner
+    convertedBg:       isDark ? "rgba(34,197,94,0.10)"                                  : "rgba(34,197,94,0.06)",
+    convertedBorder:   isDark ? "rgba(34,197,94,0.30)"                                  : "rgba(34,197,94,0.20)",
+    convertedText:     isDark ? "#86efac"                                               : "#15803d",
+    // Item cards
+    itemBg:            isDark ? "#111111"                                               : "#f9fafb",
+    itemBorder:        isDark ? "rgba(255,255,255,0.05)"                                : "rgba(0,0,0,0.06)",
+    itemTitle:         isDark ? "#ffffff"                                               : "#111827",
+    itemMuted:         isDark ? "#9ca3af"                                               : "#6b7280",
+  };
 
-  useEffect(() => {
-    const checkIfMobile = () => setIsMobile(window.innerWidth < 768);
-    checkIfMobile();
-    window.addEventListener("resize", checkIfMobile);
-    return () => window.removeEventListener("resize", checkIfMobile);
-  }, []);
+  useEffect(() => { fetchUser(); if (jobId) fetchJob(); }, [jobId]);
 
   const fetchUser = async () => {
     try {
       const res = await fetch("/api/auth/me", { credentials: "include" });
       if (res.ok) { const data = await res.json(); setUser(data.user); }
-    } catch { console.error("Failed to fetch user"); }
+    } catch {}
   };
 
   const fetchJob = async () => {
     setLoading(true);
     try {
       const res = await fetch(`/api/jobs/${jobId}`, { credentials: "include" });
-      if (res.ok) {
-        const data = await res.json();
-        setJob(data.job);
-      } else {
-        toast.error("Job not found");
-        router.push("/autocityPro/jobs");
-      }
-    } catch {
-      toast.error("Failed to load job");
-    } finally {
-      setLoading(false);
-    }
+      if (res.ok) { const data = await res.json(); setJob(data.job); }
+      else { toast.error("Job not found"); router.push("/autocityPro/jobs"); }
+    } catch { toast.error("Failed to load job"); }
+    finally { setLoading(false); }
   };
 
   const handleStatusChange = async (newStatus: string) => {
@@ -113,23 +124,13 @@ export default function JobDetailPage() {
     setUpdating(true);
     try {
       const res = await fetch(`/api/jobs/${jobId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include",
         body: JSON.stringify({ status: newStatus }),
       });
-      if (res.ok) {
-        toast.success(`Status updated to ${newStatus}`);
-        fetchJob();
-      } else {
-        const error = await res.json();
-        toast.error(error.error || "Failed to update status");
-      }
-    } catch {
-      toast.error("Failed to update status");
-    } finally {
-      setUpdating(false);
-    }
+      if (res.ok) { toast.success(`Status updated to ${newStatus}`); fetchJob(); }
+      else { const error = await res.json(); toast.error(error.error || "Failed to update status"); }
+    } catch { toast.error("Failed to update status"); }
+    finally { setUpdating(false); }
   };
 
   const handleDelete = async () => {
@@ -137,59 +138,69 @@ export default function JobDetailPage() {
     setUpdating(true);
     try {
       const res = await fetch(`/api/jobs/${jobId}`, { method: "DELETE", credentials: "include" });
-      if (res.ok) {
-        toast.success("Job cancelled");
-        router.push("/autocityPro/jobs");
-      } else {
-        const error = await res.json();
-        toast.error(error.error || "Failed to cancel job");
+      if (res.ok) { toast.success("Job cancelled"); router.push("/autocityPro/jobs"); }
+      else { const error = await res.json(); toast.error(error.error || "Failed to cancel job"); }
+    } catch { toast.error("Failed to cancel job"); }
+    finally { setUpdating(false); }
+  };
+
+  const handleConvertToSale = () => { if (job) router.push(`/autocityPro/sales/new?jobId=${job._id}`); };
+
+  const getStatusBadge = (status: string) => {
+    if (isDark) {
+      switch (status) {
+        case "DRAFT":       return "bg-gray-500/20 text-gray-300 border-gray-500/30";
+        case "PENDING":     return "bg-yellow-500/20 text-yellow-300 border-yellow-500/30";
+        case "IN_PROGRESS": return "bg-blue-500/20 text-blue-300 border-blue-500/30";
+        case "COMPLETED":   return "bg-green-500/20 text-green-300 border-green-500/30";
+        case "CANCELLED":   return "bg-red-500/20 text-red-300 border-red-500/30";
+        default:            return "bg-gray-500/20 text-gray-300 border-gray-500/30";
       }
-    } catch {
-      toast.error("Failed to cancel job");
-    } finally {
-      setUpdating(false);
+    } else {
+      switch (status) {
+        case "DRAFT":       return "bg-gray-100 text-gray-600 border-gray-200";
+        case "PENDING":     return "bg-yellow-50 text-yellow-700 border-yellow-200";
+        case "IN_PROGRESS": return "bg-blue-50 text-blue-700 border-blue-200";
+        case "COMPLETED":   return "bg-green-50 text-green-700 border-green-200";
+        case "CANCELLED":   return "bg-red-50 text-red-600 border-red-200";
+        default:            return "bg-gray-100 text-gray-600 border-gray-200";
+      }
     }
   };
 
-  const handleConvertToSale = () => {
-    if (!job) return;
-    router.push(`/autocityPro/sales/new?jobId=${job._id}`);
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "DRAFT":       return "bg-gray-500/20 text-gray-300 border-gray-500/30";
-      case "PENDING":     return "bg-yellow-500/20 text-yellow-300 border-yellow-500/30";
-      case "IN_PROGRESS": return "bg-blue-500/20 text-blue-300 border-blue-500/30";
-      case "COMPLETED":   return "bg-green-500/20 text-green-300 border-green-500/30";
-      case "CANCELLED":   return "bg-red-500/20 text-red-300 border-red-500/30";
-      default:            return "bg-gray-500/20 text-gray-300 border-gray-500/30";
-    }
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "LOW":    return "bg-gray-500/20 text-gray-300";
-      case "MEDIUM": return "bg-blue-500/20 text-blue-300";
-      case "HIGH":   return "bg-orange-500/20 text-orange-300";
-      case "URGENT": return "bg-red-500/20 text-red-300";
-      default:       return "bg-gray-500/20 text-gray-300";
+  const getPriorityBadge = (priority: string) => {
+    if (isDark) {
+      switch (priority) {
+        case "LOW":    return "bg-gray-500/20 text-gray-300";
+        case "MEDIUM": return "bg-blue-500/20 text-blue-300";
+        case "HIGH":   return "bg-orange-500/20 text-orange-300";
+        case "URGENT": return "bg-red-500/20 text-red-300";
+        default:       return "bg-gray-500/20 text-gray-300";
+      }
+    } else {
+      switch (priority) {
+        case "LOW":    return "bg-gray-100 text-gray-600";
+        case "MEDIUM": return "bg-blue-50 text-blue-700";
+        case "HIGH":   return "bg-orange-50 text-orange-700";
+        case "URGENT": return "bg-red-50 text-red-600";
+        default:       return "bg-gray-100 text-gray-600";
+      }
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case "DRAFT":       return <FileText className="h-3 w-3 md:h-4 md:w-4" />;
-      case "PENDING":     return <Clock className="h-3 w-3 md:h-4 md:w-4" />;
-      case "IN_PROGRESS": return <RefreshCw className="h-3 w-3 md:h-4 md:w-4" />;
-      case "COMPLETED":   return <CheckCircle className="h-3 w-3 md:h-4 md:w-4" />;
-      case "CANCELLED":   return <XCircle className="h-3 w-3 md:h-4 md:w-4" />;
-      default:            return <AlertCircle className="h-3 w-3 md:h-4 md:w-4" />;
+      case "DRAFT":       return <FileText className="h-4 w-4" />;
+      case "PENDING":     return <Clock className="h-4 w-4" />;
+      case "IN_PROGRESS": return <RefreshCw className="h-4 w-4" />;
+      case "COMPLETED":   return <CheckCircle className="h-4 w-4" />;
+      case "CANCELLED":   return <XCircle className="h-4 w-4" />;
+      default:            return <AlertCircle className="h-4 w-4" />;
     }
   };
 
-  const getNextStatuses = (currentStatus: string) => {
-    switch (currentStatus) {
+  const getNextStatuses = (s: string) => {
+    switch (s) {
       case "DRAFT":       return ["PENDING"];
       case "PENDING":     return ["IN_PROGRESS", "DRAFT"];
       case "IN_PROGRESS": return ["COMPLETED", "PENDING"];
@@ -197,18 +208,10 @@ export default function JobDetailPage() {
     }
   };
 
-  // Normalise voice notes to ensure recordedAt is always a string
   const normalisedVoiceNotes: VoiceNoteEntry[] = (job?.voiceNotes ?? []).map((v: any) =>
     typeof v === "string"
       ? { url: v, recordedByName: "Unknown", recordedAt: new Date().toISOString() }
-      : {
-          url: v.url,
-          recordedByName: v.recordedByName ?? "Unknown",
-          recordedAt:
-            typeof v.recordedAt === "string"
-              ? v.recordedAt
-              : new Date(v.recordedAt).toISOString(),
-        }
+      : { url: v.url, recordedByName: v.recordedByName ?? "Unknown", recordedAt: typeof v.recordedAt === "string" ? v.recordedAt : new Date(v.recordedAt).toISOString() }
   );
 
   const handleLogout = async () => {
@@ -216,351 +219,282 @@ export default function JobDetailPage() {
     window.location.href = "/autocityPro/login";
   };
 
-  if (loading) {
-    return (
-      <MainLayout user={user} onLogout={handleLogout}>
-        <div className="flex items-center justify-center min-h-screen bg-[#050505]">
-          <div className="text-center">
-            <RefreshCw className="h-8 w-8 text-[#E84545] animate-spin mx-auto mb-3" />
-            <p className="text-gray-400">Loading job...</p>
-          </div>
+  if (loading) return (
+    <MainLayout user={user} onLogout={handleLogout}>
+      <div className="flex items-center justify-center min-h-screen transition-colors duration-500" style={{ background: th.pageBg }}>
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 text-[#E84545] animate-spin mx-auto mb-3" />
+          <p style={{ color: th.cardSubtext }}>Loading job...</p>
         </div>
-      </MainLayout>
-    );
-  }
+      </div>
+    </MainLayout>
+  );
 
-  if (!job) {
-    return (
-      <MainLayout user={user} onLogout={handleLogout}>
-        <div className="flex items-center justify-center min-h-screen bg-[#050505]">
-          <div className="text-center">
-            <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-3" />
-            <p className="text-white text-lg">Job not found</p>
-          </div>
+  if (!job) return (
+    <MainLayout user={user} onLogout={handleLogout}>
+      <div className="flex items-center justify-center min-h-screen" style={{ background: th.pageBg }}>
+        <div className="text-center">
+          <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-3" />
+          <p className="text-lg" style={{ color: th.cardTitle }}>Job not found</p>
         </div>
-      </MainLayout>
-    );
-  }
+      </div>
+    </MainLayout>
+  );
 
   const nextStatuses = getNextStatuses(job.status);
 
   return (
     <MainLayout user={user} onLogout={handleLogout}>
-      {/* Mobile Header */}
-      <div className="md:hidden fixed top-16 left-0 right-0 z-40 bg-gradient-to-br from-[#0A0A0A] via-[#050505] to-[#0A0A0A] border-b border-white/5 backdrop-blur-xl">
-        <div className="px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button onClick={() => router.back()} className="p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all">
-                <ChevronLeft className="h-5 w-5" />
-              </button>
-              <div>
-                <h1 className="text-lg font-bold text-white">{job.jobNumber}</h1>
-                <p className="text-xs text-white/60 truncate max-w-[200px]">{job.title}</p>
-              </div>
-            </div>
-            {job.status !== "CANCELLED" && !job.convertedToSale && (
-              <button
-                onClick={() => router.push(`/autocityPro/jobs/${jobId}/edit`)}
-                className="p-2 rounded-xl bg-[#E84545] text-white active:scale-95 transition-all"
-              >
-                <Edit className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+      <div className="min-h-screen transition-colors duration-500" style={{ background: th.pageBg }}>
 
-      {/* Desktop Header */}
-      <div className="hidden md:block py-12 bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-lg">
-        <div className="px-6">
-          <div className="flex justify-between items-start">
-            <div className="flex items-center gap-4">
-              <button onClick={() => router.back()} className="p-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-all">
-                <ChevronLeft className="h-5 w-5" />
-              </button>
-              <div>
-                <h1 className="text-3xl font-bold text-white mb-1">{job.jobNumber}</h1>
-                <p className="text-base text-white/90">{job.title}</p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              {job.status !== "CANCELLED" && !job.convertedToSale && (
-                <>
-                  <button
-                    onClick={() => router.push(`/autocityPro/jobs/${jobId}/edit`)}
-                    className="flex items-center gap-2 px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-all"
-                  >
-                    <Edit className="h-4 w-4" />
-                    Edit Job
-                  </button>
-                  <button
-                    onClick={handleDelete}
-                    disabled={updating}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-500/20 text-red-300 rounded-lg hover:bg-red-500/30 transition-all disabled:opacity-50"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Cancel Job
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="px-4 md:px-6 pt-[120px] md:pt-6 pb-24 bg-[#050505] min-h-screen">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Status & Actions */}
-            <div className="bg-[#0A0A0A] rounded-lg shadow-lg border border-white/5 p-4 md:p-6">
-              <div className="flex flex-wrap items-center gap-3 mb-4">
-                <span className={`px-3 py-1.5 rounded-lg text-sm font-medium border flex items-center gap-2 ${getStatusColor(job.status)}`}>
-                  {getStatusIcon(job.status)}
-                  {job.status}
-                </span>
-                <span className={`px-3 py-1.5 rounded-lg text-sm font-medium ${getPriorityColor(job.priority)}`}>
-                  {job.priority}
-                </span>
-                {job.convertedToSale && (
-                  <span className="px-3 py-1.5 bg-green-500/20 text-green-300 rounded-lg text-sm font-medium border border-green-500/30 flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4" />
-                    Converted to Sale
-                  </span>
-                )}
-              </div>
-
-              {nextStatuses.length > 0 && (
-                <div className="mb-4">
-                  <p className="text-sm text-gray-400 mb-2">Change Status:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {nextStatuses.map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => handleStatusChange(s)}
-                        disabled={updating}
-                        className="flex items-center gap-2 px-4 py-2 bg-[#111111] border border-white/5 rounded-lg text-white hover:bg-white/5 transition-all disabled:opacity-50 active:scale-95"
-                      >
-                        {getStatusIcon(s)}
-                        {s}
-                      </button>
-                    ))}
-                  </div>
+        {/* Mobile Header */}
+        <div className="md:hidden fixed top-16 left-0 right-0 z-40 backdrop-blur-xl transition-colors duration-500"
+          style={{ background: th.mobileHeaderBg, borderBottom: `1px solid ${th.mobileHeaderBorder}` }}>
+          <div className="px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <button onClick={() => router.back()} className="p-2 rounded-xl active:scale-95 transition-all"
+                  style={{ background: th.mobileBtnBg, color: th.mobileBtnText }}>
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <div>
+                  <h1 className="text-lg font-bold" style={{ color: th.mobileHeaderTitle }}>{job.jobNumber}</h1>
+                  <p className="text-xs truncate max-w-[180px]" style={{ color: th.mobileHeaderSub }}>{job.title}</p>
                 </div>
-              )}
-
-              {job.status === "COMPLETED" && !job.convertedToSale && (
+              </div>
+              {job.status !== "CANCELLED" && !job.convertedToSale && (
                 <button
-                  onClick={handleConvertToSale}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all shadow-lg font-semibold"
-                >
-                  <ArrowRight className="h-5 w-5" />
-                  Convert to Sale
+                  onClick={() => router.push(`/autocityPro/jobs/${jobId}/edit`)}
+                  className="p-2 rounded-xl active:scale-95 transition-all text-white"
+                  style={{ background: "#E84545" }}>
+                  <Edit className="h-4 w-4" />
                 </button>
               )}
+            </div>
+          </div>
+        </div>
 
-              {job.convertedToSale && job.saleInvoiceNumber && (
-                <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
-                  <p className="text-sm text-green-300">
-                    Converted to sale:{" "}
-                    <span className="font-mono font-bold">{job.saleInvoiceNumber}</span>
-                  </p>
+        {/* Desktop Header */}
+        <div className="hidden md:block py-12 border-b shadow-lg transition-colors duration-500"
+          style={{ background: `linear-gradient(135deg,${th.headerBgFrom},${th.headerBgVia},${th.headerBgTo})`, borderColor: th.headerBorder }}>
+          <div className="px-6">
+            <div className="flex justify-between items-start">
+              <div className="flex items-center gap-4">
+                <button onClick={() => router.back()} className="p-2 rounded-lg transition-all"
+                  style={{ background: th.headerBtnBg, color: th.headerBtnText }}
+                  onMouseEnter={e => (e.currentTarget.style.background = th.headerBtnHover)}
+                  onMouseLeave={e => (e.currentTarget.style.background = th.headerBtnBg)}>
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <div>
+                  <div className="flex items-center gap-3">
+                    <h1 className="text-3xl font-bold" style={{ color: th.headerTitle }}>{job.jobNumber}</h1>
+                    <div className="flex items-center gap-1 px-2 py-1 rounded-full text-xs"
+                      style={{ background: isDark ? "rgba(0,0,0,0.30)" : "rgba(255,255,255,0.60)", border: `1px solid ${isDark ? "rgba(255,255,255,0.15)" : "rgba(127,29,29,0.20)"}`, color: isDark ? "rgba(255,255,255,0.70)" : "#7f1d1d" }}>
+                      {isDark ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
+                    </div>
+                  </div>
+                  <p className="mt-1" style={{ color: th.headerSub }}>{job.title}</p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                {job.status !== "CANCELLED" && !job.convertedToSale && (
+                  <>
+                    <button onClick={() => router.push(`/autocityPro/jobs/${jobId}/edit`)}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all"
+                      style={{ background: th.headerBtnBg, color: th.headerBtnText }}
+                      onMouseEnter={e => (e.currentTarget.style.background = th.headerBtnHover)}
+                      onMouseLeave={e => (e.currentTarget.style.background = th.headerBtnBg)}>
+                      <Edit className="h-4 w-4" />Edit Job
+                    </button>
+                    <button onClick={handleDelete} disabled={updating}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all disabled:opacity-50"
+                      style={{ background: th.headerDeleteBg, color: th.headerDeleteText }}>
+                      <Trash2 className="h-4 w-4" />Cancel Job
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="px-4 md:px-6 pt-[100px] md:pt-6 pb-24">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            {/* Left Column */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Status & Actions */}
+              <div className="rounded-xl p-4 md:p-6 transition-colors duration-500" style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}>
+                <div className="flex flex-wrap items-center gap-3 mb-4">
+                  <span className={`px-3 py-1.5 rounded-lg text-sm font-medium border flex items-center gap-2 ${getStatusBadge(job.status)}`}>
+                    {getStatusIcon(job.status)}{job.status}
+                  </span>
+                  <span className={`px-3 py-1.5 rounded-lg text-sm font-medium ${getPriorityBadge(job.priority)}`}>
+                    {job.priority}
+                  </span>
+                  {job.convertedToSale && (
+                    <span className="px-3 py-1.5 rounded-lg text-sm font-medium border flex items-center gap-2"
+                      style={{ background: th.convertedBg, borderColor: th.convertedBorder, color: th.convertedText }}>
+                      <CheckCircle className="h-4 w-4" />Converted to Sale
+                    </span>
+                  )}
+                </div>
+                {nextStatuses.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-sm mb-2" style={{ color: th.cardSubtext }}>Change Status:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {nextStatuses.map(s => (
+                        <button key={s} onClick={() => handleStatusChange(s)} disabled={updating}
+                          className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all disabled:opacity-50 active:scale-95"
+                          style={{ background: th.statusBtnBg, border: `1px solid ${th.statusBtnBorder}`, color: th.statusBtnText }}>
+                          {getStatusIcon(s)}{s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {job.status === "COMPLETED" && !job.convertedToSale && (
+                  <button onClick={handleConvertToSale}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all shadow-lg font-semibold">
+                    <ArrowRight className="h-5 w-5" />Convert to Sale
+                  </button>
+                )}
+                {job.convertedToSale && job.saleInvoiceNumber && (
+                  <div className="p-3 rounded-lg" style={{ background: th.convertedBg, border: `1px solid ${th.convertedBorder}` }}>
+                    <p className="text-sm" style={{ color: th.convertedText }}>
+                      Converted to sale: <span className="font-mono font-bold">{job.saleInvoiceNumber}</span>
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Description */}
+              {job.description && (
+                <div className="rounded-xl p-4 md:p-6 transition-colors duration-500" style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}>
+                  <h2 className="text-lg font-bold mb-3 flex items-center gap-2" style={{ color: th.cardTitle }}>
+                    <FileText className="h-5 w-5 text-[#E84545]" />Description
+                  </h2>
+                  <p className="whitespace-pre-wrap" style={{ color: th.cardSubtext }}>{job.description}</p>
+                </div>
+              )}
+
+              {/* Items */}
+              <div className="rounded-xl p-4 md:p-6 transition-colors duration-500" style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}>
+                <h2 className="text-lg font-bold mb-4 flex items-center gap-2" style={{ color: th.cardTitle }}>
+                  <Package className="h-5 w-5 text-[#E84545]" />Items ({job.items.length})
+                </h2>
+                <div className="space-y-3">
+                  {job.items.map((item, index) => (
+                    <div key={index} className="rounded-lg p-3 md:p-4" style={{ background: th.itemBg, border: `1px solid ${th.itemBorder}` }}>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-sm md:text-base flex items-center gap-2" style={{ color: th.itemTitle }}>
+                          {item.isLabor && <Wrench className="h-4 w-4 text-[#E84545]" />}
+                          {item.name}
+                        </h3>
+                        <p className="text-xs mt-1" style={{ color: th.itemMuted }}>SKU: {item.sku}</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm mt-3">
+                        <div>
+                          <p style={{ color: th.itemMuted }}>Quantity:</p>
+                          <p className="font-medium" style={{ color: th.itemTitle }}>{item.quantity} {item.unit}</p>
+                        </div>
+                        {item.notes && (
+                          <div className="col-span-2">
+                            <p style={{ color: th.itemMuted }}>Notes:</p>
+                            <p style={{ color: th.itemTitle }}>{item.notes}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Notes */}
+              {(job.internalNotes || job.customerNotes) && (
+                <div className="rounded-xl p-4 md:p-6 transition-colors duration-500" style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}>
+                  <h2 className="text-lg font-bold mb-4" style={{ color: th.cardTitle }}>Notes</h2>
+                  {job.internalNotes && (
+                    <div className="mb-4">
+                      <p className="text-sm font-medium mb-1" style={{ color: th.cardMuted }}>Internal Notes:</p>
+                      <p className="whitespace-pre-wrap" style={{ color: th.cardSubtext }}>{job.internalNotes}</p>
+                    </div>
+                  )}
+                  {job.customerNotes && (
+                    <div>
+                      <p className="text-sm font-medium mb-1" style={{ color: th.cardMuted }}>Customer Notes:</p>
+                      <p className="whitespace-pre-wrap" style={{ color: th.cardSubtext }}>{job.customerNotes}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Voice Notes */}
+              {normalisedVoiceNotes.length > 0 && (
+                <div className="rounded-xl p-4 md:p-6 transition-colors duration-500" style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}>
+                  <VoiceNoteRecorder voiceNotes={normalisedVoiceNotes} onChange={() => {}} recordedByName="" readOnly
+                    label={`Voice Notes (${normalisedVoiceNotes.length})`} maxNotes={10} />
                 </div>
               )}
             </div>
 
-            {/* Description */}
-            {job.description && (
-              <div className="bg-[#0A0A0A] rounded-lg shadow-lg border border-white/5 p-4 md:p-6">
-                <h2 className="text-lg font-bold mb-3 text-white flex items-center">
-                  <FileText className="h-5 w-5 mr-2 text-[#E84545]" />
-                  Description
+            {/* Right Column */}
+            <div className="space-y-6">
+              {/* Customer */}
+              <div className="rounded-xl p-4 md:p-6 transition-colors duration-500" style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}>
+                <h2 className="text-lg font-bold mb-4 flex items-center gap-2" style={{ color: th.cardTitle }}>
+                  <User className="h-5 w-5 text-[#E84545]" />Customer
                 </h2>
-                <p className="text-gray-300 whitespace-pre-wrap">{job.description}</p>
-              </div>
-            )}
-
-            {/* Items */}
-            <div className="bg-[#0A0A0A] rounded-lg shadow-lg border border-white/5 p-4 md:p-6">
-              <h2 className="text-lg font-bold mb-4 text-white flex items-center">
-                <Package className="h-5 w-5 mr-2 text-[#E84545]" />
-                Items ({job.items.length})
-              </h2>
-              <div className="space-y-3">
-                {job.items.map((item, index) => (
-                  <div key={index} className="border border-white/5 rounded-lg p-3 md:p-4 bg-[#111111]">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-white text-sm md:text-base flex items-center">
-                          {item.isLabor && <Wrench className="h-4 w-4 mr-2 text-[#E84545]" />}
-                          {item.name}
-                        </h3>
-                        <p className="text-xs text-gray-400 mt-1">SKU: {item.sku}</p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <p className="text-gray-400">Quantity:</p>
-                        <p className="text-white font-medium">{item.quantity} {item.unit}</p>
-                      </div>
-                      {item.notes && (
-                        <div className="col-span-2">
-                          <p className="text-gray-400">Notes:</p>
-                          <p className="text-white">{item.notes}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Text Notes */}
-            {(job.internalNotes || job.customerNotes) && (
-              <div className="bg-[#0A0A0A] rounded-lg shadow-lg border border-white/5 p-4 md:p-6">
-                <h2 className="text-lg font-bold mb-4 text-white">Notes</h2>
-                {job.internalNotes && (
-                  <div className="mb-4">
-                    <p className="text-sm font-medium text-gray-400 mb-1">Internal Notes:</p>
-                    <p className="text-white whitespace-pre-wrap">{job.internalNotes}</p>
-                  </div>
-                )}
-                {job.customerNotes && (
-                  <div>
-                    <p className="text-sm font-medium text-gray-400 mb-1">Customer Notes:</p>
-                    <p className="text-white whitespace-pre-wrap">{job.customerNotes}</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Voice Notes — read-only playback with recorder info */}
-            {normalisedVoiceNotes.length > 0 && (
-              <div className="bg-[#0A0A0A] rounded-lg shadow-lg border border-white/5 p-4 md:p-6">
-                <VoiceNoteRecorder
-                  voiceNotes={normalisedVoiceNotes}
-                  onChange={() => {}}
-                  recordedByName=""
-                  readOnly
-                  label={`Voice Notes (${normalisedVoiceNotes.length})`}
-                  maxNotes={10}
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Right Column */}
-          <div className="space-y-6">
-            {/* Customer */}
-            <div className="bg-[#0A0A0A] rounded-lg shadow-lg border border-white/5 p-4 md:p-6">
-              <h2 className="text-lg font-bold mb-4 text-white flex items-center">
-                <User className="h-5 w-5 mr-2 text-[#E84545]" />
-                Customer
-              </h2>
-              <div className="space-y-2 text-sm">
                 <div>
-                  <p className="text-gray-400">Name:</p>
-                  <p className="text-white font-medium">{job.customerName}</p>
+                  <p className="text-sm" style={{ color: th.cardMuted }}>Name:</p>
+                  <p className="font-medium" style={{ color: th.cardTitle }}>{job.customerName}</p>
                 </div>
               </div>
-            </div>
 
-            {/* Vehicle */}
-            {job.vehicleRegistrationNumber && (
-              <div className="bg-[#0A0A0A] rounded-lg shadow-lg border border-white/5 p-4 md:p-6">
-                <h2 className="text-lg font-bold mb-4 text-white flex items-center">
-                  <Car className="h-5 w-5 mr-2 text-[#E84545]" />
-                  Vehicle
+              {/* Vehicle */}
+              {job.vehicleRegistrationNumber && (
+                <div className="rounded-xl p-4 md:p-6 transition-colors duration-500" style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}>
+                  <h2 className="text-lg font-bold mb-4 flex items-center gap-2" style={{ color: th.cardTitle }}>
+                    <Car className="h-5 w-5 text-[#E84545]" />Vehicle
+                  </h2>
+                  <div className="space-y-2 text-sm">
+                    <div><p style={{ color: th.cardMuted }}>Registration:</p><p className="font-mono font-bold text-[#E84545]">{job.vehicleRegistrationNumber}</p></div>
+                    {job.vehicleMake && <div><p style={{ color: th.cardMuted }}>Make & Model:</p><p style={{ color: th.cardTitle }}>{job.vehicleMake} {job.vehicleModel}</p></div>}
+                    {job.vehicleYear && <div><p style={{ color: th.cardMuted }}>Year:</p><p style={{ color: th.cardTitle }}>{job.vehicleYear}</p></div>}
+                    {job.vehicleColor && <div><p style={{ color: th.cardMuted }}>Color:</p><p style={{ color: th.cardTitle }}>{job.vehicleColor}</p></div>}
+                    {job.vehicleMileage && <div><p style={{ color: th.cardMuted }}>Mileage:</p><p style={{ color: th.cardTitle }}>{job.vehicleMileage} km</p></div>}
+                  </div>
+                </div>
+              )}
+
+              {/* Staff */}
+              {job.assignedTo && (
+                <div className="rounded-xl p-4 md:p-6 transition-colors duration-500"
+                  style={{ background: th.cardBg, border: `1px solid ${th.staffBorder}` }}>
+                  <h2 className="text-lg font-bold mb-4 flex items-center gap-2" style={{ color: th.cardTitle }}>
+                    <UserCog className="h-5 w-5 text-blue-400" />Assigned Staff
+                  </h2>
+                  <div className="p-3 rounded-lg" style={{ background: th.staffBg, border: `1px solid ${th.staffBorder}` }}>
+                    <p className="font-semibold" style={{ color: th.staffText }}>{job.assignedTo.firstName} {job.assignedTo.lastName}</p>
+                    <p className="text-xs mt-1" style={{ color: th.staffSubText }}>{job.assignedTo.role}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Dates */}
+              <div className="rounded-xl p-4 md:p-6 transition-colors duration-500" style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}>
+                <h2 className="text-lg font-bold mb-4 flex items-center gap-2" style={{ color: th.cardTitle }}>
+                  <Calendar className="h-5 w-5 text-[#E84545]" />Dates
                 </h2>
-                <div className="space-y-2 text-sm">
-                  <div>
-                    <p className="text-gray-400">Registration:</p>
-                    <p className="text-white font-mono font-bold">{job.vehicleRegistrationNumber}</p>
-                  </div>
-                  {job.vehicleMake && (
-                    <div>
-                      <p className="text-gray-400">Make & Model:</p>
-                      <p className="text-white">{job.vehicleMake} {job.vehicleModel}</p>
-                    </div>
-                  )}
-                  {job.vehicleYear && (
-                    <div>
-                      <p className="text-gray-400">Year:</p>
-                      <p className="text-white">{job.vehicleYear}</p>
-                    </div>
-                  )}
-                  {job.vehicleColor && (
-                    <div>
-                      <p className="text-gray-400">Color:</p>
-                      <p className="text-white">{job.vehicleColor}</p>
-                    </div>
-                  )}
-                  {job.vehicleMileage && (
-                    <div>
-                      <p className="text-gray-400">Mileage:</p>
-                      <p className="text-white">{job.vehicleMileage} km</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Assigned Staff */}
-            {job.assignedTo && (
-              <div className="bg-[#0A0A0A] rounded-lg shadow-lg border border-blue-500/20 p-4 md:p-6">
-                <h2 className="text-lg font-bold mb-4 text-white flex items-center">
-                  <UserCog className="h-5 w-5 mr-2 text-blue-400" />
-                  Assigned Staff
-                </h2>
-                <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                  <p className="text-blue-300 font-semibold">
-                    {job.assignedTo.firstName} {job.assignedTo.lastName}
-                  </p>
-                  <p className="text-xs text-blue-400 mt-1">{job.assignedTo.role}</p>
-                </div>
-              </div>
-            )}
-
-            {/* Dates */}
-            <div className="bg-[#0A0A0A] rounded-lg shadow-lg border border-white/5 p-4 md:p-6">
-              <h2 className="text-lg font-bold mb-4 text-white flex items-center">
-                <Calendar className="h-5 w-5 mr-2 text-[#E84545]" />
-                Dates
-              </h2>
-              <div className="space-y-3 text-sm">
-                <div>
-                  <p className="text-gray-400">Created:</p>
-                  <p className="text-white">{new Date(job.createdAt).toLocaleString()}</p>
-                </div>
-                {job.estimatedStartDate && (
-                  <div>
-                    <p className="text-gray-400">Estimated Start:</p>
-                    <p className="text-white">{new Date(job.estimatedStartDate).toLocaleDateString()}</p>
-                  </div>
-                )}
-                {job.estimatedCompletionDate && (
-                  <div>
-                    <p className="text-gray-400">Estimated Completion:</p>
-                    <p className="text-white">{new Date(job.estimatedCompletionDate).toLocaleDateString()}</p>
-                  </div>
-                )}
-                {job.actualStartDate && (
-                  <div>
-                    <p className="text-gray-400">Actual Start:</p>
-                    <p className="text-green-300">{new Date(job.actualStartDate).toLocaleDateString()}</p>
-                  </div>
-                )}
-                {job.actualCompletionDate && (
-                  <div>
-                    <p className="text-gray-400">Actual Completion:</p>
-                    <p className="text-green-300">{new Date(job.actualCompletionDate).toLocaleDateString()}</p>
-                  </div>
-                )}
-                <div>
-                  <p className="text-gray-400">Last Updated:</p>
-                  <p className="text-white">{new Date(job.updatedAt).toLocaleString()}</p>
+                <div className="space-y-3 text-sm">
+                  <div><p style={{ color: th.cardMuted }}>Created:</p><p style={{ color: th.cardTitle }}>{new Date(job.createdAt).toLocaleString()}</p></div>
+                  {job.estimatedStartDate && <div><p style={{ color: th.cardMuted }}>Estimated Start:</p><p style={{ color: th.cardTitle }}>{new Date(job.estimatedStartDate).toLocaleDateString()}</p></div>}
+                  {job.estimatedCompletionDate && <div><p style={{ color: th.cardMuted }}>Estimated Completion:</p><p style={{ color: th.cardTitle }}>{new Date(job.estimatedCompletionDate).toLocaleDateString()}</p></div>}
+                  {job.actualStartDate && <div><p style={{ color: th.cardMuted }}>Actual Start:</p><p style={{ color: th.convertedText }}>{new Date(job.actualStartDate).toLocaleDateString()}</p></div>}
+                  {job.actualCompletionDate && <div><p style={{ color: th.cardMuted }}>Actual Completion:</p><p style={{ color: th.convertedText }}>{new Date(job.actualCompletionDate).toLocaleDateString()}</p></div>}
+                  <div><p style={{ color: th.cardMuted }}>Last Updated:</p><p style={{ color: th.cardTitle }}>{new Date(job.updatedAt).toLocaleString()}</p></div>
                 </div>
               </div>
             </div>

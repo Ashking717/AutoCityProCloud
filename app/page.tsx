@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Wrench, Shield, ArrowRight, Phone, Mail, MapPin, ChevronDown, Clock, Disc3, Sparkles, PaintBucket, Sun, Repeat, Sofa, Settings, Globe } from 'lucide-react';
+import { Wrench, Shield, ArrowRight, Phone, Mail, MapPin, ChevronDown, Clock, Disc3, Sparkles, PaintBucket, Sun, Repeat, Sofa, Settings, Globe, Moon } from 'lucide-react';
 
 // Content translations with SEO-optimized text
 const content = {
@@ -267,11 +267,27 @@ const phoneNumbers = [
 
 export default function HomePage() {
   const [lang, setLang] = useState<'en' | 'ar'>('en');
+  const [isDark, setIsDark] = useState(true);
   const t = content[lang];
   const isRTL = lang === 'ar';
 
+  // Check time and set theme
+  useEffect(() => {
+    const checkTime = () => {
+      const hour = new Date().getHours();
+      // Dark theme: 6 PM (18) to 6 AM (6)
+      // Light theme: 6 AM (6) to 6 PM (18)
+      setIsDark(hour < 6 || hour >= 18);
+    };
+
+    checkTime();
+    const interval = setInterval(checkTime, 60000); // Check every minute
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <div className={`min-h-screen bg-[#050505] text-white overflow-x-hidden ${isRTL ? 'rtl' : 'ltr'}`}>
+    <div className={`min-h-screen ${isDark ? 'bg-[#050505] text-white' : 'bg-gray-50 text-gray-900'} overflow-x-hidden ${isRTL ? 'rtl' : 'ltr'} transition-colors duration-500`}>
       {/* Custom Styles */}
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap');
@@ -294,7 +310,7 @@ export default function HomePage() {
           width: 8px;
         }
         ::-webkit-scrollbar-track {
-          background: #0A0A0A;
+          background: ${isDark ? '#0A0A0A' : '#f1f5f9'};
         }
         ::-webkit-scrollbar-thumb {
           background: #E84545;
@@ -373,15 +389,15 @@ export default function HomePage() {
         }
 
         .glass {
-          background: rgba(255, 255, 255, 0.03);
+          background: ${isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.8)'};
           backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.05);
+          border: 1px solid ${isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'};
         }
 
         .glass-dark {
-          background: rgba(0, 0, 0, 0.6);
+          background: ${isDark ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.95)'};
           backdrop-filter: blur(20px);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+          border-bottom: 1px solid ${isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'};
         }
 
         .noise::before {
@@ -393,7 +409,7 @@ export default function HomePage() {
           height: 100%;
           pointer-events: none;
           z-index: 1000;
-          opacity: 0.015;
+          opacity: ${isDark ? '0.015' : '0.008'};
           background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
         }
 
@@ -456,7 +472,7 @@ export default function HomePage() {
                   <li key={item.key}>
                     <a
                       href={item.href}
-                      className="text-sm font-medium text-gray-400 hover:text-[#E84545] transition-colors duration-300 relative group"
+                      className={`text-sm font-medium ${isDark ? 'text-gray-400 hover:text-[#E84545]' : 'text-gray-600 hover:text-[#E84545]'} transition-colors duration-300 relative group`}
                     >
                       {t.nav[item.key as keyof typeof t.nav]}
                       <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#E84545] group-hover:w-full transition-all duration-300" />
@@ -467,10 +483,19 @@ export default function HomePage() {
 
               {/* Language Selector & CTA */}
               <div className="flex items-center gap-4">
+                {/* Theme Indicator */}
+                <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300/10">
+                  {isDark ? (
+                    <Moon className="w-4 h-4 text-[#E84545]" aria-hidden="true" />
+                  ) : (
+                    <Sun className="w-4 h-4 text-[#E84545]" aria-hidden="true" />
+                  )}
+                </div>
+
                 {/* Language Toggle */}
                 <button
                   onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-white/10 hover:border-[#E84545]/50 transition-colors"
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border ${isDark ? 'border-white/10 hover:border-[#E84545]/50' : 'border-gray-200 hover:border-[#E84545]/50'} transition-colors`}
                   aria-label={lang === 'en' ? 'Switch to Arabic' : 'Switch to English'}
                 >
                   <Globe className="w-4 h-4 text-[#E84545]" aria-hidden="true" />
@@ -493,9 +518,9 @@ export default function HomePage() {
       <section className="relative min-h-screen flex items-center pt-20" aria-labelledby="hero-heading">
         {/* Background Elements */}
         <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
-          <div className="absolute -top-1/4 -right-1/4 w-[800px] h-[800px] rounded-full opacity-10 bg-[#E84545] blur-[150px]" />
+          <div className={`absolute -top-1/4 -right-1/4 w-[800px] h-[800px] rounded-full ${isDark ? 'opacity-10' : 'opacity-5'} bg-[#E84545] blur-[150px]`} />
           <div 
-            className="absolute inset-0 opacity-[0.02]"
+            className={`absolute inset-0 ${isDark ? 'opacity-[0.02]' : 'opacity-[0.01]'}`}
             style={{
               backgroundImage: `
                 linear-gradient(to right, #E84545 1px, transparent 1px),
@@ -505,7 +530,7 @@ export default function HomePage() {
             }}
           />
           <div 
-            className="absolute top-0 right-0 w-1/2 h-full opacity-[0.03]"
+            className={`absolute top-0 right-0 w-1/2 h-full ${isDark ? 'opacity-[0.03]' : 'opacity-[0.015]'}`}
             style={{
               backgroundImage: `repeating-linear-gradient(
                 -45deg,
@@ -522,13 +547,13 @@ export default function HomePage() {
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             {/* Content */}
             <div>
-              <div className="animate-fade-in-up inline-flex items-center gap-3 px-4 py-2 rounded-full border border-[#E84545]/30 bg-[#E84545]/5 mb-8">
+              <div className={`animate-fade-in-up inline-flex items-center gap-3 px-4 py-2 rounded-full border border-[#E84545]/30 ${isDark ? 'bg-[#E84545]/5' : 'bg-[#E84545]/10'} mb-8`}>
                 <span className="w-2 h-2 rounded-full bg-[#E84545] animate-pulse" aria-hidden="true" />
-                <span className="text-sm text-gray-300">{t.hero.badge}</span>
+                <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{t.hero.badge}</span>
               </div>
 
               <h1 id="hero-heading" className="animate-fade-in-up delay-100">
-                <span className="block text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-white mb-4">
+                <span className={`block text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-gray-900'} mb-4`}>
                   {t.hero.title1}
                 </span>
                 <span className="block text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-[#E84545]">
@@ -536,15 +561,15 @@ export default function HomePage() {
                 </span>
               </h1>
 
-              <p className="animate-fade-in-up delay-200 text-xl text-gray-500 mt-6 mb-8">
+              <p className={`animate-fade-in-up delay-200 text-xl ${isDark ? 'text-gray-500' : 'text-gray-600'} mt-6 mb-8`}>
                 {t.hero.subtitle}
               </p>
 
-              <p className="animate-fade-in-up delay-300 text-lg text-gray-400 max-w-lg mb-6 leading-relaxed">
+              <p className={`animate-fade-in-up delay-300 text-lg ${isDark ? 'text-gray-400' : 'text-gray-600'} max-w-lg mb-6 leading-relaxed`}>
                 {t.hero.description}
               </p>
 
-              <p className="animate-fade-in-up delay-300 text-base text-gray-500 max-w-lg mb-10 leading-relaxed">
+              <p className={`animate-fade-in-up delay-300 text-base ${isDark ? 'text-gray-500' : 'text-gray-500'} max-w-lg mb-10 leading-relaxed`}>
                 {t.hero.intro}
               </p>
 
@@ -558,17 +583,17 @@ export default function HomePage() {
                 </a>
                 <a
                   href="#contact"
-                  className="inline-flex items-center gap-2 px-8 py-4 border border-white/20 text-white font-semibold rounded-lg hover:border-[#E84545] hover:text-[#E84545] transition-all duration-300"
+                  className={`inline-flex items-center gap-2 px-8 py-4 border ${isDark ? 'border-white/20 text-white hover:border-[#E84545]' : 'border-gray-300 text-gray-900 hover:border-[#E84545]'} font-semibold rounded-lg hover:text-[#E84545] transition-all duration-300`}
                 >
                   {t.hero.cta2}
                 </a>
               </div>
 
-              <div className="animate-fade-in-up delay-500 flex gap-12 mt-16 pt-10 border-t border-white/10">
+              <div className={`animate-fade-in-up delay-500 flex gap-12 mt-16 pt-10 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
                 {t.hero.stats.map((stat, i) => (
                   <div key={i}>
                     <div className="text-3xl font-bold text-[#E84545]">{stat.value}</div>
-                    <div className="text-sm text-gray-500 mt-1">{stat.label}</div>
+                    <div className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-600'} mt-1`}>{stat.label}</div>
                   </div>
                 ))}
               </div>
@@ -578,10 +603,10 @@ export default function HomePage() {
             <div className="animate-scale-in delay-300 relative hidden lg:block">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center justify-center" aria-hidden="true">
-                  <div className="w-[400px] h-[400px] border border-[#E84545]/10 rounded-full" />
-                  <div className="absolute w-[500px] h-[500px] border border-[#E84545]/5 rounded-full" />
+                  <div className={`w-[400px] h-[400px] border ${isDark ? 'border-[#E84545]/10' : 'border-[#E84545]/20'} rounded-full`} />
+                  <div className={`absolute w-[500px] h-[500px] border ${isDark ? 'border-[#E84545]/5' : 'border-[#E84545]/10'} rounded-full`} />
                   <div 
-                    className="absolute w-[300px] h-[300px] border-2 border-[#E84545]/20 rounded-full"
+                    className={`absolute w-[300px] h-[300px] border-2 ${isDark ? 'border-[#E84545]/20' : 'border-[#E84545]/30'} rounded-full`}
                     style={{ animation: 'pulse-ring 3s ease-out infinite' }}
                   />
                 </div>
@@ -603,7 +628,7 @@ export default function HomePage() {
         </div>
 
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 animate-fade-in delay-600">
-          <a href="#services" className="flex flex-col items-center gap-2 text-gray-500 hover:text-[#E84545] transition-colors" aria-label="Scroll to car accessories services">
+          <a href="#services" className={`flex flex-col items-center gap-2 ${isDark ? 'text-gray-500' : 'text-gray-400'} hover:text-[#E84545] transition-colors`} aria-label="Scroll to car accessories services">
             <ChevronDown className="w-5 h-5 animate-bounce" aria-hidden="true" />
           </a>
         </div>
@@ -617,7 +642,7 @@ export default function HomePage() {
             <h2 id="services-heading" className="text-4xl md:text-5xl font-bold mt-4 mb-6 relative inline-block line-accent line-accent-center">
               {t.services.title}
             </h2>
-            <p className="text-gray-400 text-lg max-w-2xl mx-auto mt-8">
+            <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-lg max-w-2xl mx-auto mt-8`}>
               {t.services.description}
             </p>
           </header>
@@ -628,16 +653,16 @@ export default function HomePage() {
               return (
                 <article
                   key={i}
-                  className="group relative p-6 lg:p-8 bg-[#0A0A0A] border border-white/5 rounded-2xl hover:border-[#E84545]/30 hover-lift transition-all duration-500"
+                  className={`group relative p-6 lg:p-8 ${isDark ? 'bg-[#0A0A0A] border-white/5' : 'bg-white border-gray-200'} border rounded-2xl hover:border-[#E84545]/30 hover-lift transition-all duration-500`}
                   itemScope
                   itemType="https://schema.org/Service"
                 >
-                  <div className="w-12 h-12 rounded-xl bg-[#E84545]/10 flex items-center justify-center mb-5 group-hover:bg-[#E84545] transition-colors duration-300">
+                  <div className={`w-12 h-12 rounded-xl ${isDark ? 'bg-[#E84545]/10' : 'bg-[#E84545]/5'} flex items-center justify-center mb-5 group-hover:bg-[#E84545] transition-colors duration-300`}>
                     <Icon className="w-6 h-6 text-[#E84545] group-hover:text-white transition-colors duration-300" aria-hidden="true" />
                   </div>
 
                   <h3 className="text-lg font-bold mb-3" itemProp="name">{service.title}</h3>
-                  <p className="text-gray-400 text-sm leading-relaxed" itemProp="description">{service.description}</p>
+                  <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm leading-relaxed`} itemProp="description">{service.description}</p>
 
                   <div className="absolute bottom-0 left-0 w-full h-1 bg-[#E84545] scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left rounded-b-2xl" aria-hidden="true" />
                 </article>
@@ -648,7 +673,7 @@ export default function HomePage() {
       </section>
 
       {/* About Section */}
-      <section id="about" className="relative py-32 bg-[#0A0A0A]" aria-labelledby="about-heading">
+      <section id="about" className={`relative py-32 ${isDark ? 'bg-[#0A0A0A]' : 'bg-white'}`} aria-labelledby="about-heading">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div>
@@ -657,11 +682,11 @@ export default function HomePage() {
                 {t.about.title}
               </h2>
               
-              <p className="text-gray-400 text-lg mb-6 leading-relaxed">
+              <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-lg mb-6 leading-relaxed`}>
                 {t.about.description1}
               </p>
               
-              <p className="text-gray-400 text-lg mb-10 leading-relaxed">
+              <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-lg mb-10 leading-relaxed`}>
                 {t.about.description2}
               </p>
 
@@ -669,7 +694,7 @@ export default function HomePage() {
                 {t.about.features.map((item, i) => (
                   <li key={i} className="flex items-center gap-3">
                     <div className="w-2 h-2 rounded-full bg-[#E84545]" aria-hidden="true" />
-                    <span className="text-gray-300 text-sm">{item}</span>
+                    <span className={`${isDark ? 'text-gray-300' : 'text-gray-700'} text-sm`}>{item}</span>
                   </li>
                 ))}
               </ul>
@@ -687,7 +712,7 @@ export default function HomePage() {
                   />
                   <div className="space-y-2">
                     <p className="text-xl font-semibold">{lang === 'en' ? 'Auto City Qatar' : 'اوتو سيتي قطر'}</p>
-                    <p className="text-lg text-gray-500">{lang === 'en' ? 'Car Accessories & Auto Parts' : 'إكسسوارات السيارات وقطع الغيار'}</p>
+                    <p className={`text-lg ${isDark ? 'text-gray-500' : 'text-gray-600'}`}>{lang === 'en' ? 'Car Accessories & Auto Parts' : 'إكسسوارات السيارات وقطع الغيار'}</p>
                   </div>
                 </div>
               </div>
@@ -699,7 +724,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* FAQ Section - NEW for SEO */}
+      {/* FAQ Section */}
       {lang === 'en' && (
         <section className="relative py-32" aria-labelledby="faq-heading">
           <div className="max-w-4xl mx-auto px-6 lg:px-8">
@@ -714,7 +739,7 @@ export default function HomePage() {
                 <div key={i} className="glass rounded-2xl p-8" itemScope itemType="https://schema.org/Question">
                   <h3 className="text-xl font-bold mb-4 text-[#E84545]" itemProp="name">{item.q}</h3>
                   <div itemScope itemProp="acceptedAnswer" itemType="https://schema.org/Answer">
-                    <p className="text-gray-400 leading-relaxed" itemProp="text">{item.a}</p>
+                    <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} leading-relaxed`} itemProp="text">{item.a}</p>
                   </div>
                 </div>
               ))}
@@ -724,14 +749,14 @@ export default function HomePage() {
       )}
 
       {/* Branches Section */}
-      <section id="branches" className="relative py-32 bg-[#0A0A0A]" aria-labelledby="branches-heading">
+      <section id="branches" className={`relative py-32 ${isDark ? 'bg-[#0A0A0A]' : 'bg-white'}`} aria-labelledby="branches-heading">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <header className="text-center mb-16">
             <span className="text-[#E84545] text-sm font-semibold tracking-[0.2em] uppercase">{t.branches.label}</span>
             <h2 id="branches-heading" className="text-4xl md:text-5xl font-bold mt-4 mb-6 relative inline-block line-accent line-accent-center">
               {t.branches.title}
             </h2>
-            <p className="text-gray-400 text-lg max-w-2xl mx-auto mt-8">
+            <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-lg max-w-2xl mx-auto mt-8`}>
               {t.branches.description}
             </p>
           </header>
@@ -740,16 +765,16 @@ export default function HomePage() {
             {t.branches.items.map((branch, i) => (
               <article
                 key={i}
-                className="group p-8 bg-[#050505] border border-white/5 rounded-2xl text-center hover:border-[#E84545]/30 hover-lift transition-all duration-300"
+                className={`group p-8 ${isDark ? 'bg-[#050505] border-white/5' : 'bg-gray-50 border-gray-200'} border rounded-2xl text-center hover:border-[#E84545]/30 hover-lift transition-all duration-300`}
                 itemScope
                 itemType="https://schema.org/LocalBusiness"
               >
-                <div className="w-16 h-16 rounded-full bg-[#E84545]/10 flex items-center justify-center mx-auto mb-6 group-hover:bg-[#E84545] transition-colors duration-300">
+                <div className={`w-16 h-16 rounded-full ${isDark ? 'bg-[#E84545]/10' : 'bg-[#E84545]/5'} flex items-center justify-center mx-auto mb-6 group-hover:bg-[#E84545] transition-colors duration-300`}>
                   <MapPin className="w-7 h-7 text-[#E84545] group-hover:text-white transition-colors duration-300" aria-hidden="true" />
                 </div>
                 <h3 className="text-xl font-bold mb-2" itemProp="name">{branch.name}</h3>
-                <p className="text-gray-500 mb-2" itemProp="address">{branch.area}</p>
-                <p className="text-sm text-gray-600">{branch.desc}</p>
+                <p className={`${isDark ? 'text-gray-500' : 'text-gray-600'} mb-2`} itemProp="address">{branch.area}</p>
+                <p className={`text-sm ${isDark ? 'text-gray-600' : 'text-gray-500'}`}>{branch.desc}</p>
               </article>
             ))}
           </div>
@@ -764,7 +789,7 @@ export default function HomePage() {
             <h2 id="contact-heading" className="text-4xl md:text-5xl font-bold mt-4 mb-6 relative inline-block line-accent line-accent-center">
               {t.contact.title}
             </h2>
-            <p className="text-gray-400 text-lg mt-8">
+            <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-lg mt-8`}>
               {t.contact.description}
             </p>
           </header>
@@ -773,12 +798,12 @@ export default function HomePage() {
             {/* Phone Numbers */}
             <div className="glass rounded-2xl p-8">
               <div className="flex items-center gap-3 mb-8">
-                <div className="w-12 h-12 rounded-xl bg-[#E84545]/10 flex items-center justify-center">
+                <div className={`w-12 h-12 rounded-xl ${isDark ? 'bg-[#E84545]/10' : 'bg-[#E84545]/5'} flex items-center justify-center`}>
                   <Phone className="w-6 h-6 text-[#E84545]" aria-hidden="true" />
                 </div>
                 <div>
                   <h3 className="text-xl font-bold">{t.contact.callUs}</h3>
-                  <p className="text-gray-500 text-sm">{t.contact.callUsDesc}</p>
+                  <p className={`${isDark ? 'text-gray-500' : 'text-gray-600'} text-sm`}>{t.contact.callUsDesc}</p>
                 </div>
               </div>
               
@@ -787,12 +812,12 @@ export default function HomePage() {
                   <a
                     key={i}
                     href={`tel:${phone.replace(/\s/g, '')}`}
-                    className="flex items-center justify-between p-4 bg-white/5 rounded-xl hover:bg-[#E84545]/10 transition-colors group"
+                    className={`flex items-center justify-between p-4 ${isDark ? 'bg-white/5 hover:bg-[#E84545]/10' : 'bg-gray-100 hover:bg-[#E84545]/5'} rounded-xl transition-colors group`}
                     dir="ltr"
                     itemProp="telephone"
                   >
                     <span className="text-lg font-medium">{phone}</span>
-                    <ArrowRight className={`w-5 h-5 text-gray-500 group-hover:text-[#E84545] group-hover:translate-x-1 transition-all`} aria-hidden="true" />
+                    <ArrowRight className={`w-5 h-5 ${isDark ? 'text-gray-500' : 'text-gray-400'} group-hover:text-[#E84545] group-hover:translate-x-1 transition-all`} aria-hidden="true" />
                   </a>
                 ))}
               </address>
@@ -803,12 +828,12 @@ export default function HomePage() {
               {/* Email */}
               <div className="glass rounded-2xl p-8">
                 <address className="flex items-center gap-3 not-italic">
-                  <div className="w-12 h-12 rounded-xl bg-[#E84545]/10 flex items-center justify-center">
+                  <div className={`w-12 h-12 rounded-xl ${isDark ? 'bg-[#E84545]/10' : 'bg-[#E84545]/5'} flex items-center justify-center`}>
                     <Mail className="w-6 h-6 text-[#E84545]" aria-hidden="true" />
                   </div>
                   <div>
                     <h3 className="text-lg font-bold">{t.contact.emailUs}</h3>
-                    <a href="mailto:info@autocityqatar.com" className="text-gray-400 hover:text-[#E84545] transition-colors" itemProp="email">
+                    <a href="mailto:info@autocityqatar.com" className={`${isDark ? 'text-gray-400' : 'text-gray-600'} hover:text-[#E84545] transition-colors`} itemProp="email">
                       info@autocityqatar.com
                     </a>
                   </div>
@@ -818,20 +843,20 @@ export default function HomePage() {
               {/* Business Hours */}
               <div className="glass rounded-2xl p-8">
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="w-12 h-12 rounded-xl bg-[#E84545]/10 flex items-center justify-center">
+                  <div className={`w-12 h-12 rounded-xl ${isDark ? 'bg-[#E84545]/10' : 'bg-[#E84545]/5'} flex items-center justify-center`}>
                     <Clock className="w-6 h-6 text-[#E84545]" aria-hidden="true" />
                   </div>
                   <h3 className="text-lg font-bold">{t.contact.businessHours}</h3>
                 </div>
                 <dl className="space-y-3">
-                  <div className="flex justify-between items-center py-2 border-b border-white/5">
-                    <dt className="text-gray-400">{t.contact.satThu}</dt>
+                  <div className={`flex justify-between items-center py-2 border-b ${isDark ? 'border-white/5' : 'border-gray-200'}`}>
+                    <dt className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t.contact.satThu}</dt>
                     <dd className="font-medium" dir="ltr">
                       <time dateTime="08:00">8:00 AM</time> – <time dateTime="20:00">8:00 PM</time>
                     </dd>
                   </div>
                   <div className="flex justify-between items-center py-2">
-                    <dt className="text-gray-400">{t.contact.friday}</dt>
+                    <dt className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t.contact.friday}</dt>
                     <dd className="font-medium" dir="ltr">
                       <time dateTime="14:00">2:00 PM</time> – <time dateTime="20:00">8:00 PM</time>
                     </dd>
@@ -844,7 +869,7 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="relative py-16 border-t border-white/5 bg-[#0A0A0A]" role="contentinfo">
+      <footer className={`relative py-16 border-t ${isDark ? 'border-white/5 bg-[#0A0A0A]' : 'border-gray-200 bg-white'}`} role="contentinfo">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="grid md:grid-cols-4 gap-12 mb-16">
             {/* Brand */}
@@ -856,7 +881,7 @@ export default function HomePage() {
                 height={90}
                 className="mb-6"
               />
-              <p className="text-gray-500 max-w-sm leading-relaxed mb-6 text-sm">
+              <p className={`${isDark ? 'text-gray-500' : 'text-gray-600'} max-w-sm leading-relaxed mb-6 text-sm`}>
                 {t.footer.description}
               </p>
               <p className="text-[#E84545] font-semibold">
@@ -867,7 +892,7 @@ export default function HomePage() {
             {/* Services */}
             <nav aria-label="Footer car accessories services">
               <h4 className="font-semibold mb-6">{t.footer.services}</h4>
-              <ul className="space-y-3 text-gray-500 text-sm">
+              <ul className={`space-y-3 ${isDark ? 'text-gray-500' : 'text-gray-600'} text-sm`}>
                 {t.services.items.slice(0, 5).map((service, i) => (
                   <li key={i}>{service.title}</li>
                 ))}
@@ -877,7 +902,7 @@ export default function HomePage() {
             {/* Contact */}
             <address className="not-italic">
               <h4 className="font-semibold mb-6">{t.footer.contact}</h4>
-              <ul className="space-y-3 text-gray-500 text-sm">
+              <ul className={`space-y-3 ${isDark ? 'text-gray-500' : 'text-gray-600'} text-sm`}>
                 {phoneNumbers.map((phone, i) => (
                   <li key={i} dir="ltr">
                     <a href={`tel:${phone.replace(/\s/g, '')}`} className="hover:text-[#E84545] transition-colors">
@@ -895,9 +920,9 @@ export default function HomePage() {
           </div>
 
           {/* Branches */}
-          <div className="py-8 border-t border-b border-white/5 mb-8">
-            <div className="flex flex-wrap items-center justify-center gap-8 text-gray-500 text-sm">
-              <span className="font-medium text-white">{t.footer.ourBranches}:</span>
+          <div className={`py-8 border-t border-b ${isDark ? 'border-white/5' : 'border-gray-200'} mb-8`}>
+            <div className={`flex flex-wrap items-center justify-center gap-8 ${isDark ? 'text-gray-500' : 'text-gray-600'} text-sm`}>
+              <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{t.footer.ourBranches}:</span>
               {t.branches.items.map((branch, i) => (
                 <span key={i} className="flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-[#E84545]" aria-hidden="true" />
@@ -909,12 +934,12 @@ export default function HomePage() {
 
           {/* Bottom */}
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-gray-500 text-sm">
+            <p className={`${isDark ? 'text-gray-500' : 'text-gray-600'} text-sm`}>
               © {new Date().getFullYear()} {lang === 'en' ? 'Auto City Qatar - Car Accessories Shop in Doha' : 'اوتو سيتي قطر - متجر إكسسوارات السيارات في الدوحة'}. {t.footer.rights}
             </p>
             <Link 
               href="/autocityPro/login" 
-              className="text-gray-500 hover:text-[#E84545] transition-colors text-sm"
+              className={`${isDark ? 'text-gray-500' : 'text-gray-600'} hover:text-[#E84545] transition-colors text-sm`}
             >
               {t.nav.Login}
             </Link>

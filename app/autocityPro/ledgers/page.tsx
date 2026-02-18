@@ -1,1798 +1,654 @@
-// app/autocityPro/ledgers/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import {
-  BookOpen,
-  Search,
-  Eye,
-  ArrowLeft,
-  Printer,
-  Filter,
-  X,
-  ChevronLeft,
-  MoreVertical,
-  TrendingUp,
-  TrendingDown,
-  FileDown,
-  RefreshCw,
-  DollarSign,
-  CreditCard,
-  Receipt,
-  AlertCircle,
-  BarChart3,
-  Calendar,
-  ChevronRight,
-  Filter as FilterIcon,
-  Scale,
-  CheckCircle,
+  BookOpen, Search, Filter, ChevronLeft, RefreshCw, FileDown,
+  X, Sun, Moon, TrendingUp, TrendingDown, ArrowLeftRight,
+  BarChart3, Calendar, Eye,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
+// ─── Time-based theme hook ────────────────────────────────────────────────────
+function useTimeBasedTheme() {
+  const [isDark, setIsDark] = useState(true);
+  useEffect(() => {
+    const check = () => { const h = new Date().getHours(); setIsDark(h < 6 || h >= 18); };
+    check();
+    const id = setInterval(check, 60_000);
+    return () => clearInterval(id);
+  }, []);
+  return isDark;
+}
+
+interface IAccount {
+  _id: string; code: string; name: string;
+  type: "asset" | "liability" | "equity" | "revenue" | "expense";
+  subType?: string; group?: string; openingBalance: number; currentBalance: number;
+  isSystem?: boolean;
+}
+interface ILedgerEntry {
+  _id: string; date: string; type: string; voucherNumber: string;
+  narration: string; debit: number; credit: number; balance: number;
+}
+
 export default function LedgersPage() {
   const router = useRouter();
+  const isDark = useTimeBasedTheme();
+
   const [user, setUser] = useState<any>(null);
-  const [accounts, setAccounts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterType, setFilterType] = useState<string>("all");
   const [isMobile, setIsMobile] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [showDynamicIsland, setShowDynamicIsland] = useState(true);
+  const [view, setView] = useState<"accounts" | "ledger" | "trialBalance">("accounts");
+  const [loading, setLoading] = useState(false);
 
-  // Trial Balance State
-  const [showTrialBalance, setShowTrialBalance] = useState(false);
-  const [trialBalanceData, setTrialBalanceData] = useState<any>(null);
-  const [loadingTrialBalance, setLoadingTrialBalance] = useState(false);
-  const [tbDateRange, setTbDateRange] = useState({
-    fromDate: new Date(new Date().getFullYear(), 0, 1)
-      .toISOString()
-      .split("T")[0],
-    toDate: new Date().toISOString().split("T")[0],
-  });
+  // Accounts list
+  const [accounts, setAccounts] = useState<IAccount[]>([]);
+  const [filteredAccounts, setFilteredAccounts] = useState<IAccount[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
-  // Ledger detail view
-  const [selectedAccount, setSelectedAccount] = useState<any>(null);
-  const [ledgerData, setLedgerData] = useState<any>(null);
-  const [loadingLedger, setLoadingLedger] = useState(false);
-  const [dateRange, setDateRange] = useState({
-    fromDate: new Date(new Date().getFullYear(), 0, 1)
-      .toISOString()
-      .split("T")[0],
-    toDate: new Date().toISOString().split("T")[0],
-  });
+  // Ledger detail
+  const [selectedAccount, setSelectedAccount] = useState<IAccount | null>(null);
+  const [ledgerEntries, setLedgerEntries] = useState<ILedgerEntry[]>([]);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [ledgerSummary, setLedgerSummary] = useState({ opening: 0, totalDebit: 0, totalCredit: 0, closing: 0 });
 
-  useEffect(() => {
-    fetchUser();
-    fetchAccounts();
+  // Trial balance
+  const [trialBalance, setTrialBalance] = useState<any[]>([]);
+  const [tbDateRange, setTbDateRange] = useState({ fromDate: "", toDate: "" });
+  const [tbBalanced, setTbBalanced] = useState(true);
 
-    const checkIfMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
-    checkIfMobile();
-    window.addEventListener("resize", checkIfMobile);
-
-    return () => window.removeEventListener("resize", checkIfMobile);
-  }, []);
-
-  const fetchUser = async () => {
-    try {
-      const res = await fetch("/api/auth/me", { credentials: "include" });
-      if (res.ok) {
-        const data = await res.json();
-        setUser(data.user);
-      }
-    } catch (error) {
-      console.error("Failed to fetch user");
-    }
+  // ── Theme tokens ──────────────────────────────────────────────────────────
+  const th = {
+    pageBg:             isDark ? "#050505"                                               : "#f3f4f6",
+    headerBgFrom:       isDark ? "#932222"                                               : "#fef2f2",
+    headerBgVia:        isDark ? "#411010"                                               : "#fee2e2",
+    headerBgTo:         isDark ? "#a20c0c"                                               : "#fecaca",
+    headerBorder:       isDark ? "rgba(255,255,255,0.05)"                                : "rgba(0,0,0,0.06)",
+    headerTitle:        isDark ? "#ffffff"                                               : "#7f1d1d",
+    headerSub:          isDark ? "rgba(255,255,255,0.80)"                                : "#991b1b",
+    headerBtnBg:        isDark ? "#ffffff"                                               : "#7f1d1d",
+    headerBtnText:      isDark ? "#E84545"                                               : "#ffffff",
+    mobileHeaderBg:     isDark ? "linear-gradient(135deg,#0A0A0A,#050505,#0A0A0A)"      : "linear-gradient(135deg,#ffffff,#f9fafb,#ffffff)",
+    mobileHeaderBorder: isDark ? "rgba(255,255,255,0.05)"                               : "rgba(0,0,0,0.08)",
+    mobileHeaderTitle:  isDark ? "#ffffff"                                               : "#111827",
+    mobileHeaderSub:    isDark ? "rgba(255,255,255,0.60)"                                : "#6b7280",
+    mobileBtnBg:        isDark ? "rgba(255,255,255,0.05)"                               : "rgba(0,0,0,0.05)",
+    mobileBtnText:      isDark ? "rgba(255,255,255,0.80)"                               : "#374151",
+    mobileSearchBg:     isDark ? "rgba(255,255,255,0.08)"                               : "#ffffff",
+    mobileSearchBorder: isDark ? "rgba(255,255,255,0.12)"                               : "rgba(0,0,0,0.12)",
+    mobileSearchText:   isDark ? "#ffffff"                                               : "#111827",
+    filterPanelBg:      isDark ? "#0A0A0A"                                               : "#ffffff",
+    filterPanelBorder:  isDark ? "rgba(255,255,255,0.05)"                               : "rgba(0,0,0,0.08)",
+    filterInputBg:      isDark ? "#111111"                                               : "#ffffff",
+    filterInputBorder:  isDark ? "rgba(255,255,255,0.05)"                               : "rgba(0,0,0,0.10)",
+    filterInputText:    isDark ? "#ffffff"                                               : "#111827",
+    filterIcon:         isDark ? "#6b7280"                                               : "#9ca3af",
+    cardBg:             isDark ? "#0A0A0A"                                               : "#ffffff",
+    cardBorder:         isDark ? "rgba(255,255,255,0.05)"                               : "rgba(0,0,0,0.08)",
+    cardHoverBorder:    isDark ? "rgba(232,69,69,0.30)"                                  : "rgba(232,69,69,0.40)",
+    cardTitle:          isDark ? "#ffffff"                                               : "#111827",
+    cardSubtext:        isDark ? "#9ca3af"                                               : "#6b7280",
+    cardMuted:          isDark ? "#6b7280"                                               : "#9ca3af",
+    innerBg:            isDark ? "#111111"                                               : "#f3f4f6",
+    innerBorder:        isDark ? "rgba(255,255,255,0.05)"                               : "rgba(0,0,0,0.08)",
+    summaryCardBg:      isDark ? "#111111"                                               : "#f9fafb",
+    summaryCardBorder:  isDark ? "rgba(255,255,255,0.08)"                               : "rgba(0,0,0,0.08)",
+    tableHeaderBg:      isDark ? "#111111"                                               : "#f9fafb",
+    tableHeaderText:    isDark ? "#9ca3af"                                               : "#6b7280",
+    tableRowHover:      isDark ? "rgba(255,255,255,0.02)"                               : "rgba(0,0,0,0.02)",
+    tableBorder:        isDark ? "rgba(255,255,255,0.04)"                               : "rgba(0,0,0,0.06)",
+    actionBtnBg:        isDark ? "#111111"                                               : "#f3f4f6",
+    actionBtnBorder:    isDark ? "rgba(255,255,255,0.05)"                               : "rgba(0,0,0,0.08)",
+    actionBtnText:      isDark ? "#9ca3af"                                               : "#6b7280",
+    emptyIcon:          isDark ? "#374151"                                               : "#d1d5db",
+    emptyText:          isDark ? "#9ca3af"                                               : "#6b7280",
+    modalBg:            isDark ? "linear-gradient(180deg,#0A0A0A,#050505)"              : "linear-gradient(180deg,#ffffff,#f9fafb)",
+    modalBorder:        isDark ? "rgba(255,255,255,0.10)"                               : "rgba(0,0,0,0.08)",
+    modalTitle:         isDark ? "#ffffff"                                               : "#111827",
+    modalCloseBg:       isDark ? "rgba(255,255,255,0.05)"                               : "rgba(0,0,0,0.05)",
+    modalCloseText:     isDark ? "#9ca3af"                                               : "#6b7280",
+    modalSelectBg:      isDark ? "#111111"                                               : "#ffffff",
+    modalSelectBorder:  isDark ? "rgba(255,255,255,0.10)"                               : "rgba(0,0,0,0.10)",
+    modalSelectText:    isDark ? "#ffffff"                                               : "#111827",
+    modalLabel:         isDark ? "#d1d5db"                                               : "#374151",
   };
 
+  const selectStyle = { background: th.filterInputBg, border: `1px solid ${th.filterInputBorder}`, color: th.filterInputText };
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check(); window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+  useEffect(() => { fetchUser(); fetchAccounts(); }, []);
+  useEffect(() => { filterAccounts(); }, [accounts, searchTerm, typeFilter]);
+
+  const fetchUser = async () => {
+    try { const r = await fetch("/api/auth/me", { credentials: "include" }); if (r.ok) { const d = await r.json(); setUser(d.user); } } catch {}
+  };
   const fetchAccounts = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const res = await fetch("/api/accounts", { credentials: "include" });
-      if (res.ok) {
-        const data = await res.json();
-        setAccounts(data.accounts || []);
+      const r = await fetch("/api/accounts", { credentials: "include" });
+      if (r.ok) { const d = await r.json(); setAccounts(d.accounts || []); }
+    } catch { toast.error("Failed to load accounts"); }
+    finally { setLoading(false); }
+  };
+  const filterAccounts = () => {
+    let f = accounts;
+    if (typeFilter !== "all") f = f.filter(a => a.type === typeFilter);
+    if (searchTerm) { const t = searchTerm.toLowerCase(); f = f.filter(a => a.name.toLowerCase().includes(t) || a.code.toLowerCase().includes(t)); }
+    setFilteredAccounts(f);
+  };
+
+  const fetchLedger = async (account: IAccount) => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (fromDate) params.append("fromDate", fromDate);
+      if (toDate) params.append("toDate", toDate);
+      const r = await fetch(`/api/ledgers/${account._id}?${params}`, { credentials: "include" });
+      if (r.ok) {
+        const d = await r.json();
+        setLedgerEntries(d.ledgerEntries || []);
+setLedgerSummary({
+  opening:     d.summary?.openingBalance  ?? 0,
+  totalDebit:  d.summary?.totalDebit      ?? 0,
+  totalCredit: d.summary?.totalCredit     ?? 0,
+  closing:     d.summary?.closingBalance  ?? 0,
+});
       }
-    } catch (error) {
-      console.error("Failed to fetch accounts");
-      toast.error("Failed to fetch accounts");
-    } finally {
-      setLoading(false);
-    }
+    } catch { toast.error("Failed to load ledger"); }
+    finally { setLoading(false); }
   };
 
   const fetchTrialBalance = async () => {
-    if (!user?.outletId) {
-      toast.error("Outlet not found");
-      return;
+  setLoading(true);
+  try {
+    const params = new URLSearchParams();
+    if (user?.outletId) params.append("outletId", user.outletId); // ← add this
+    if (tbDateRange.fromDate) params.append("fromDate", tbDateRange.fromDate);
+    if (tbDateRange.toDate) params.append("toDate", tbDateRange.toDate);
+    const r = await fetch(`/api/accounts/trial-balance?${params}`, { credentials: "include" });
+    if (r.ok) {
+      const d = await r.json();
+      setTrialBalance(d.accounts || []);
+      setTbBalanced(d.totals?.isBalanced ?? true);
     }
+  } catch { toast.error("Failed to load trial balance"); }
+  finally { setLoading(false); }
+};
 
-    setLoadingTrialBalance(true);
-    try {
-      const res = await fetch(
-        `/api/accounts/trial-balance?outletId=${user.outletId}&fromDate=${tbDateRange.fromDate}&toDate=${tbDateRange.toDate}`,
-        { credentials: "include" }
-      );
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        toast.error(data.error || "Failed to fetch trial balance");
-        return;
-      }
-
-      setTrialBalanceData(data);
-      toast.success("Trial balance generated");
-    } catch (err) {
-      toast.error("Failed to fetch trial balance");
-    } finally {
-      setLoadingTrialBalance(false);
-    }
-  };
-
-  const fetchLedger = async (accountId: string) => {
-    setLoadingLedger(true);
-    try {
-      const res = await fetch(
-        `/api/ledgers/${accountId}?fromDate=${dateRange.fromDate}&toDate=${dateRange.toDate}`,
-        { credentials: "include" }
-      );
-
-      if (res.ok) {
-        const data = await res.json();
-        setLedgerData(data);
-        toast.success("Ledger loaded successfully");
-      } else {
-        const error = await res.json();
-        toast.error(error.error || "Failed to fetch ledger");
-      }
-    } catch (error) {
-      console.error("Error fetching ledger:", error);
-      toast.error("Failed to fetch ledger");
-    } finally {
-      setLoadingLedger(false);
-    }
-  };
-
-  const downloadTrialBalanceCSV = () => {
-    if (!trialBalanceData?.accounts?.length) {
-      toast.error("No trial balance data to export");
-      return;
-    }
-
-    const periodFrom = tbDateRange.fromDate;
-    const periodTo = tbDateRange.toDate;
-    const generatedOn = new Date().toLocaleString();
-
-    const headers = [
-      "Account Code",
-      "Account Name",
-      "Account Type",
-      "Opening Balance",
-      "Debit",
-      "Credit",
-      "Closing Balance",
-    ];
-
-    const rows = trialBalanceData.accounts.map((acc: any) => [
-      acc.accountCode,
-      acc.accountName,
-      acc.accountType,
-      acc.openingBalance.toFixed(2),
-      acc.periodDebit.toFixed(2),
-      acc.periodCredit.toFixed(2),
-      acc.closingBalance.toFixed(2),
-    ]);
-
-    interface TrialBalanceAccount {
-      accountCode: string;
-      accountName: string;
-      accountType: string;
-      openingBalance: number;
-      periodDebit: number;
-      periodCredit: number;
-      closingBalance: number;
-    }
-
-    interface TrialBalanceTotals {
-      totalDebit: number;
-      totalCredit: number;
-      isBalanced: boolean;
-      difference?: number;
-    }
-
-    interface TrialBalanceData {
-      outletId: string;
-      accounts: TrialBalanceAccount[];
-      totals: TrialBalanceTotals;
-    }
-
-    interface TrialBalanceReport {
-      outletName: string;
-      period: {
-        from: string;
-        to: string;
-      };
-      generatedAt: string;
-    }
-
-    interface TrialBalanceAccount {
-      accountCode: string;
-      accountName: string;
-      accountType: string;
-      openingBalance: number;
-      periodDebit: number;
-      periodCredit: number;
-      closingBalance: number;
-    }
-
-    interface TrialBalanceTotals {
-      totalDebit: number;
-      totalCredit: number;
-      isBalanced: boolean;
-      difference?: number;
-    }
-
-    interface TrialBalanceData {
-      outletId: string;
-      report: TrialBalanceReport;
-      accounts: TrialBalanceAccount[];
-      totals: TrialBalanceTotals;
-    }
-
-    const csvContent: string = [
-      "TRIAL BALANCE",
-      `Outlet: ${(trialBalanceData as TrialBalanceData).report.outletName}`,
-      `Period: ${
-        (trialBalanceData as TrialBalanceData).report.period.from
-      } to ${(trialBalanceData as TrialBalanceData).report.period.to}`,
-      `Generated On: ${new Date(
-        (trialBalanceData as TrialBalanceData).report.generatedAt
-      ).toLocaleString()}`,
-      "",
-      headers.join(","),
-      ...rows.map((row: string[]) => row.join(",")),
-      "",
-      `TOTALS,,,${(trialBalanceData as TrialBalanceData).totals.totalDebit},${
-        (trialBalanceData as TrialBalanceData).totals.totalCredit
-      }`,
-    ].join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-
-    link.href = url;
-    link.download = `trial_balance_${periodFrom}_to_${periodTo}.csv`;
-
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    toast.success("Trial Balance exported with period");
-  };
-
-  const handleViewLedger = (account: any) => {
+  const openLedger = (account: IAccount) => {
     setSelectedAccount(account);
-    setShowTrialBalance(false);
-    fetchLedger(account._id);
+    setView("ledger");
+    fetchLedger(account);
   };
 
-  const handleBack = () => {
-    setSelectedAccount(null);
-    setLedgerData(null);
-    setShowTrialBalance(false);
+  const exportCSV = (data: any[], filename: string, headers: string[]) => {
+    const rows = data.map(row => headers.map(h => row[h.toLowerCase().replace(/ /g, "")] ?? "").join(","));
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const getTypeBadge = (type: string) => {
+    const map: Record<string, string> = {
+      asset:     isDark ? "bg-green-500/20 text-green-300 border-green-500/30"    : "bg-green-50 text-green-700 border-green-200",
+      liability: isDark ? "bg-red-500/20 text-red-300 border-red-500/30"          : "bg-red-50 text-red-700 border-red-200",
+      equity:    isDark ? "bg-purple-500/20 text-purple-300 border-purple-500/30" : "bg-purple-50 text-purple-700 border-purple-200",
+      revenue:   isDark ? "bg-blue-500/20 text-blue-300 border-blue-500/30"       : "bg-blue-50 text-blue-700 border-blue-200",
+      expense:   isDark ? "bg-orange-500/20 text-orange-300 border-orange-500/30" : "bg-orange-50 text-orange-700 border-orange-200",
+    };
+    return map[type] || (isDark ? "bg-gray-500/20 text-gray-300" : "bg-gray-100 text-gray-600");
+  };
+
+  const fmt = (n: number) => new Intl.NumberFormat("en-US", { minimumFractionDigits: 2 }).format(n);
+  const fmtDrCr = (n: number, type: string) => {
+    const normalDebit = ["asset", "expense"].includes(type);
+    const isDr = normalDebit ? n >= 0 : n < 0;
+    return `${fmt(Math.abs(n))} ${isDr ? "Dr" : "Cr"}`;
   };
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     window.location.href = "/autocityPro/login";
   };
-  const formatBalanceWithDrCr = (value: number, accountType: string) => {
-    const abs = Math.abs(value).toFixed(2);
-    const type = accountType.toLowerCase();
 
-    const isDebitNormal = ["asset", "expense"].includes(type);
-
-    if (isDebitNormal) {
-      return value >= 0 ? `${abs} Dr` : `${abs} Cr`;
-    } else {
-      return value >= 0 ? `${abs} Cr` : `${abs} Dr`;
-    }
-  };
-
-  const downloadLedgerCSV = () => {
-    if (!ledgerData?.ledgerEntries || ledgerData.ledgerEntries.length === 0) {
-      toast.error("No ledger data to export");
-      return;
-    }
-
-    const headers = [
-      "Date",
-      "Voucher Type",
-      "Voucher #",
-      "Narration",
-      "Debit",
-      "Credit",
-      "Balance",
-    ];
-    const rows = ledgerData.ledgerEntries.map((entry: any) => [
-      new Date(entry.date).toLocaleDateString(),
-      entry.voucherType,
-      entry.voucherNumber,
-      entry.narration,
-      entry.debit,
-      entry.credit,
-      entry.balance,
-    ]);
-
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((row: (string | number)[]) => row.join(",")),
-    ].join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute(
-      "download",
-      `ledger_${selectedAccount?.accountName || "account"}_${
-        new Date().toISOString().split("T")[0]
-      }.csv`
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success(`Exported ${ledgerData.ledgerEntries.length} entries to CSV`);
-  };
-
-  const downloadAccountsCSV = () => {
-    if (filteredAccounts.length === 0) {
-      toast.error("No accounts to export");
-      return;
-    }
-
-    const headers = [
-      "Account Name",
-      "Account Number",
-      "Type",
-      "Group",
-      "Opening Balance",
-      "Current Balance",
-    ];
-    const rows = filteredAccounts.map((acc) => [
-      acc.accountName || acc.name || "",
-      acc.accountNumber || acc.code || "",
-      acc.accountType || acc.type || "",
-      acc.accountGroup || acc.group || "",
-      acc.openingBalance || 0,
-      acc.currentBalance || 0,
-    ]);
-
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((row) => row.join(",")),
-    ].join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute(
-      "download",
-      `accounts_${new Date().toISOString().split("T")[0]}.csv`
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success(`Exported ${filteredAccounts.length} accounts to CSV`);
-  };
-
-  const filteredAccounts = accounts.filter((acc) => {
-    const accountName = acc.accountName || acc.name || "";
-    const accountNumber = acc.accountNumber || acc.code || "";
-
-    const matchesSearch =
-      accountName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      accountNumber.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const accountType = (acc.accountType || acc.type || "").toLowerCase();
-    const matchesType = filterType === "all" || accountType === filterType;
-
-    return matchesSearch && matchesType;
-  });
-
-  const accountTypes = [
-    { value: "all", label: "All Types", color: "bg-gray-500" },
-    { value: "asset", label: "Assets", color: "bg-green-500" },
-    { value: "liability", label: "Liabilities", color: "bg-red-500" },
-    { value: "equity", label: "Equity", color: "bg-purple-500" },
-    { value: "revenue", label: "Revenue", color: "bg-blue-500" },
-    { value: "expense", label: "Expenses", color: "bg-orange-500" },
-  ];
-
-  const getAccountTypeIcon = (type: string) => {
-    switch (type.toLowerCase()) {
-      case "asset":
-        return <TrendingUp className="h-4 w-4" />;
-      case "liability":
-        return <TrendingDown className="h-4 w-4" />;
-      case "revenue":
-        return <DollarSign className="h-4 w-4" />;
-      case "expense":
-        return <CreditCard className="h-4 w-4" />;
-      case "equity":
-        return <BarChart3 className="h-4 w-4" />;
-      default:
-        return <BookOpen className="h-4 w-4" />;
-    }
-  };
-
-  const clearFilters = () => {
-    setFilterType("all");
-    setSearchTerm("");
-  };
-
-  // Trial Balance View
-  if (showTrialBalance) {
-    return (
-      <MainLayout user={user} onLogout={handleLogout}>
-        <div className="min-h-screen bg-[#050505] text-white">
-          {/* Mobile Header */}
-          <div className="md:hidden fixed top-16 left-0 right-0 z-40 bg-gradient-to-br from-[#0A0A0A] via-[#050505] to-[#0A0A0A] border-b border-white/5 backdrop-blur-xl">
-            <div className="px-4 py-3">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={handleBack}
-                    className="p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
-                  >
-                    <ChevronLeft className="h-5 w-5" />
-                  </button>
-                  <div>
-                    <h1 className="text-xl font-bold text-white">
-                      Trial Balance
-                    </h1>
-                    <p className="text-xs text-white/60">
-                      {trialBalanceData?.accounts?.length || 0} accounts
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={downloadTrialBalanceCSV}
-                    className="p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
-                  >
-                    <FileDown className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Desktop Header */}
-          <div className="hidden md:block py-12 bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-lg">
-            <div className="px-8">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center space-x-4">
-                  <button
-                    onClick={handleBack}
-                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-all"
-                  >
-                    <ArrowLeft className="h-5 w-5 text-white" />
-                  </button>
-                  <div className="flex items-center gap-3">
-                    <Scale className="h-8 w-8 text-white" />
-                    <div>
-                      <h1 className="text-3xl font-bold text-white">
-                        Trial Balance
-                      </h1>
-                      <p className="text-white/80 mt-1">
-                        Verify accounting accuracy
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex space-x-3">
-                  <button
-                    onClick={downloadTrialBalanceCSV}
-                    className="flex items-center space-x-2 px-4 py-2.5 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-lg hover:bg-white/20 transition-all group"
-                  >
-                    <FileDown className="h-4 w-4 group-hover:scale-110 transition-transform" />
-                    <span>Export CSV</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="px-4 md:px-8 pt-[80px] md:pt-6 pb-6">
-            {/* Date Range Filter */}
-            <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 md:p-6 mb-6">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-white/80 mb-2">
-                    From Date
-                  </label>
-                  <input
-                    type="date"
-                    value={tbDateRange.fromDate}
-                    onChange={(e) =>
-                      setTbDateRange({
-                        ...tbDateRange,
-                        fromDate: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-white/80 mb-2">
-                    To Date
-                  </label>
-                  <input
-                    type="date"
-                    value={tbDateRange.toDate}
-                    onChange={(e) =>
-                      setTbDateRange({ ...tbDateRange, toDate: e.target.value })
-                    }
-                    className="w-full px-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white"
-                  />
-                </div>
-                <div className="md:col-span-2 flex items-end">
-                  <button
-                    onClick={fetchTrialBalance}
-                    disabled={loadingTrialBalance}
-                    className="w-full px-4 py-2.5 bg-[#E84545] text-white font-semibold rounded-lg hover:bg-[#cc3c3c] disabled:bg-slate-700 disabled:text-slate-400 transition-all flex items-center justify-center gap-2"
-                  >
-                    {loadingTrialBalance ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                        <span>Loading...</span>
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="h-4 w-4" />
-                        <span>Generate</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {loadingTrialBalance ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E84545]"></div>
-              </div>
-            ) : trialBalanceData ? (
-              <>
-                {/* Balance Status Card */}
-                <div
-                  className={`mb-6 p-6 rounded-2xl border-2 ${
-                    trialBalanceData.totals.isBalanced
-                      ? "bg-green-900/20 border-green-500/50"
-                      : "bg-red-900/20 border-red-500/50"
-                  }`}
-                >
-                  <div className="flex items-center gap-4">
-                    {trialBalanceData.totals.isBalanced ? (
-                      <CheckCircle className="h-8 w-8 text-green-400" />
-                    ) : (
-                      <AlertCircle className="h-8 w-8 text-red-400" />
-                    )}
-                    <div className="flex-1">
-                      <h3
-                        className={`text-xl font-bold ${
-                          trialBalanceData.totals.isBalanced
-                            ? "text-green-400"
-                            : "text-red-400"
-                        }`}
-                      >
-                        {trialBalanceData.totals.isBalanced
-                          ? "Books are Balanced"
-                          : "Books are Unbalanced"}
-                      </h3>
-                      <p className="text-sm text-white/70 mt-1">
-                        {trialBalanceData.totals.isBalanced
-                          ? "Total debits equal total credits"
-                          : `Difference: QAR ${
-                              trialBalanceData.totals.difference?.toFixed(2) ||
-                              "0.00"
-                            }`}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm text-white/60">Total Debit</div>
-                      <div className="text-xl font-bold text-red-400">
-                        QAR{" "}
-                        {trialBalanceData.totals.totalDebit?.toFixed(2) ||
-                          "0.00"}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm text-white/60">Total Credit</div>
-                      <div className="text-xl font-bold text-green-400">
-                        QAR{" "}
-                        {trialBalanceData.totals.totalCredit?.toFixed(2) ||
-                          "0.00"}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Mobile View */}
-                <div className="md:hidden space-y-3">
-                  {trialBalanceData.accounts.map((acc: any, idx: number) => (
-                    <div
-                      key={idx}
-                      className="bg-gradient-to-br from-[#0A0A0A] to-slate-900 border border-white/10 rounded-xl p-4"
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          {getAccountTypeIcon(acc.accountType)}
-                          <div>
-                            <h3 className="text-sm font-bold text-white">
-                              {acc.accountName}
-                            </h3>
-                            <p className="text-xs text-slate-500">
-                              {acc.accountCode}
-                            </p>
-                          </div>
-                        </div>
-                        <span
-                          className={`px-2 py-1 text-xs font-semibold rounded-full capitalize ${
-                            acc.accountType === "asset"
-                              ? "bg-green-900/30 text-green-400"
-                              : acc.accountType === "liability"
-                              ? "bg-red-900/30 text-red-400"
-                              : acc.accountType === "equity"
-                              ? "bg-purple-900/30 text-purple-400"
-                              : acc.accountType === "revenue"
-                              ? "bg-blue-900/30 text-blue-400"
-                              : "bg-orange-900/30 text-orange-400"
-                          }`}
-                        >
-                          {acc.accountType}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3 pt-3 border-t border-white/5">
-                        <div>
-                          <span className="text-[10px] text-slate-500 uppercase block mb-1">
-                            Opening
-                          </span>
-                          <p className="text-sm font-semibold text-white">
-                            QAR {acc.openingBalance?.toFixed(2) || "0.00"}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-slate-500 uppercase block mb-1">
-                            Closing
-                          </span>
-                          <p className="text-sm font-semibold text-white">
-                            QAR {acc.closingBalance?.toFixed(2) || "0.00"}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-slate-500 uppercase block mb-1">
-                            Debit
-                          </span>
-                          <p className="text-sm font-semibold text-red-400">
-                            QAR {acc.periodDebit?.toFixed(2) || "0.00"}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-slate-500 uppercase block mb-1">
-                            Credit
-                          </span>
-                          <p className="text-sm font-semibold text-green-400">
-                            QAR {acc.periodCredit?.toFixed(2) || "0.00"}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Desktop Table */}
-                <div className="hidden md:block bg-slate-800 border border-slate-700 rounded-2xl shadow-xl overflow-hidden">
-                  <table className="min-w-full divide-y divide-slate-700">
-                    <thead className="bg-slate-900">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-slate-300 uppercase">
-                          Code
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-slate-300 uppercase">
-                          Account Name
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-slate-300 uppercase">
-                          Type
-                        </th>
-                        <th className="px-6 py-3 text-right text-xs font-semibold text-slate-300 uppercase">
-                          Opening
-                        </th>
-                        <th className="px-6 py-3 text-right text-xs font-semibold text-slate-300 uppercase">
-                          Debit
-                        </th>
-                        <th className="px-6 py-3 text-right text-xs font-semibold text-slate-300 uppercase">
-                          Credit
-                        </th>
-                        <th className="px-6 py-3 text-right text-xs font-semibold text-slate-300 uppercase">
-                          Closing
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-700">
-                      {trialBalanceData.accounts.map(
-                        (acc: any, idx: number) => (
-                          <tr
-                            key={idx}
-                            className="hover:bg-slate-700/50 transition-colors"
-                          >
-                            <td className="px-6 py-4 text-sm text-slate-300 font-medium">
-                              {acc.accountCode}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-white font-medium">
-                              {acc.accountName}
-                            </td>
-                            <td className="px-6 py-4">
-                              <span
-                                className={`px-3 py-1 inline-flex items-center gap-2 text-xs font-semibold rounded-full capitalize ${
-                                  acc.accountType === "asset"
-                                    ? "bg-green-900/30 text-green-400"
-                                    : acc.accountType === "liability"
-                                    ? "bg-red-900/30 text-red-400"
-                                    : acc.accountType === "equity"
-                                    ? "bg-purple-900/30 text-purple-400"
-                                    : acc.accountType === "revenue"
-                                    ? "bg-blue-900/30 text-blue-400"
-                                    : "bg-orange-900/30 text-orange-400"
-                                }`}
-                              >
-                                {getAccountTypeIcon(acc.accountType)}
-                                {acc.accountType}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-sm text-right text-white">
-                              QAR {acc.openingBalance?.toFixed(2) || "0.00"}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-right font-semibold text-red-400">
-                              QAR {acc.periodDebit?.toFixed(2) || "0.00"}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-right font-semibold text-green-400">
-                              QAR {acc.periodCredit?.toFixed(2) || "0.00"}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-right font-bold text-white">
-                              QAR {acc.closingBalance?.toFixed(2) || "0.00"}
-                            </td>
-                          </tr>
-                        )
-                      )}
-                    </tbody>
-                    <tfoot className="bg-slate-900 font-bold">
-                      <tr className="border-t-2 border-slate-600">
-                        <td
-                          colSpan={4}
-                          className="px-6 py-4 text-sm text-right text-white"
-                        >
-                          TOTALS
-                        </td>
-                        <td className="px-6 py-4 text-sm text-right text-red-400">
-                          QAR{" "}
-                          {trialBalanceData.totals.totalDebit?.toFixed(2) ||
-                            "0.00"}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-right text-green-400">
-                          QAR{" "}
-                          {trialBalanceData.totals.totalCredit?.toFixed(2) ||
-                            "0.00"}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-right text-white">
-                          QAR{" "}
-                          {trialBalanceData.accounts
-                            .reduce(
-                              (sum: number, acc: any) =>
-                                sum + (acc.closingBalance || 0),
-                              0
-                            )
-                            .toFixed(2)}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              </>
-            ) : (
-              <div className="text-center py-12">
-                <Scale className="h-16 w-16 mx-auto mb-4 text-slate-600" />
-                <p className="text-slate-400 text-lg">
-                  Click "Generate" to view trial balance
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      </MainLayout>
-    );
-  }
-
-  // Ledger Detail View
-  if (selectedAccount) {
-    const accountName =
-      selectedAccount.accountName || selectedAccount.name || "Account";
-    const accountNumber =
-      selectedAccount.accountNumber || selectedAccount.code || "";
-    const accountType = (
-      selectedAccount.accountType ||
-      selectedAccount.type ||
-      ""
-    ).toLowerCase();
-
-    return (
-      <MainLayout user={user} onLogout={handleLogout}>
-        <div className="min-h-screen bg-[#050505]">
-          {/* Dynamic Island - Mobile Only */}
-          {isMobile && showDynamicIsland && (
-            <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-2 px-4 pointer-events-none">
-              <div className="bg-black rounded-[28px] px-6 py-3 shadow-2xl border border-white/10 backdrop-blur-xl pointer-events-auto animate-in slide-in-from-top duration-500">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <BookOpen className="h-3 w-3 text-[#E84545]" />
-                    <span className="text-white text-xs font-semibold">
-                      {accountName.substring(0, 12)}
-                    </span>
-                  </div>
-                  <div className="h-3 w-px bg-white/20"></div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-white text-xs font-medium">
-                      {accountNumber}
-                    </span>
-                  </div>
-                  <div className="h-3 w-px bg-white/20"></div>
-                  <div className="flex items-center gap-1">
-                    {getAccountTypeIcon(accountType)}
-                    <span className="text-[#E84545] text-xs font-medium capitalize">
-                      {accountType}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Mobile Header */}
-          <div className="md:hidden fixed top-16 left-0 right-0 z-40 bg-gradient-to-br from-[#0A0A0A] via-[#050505] to-[#0A0A0A] border-b border-white/5 backdrop-blur-xl">
-            <div className="px-4 py-3">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={handleBack}
-                    className="p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
-                  >
-                    <ChevronLeft className="h-5 w-5" />
-                  </button>
-                  <div>
-                    <h1 className="text-xl font-bold text-white">
-                      {accountName.substring(0, 20)}
-                    </h1>
-                    <p className="text-xs text-white/60">{accountNumber}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={downloadLedgerCSV}
-                    className="p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
-                  >
-                    <FileDown className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => setShowMobileMenu(true)}
-                    className="p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
-                  >
-                    <MoreVertical className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Desktop Header */}
-          <div className="hidden md:block py-12 bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-lg">
-            <div className="px-8">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center space-x-4">
-                  <button
-                    onClick={handleBack}
-                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-all"
-                  >
-                    <ArrowLeft className="h-5 w-5 text-white" />
-                  </button>
-                  <div>
-                    <h1 className="text-3xl font-bold text-white">
-                      {accountName}
-                    </h1>
-                    <p className="text-white/80 mt-1">
-                      {accountNumber} • {accountType}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex space-x-3">
-                  <button
-                    onClick={downloadLedgerCSV}
-                    className="flex items-center space-x-2 px-4 py-2.5 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-lg hover:bg-white/20 transition-all group"
-                  >
-                    <FileDown className="h-4 w-4 group-hover:scale-110 transition-transform" />
-                    <span>Export CSV</span>
-                  </button>
-                  <button
-                    onClick={() => window.print()}
-                    className="flex items-center space-x-2 px-4 py-2.5 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-lg hover:bg-white/20 transition-all group"
-                  >
-                    <Printer className="h-4 w-4 group-hover:scale-110 transition-transform" />
-                    <span>Print</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="px-4 md:px-8 pt-[180px] md:pt-6 pb-6">
-            {/* Date Filter - Mobile */}
-            <div className="md:hidden bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 mb-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-[#E84545]" />
-                  <span className="text-white text-sm font-semibold">
-                    Date Range
-                  </span>
-                </div>
-                <button
-                  onClick={() => fetchLedger(selectedAccount._id)}
-                  disabled={loadingLedger}
-                  className="px-3 py-1.5 bg-[#E84545] text-white text-sm font-semibold rounded-lg hover:bg-[#cc3c3c] active:scale-95 transition-all"
-                >
-                  {loadingLedger ? "..." : "Apply"}
-                </button>
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-xs text-white/60 mb-1">
-                    From Date
-                  </label>
-                  <input
-                    type="date"
-                    value={dateRange.fromDate}
-                    onChange={(e) =>
-                      setDateRange({ ...dateRange, fromDate: e.target.value })
-                    }
-                    className="w-full px-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-white/60 mb-1">
-                    To Date
-                  </label>
-                  <input
-                    type="date"
-                    value={dateRange.toDate}
-                    onChange={(e) =>
-                      setDateRange({ ...dateRange, toDate: e.target.value })
-                    }
-                    className="w-full px-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white text-sm"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Date Filter - Desktop */}
-            <div className="hidden md:block bg-slate-800 border border-slate-700 rounded-lg shadow p-6 mb-6">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-white mb-2">
-                    From Date
-                  </label>
-                  <input
-                    type="date"
-                    value={dateRange.fromDate}
-                    onChange={(e) =>
-                      setDateRange({ ...dateRange, fromDate: e.target.value })
-                    }
-                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-white mb-2">
-                    To Date
-                  </label>
-                  <input
-                    type="date"
-                    value={dateRange.toDate}
-                    onChange={(e) =>
-                      setDateRange({ ...dateRange, toDate: e.target.value })
-                    }
-                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
-                  />
-                </div>
-                <div className="md:col-span-2 flex items-end">
-                  <button
-                    onClick={() => fetchLedger(selectedAccount._id)}
-                    disabled={loadingLedger}
-                    className="w-full px-4 py-2.5 bg-[#E84545] text-white font-semibold rounded-lg hover:bg-[#cc3c3c] disabled:bg-slate-700 disabled:text-slate-400 transition-all flex items-center justify-center gap-2"
-                  >
-                    {loadingLedger ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                        <span>Loading...</span>
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="h-4 w-4" />
-                        <span>Apply & Refresh</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {loadingLedger ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E84545]"></div>
-              </div>
-            ) : ledgerData ? (
-              <>
-                {/* Summary Cards - Mobile */}
-                <div className="md:hidden grid grid-cols-2 gap-3 mb-6">
-                  <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="p-2 bg-green-900/20 rounded-xl">
-                        <DollarSign className="h-4 w-4 text-green-400" />
-                      </div>
-                    </div>
-                    <p className="text-xs text-slate-400 mb-1">Opening</p>
-                    <p className="text-lg font-bold text-white truncate">
-                      QAR{" "}
-                      {ledgerData.summary.openingBalance?.toFixed(2) || "0.00"}
-                    </p>
-                  </div>
-                  <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="p-2 bg-red-900/20 rounded-xl">
-                        <TrendingDown className="h-4 w-4 text-red-400" />
-                      </div>
-                    </div>
-                    <p className="text-xs text-slate-400 mb-1">Total Debit</p>
-                    <p className="text-lg font-bold text-red-400 truncate">
-                      QAR {ledgerData.summary.totalDebit?.toFixed(2) || "0.00"}
-                    </p>
-                  </div>
-                  <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="p-2 bg-green-900/20 rounded-xl">
-                        <TrendingUp className="h-4 w-4 text-green-400" />
-                      </div>
-                    </div>
-                    <p className="text-xs text-slate-400 mb-1">Total Credit</p>
-                    <p className="text-lg font-bold text-green-400 truncate">
-                      QAR {ledgerData.summary.totalCredit?.toFixed(2) || "0.00"}
-                    </p>
-                  </div>
-                  <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="p-2 bg-blue-900/20 rounded-xl">
-                        <BarChart3 className="h-4 w-4 text-blue-400" />
-                      </div>
-                    </div>
-                    <p className="text-xs text-slate-400 mb-1">Closing</p>
-                    <p
-                      className={`text-lg font-bold ${
-                        ledgerData.summary.closingBalance >= 0
-                          ? "text-green-400"
-                          : "text-red-400"
-                      } truncate`}
-                    >
-                      QAR{" "}
-                      {Math.abs(ledgerData.summary.closingBalance || 0).toFixed(
-                        2
-                      )}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Summary - Desktop */}
-                <div className="hidden md:grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                  <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 hover:border-[#E84545]/30 transition-all">
-                    <p className="text-sm text-slate-400">Opening Balance</p>
-                    <p className="text-2xl font-bold text-white">
-                      QAR{" "}
-                      {ledgerData.summary.openingBalance?.toFixed(2) || "0.00"}
-                    </p>
-                  </div>
-                  <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 hover:border-[#E84545]/30 transition-all">
-                    <p className="text-sm text-slate-400">Total Debit</p>
-                    <p className="text-2xl font-bold text-red-400">
-                      QAR {ledgerData.summary.totalDebit?.toFixed(2) || "0.00"}
-                    </p>
-                  </div>
-                  <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 hover:border-[#E84545]/30 transition-all">
-                    <p className="text-sm text-slate-400">Total Credit</p>
-                    <p className="text-2xl font-bold text-green-400">
-                      QAR {ledgerData.summary.totalCredit?.toFixed(2) || "0.00"}
-                    </p>
-                  </div>
-                  <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 hover:border-[#E84545]/30 transition-all">
-                    <p className="text-sm text-slate-400">Closing Balance</p>
-                    <p
-                      className={`text-2xl font-bold ${
-                        ledgerData.summary.closingBalance >= 0
-                          ? "text-green-400"
-                          : "text-red-400"
-                      }`}
-                    >
-                      QAR{" "}
-                      {Math.abs(ledgerData.summary.closingBalance || 0).toFixed(
-                        2
-                      )}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Ledger Entries - Mobile */}
-                <div className="md:hidden">
-                  {ledgerData.ledgerEntries.length === 0 ? (
-                    <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-8 text-center">
-                      <BookOpen className="h-12 w-12 mx-auto mb-4 text-slate-600" />
-                      <p className="text-slate-400 text-lg font-medium">
-                        No transactions found
-                      </p>
-                      <p className="text-slate-500 text-sm mt-1">
-                        Try adjusting the date range
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {ledgerData.ledgerEntries.map(
-                        (entry: any, index: number) => (
-                          <div
-                            key={entry._id || index}
-                            className="bg-gradient-to-br from-[#0A0A0A] to-slate-900 border border-white/10 rounded-xl p-4 hover:border-[#E84545]/30 transition-all"
-                          >
-                            <div className="flex items-center gap-2 mb-2">
-                              <span
-                                className={`px-2 py-1 text-xs font-semibold rounded-full capitalize ${
-                                  entry.voucherType === "payment"
-                                    ? "bg-red-900/30 text-red-400"
-                                    : entry.voucherType === "receipt"
-                                    ? "bg-green-900/30 text-green-400"
-                                    : "bg-blue-900/30 text-blue-400"
-                                }`}
-                              >
-                                {entry.voucherType}
-                              </span>
-                              <span className="text-xs text-slate-500">
-                                {new Date(entry.date).toLocaleDateString()}
-                              </span>
-                            </div>
-
-                            <p className="text-sm font-semibold text-white">
-                              {entry.voucherNumber}
-                            </p>
-                            <p className="text-xs text-slate-400 mb-3">
-                              {entry.narration}
-                            </p>
-
-                            <div className="grid grid-cols-3 gap-3 pt-3 border-t border-white/5">
-                              <div>
-                                <span className="text-[10px] text-slate-500 uppercase">
-                                  Debit
-                                </span>
-                                <p className="text-sm font-semibold text-green-400">
-                                  {entry.debit > 0
-                                    ? `QAR ${entry.debit.toFixed(2)}`
-                                    : "-"}
-                                </p>
-                              </div>
-                              <div>
-                                <span className="text-[10px] text-slate-500 uppercase">
-                                  Credit
-                                </span>
-                                <p className="text-sm font-semibold text-red-400">
-                                  {entry.credit > 0
-                                    ? `QAR ${entry.credit.toFixed(2)}`
-                                    : "-"}
-                                </p>
-                              </div>
-                              <div>
-                                <span className="text-[10px] text-slate-500 uppercase">
-                                  Balance
-                                </span>
-                                <p className="text-sm font-bold text-white">
-                                  QAR{" "}
-                                  {formatBalanceWithDrCr(
-                                    entry.balance || 0,
-                                    accountType
-                                  )}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Ledger Entries - Desktop */}
-                <div className="hidden md:block bg-slate-800 border border-slate-700 rounded-2xl shadow-xl overflow-hidden">
-                  <table className="min-w-full divide-y divide-slate-700">
-                    <thead className="bg-slate-900">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-slate-300 uppercase">
-                          Date
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-slate-300 uppercase">
-                          Type
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-slate-300 uppercase">
-                          Voucher #
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-slate-300 uppercase">
-                          Narration
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-slate-300 uppercase">
-                          Dr.
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-slate-300 uppercase">
-                          Cr.
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-slate-300 uppercase">
-                          Balance
-                        </th>
-                      </tr>
-                    </thead>
-
-                    <tbody className="divide-y divide-slate-700">
-                      {ledgerData.ledgerEntries.map(
-                        (entry: any, index: number) => (
-                          <tr
-                            key={entry._id || index}
-                            className="hover:bg-slate-700/50"
-                          >
-                            <td className="px-6 py-4 text-sm text-slate-300">
-                              {new Date(entry.date).toLocaleDateString()}
-                            </td>
-                            <td className="px-6 py-4">
-                              <span
-                                className={`px-3 py-1.5 text-xs font-semibold rounded-full capitalize ${
-                                  entry.voucherType === "payment"
-                                    ? "bg-red-900/30 text-red-400"
-                                    : entry.voucherType === "receipt"
-                                    ? "bg-green-900/30 text-green-400"
-                                    : "bg-blue-900/30 text-blue-400"
-                                }`}
-                              >
-                                {entry.voucherType}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-sm font-medium text-[#E84545]">
-                              {entry.voucherNumber}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-slate-300">
-                              {entry.narration}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-green-400">
-                              {entry.debit > 0
-                                ? `QAR ${entry.debit.toFixed(2)}`
-                                : "-"}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-red-400">
-                              {entry.credit > 0
-                                ? `QAR ${entry.credit.toFixed(2)}`
-                                : "-"}
-                            </td>
-                            <td className="px-6 py-4 text-sm font-bold text-white">
-                              QAR{" "}
-                              {formatBalanceWithDrCr(
-                                entry.balance || 0,
-                                accountType
-                              )}
-                            </td>
-                          </tr>
-                        )
-                      )}
-                    </tbody>
-
-                    <tfoot className="bg-slate-900 font-bold">
-                      <tr>
-                        <td
-                          colSpan={4}
-                          className="px-6 py-4 text-right text-slate-300"
-                        >
-                          TOTAL
-                        </td>
-                        <td className="px-6 py-4 text-green-400">
-                          QAR {ledgerData.summary.totalDebit.toFixed(2)}
-                        </td>
-                        <td className="px-6 py-4 text-red-400">
-                          QAR {ledgerData.summary.totalCredit.toFixed(2)}
-                        </td>
-                        <td className="px-6 py-4 text-white">
-                          QAR{" "}
-                          {formatBalanceWithDrCr(
-                            ledgerData.summary.closingBalance,
-                            accountType
-                          )}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              </>
-            ) : null}
-          </div>
-
-          {/* Mobile Safe Area Bottom Padding */}
-          <div className="md:hidden h-24"></div>
-        </div>
-
-        {/* Mobile Action Menu for Ledger View */}
-        {showMobileMenu && selectedAccount && (
-          <div className="md:hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 animate-in fade-in duration-200">
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-b from-[#050505] to-[#0A0A0A] rounded-t-3xl border-t border-white/10 p-6 animate-in slide-in-from-bottom duration-300">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-bold text-white">Actions</h2>
-                <button
-                  onClick={() => setShowMobileMenu(false)}
-                  className="p-2 rounded-xl bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-              <div className="space-y-3">
-                <button
-                  onClick={() => {
-                    downloadLedgerCSV();
-                    setShowMobileMenu(false);
-                  }}
-                  className="w-full p-4 bg-[#0A0A0A] border border-white/10 rounded-xl text-gray-300 font-semibold hover:bg-white/5 transition-all flex items-center justify-between active:scale-95"
-                >
-                  <span>Export CSV</span>
-                  <FileDown className="h-5 w-5" />
-                </button>
-                <button
-                  onClick={() => {
-                    window.print();
-                    setShowMobileMenu(false);
-                  }}
-                  className="w-full p-4 bg-[#0A0A0A] border border-white/10 rounded-xl text-gray-300 font-semibold hover:bg-white/5 transition-all flex items-center justify-between active:scale-95"
-                >
-                  <span>Print</span>
-                  <Printer className="h-5 w-5" />
-                </button>
-                <button
-                  onClick={() => {
-                    fetchLedger(selectedAccount._id);
-                    setShowMobileMenu(false);
-                    toast.success("Ledger refreshed");
-                  }}
-                  className="w-full p-4 bg-[#0A0A0A] border border-white/10 rounded-xl text-gray-300 font-semibold hover:bg-white/5 transition-all flex items-center justify-between active:scale-95"
-                >
-                  <span>Refresh Data</span>
-                  <RefreshCw className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </MainLayout>
-    );
-  }
-
-  // Account List View
   return (
     <MainLayout user={user} onLogout={handleLogout}>
-      <div className="min-h-screen bg-[#050505]">
-        {/* Dynamic Island - Mobile Only */}
-        {isMobile && showDynamicIsland && (
-          <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-2 px-4 pointer-events-none">
-            <div className="bg-black rounded-[28px] px-6 py-3 shadow-2xl border border-white/10 backdrop-blur-xl pointer-events-auto animate-in slide-in-from-top duration-500">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <BookOpen className="h-3 w-3 text-[#E84545]" />
-                  <span className="text-white text-xs font-semibold">
-                    {filteredAccounts.length} accounts
-                  </span>
-                </div>
-                <div className="h-3 w-px bg-white/20"></div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-white text-xs font-medium">
-                    {filterType === "all"
-                      ? "All Types"
-                      : accountTypes.find((t) => t.value === filterType)?.label}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+      <div className="min-h-screen transition-colors duration-500" style={{ background: th.pageBg }}>
 
         {/* Mobile Header */}
-        <div className="md:hidden fixed top-16 left-0 right-0 z-40 bg-gradient-to-br from-[#0A0A0A] via-[#050505] to-[#0A0A0A] border-b border-white/5 backdrop-blur-xl">
+        <div className="md:hidden fixed top-16 left-0 right-0 z-40 backdrop-blur-xl transition-colors duration-500"
+          style={{ background: th.mobileHeaderBg, borderBottom: `1px solid ${th.mobileHeaderBorder}` }}>
           <div className="px-4 py-3">
             <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                {view !== "accounts" && (
+                  <button onClick={() => setView("accounts")} className="p-2 rounded-xl active:scale-95"
+                    style={{ background: th.mobileBtnBg, color: th.mobileBtnText }}>
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                )}
                 <div>
-                  <h1 className="text-xl font-bold text-white">Ledgers</h1>
-                  <p className="text-xs text-white/60">
-                    {filteredAccounts.length} accounts
+                  <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: th.mobileHeaderTitle }}>
+                    <BookOpen className="h-5 w-5 text-[#E84545]" />
+                    {view === "accounts" ? "Ledgers" : view === "ledger" ? selectedAccount?.name : "Trial Balance"}
+                  </h1>
+                  <p className="text-xs flex items-center gap-1" style={{ color: th.mobileHeaderSub }}>
+                    {view === "accounts" ? `${filteredAccounts.length} accounts` : view === "ledger" ? selectedAccount?.code : ""}
+                    {isDark ? <Moon className="h-3 w-3 inline ml-1 text-[#E84545]" /> : <Sun className="h-3 w-3 inline ml-1 text-[#E84545]" />}
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowFilters(true)}
-                  className="p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
-                >
-                  <FilterIcon className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => setShowMobileMenu(true)}
-                  className="p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
-                >
-                  <MoreVertical className="h-4 w-4" />
-                </button>
+              <div className="flex gap-2">
+                {view === "accounts" && (
+                  <>
+                    <button onClick={() => setShowMobileFilters(true)} className="p-2 rounded-xl active:scale-95"
+                      style={{ background: th.mobileBtnBg, color: th.mobileBtnText }}>
+                      <Filter className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => { setView("trialBalance"); fetchTrialBalance(); }}
+                      className="flex items-center gap-1 px-3 py-2 text-white rounded-lg text-xs font-semibold"
+                      style={{ background: "linear-gradient(to right,#E84545,#cc3c3c)" }}>
+                      <BarChart3 className="h-3 w-3" />TB
+                    </button>
+                  </>
+                )}
               </div>
             </div>
-
             <div className="relative">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-white/70" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search accounts..."
-                className="w-full pl-10 pr-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/70 text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-              />
+              <Search className="absolute left-3 top-2.5 h-4 w-4" style={{ color: th.filterIcon }} />
+              <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+                placeholder="Search accounts..." className="w-full pl-10 pr-4 py-2 rounded-xl text-sm"
+                style={{ background: th.mobileSearchBg, border: `1px solid ${th.mobileSearchBorder}`, color: th.mobileSearchText }} />
             </div>
           </div>
         </div>
 
         {/* Desktop Header */}
-        <div className="hidden md:block py-12 bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-lg">
-          <div className="px-8">
+        <div className="hidden md:block py-12 border-b shadow-lg transition-colors duration-500"
+          style={{ background: `linear-gradient(135deg,${th.headerBgFrom},${th.headerBgVia},${th.headerBgTo})`, borderColor: th.headerBorder }}>
+          <div className="px-6">
             <div className="flex justify-between items-center">
-              <div className="flex items-center space-x-3">
-                <BookOpen className="h-8 w-8 text-white" />
+              <div className="flex items-center gap-4">
+                {view !== "accounts" && (
+                  <button onClick={() => setView("accounts")} className="p-2 rounded-lg"
+                    style={{ background: "rgba(255,255,255,0.10)", color: th.headerTitle }}>
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                )}
                 <div>
-                  <h1 className="text-3xl font-bold text-white">
-                    Account Ledgers
-                  </h1>
-                  <p className="text-white/80 mt-1">
-                    View and analyze account transactions
+                  <div className="flex items-center gap-3">
+                    <h1 className="text-3xl font-bold flex items-center gap-2" style={{ color: th.headerTitle }}>
+                      <BookOpen className="h-7 w-7" />
+                      {view === "accounts" ? "General Ledger" : view === "ledger" ? selectedAccount?.name : "Trial Balance"}
+                    </h1>
+                    <div className="flex items-center gap-1 px-2 py-1 rounded-full text-xs"
+                      style={{ background: isDark ? "rgba(0,0,0,0.30)" : "rgba(255,255,255,0.60)", border: `1px solid ${isDark ? "rgba(255,255,255,0.15)" : "rgba(127,29,29,0.20)"}`, color: isDark ? "rgba(255,255,255,0.70)" : "#7f1d1d" }}>
+                      {isDark ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
+                    </div>
+                  </div>
+                  <p className="mt-1" style={{ color: th.headerSub }}>
+                    {view === "accounts" ? "View and manage account ledgers" : view === "ledger" ? `Account: ${selectedAccount?.code}` : "Debit/Credit balance report"}
                   </p>
                 </div>
               </div>
-              <div className="flex space-x-3">
-                <button
-                  onClick={() => {
-                    setShowTrialBalance(true);
-                    fetchTrialBalance();
-                  }}
-                  className="flex items-center space-x-2 px-4 py-2.5 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-lg hover:bg-white/20 transition-all group"
-                >
-                  <Scale className="h-4 w-4 group-hover:scale-110 transition-transform" />
-                  <span>Trial Balance</span>
-                </button>
-                <button
-                  onClick={downloadAccountsCSV}
-                  className="flex items-center space-x-2 px-4 py-2.5 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-lg hover:bg-white/20 transition-all group"
-                >
-                  <FileDown className="h-4 w-4 group-hover:scale-110 transition-transform" />
-                  <span>Export CSV</span>
-                </button>
-                <button
-                  onClick={() => router.push("/autocityPro/accounts")}
-                  className="flex items-center space-x-2 px-4 py-2.5 bg-[#E84545] text-white rounded-lg hover:bg-[#cc3c3c] transition-all group"
-                >
-                  <span>Manage Accounts</span>
-                  <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                </button>
+              <div className="flex gap-3">
+                {view === "accounts" && (
+                  <>
+                    <button onClick={() => exportCSV(filteredAccounts, "accounts.csv", ["Code", "Name", "Type", "Opening Balance", "Current Balance"])}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
+                      style={{ background: "rgba(255,255,255,0.10)", color: th.headerTitle }}>
+                      <FileDown className="h-4 w-4" />Export
+                    </button>
+                    <button onClick={() => { setView("trialBalance"); fetchTrialBalance(); }}
+                      className="flex items-center gap-2 px-5 py-3 rounded-lg font-semibold shadow-lg"
+                      style={{ background: th.headerBtnBg, color: th.headerBtnText }}>
+                      <BarChart3 className="h-5 w-5" />Trial Balance
+                    </button>
+                  </>
+                )}
+                {view === "ledger" && (
+                  <button onClick={() => exportCSV(ledgerEntries, `ledger-${selectedAccount?.code}.csv`, ["Date", "Type", "Voucher Number", "Narration", "Debit", "Credit", "Balance"])}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
+                    style={{ background: "rgba(255,255,255,0.10)", color: th.headerTitle }}>
+                    <FileDown className="h-4 w-4" />Export CSV
+                  </button>
+                )}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="px-4 md:px-8 pt-[180px] md:pt-6 pb-6">
-          {/* Desktop Filters */}
-          <div className="hidden md:block bg-slate-800 border border-slate-700 rounded-lg shadow p-3 mb-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-400" />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search by account name or code..."
-                  className="w-full pl-8 pr-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white placeholder-slate-400"
-                />
-              </div>
+        {/* Content */}
+        <div className="px-4 md:px-6 pt-[160px] md:pt-6 pb-8">
 
-              <div className="relative">
-                <select
-                  value={filterType}
-                  onChange={(e) => setFilterType(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white appearance-none"
-                >
-                  {accountTypes.map((type) => (
-                    <option key={type.value} value={type.value}>
-                      {type.label}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute right-2 top-2.5 pointer-events-none">
-                  <Filter className="h-4 w-4 text-slate-400" />
+          {/* ── ACCOUNTS VIEW ── */}
+          {view === "accounts" && (
+            <>
+              {/* Desktop Filters */}
+              <div className="hidden md:block rounded-xl p-4 mb-6 transition-colors duration-500"
+                style={{ background: th.filterPanelBg, border: `1px solid ${th.filterPanelBorder}` }}>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div className="md:col-span-2 relative">
+                    <Search className="absolute left-3 top-2.5 h-4 w-4" style={{ color: th.filterIcon }} />
+                    <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+                      placeholder="Search accounts by name or code..."
+                      className="w-full pl-10 pr-4 py-2.5 rounded-lg text-sm"
+                      style={selectStyle} />
+                  </div>
+                  <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+                    className="px-3 py-2.5 rounded-lg text-sm appearance-none" style={selectStyle}>
+                    <option value="all">All Types</option>
+                    {["asset","liability","equity","revenue","expense"].map(t => (
+                      <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+                    ))}
+                  </select>
+                  <button onClick={fetchAccounts} className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm"
+                    style={{ background: "linear-gradient(to right,#E84545,#cc3c3c)", color: "#ffffff" }}>
+                    <RefreshCw className="h-4 w-4" />Refresh
+                  </button>
                 </div>
               </div>
 
-              <div className="flex gap-3">
-                <button
-                  onClick={clearFilters}
-                  className="flex-1 px-4 py-2 text-sm bg-slate-900 border border-slate-700 rounded hover:bg-slate-800 transition-colors text-white"
-                >
-                  Clear Filters
-                </button>
-                <button
-                  onClick={() => {
-                    setShowTrialBalance(true);
-                    fetchTrialBalance();
-                  }}
-                  className="flex-1 px-4 py-2 text-sm bg-[#E84545] text-white rounded-lg hover:bg-[#cc3c3c] transition-all flex items-center justify-center gap-2"
-                >
-                  <Scale className="h-4 w-4" />
-                  <span>Trial Balance</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Accounts Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-            {loading ? (
-              <div className="col-span-full text-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E84545] mx-auto"></div>
-                <p className="text-slate-400 mt-4">Loading accounts...</p>
-              </div>
-            ) : filteredAccounts.length === 0 ? (
-              <div className="col-span-full text-center py-12">
-                <BookOpen className="h-16 w-16 mx-auto mb-4 text-slate-600" />
-                <p className="text-slate-400 text-lg font-medium">
-                  No accounts found
-                </p>
-              </div>
-            ) : (
-              filteredAccounts.map((account) => {
-                const accountName =
-                  account.accountName || account.name || "Unnamed Account";
-                const accountNumber =
-                  account.accountNumber || account.code || "N/A";
-                const accountType = (
-                  account.accountType ||
-                  account.type ||
-                  "asset"
-                ).toLowerCase();
-                const accountGroup =
-                  account.accountGroup || account.group || "-";
-                const openingBalance = account.openingBalance || 0;
-                const currentBalance = account.currentBalance || 0;
-
-                return (
-                  <div
-                    key={account._id}
-                    className="bg-gradient-to-br from-[#0A0A0A] to-slate-900 border border-white/10 rounded-2xl p-4 md:p-6 hover:border-[#E84545]/30 transition-all active:scale-[0.98]"
-                  >
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="flex items-start gap-3 flex-1 min-w-0">
-                        <div
-                          className={`p-2 rounded-xl ${
-                            accountType === "asset"
-                              ? "bg-green-900/20"
-                              : accountType === "liability"
-                              ? "bg-red-900/20"
-                              : accountType === "equity"
-                              ? "bg-purple-900/20"
-                              : accountType === "revenue"
-                              ? "bg-blue-900/20"
-                              : "bg-orange-900/20"
-                          }`}
-                        >
-                          {getAccountTypeIcon(accountType)}
+              {/* Accounts Grid */}
+              {loading ? (
+                <div className="text-center py-16">
+                  <RefreshCw className="h-10 w-10 mx-auto animate-spin text-[#E84545] mb-4" />
+                  <p style={{ color: th.emptyText }}>Loading accounts...</p>
+                </div>
+              ) : filteredAccounts.length === 0 ? (
+                <div className="text-center py-16">
+                  <BookOpen className="h-14 w-14 mx-auto mb-4" style={{ color: th.emptyIcon }} />
+                  <p className="text-lg font-medium" style={{ color: th.emptyText }}>No accounts found</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredAccounts.map(acc => (
+                    <div key={acc._id}
+                      className="rounded-xl p-4 cursor-pointer transition-all duration-300 group"
+                      style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}
+                      onMouseEnter={e => (e.currentTarget.style.borderColor = th.cardHoverBorder)}
+                      onMouseLeave={e => (e.currentTarget.style.borderColor = th.cardBorder)}
+                      onClick={() => openLedger(acc)}>
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <p className="text-xs font-mono mb-1" style={{ color: th.cardMuted }}>{acc.code}</p>
+                          <h3 className="font-bold" style={{ color: th.cardTitle }}>{acc.name}</h3>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-base md:text-lg font-bold text-white truncate">
-                            {accountName}
-                          </h3>
-                          <p className="text-xs md:text-sm text-slate-500 mt-1 truncate">
-                            {accountNumber}
-                          </p>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getTypeBadge(acc.type)}`}>
+                          {acc.type}
+                        </span>
+                      </div>
+                      {acc.group && <p className="text-xs mb-3" style={{ color: th.cardMuted }}>Group: {acc.group}</p>}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="rounded-lg p-2" style={{ background: th.innerBg }}>
+                          <p className="text-xs" style={{ color: th.cardMuted }}>Opening</p>
+                          <p className="text-sm font-semibold" style={{ color: th.cardTitle }}>{fmt(acc.openingBalance)}</p>
+                        </div>
+                        <div className="rounded-lg p-2" style={{ background: th.innerBg }}>
+                          <p className="text-xs" style={{ color: th.cardMuted }}>Current</p>
+                          <p className="text-sm font-bold text-[#E84545]">{fmt(acc.currentBalance)}</p>
                         </div>
                       </div>
-                      <span
-                        className={`px-2 md:px-3 py-1 text-xs font-semibold rounded-full ${
-                          accountType === "asset"
-                            ? "bg-green-900/30 text-green-400 border border-green-800/50"
-                            : accountType === "liability"
-                            ? "bg-red-900/30 text-red-400 border border-red-800/50"
-                            : accountType === "equity"
-                            ? "bg-purple-900/30 text-purple-400 border border-purple-800/50"
-                            : accountType === "revenue"
-                            ? "bg-blue-900/30 text-blue-400 border border-blue-800/50"
-                            : "bg-orange-900/30 text-orange-400 border border-orange-800/50"
-                        }`}
-                      >
-                        {accountType}
-                      </span>
-                    </div>
-
-                    <div className="space-y-2 mb-4 md:mb-6">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-slate-500">Group:</span>
-                        <span className="font-medium text-slate-300">
-                          {accountGroup}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-slate-500">Opening Balance:</span>
-                        <span className="font-semibold text-slate-300">
-                          QAR {openingBalance.toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-slate-500">Current Balance:</span>
-                        <span
-                          className={`font-bold ${
-                            currentBalance >= 0
-                              ? "text-green-400"
-                              : "text-red-400"
-                          }`}
-                        >
-                          QAR {currentBalance.toFixed(2)}
-                        </span>
+                      <div className="mt-3 flex items-center gap-1 text-xs" style={{ color: th.cardMuted }}>
+                        <Eye className="h-3 w-3" />View Ledger
                       </div>
                     </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
 
-                    <button
-                      onClick={() => handleViewLedger(account)}
-                      className="w-full flex items-center justify-center space-x-2 px-4 py-2.5 bg-[#E84545] text-white rounded-lg hover:bg-[#cc3c3c] transition-all group active:scale-95"
-                    >
-                      <Eye className="h-4 w-4 group-hover:scale-110 transition-transform" />
-                      <span>View Ledger</span>
-                    </button>
+          {/* ── LEDGER DETAIL VIEW ── */}
+          {view === "ledger" && selectedAccount && (
+            <>
+              {/* Date Range Filter */}
+              <div className="rounded-xl p-4 mb-6 transition-colors duration-500"
+                style={{ background: th.filterPanelBg, border: `1px solid ${th.filterPanelBorder}` }}>
+                <div className="flex flex-col md:flex-row gap-3 items-end">
+                  <div className="flex-1">
+                    <label className="block text-xs mb-1" style={{ color: th.tableHeaderText }}>From Date</label>
+                    <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg text-sm" style={selectStyle} />
                   </div>
-                );
-              })
-            )}
-          </div>
-        </div>
+                  <div className="flex-1">
+                    <label className="block text-xs mb-1" style={{ color: th.tableHeaderText }}>To Date</label>
+                    <input type="date" value={toDate} onChange={e => setToDate(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg text-sm" style={selectStyle} />
+                  </div>
+                  <button onClick={() => fetchLedger(selectedAccount)}
+                    className="px-4 py-2 rounded-lg text-sm text-white font-semibold"
+                    style={{ background: "linear-gradient(to right,#E84545,#cc3c3c)" }}>
+                    Apply & Refresh
+                  </button>
+                </div>
+              </div>
 
-        {/* Mobile Safe Area Bottom Padding */}
-        <div className="md:hidden h-24"></div>
+              {/* Summary Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                {[
+                  { label: "Opening Balance", value: fmt(ledgerSummary.opening) },
+                  { label: "Total Debit", value: fmt(ledgerSummary.totalDebit), color: isDark ? "#f87171" : "#dc2626" },
+                  { label: "Total Credit", value: fmt(ledgerSummary.totalCredit), color: isDark ? "#86efac" : "#15803d" },
+                  { label: "Closing Balance", value: fmtDrCr(ledgerSummary.closing, selectedAccount.type), accent: true },
+                ].map(card => (
+                  <div key={card.label} className="rounded-xl p-4 transition-colors duration-500"
+                    style={{ background: th.summaryCardBg, border: `1px solid ${card.accent ? "rgba(232,69,69,0.30)" : th.summaryCardBorder}` }}>
+                    <p className="text-xs mb-1" style={{ color: th.cardMuted }}>{card.label}</p>
+                    <p className="text-lg font-bold" style={{ color: card.color || (card.accent ? "#E84545" : th.cardTitle) }}>
+                      {card.value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Entries Table (desktop) */}
+              <div className="hidden md:block rounded-xl overflow-hidden transition-colors duration-500"
+                style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{ background: th.tableHeaderBg }}>
+                      {["Date","Type","Voucher #","Narration","Dr.","Cr.","Balance"].map(h => (
+                        <th key={h} className="px-4Z py-3 text-left text-xs font-medium" style={{ color: th.tableHeaderText }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ledgerEntries.map((e, i) => (
+                      <tr key={e._id} className="transition-colors"
+                        style={{ borderTop: `1px solid ${th.tableBorder}` }}
+                        onMouseEnter={el => (el.currentTarget.style.background = th.tableRowHover)}
+                        onMouseLeave={el => (el.currentTarget.style.background = "transparent")}>
+                        <td className="px-4 py-3" style={{ color: th.cardSubtext }}>{new Date(e.date).toLocaleDateString()}</td>
+                        <td className="px-4 py-3" style={{ color: th.cardSubtext }}>{e.type}</td>
+                        <td className="px-4 py-3 font-mono text-xs" style={{ color: th.cardMuted }}>{e.voucherNumber}</td>
+                        <td className="px-4 py-3" style={{ color: th.cardTitle }}>{e.narration}</td>
+                        <td className="px-4 py-3 text-right" style={{ color: isDark ? "#f87171" : "#dc2626" }}>{e.debit > 0 ? fmt(e.debit) : ""}</td>
+                        <td className="px-4 py-3 text-right" style={{ color: isDark ? "#86efac" : "#15803d" }}>{e.credit > 0 ? fmt(e.credit) : ""}</td>
+                        <td className="px-4 py-3 text-right font-semibold text-[#E84545]">{fmt(e.balance)}</td>
+                      </tr>
+                    ))}
+                    {ledgerEntries.length === 0 && (
+                      <tr><td colSpan={7} className="text-center py-12" style={{ color: th.emptyText }}>No entries found</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile cards */}
+              <div className="md:hidden space-y-3">
+                {ledgerEntries.map(e => (
+                  <div key={e._id} className="rounded-xl p-4 transition-colors duration-500"
+                    style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}>
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <p className="text-xs font-mono" style={{ color: th.cardMuted }}>{e.voucherNumber}</p>
+                        <p className="font-medium text-sm" style={{ color: th.cardTitle }}>{e.narration}</p>
+                      </div>
+                      <p className="text-xs" style={{ color: th.cardMuted }}>{new Date(e.date).toLocaleDateString()}</p>
+                    </div>
+                    <div className="flex gap-4 text-sm">
+                      {e.debit > 0 && <span style={{ color: isDark ? "#f87171" : "#dc2626" }}>Dr: {fmt(e.debit)}</span>}
+                      {e.credit > 0 && <span style={{ color: isDark ? "#86efac" : "#15803d" }}>Cr: {fmt(e.credit)}</span>}
+                      <span className="ml-auto font-semibold text-[#E84545]">{fmt(e.balance)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* ── TRIAL BALANCE VIEW ── */}
+          {view === "trialBalance" && (
+            <>
+              {/* Date Range */}
+              <div className="rounded-xl p-4 mb-6 transition-colors duration-500"
+                style={{ background: th.filterPanelBg, border: `1px solid ${th.filterPanelBorder}` }}>
+                <div className="flex flex-col md:flex-row gap-3 items-end">
+                  <div className="flex-1">
+                    <label className="block text-xs mb-1" style={{ color: th.tableHeaderText }}>From</label>
+                    <input type="date" value={tbDateRange.fromDate} onChange={e => setTbDateRange(p => ({ ...p, fromDate: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-lg text-sm" style={selectStyle} />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs mb-1" style={{ color: th.tableHeaderText }}>To</label>
+                    <input type="date" value={tbDateRange.toDate} onChange={e => setTbDateRange(p => ({ ...p, toDate: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-lg text-sm" style={selectStyle} />
+                  </div>
+                  <button onClick={fetchTrialBalance} className="px-4 py-2 rounded-lg text-sm text-white font-semibold"
+                    style={{ background: "linear-gradient(to right,#E84545,#cc3c3c)" }}>
+                    Apply & Refresh
+                  </button>
+                </div>
+              </div>
+
+              {/* Balance Status */}
+              <div className="rounded-xl p-4 mb-6 transition-colors duration-500"
+                style={{ background: tbBalanced ? (isDark ? "rgba(34,197,94,0.10)" : "rgba(34,197,94,0.06)") : (isDark ? "rgba(239,68,68,0.10)" : "rgba(239,68,68,0.06)"), border: `1px solid ${tbBalanced ? (isDark ? "rgba(34,197,94,0.30)" : "rgba(34,197,94,0.20)") : (isDark ? "rgba(239,68,68,0.30)" : "rgba(239,68,68,0.20)")}` }}>
+                <div className="flex items-center gap-3">
+                  <ArrowLeftRight className="h-5 w-5" style={{ color: tbBalanced ? (isDark ? "#86efac" : "#15803d") : (isDark ? "#f87171" : "#dc2626") }} />
+                  <p className="font-semibold" style={{ color: tbBalanced ? (isDark ? "#86efac" : "#15803d") : (isDark ? "#f87171" : "#dc2626") }}>
+                    {tbBalanced ? "✓ Trial Balance is Balanced" : "⚠ Trial Balance is Unbalanced"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Trial Balance Table */}
+              <div className="hidden md:block rounded-xl overflow-hidden transition-colors duration-500"
+                style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{ background: th.tableHeaderBg }}>
+                      {["Code","Account","Type","Opening","Period Debit","Period Credit","Closing"].map(h => (
+                        <th key={h} className="px-4 py-3 text-left text-xs font-medium" style={{ color: th.tableHeaderText }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {trialBalance.map(a => (
+  <tr key={a._id} className="transition-colors" style={{ borderTop: `1px solid ${th.tableBorder}` }}
+    onMouseEnter={el => (el.currentTarget.style.background = th.tableRowHover)}
+    onMouseLeave={el => (el.currentTarget.style.background = "transparent")}>
+    <td className="px-4 py-3 font-mono text-xs" style={{ color: th.cardMuted }}>{a.accountCode}</td>
+    <td className="px-4 py-3 font-medium" style={{ color: th.cardTitle }}>{a.accountName}</td>
+    <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs border ${getTypeBadge(a.accountType)}`}>{a.accountType}</span></td>
+    <td className="px-4 py-3 text-right" style={{ color: th.cardSubtext }}>{fmt(a.openingBalance || 0)}</td>
+    <td className="px-4 py-3 text-right" style={{ color: isDark ? "#f87171" : "#dc2626" }}>{fmt(a.periodDebit || 0)}</td>
+    <td className="px-4 py-3 text-right" style={{ color: isDark ? "#86efac" : "#15803d" }}>{fmt(a.periodCredit || 0)}</td>
+    <td className="px-4 py-3 text-right font-semibold text-[#E84545]">{fmtDrCr(a.closingBalance || 0, a.accountType)}</td>
+  </tr>
+))}
+                    {/* Totals Row */}
+                    {trialBalance.length > 0 && (
+                      <tr style={{ background: th.tableHeaderBg, borderTop: `2px solid ${th.tableBorder}` }}>
+                        <td colSpan={4} className="px-4 py-3 font-bold text-xs uppercase" style={{ color: th.tableHeaderText }}>Totals</td>
+                        <td className="px-4 py-3 text-right font-bold" style={{ color: isDark ? "#f87171" : "#dc2626" }}>
+                          {fmt(trialBalance.reduce((s, a) => s + (a.periodDebit || 0), 0))}
+                        </td>
+                        <td className="px-4 py-3 text-right font-bold" style={{ color: isDark ? "#86efac" : "#15803d" }}>
+                          {fmt(trialBalance.reduce((s, a) => s + (a.periodCredit || 0), 0))}
+                        </td>
+                        <td className="px-4 py-3" />
+                      </tr>
+                    )}
+                    {trialBalance.length === 0 && (
+                      <tr><td colSpan={7} className="text-center py-12" style={{ color: th.emptyText }}>No data found</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Trial Balance */}
+              <div className="md:hidden space-y-3">
+                {trialBalance.map(a => (
+                  <div key={a._id} className="rounded-xl p-4" style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}>
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <p className="text-xs font-mono" style={{ color: th.cardMuted }}>{a.code}</p>
+                        <p className="font-semibold" style={{ color: th.cardTitle }}>{a.name}</p>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-xs border ${getTypeBadge(a.type)}`}>{a.type}</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div><p style={{ color: th.cardMuted }}>Dr</p><p style={{ color: isDark ? "#f87171" : "#dc2626" }}>{fmt(a.periodDebit || 0)}</p></div>
+                      <div><p style={{ color: th.cardMuted }}>Cr</p><p style={{ color: isDark ? "#86efac" : "#15803d" }}>{fmt(a.periodCredit || 0)}</p></div>
+                      <div><p style={{ color: th.cardMuted }}>Closing</p><p className="text-[#E84545] font-semibold">{fmtDrCr(a.closingBalance || 0, a.type)}</p></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          <div className="md:hidden h-24" />
+        </div>
       </div>
 
-      {/* Mobile Filter Modal */}
-      {showFilters && (
-        <div className="md:hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 animate-in fade-in duration-200">
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-b from-[#050505] to-[#0A0A0A] rounded-t-3xl border-t border-white/10 p-6 animate-in slide-in-from-bottom duration-300">
+      {/* Mobile Filters Sheet */}
+      {showMobileFilters && isMobile && (
+        <div className="md:hidden fixed inset-0 bg-black/80 backdrop-blur-md z-[60] animate-in fade-in duration-200">
+          <div className="absolute bottom-0 left-0 right-0 rounded-t-3xl border-t p-6 animate-in slide-in-from-bottom duration-300"
+            style={{ background: th.modalBg, borderColor: th.modalBorder }}>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-bold text-white">Filters</h2>
-              <button
-                onClick={() => setShowFilters(false)}
-                className="p-2 rounded-xl bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
-              >
+              <h2 className="text-lg font-bold" style={{ color: th.modalTitle }}>Filters</h2>
+              <button onClick={() => setShowMobileFilters(false)} className="p-2 rounded-xl"
+                style={{ background: th.modalCloseBg, color: th.modalCloseText }}>
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Account Type
-                </label>
-                <select
-                  value={filterType}
-                  onChange={(e) => setFilterType(e.target.value)}
-                  className="w-full px-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white"
-                >
-                  {accountTypes.map((type) => (
-                    <option key={type.value} value={type.value}>
-                      {type.label}
-                    </option>
+                <label className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Account Type</label>
+                <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="w-full px-3 py-3 rounded-xl"
+                  style={{ background: th.modalSelectBg, border: `1px solid ${th.modalSelectBorder}`, color: th.modalSelectText }}>
+                  <option value="all">All Types</option>
+                  {["asset","liability","equity","revenue","expense"].map(t => (
+                    <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
                   ))}
                 </select>
               </div>
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={() => {
-                    clearFilters();
-                    setShowFilters(false);
-                  }}
-                  className="flex-1 px-4 py-3 bg-[#0A0A0A] border border-white/10 rounded-lg text-gray-300 hover:text-white transition-colors active:scale-95"
-                >
+              <div className="flex gap-3 pt-4" style={{ borderTop: `1px solid ${th.modalBorder}` }}>
+                <button onClick={() => { setTypeFilter("all"); setShowMobileFilters(false); }}
+                  className="flex-1 px-4 py-3 rounded-xl"
+                  style={{ background: th.actionBtnBg, border: `1px solid ${th.actionBtnBorder}`, color: th.actionBtnText }}>
                   Clear
                 </button>
-                <button
-                  onClick={() => setShowFilters(false)}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] rounded-lg text-white font-semibold active:scale-95 transition-all"
-                >
+                <button onClick={() => setShowMobileFilters(false)}
+                  className="flex-1 px-4 py-3 rounded-xl text-white font-semibold"
+                  style={{ background: "linear-gradient(to right,#E84545,#cc3c3c)" }}>
                   Apply
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Mobile Action Menu */}
-      {showMobileMenu && !selectedAccount && (
-        <div className="md:hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 animate-in fade-in duration-200">
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-b from-[#050505] to-[#0A0A0A] rounded-t-3xl border-t border-white/10 p-6 animate-in slide-in-from-bottom duration-300">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-bold text-white">Actions</h2>
-              <button
-                onClick={() => setShowMobileMenu(false)}
-                className="p-2 rounded-xl bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="space-y-3">
-              <button
-                onClick={() => {
-                  setShowTrialBalance(true);
-                  setShowMobileMenu(false);
-                  fetchTrialBalance();
-                }}
-                className="w-full p-4 bg-[#0A0A0A] border border-white/10 rounded-xl text-gray-300 font-semibold hover:bg-white/5 transition-all flex items-center justify-between active:scale-95"
-              >
-                <span>Trial Balance</span>
-                <Scale className="h-5 w-5" />
-              </button>
-              <button
-                onClick={() => {
-                  downloadAccountsCSV();
-                  setShowMobileMenu(false);
-                }}
-                className="w-full p-4 bg-[#0A0A0A] border border-white/10 rounded-xl text-gray-300 font-semibold hover:bg-white/5 transition-all flex items-center justify-between active:scale-95"
-              >
-                <span>Export CSV</span>
-                <FileDown className="h-5 w-5" />
-              </button>
-              <button
-                onClick={() => {
-                  router.push("/autocityPro/accounts");
-                  setShowMobileMenu(false);
-                }}
-                className="w-full p-4 bg-[#0A0A0A] border border-white/10 rounded-xl text-gray-300 font-semibold hover:bg-white/5 transition-all flex items-center justify-between active:scale-95"
-              >
-                <span>Manage Accounts</span>
-                <ChevronRight className="h-5 w-5" />
-              </button>
-              <button
-                onClick={() => {
-                  fetchAccounts();
-                  setShowMobileMenu(false);
-                  toast.success("Accounts refreshed");
-                }}
-                className="w-full p-4 bg-[#0A0A0A] border border-white/10 rounded-xl text-gray-300 font-semibold hover:bg-white/5 transition-all flex items-center justify-between active:scale-95"
-              >
-                <span>Refresh Data</span>
-                <RefreshCw className="h-5 w-5" />
-              </button>
             </div>
           </div>
         </div>

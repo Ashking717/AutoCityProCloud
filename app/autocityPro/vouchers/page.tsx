@@ -31,12 +31,28 @@ import {
   Clock,
   Ban,
   LucideBadgeAlert,
-  Loader2
+  Loader2,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+// ─── Time-based theme hook ─────────────────────────────────────────────────────
+function useTimeBasedTheme() {
+  const [isDark, setIsDark] = useState(true);
+  useEffect(() => {
+    const check = () => { const h = new Date().getHours(); setIsDark(h < 6 || h >= 18); };
+    check();
+    const id = setInterval(check, 60_000);
+    return () => clearInterval(id);
+  }, []);
+  return isDark;
+}
+
 export default function VouchersPage() {
   const router = useRouter();
+  const isDark = useTimeBasedTheme();
+
   const [user, setUser] = useState<any>(null);
   const [vouchers, setVouchers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,19 +75,80 @@ export default function VouchersPage() {
   const [totalPages, setTotalPages] = useState(1);
   const bottomRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
+
+  // ── Theme tokens ───────────────────────────────────────────────────────────
+  const th = {
+    pageBg:             isDark ? '#050505'                                              : '#f3f4f6',
+    headerBgFrom:       isDark ? '#932222'                                              : '#fef2f2',
+    headerBgVia:        isDark ? '#411010'                                              : '#fee2e2',
+    headerBgTo:         isDark ? '#a20c0c'                                              : '#fecaca',
+    headerBorder:       isDark ? 'rgba(255,255,255,0.05)'                               : 'rgba(0,0,0,0.06)',
+    headerTitle:        isDark ? '#ffffff'                                              : '#7f1d1d',
+    headerSub:          isDark ? 'rgba(255,255,255,0.80)'                               : '#991b1b',
+    headerBtnBg:        isDark ? 'rgba(255,255,255,0.10)'                               : 'rgba(127,29,29,0.10)',
+    headerBtnBorder:    isDark ? 'rgba(255,255,255,0.20)'                               : 'rgba(127,29,29,0.20)',
+    headerBtnText:      isDark ? '#ffffff'                                              : '#7f1d1d',
+    mobileHeaderBg:     isDark ? 'linear-gradient(135deg,#0A0A0A,#050505,#0A0A0A)'     : 'linear-gradient(135deg,#ffffff,#f9fafb,#ffffff)',
+    mobileHeaderBorder: isDark ? 'rgba(255,255,255,0.05)'                               : 'rgba(0,0,0,0.08)',
+    mobileHeaderTitle:  isDark ? '#ffffff'                                              : '#111827',
+    mobileHeaderSub:    isDark ? 'rgba(255,255,255,0.60)'                               : '#6b7280',
+    mobileBtnBg:        isDark ? 'rgba(255,255,255,0.05)'                               : 'rgba(0,0,0,0.05)',
+    mobileBtnText:      isDark ? 'rgba(255,255,255,0.80)'                               : '#374151',
+    mobileSearchBg:     isDark ? 'rgba(255,255,255,0.10)'                               : '#ffffff',
+    mobileSearchBorder: isDark ? 'rgba(255,255,255,0.20)'                               : 'rgba(0,0,0,0.12)',
+    mobileSearchText:   isDark ? '#ffffff'                                              : '#111827',
+    filterPanelBg:      isDark ? '#0A0A0A'                                              : '#ffffff',
+    filterPanelBorder:  isDark ? 'rgba(255,255,255,0.05)'                               : 'rgba(0,0,0,0.08)',
+    filterInputBg:      isDark ? '#111111'                                              : '#ffffff',
+    filterInputBorder:  isDark ? 'rgba(255,255,255,0.08)'                               : 'rgba(0,0,0,0.10)',
+    filterInputText:    isDark ? '#ffffff'                                              : '#111827',
+    filterIcon:         isDark ? '#6b7280'                                              : '#9ca3af',
+    cardBg:             isDark ? '#0A0A0A'                                              : '#ffffff',
+    cardBorder:         isDark ? 'rgba(255,255,255,0.05)'                               : 'rgba(0,0,0,0.08)',
+    cardHoverBorder:    isDark ? 'rgba(232,69,69,0.30)'                                 : 'rgba(232,69,69,0.40)',
+    cardTitle:          isDark ? '#ffffff'                                              : '#111827',
+    cardSubtext:        isDark ? '#9ca3af'                                              : '#6b7280',
+    cardMuted:          isDark ? '#6b7280'                                              : '#9ca3af',
+    tableHeaderBg:      isDark ? '#111111'                                              : '#f9fafb',
+    tableHeaderText:    isDark ? '#9ca3af'                                              : '#6b7280',
+    tableRowHover:      isDark ? 'rgba(255,255,255,0.02)'                               : 'rgba(0,0,0,0.02)',
+    tableBorder:        isDark ? 'rgba(255,255,255,0.04)'                               : 'rgba(0,0,0,0.06)',
+    actionBtnBg:        isDark ? '#111111'                                              : '#f3f4f6',
+    actionBtnBorder:    isDark ? 'rgba(255,255,255,0.08)'                               : 'rgba(0,0,0,0.08)',
+    actionBtnText:      isDark ? '#9ca3af'                                              : '#6b7280',
+    quickCardBg:        isDark ? '#0A0A0A'                                              : '#ffffff',
+    quickCardBorder:    isDark ? 'rgba(255,255,255,0.05)'                               : 'rgba(0,0,0,0.08)',
+    emptyIcon:          isDark ? '#374151'                                              : '#d1d5db',
+    emptyText:          isDark ? '#9ca3af'                                              : '#6b7280',
+    modalBg:            isDark ? 'linear-gradient(180deg,#0A0A0A,#050505)'             : 'linear-gradient(180deg,#ffffff,#f9fafb)',
+    modalBorder:        isDark ? 'rgba(255,255,255,0.10)'                               : 'rgba(0,0,0,0.08)',
+    modalTitle:         isDark ? '#ffffff'                                              : '#111827',
+    modalCloseBg:       isDark ? 'rgba(255,255,255,0.05)'                               : 'rgba(0,0,0,0.05)',
+    modalCloseText:     isDark ? '#9ca3af'                                              : '#6b7280',
+    modalSelectBg:      isDark ? '#111111'                                              : '#ffffff',
+    modalSelectBorder:  isDark ? 'rgba(255,255,255,0.10)'                               : 'rgba(0,0,0,0.10)',
+    modalSelectText:    isDark ? '#ffffff'                                              : '#111827',
+    modalLabel:         isDark ? '#d1d5db'                                              : '#374151',
+    statusDraft:        isDark ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' : 'bg-yellow-50 text-yellow-700 border-yellow-200',
+    statusPosted:       isDark ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'      : 'bg-blue-50 text-blue-700 border-blue-200',
+    statusApproved:     isDark ? 'bg-green-500/20 text-green-300 border-green-500/30'   : 'bg-green-50 text-green-700 border-green-200',
+    statusVoid:         isDark ? 'bg-red-500/20 text-red-300 border-red-500/30'         : 'bg-red-50 text-red-600 border-red-200',
+  };
+
+  const selectStyle = {
+    background: th.filterInputBg,
+    border: `1px solid ${th.filterInputBorder}`,
+    color: th.filterInputText,
+  };
   
   useEffect(() => {
     fetchUser();
   }, []);
 
   useEffect(() => {
-    const checkIfMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
+    const checkIfMobile = () => setIsMobile(window.innerWidth < 768);
     checkIfMobile();
     window.addEventListener('resize', checkIfMobile);
-
     return () => window.removeEventListener('resize', checkIfMobile);
   }, []);
 
@@ -86,75 +163,37 @@ export default function VouchersPage() {
 
   // Memoized load more function
   const loadMore = useCallback(() => {
-    if (loadingMore || !hasMore || loading) {
-      return;
-    }
-    
+    if (loadingMore || !hasMore || loading) return;
     const nextPage = page + 1;
-    console.log('Loading page:', nextPage, 'Has more:', hasMore, 'Total pages:', totalPages);
     setPage(nextPage);
     fetchVouchers(nextPage);
   }, [page, hasMore, loadingMore, loading, totalPages]);
 
   // Infinite scroll observer
   useEffect(() => {
-    // Clean up existing observer
-    if (observerRef.current) {
-      observerRef.current.disconnect();
-    }
+    if (observerRef.current) observerRef.current.disconnect();
+    if (loading || !hasMore) return;
 
-    // Don't set up observer if we're loading or no more data
-    if (loading || !hasMore) {
-      return;
-    }
-
-    const options = {
-      root: null,
-      rootMargin: '200px',
-      threshold: 0.1
-    };
-
+    const options = { root: null, rootMargin: '200px', threshold: 0.1 };
     observerRef.current = new IntersectionObserver((entries) => {
-      const first = entries[0];
-      if (first.isIntersecting) {
-        console.log('Intersection detected, triggering loadMore');
-        loadMore();
-      }
+      if (entries[0].isIntersecting) loadMore();
     }, options);
 
     const currentRef = bottomRef.current;
-    if (currentRef) {
-      observerRef.current.observe(currentRef);
-    }
-
-    return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-      }
-    };
+    if (currentRef) observerRef.current.observe(currentRef);
+    return () => { if (observerRef.current) observerRef.current.disconnect(); };
   }, [loading, hasMore, loadMore]);
   
   const fetchUser = async () => {
     try {
       const res = await fetch('/api/auth/me', { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setUser(data.user);
-      }
-    } catch (error) {
-      console.error('Failed to fetch user');
-    }
+      if (res.ok) { const data = await res.json(); setUser(data.user); }
+    } catch {}
   };
   
   const fetchVouchers = async (pageNum: number) => {
     try {
-      console.log('Fetching page:', pageNum);
-      
-      if (pageNum === 1) {
-        setLoading(true);
-      } else {
-        setLoadingMore(true);
-      }
+      if (pageNum === 1) setLoading(true); else setLoadingMore(true);
 
       let url = `/api/vouchers?page=${pageNum}&limit=20`;
       if (filterType !== 'all') url += `&voucherType=${filterType}`;
@@ -165,31 +204,24 @@ export default function VouchersPage() {
         const data = await res.json();
         const newVouchers = data.vouchers || [];
         
-        console.log('Received vouchers:', newVouchers.length, 'Page:', pageNum, 'Total pages:', data.pagination?.pages);
-        
         if (pageNum === 1) {
           setVouchers(newVouchers);
         } else {
           setVouchers(prev => {
-            // Prevent duplicates
             const existingIds = new Set(prev.map(v => v._id));
             const uniqueNew = newVouchers.filter((v: any) => !existingIds.has(v._id));
-            console.log('Adding unique vouchers:', uniqueNew.length);
             return [...prev, ...uniqueNew];
           });
         }
         
-        // Update pagination info
         const pages = data.pagination?.pages || 1;
         setTotalPages(pages);
         setHasMore(pageNum < pages);
-        console.log('Has more:', pageNum < pages, 'Current page:', pageNum, 'Total:', pages);
       } else {
         toast.error('Failed to fetch vouchers');
         setHasMore(false);
       }
     } catch (error) {
-      console.error('Failed to fetch vouchers', error);
       toast.error('Failed to fetch vouchers');
       setHasMore(false);
     } finally {
@@ -208,31 +240,31 @@ export default function VouchersPage() {
   
   const getVoucherTypeIcon = (type: string) => {
     switch (type) {
-      case 'payment': return <DollarSign className="h-4 w-4 text-red-400" />;
-      case 'ledger-entries': return <LucideBadgeAlert className="h-4 w-4 text-green-400" />;
-      case 'journal': return <BookOpen className="h-4 w-4 text-blue-400" />;
-      case 'contra': return <ArrowLeftRight className="h-4 w-4 text-purple-400" />;
-      default: return <FileText className="h-4 w-4 text-gray-400" />;
+      case 'payment':       return <DollarSign className="h-4 w-4 text-red-400" />;
+      case 'ledger-entries':return <LucideBadgeAlert className="h-4 w-4 text-green-400" />;
+      case 'journal':       return <BookOpen className="h-4 w-4 text-blue-400" />;
+      case 'contra':        return <ArrowLeftRight className="h-4 w-4 text-purple-400" />;
+      default:              return <FileText className="h-4 w-4 text-gray-400" />;
     }
   };
   
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'draft': return <Clock className="h-4 w-4" />;
-      case 'posted': return <CheckCircle className="h-4 w-4" />;
+      case 'draft':    return <Clock className="h-4 w-4" />;
+      case 'posted':   return <CheckCircle className="h-4 w-4" />;
       case 'approved': return <CheckCircle className="h-4 w-4" />;
-      case 'void': return <Ban className="h-4 w-4" />;
-      default: return <AlertCircle className="h-4 w-4" />;
+      case 'void':     return <Ban className="h-4 w-4" />;
+      default:         return <AlertCircle className="h-4 w-4" />;
     }
   };
   
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'draft': return 'bg-yellow-900/30 text-yellow-400 border border-yellow-800/50';
-      case 'posted': return 'bg-blue-900/30 text-blue-400 border border-blue-800/50';
-      case 'approved': return 'bg-green-900/30 text-green-400 border border-green-800/50';
-      case 'void': return 'bg-red-900/30 text-red-400 border border-red-800/50';
-      default: return 'bg-black/50 text-gray-400 border border-gray-800';
+      case 'draft':    return th.statusDraft;
+      case 'posted':   return th.statusPosted;
+      case 'approved': return th.statusApproved;
+      case 'void':     return th.statusVoid;
+      default:         return isDark ? 'bg-gray-500/20 text-gray-300 border-gray-500/30' : 'bg-gray-100 text-gray-600 border-gray-200';
     }
   };
 
@@ -252,45 +284,18 @@ export default function VouchersPage() {
   const sortedVouchers = [...filteredVouchers].sort((a, b) => {
     let aValue = a[sortConfig.key];
     let bValue = b[sortConfig.key];
-
-    if (sortConfig.key === 'date') {
-      aValue = new Date(a.date).getTime();
-      bValue = new Date(b.date).getTime();
-    }
-
-    if (sortConfig.key === 'amount') {
-      aValue = a.totalDebit || 0;
-      bValue = b.totalDebit || 0;
-    }
-
-    if (sortConfig.direction === 'asc') {
-      return aValue > bValue ? 1 : -1;
-    } else {
-      return aValue < bValue ? 1 : -1;
-    }
+    if (sortConfig.key === 'date') { aValue = new Date(a.date).getTime(); bValue = new Date(b.date).getTime(); }
+    if (sortConfig.key === 'amount') { aValue = a.totalDebit || 0; bValue = b.totalDebit || 0; }
+    return sortConfig.direction === 'asc' ? (aValue > bValue ? 1 : -1) : (aValue < bValue ? 1 : -1);
   });
   
   const handleDeleteVoucher = async (id: string, voucherNumber: string) => {
-    if (!confirm(`Are you sure you want to delete voucher ${voucherNumber}? This action cannot be undone.`)) {
-      return;
-    }
-    
+    if (!confirm(`Are you sure you want to delete voucher ${voucherNumber}? This action cannot be undone.`)) return;
     try {
-      const res = await fetch(`/api/vouchers/${id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      
-      if (res.ok) {
-        toast.success('Voucher deleted successfully!');
-        setVouchers(prev => prev.filter(v => v._id !== id));
-      } else {
-        const error = await res.json();
-        toast.error(error.error || 'Failed to delete voucher');
-      }
-    } catch (error) {
-      toast.error('Failed to delete voucher');
-    }
+      const res = await fetch(`/api/vouchers/${id}`, { method: 'DELETE', credentials: 'include' });
+      if (res.ok) { toast.success('Voucher deleted successfully!'); setVouchers(prev => prev.filter(v => v._id !== id)); }
+      else { const error = await res.json(); toast.error(error.error || 'Failed to delete voucher'); }
+    } catch { toast.error('Failed to delete voucher'); }
   };
   
   const handleLogout = async () => {
@@ -299,61 +304,45 @@ export default function VouchersPage() {
   };
 
   const downloadVouchersCSV = () => {
-    if (filteredVouchers.length === 0) {
-      toast.error("No vouchers to export");
-      return;
-    }
-    
+    if (filteredVouchers.length === 0) { toast.error("No vouchers to export"); return; }
     const headers = ["Voucher #", "Type", "Date", "Narration", "Amount", "Status", "Reference"];
     const rows = filteredVouchers.map(v => [
-      v.voucherNumber || '',
-      v.voucherType || '',
+      v.voucherNumber || '', v.voucherType || '',
       new Date(v.date).toLocaleDateString(),
       `"${(v.narration || '').replace(/"/g, '""')}"`,
-      v.totalDebit || 0,
-      v.status || '',
-      v.referenceNumber || ''
+      v.totalDebit || 0, v.status || '', v.referenceNumber || ''
     ]);
-    
-    const csvContent = [
-      headers.join(","),
-      ...rows.map(row => row.join(","))
-    ].join("\n");
-    
+    const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `vouchers_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    link.href = URL.createObjectURL(blob);
+    link.download = `vouchers_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
     toast.success(`Exported ${filteredVouchers.length} vouchers to CSV`);
   };
   
   const voucherTypes = [
-    { value: 'ledger entries', label: 'Ledger Entries', color: 'green', href: '/autocityPro/ledger-entries' },
-    { value: 'journal', label: 'Journal', color: 'blue', href: '/autocityPro/vouchers/journal' },
-    { value: 'contra', label: 'Contra', color: 'purple', href: '/autocityPro/vouchers/contra' },
+    { value: 'ledger entries', label: 'Ledger Entries', href: '/autocityPro/ledger-entries' },
+    { value: 'journal',        label: 'Journal',        href: '/autocityPro/vouchers/journal' },
+    { value: 'contra',         label: 'Contra',         href: '/autocityPro/vouchers/contra' },
   ];
   
   const clearFilters = () => {
-    setFilterType('all');
-    setFilterStatus('all');
-    setSearchTerm('');
-    setSortConfig({ key: 'date', direction: 'desc' });
+    setFilterType('all'); setFilterStatus('all');
+    setSearchTerm(''); setSortConfig({ key: 'date', direction: 'desc' });
   };
 
   const getSortIcon = (key: string) => {
     if (sortConfig.key !== key) return null;
-    return sortConfig.direction === 'asc' 
-      ? <SortAsc className="h-3 w-3 ml-1 text-red-400" /> 
-      : <SortDesc className="h-3 w-3 ml-1 text-red-400" />;
+    return sortConfig.direction === 'asc'
+      ? <SortAsc className="h-3 w-3 ml-1 text-[#E84545]" />
+      : <SortDesc className="h-3 w-3 ml-1 text-[#E84545]" />;
   };
   
   return (
     <MainLayout user={user} onLogout={handleLogout}>
-      <div className="min-h-screen bg-[#050505]">
+      <div className="min-h-screen transition-colors duration-500" style={{ background: th.pageBg }}>
+
         {/* Dynamic Island - Mobile Only */}
         {isMobile && showDynamicIsland && (
           <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-2 px-4 pointer-events-none">
@@ -369,78 +358,76 @@ export default function VouchersPage() {
                     <span className="text-white/60 text-xs">Scroll for more</span>
                   </>
                 )}
+                <div className="h-3 w-px bg-white/20"></div>
+                {isDark ? <Moon className="h-3 w-3 text-[#E84545]" /> : <Sun className="h-3 w-3 text-[#E84545]" />}
               </div>
             </div>
           </div>
         )}
 
         {/* Mobile Header */}
-        <div className="md:hidden fixed top-16 left-0 right-0 z-40 bg-gradient-to-br from-[#0A0A0A] via-[#050505] to-[#0A0A0A] border-b border-white/5 backdrop-blur-xl">
+        <div className="md:hidden fixed top-16 left-0 right-0 z-40 backdrop-blur-xl transition-colors duration-500"
+          style={{ background: th.mobileHeaderBg, borderBottom: `1px solid ${th.mobileHeaderBorder}` }}>
           <div className="px-4 py-3">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <h1 className="text-xl font-bold text-white">Vouchers</h1>
-                <p className="text-xs text-white/60">{vouchers.length} loaded{hasMore && ' • Scroll for more'}</p>
+                <h1 className="text-xl font-bold" style={{ color: th.mobileHeaderTitle }}>Vouchers</h1>
+                <p className="text-xs" style={{ color: th.mobileHeaderSub }}>
+                  {vouchers.length} loaded{hasMore && ' • Scroll for more'}
+                </p>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={handleRefresh}
-                  className="p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
-                >
+                <button onClick={handleRefresh} className="p-2 rounded-xl active:scale-95 transition-all"
+                  style={{ background: th.mobileBtnBg, color: th.mobileBtnText }}>
                   <RefreshCw className="h-4 w-4" />
                 </button>
-                <button
-                  onClick={() => setShowFilters(true)}
-                  className="p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
-                >
+                <button onClick={() => setShowFilters(true)} className="p-2 rounded-xl active:scale-95 transition-all"
+                  style={{ background: th.mobileBtnBg, color: th.mobileBtnText }}>
                   <Filter className="h-4 w-4" />
                 </button>
-                <button
-                  onClick={() => setShowMobileMenu(true)}
-                  className="p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
-                >
+                <button onClick={() => setShowMobileMenu(true)} className="p-2 rounded-xl active:scale-95 transition-all"
+                  style={{ background: th.mobileBtnBg, color: th.mobileBtnText }}>
                   <MoreVertical className="h-4 w-4" />
                 </button>
               </div>
             </div>
-            
             <div className="relative">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-white/70" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+              <Search className="absolute left-3 top-2.5 h-4 w-4" style={{ color: th.filterIcon }} />
+              <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
                 placeholder="Search vouchers..."
-                className="w-full pl-10 pr-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/70 text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-              />
+                className="w-full pl-10 pr-4 py-2 rounded-xl text-sm"
+                style={{ background: th.mobileSearchBg, border: `1px solid ${th.mobileSearchBorder}`, color: th.mobileSearchText }} />
             </div>
           </div>
         </div>
 
         {/* Desktop Header */}
-        <div className="hidden md:block py-12 bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-lg">
+        <div className="hidden md:block py-12 border-b shadow-lg transition-colors duration-500"
+          style={{ background: `linear-gradient(135deg,${th.headerBgFrom},${th.headerBgVia},${th.headerBgTo})`, borderColor: th.headerBorder }}>
           <div className="px-8">
             <div className="flex justify-between items-center">
               <div>
-                <h1 className="text-3xl font-bold text-white">Vouchers</h1>
-                <p className="text-white/80 mt-1">
+                <div className="flex items-center gap-3">
+                  <h1 className="text-3xl font-bold" style={{ color: th.headerTitle }}>Vouchers</h1>
+                  <div className="flex items-center gap-1 px-2 py-1 rounded-full text-xs"
+                    style={{ background: isDark ? 'rgba(0,0,0,0.30)' : 'rgba(255,255,255,0.60)', border: `1px solid ${th.headerBorder}`, color: th.headerTitle }}>
+                    {isDark ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
+                  </div>
+                </div>
+                <p className="mt-1" style={{ color: th.headerSub }}>
                   {vouchers.length} vouchers loaded{hasMore && ' • Scroll to load more'}
                 </p>
               </div>
-              <div className="flex space-x-3">
-                <button
-                  onClick={handleRefresh}
-                  className="flex items-center space-x-2 px-4 py-2.5 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-lg hover:bg-white/20 transition-all group"
-                >
-                  <RefreshCw className="h-4 w-4 group-hover:rotate-180 transition-transform duration-500" />
-                  <span>Refresh</span>
+              <div className="flex gap-3">
+                <button onClick={handleRefresh}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg backdrop-blur-sm transition-all"
+                  style={{ background: th.headerBtnBg, border: `1px solid ${th.headerBtnBorder}`, color: th.headerBtnText }}>
+                  <RefreshCw className="h-4 w-4" />Refresh
                 </button>
-                <button
-                  onClick={downloadVouchersCSV}
-                  className="flex items-center space-x-2 px-4 py-2.5 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-lg hover:bg-white/20 transition-all group"
-                >
-                  <FileDown className="h-4 w-4 group-hover:scale-110 transition-transform" />
-                  <span>Export CSV</span>
+                <button onClick={downloadVouchersCSV}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg backdrop-blur-sm transition-all"
+                  style={{ background: th.headerBtnBg, border: `1px solid ${th.headerBtnBorder}`, color: th.headerBtnText }}>
+                  <FileDown className="h-4 w-4" />Export CSV
                 </button>
               </div>
             </div>
@@ -448,76 +435,42 @@ export default function VouchersPage() {
         </div>
 
         <div className="px-4 md:px-8 pt-[180px] md:pt-6 pb-6">
-          {/* Desktop Filters with Sort */}
-          <div className="hidden md:block bg-black border border-gray-800 rounded-lg shadow p-3 mb-4">
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+
+          {/* Desktop Filters */}
+          <div className="hidden md:block rounded-xl p-3 mb-4 transition-colors duration-500"
+            style={{ background: th.filterPanelBg, border: `1px solid ${th.filterPanelBorder}` }}>
+            <div className="grid grid-cols-5 gap-3">
               <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                <Search className="absolute left-2 top-2.5 h-4 w-4" style={{ color: th.filterIcon }} />
+                <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
                   placeholder="Search vouchers..."
-                  className="w-full pl-8 pr-3 py-2 text-sm bg-black border border-gray-800 rounded focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white placeholder-gray-500"
-                />
+                  className="w-full pl-8 pr-3 py-2 text-sm rounded"
+                  style={selectStyle} />
               </div>
-
-              <div className="relative">
-                <select
-                  value={filterType}
-                  onChange={(e) => setFilterType(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-black border border-gray-800 rounded focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white appearance-none"
-                >
-                  <option value="all">All Types</option>
-                  <option value="payment">Payment</option>
-                  <option value="receipt">Receipt</option>
-                  <option value="journal">Journal</option>
-                  <option value="contra">Contra</option>
-                </select>
-                <div className="absolute right-2 top-2.5 pointer-events-none">
-                  <FileText className="h-4 w-4 text-gray-400" />
-                </div>
-              </div>
-
-              <div className="relative">
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-black border border-gray-800 rounded focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white appearance-none"
-                >
-                  <option value="all">All Status</option>
-                  <option value="draft">Draft</option>
-                  <option value="posted">Posted</option>
-                  <option value="approved">Approved</option>
-                  <option value="void">Void</option>
-                </select>
-                <div className="absolute right-2 top-2.5 pointer-events-none">
-                  <Filter className="h-4 w-4 text-gray-400" />
-                </div>
-              </div>
-
-              <div className="relative">
-                <select
-                  value={sortConfig.key}
-                  onChange={(e) => handleSort(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-black border border-gray-800 rounded focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white appearance-none"
-                >
-                  <option value="date">Sort by Date</option>
-                  <option value="amount">Sort by Amount</option>
-                  <option value="voucherNumber">Sort by Voucher #</option>
-                </select>
-                <div className="absolute right-2 top-2.5 pointer-events-none">
-                  {sortConfig.direction === 'asc' 
-                    ? <SortAsc className="h-4 w-4 text-gray-400" />
-                    : <SortDesc className="h-4 w-4 text-gray-400" />
-                  }
-                </div>
-              </div>
-
-              <button
-                onClick={clearFilters}
-                className="px-4 py-2 text-sm bg-black border border-gray-800 rounded hover:bg-gray-900 transition-colors text-white hover:border-[#E84545]"
-              >
+              <select value={filterType} onChange={e => setFilterType(e.target.value)}
+                className="px-3 py-2 text-sm rounded appearance-none" style={selectStyle}>
+                <option value="all">All Types</option>
+                <option value="payment">Payment</option>
+                <option value="receipt">Receipt</option>
+                <option value="journal">Journal</option>
+                <option value="contra">Contra</option>
+              </select>
+              <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+                className="px-3 py-2 text-sm rounded appearance-none" style={selectStyle}>
+                <option value="all">All Status</option>
+                <option value="draft">Draft</option>
+                <option value="posted">Posted</option>
+                <option value="approved">Approved</option>
+                <option value="void">Void</option>
+              </select>
+              <select value={sortConfig.key} onChange={e => handleSort(e.target.value)}
+                className="px-3 py-2 text-sm rounded appearance-none" style={selectStyle}>
+                <option value="date">Sort by Date</option>
+                <option value="amount">Sort by Amount</option>
+                <option value="voucherNumber">Sort by Voucher #</option>
+              </select>
+              <button onClick={clearFilters} className="px-4 py-2 text-sm rounded transition-colors"
+                style={{ background: th.filterInputBg, border: `1px solid ${th.filterInputBorder}`, color: th.filterInputText }}>
                 Clear All
               </button>
             </div>
@@ -525,41 +478,37 @@ export default function VouchersPage() {
 
           {/* Quick Actions - Mobile */}
           <div className="md:hidden grid grid-cols-2 gap-3 mb-6">
-            {voucherTypes.map((type) => (
-              <button
-                key={type.value}
-                onClick={() => router.push(type.href)}
-                className={`p-4 bg-gradient-to-br from-[#0A0A0A] to-black border border-gray-800 rounded-2xl hover:border-[#E84545] transition-all active:scale-[0.98] group`}
-              >
+            {voucherTypes.map(type => (
+              <button key={type.value} onClick={() => router.push(type.href)}
+                className="p-4 rounded-2xl transition-all active:scale-[0.98]"
+                style={{ background: th.quickCardBg, border: `1px solid ${th.quickCardBorder}` }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = th.cardHoverBorder)}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = th.quickCardBorder)}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="font-semibold text-white text-sm">{type.label}</h3>
-                    <p className="text-xs text-gray-500 mt-0.5">Create</p>
+                    <h3 className="font-semibold text-sm" style={{ color: th.cardTitle }}>{type.label}</h3>
+                    <p className="text-xs mt-0.5" style={{ color: th.cardMuted }}>Create</p>
                   </div>
-                  <div className={`p-2 rounded-lg bg-${type.color}-900/20 border border-${type.color}-800/50`}>
-                    {getVoucherTypeIcon(type.value)}
-                  </div>
+                  {getVoucherTypeIcon(type.value)}
                 </div>
               </button>
             ))}
           </div>
 
           {/* Quick Actions - Desktop */}
-          <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-            {voucherTypes.map((type) => (
-              <button
-                key={type.value}
-                onClick={() => router.push(type.href)}
-                className={`p-6 bg-gradient-to-br from-[#0A0A0A] to-black border border-gray-800 rounded-xl hover:border-[#E84545] hover:shadow-lg hover:shadow-red-900/20 transition-all group`}
-              >
+          <div className="hidden md:grid grid-cols-3 gap-4 mb-6">
+            {voucherTypes.map(type => (
+              <button key={type.value} onClick={() => router.push(type.href)}
+                className="p-6 rounded-xl transition-all text-left"
+                style={{ background: th.quickCardBg, border: `1px solid ${th.quickCardBorder}` }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = th.cardHoverBorder)}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = th.quickCardBorder)}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="font-semibold text-white group-hover:text-red-400">{type.label}</h3>
-                    <p className="text-sm text-gray-500 mt-1">Create new</p>
+                    <h3 className="font-semibold" style={{ color: th.cardTitle }}>{type.label}</h3>
+                    <p className="text-sm mt-1" style={{ color: th.cardMuted }}>Create new</p>
                   </div>
-                  <div className={`p-3 rounded-xl bg-${type.color}-900/20 border border-${type.color}-800/50 group-hover:border-[#E84545] transition-all`}>
-                    {getVoucherTypeIcon(type.value)}
-                  </div>
+                  {getVoucherTypeIcon(type.value)}
                 </div>
               </button>
             ))}
@@ -572,15 +521,15 @@ export default function VouchersPage() {
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E84545]"></div>
               </div>
             ) : sortedVouchers.length === 0 ? (
-              <div className="bg-gradient-to-br from-[#0A0A0A] to-black border border-gray-800 rounded-2xl p-8 text-center">
-                <FileText className="h-12 w-12 mx-auto mb-4 text-gray-700" />
-                <p className="text-gray-400 text-lg font-medium">No vouchers found</p>
-                <p className="text-gray-600 text-sm mt-1">Try adjusting your filters</p>
+              <div className="rounded-2xl p-8 text-center transition-colors"
+                style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}>
+                <FileText className="h-12 w-12 mx-auto mb-4" style={{ color: th.emptyIcon }} />
+                <p className="text-lg font-medium" style={{ color: th.emptyText }}>No vouchers found</p>
+                <p className="text-sm mt-1" style={{ color: th.cardMuted }}>Try adjusting your filters</p>
                 {(filterType !== 'all' || filterStatus !== 'all' || searchTerm) && (
-                  <button
-                    onClick={clearFilters}
-                    className="mt-4 px-4 py-2 bg-[#E84545] text-white text-sm font-semibold rounded-lg hover:bg-[#cc3c3c] transition-all active:scale-95"
-                  >
+                  <button onClick={clearFilters}
+                    className="mt-4 px-4 py-2 text-white text-sm font-semibold rounded-lg"
+                    style={{ background: 'linear-gradient(to right,#E84545,#cc3c3c)' }}>
                     Clear Filters
                   </button>
                 )}
@@ -588,65 +537,58 @@ export default function VouchersPage() {
             ) : (
               <>
                 <div className="space-y-3">
-                  {sortedVouchers.map((voucher) => (
-                    <div
-                      key={voucher._id}
+                  {sortedVouchers.map(voucher => (
+                    <div key={voucher._id}
                       onClick={() => router.push(`/autocityPro/vouchers/${voucher._id}`)}
-                      className="bg-gradient-to-br from-[#0A0A0A] to-black border border-gray-800 rounded-xl p-4 hover:border-[#E84545] transition-all active:scale-[0.98] cursor-pointer"
-                    >
+                      className="rounded-xl p-4 cursor-pointer transition-all active:scale-[0.98]"
+                      style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}
+                      onMouseEnter={e => (e.currentTarget.style.borderColor = th.cardHoverBorder)}
+                      onMouseLeave={e => (e.currentTarget.style.borderColor = th.cardBorder)}>
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-2">
                             {getVoucherTypeIcon(voucher.voucherType)}
-                            <span className="text-sm font-semibold text-white">{voucher.voucherNumber}</span>
-                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(voucher.status)} flex items-center gap-1`}>
+                            <span className="text-sm font-semibold" style={{ color: th.cardTitle }}>{voucher.voucherNumber}</span>
+                            <span className={`px-2 py-1 text-xs font-semibold rounded-full border flex items-center gap-1 ${getStatusColor(voucher.status)}`}>
                               {getStatusIcon(voucher.status)}
                               <span className="capitalize">{voucher.status}</span>
                             </span>
                           </div>
-                          <p className="text-xs text-gray-500">{new Date(voucher.date).toLocaleDateString()}</p>
+                          <p className="text-xs" style={{ color: th.cardMuted }}>{new Date(voucher.date).toLocaleDateString()}</p>
                         </div>
                       </div>
-
-                      <div className="space-y-2 py-3 border-t border-gray-800">
-                        <p className="text-sm text-gray-300 line-clamp-2">{voucher.narration}</p>
+                      <div className="space-y-2 py-3" style={{ borderTop: `1px solid ${th.tableBorder}` }}>
+                        <p className="text-sm line-clamp-2" style={{ color: th.cardSubtext }}>{voucher.narration}</p>
                         {voucher.referenceNumber && (
-                          <p className="text-xs text-gray-500">Ref: {voucher.referenceNumber}</p>
+                          <p className="text-xs" style={{ color: th.cardMuted }}>Ref: {voucher.referenceNumber}</p>
                         )}
                       </div>
-
-                      <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-800">
+                      <div className="grid grid-cols-2 gap-3 pt-3" style={{ borderTop: `1px solid ${th.tableBorder}` }}>
                         <div>
-                          <span className="text-[10px] text-gray-500 uppercase block mb-1">Type</span>
-                          <p className="text-sm font-semibold text-gray-300 capitalize">{voucher.voucherType}</p>
+                          <span className="text-[10px] uppercase block mb-1" style={{ color: th.cardMuted }}>Type</span>
+                          <p className="text-sm font-semibold capitalize" style={{ color: th.cardSubtext }}>{voucher.voucherType}</p>
                         </div>
                         <div>
-                          <span className="text-[10px] text-gray-500 uppercase block mb-1">Amount</span>
-                          <p className="text-sm font-bold text-white">QAR {voucher.totalDebit?.toLocaleString() || '0'}</p>
+                          <span className="text-[10px] uppercase block mb-1" style={{ color: th.cardMuted }}>Amount</span>
+                          <p className="text-sm font-bold" style={{ color: th.cardTitle }}>QAR {voucher.totalDebit?.toLocaleString() || '0'}</p>
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
 
-                {/* Loading More Indicator */}
                 {loadingMore && (
                   <div className="flex justify-center py-6">
-                    <div className="flex items-center gap-2 text-gray-400">
+                    <div className="flex items-center gap-2" style={{ color: th.cardMuted }}>
                       <Loader2 className="h-5 w-5 animate-spin text-[#E84545]" />
                       <span className="text-sm">Loading more...</span>
                     </div>
                   </div>
                 )}
 
-                {/* Scroll Trigger - More visible for debugging */}
-                <div 
-                  ref={bottomRef} 
-                  className="h-20 flex items-center justify-center"
-                  style={{ background: 'transparent' }}
-                >
+                <div ref={bottomRef} className="h-20 flex items-center justify-center">
                   {!hasMore && vouchers.length > 0 && (
-                    <p className="text-xs text-gray-600">All {vouchers.length} vouchers loaded</p>
+                    <p className="text-xs" style={{ color: th.emptyText }}>All {vouchers.length} vouchers loaded</p>
                   )}
                 </div>
               </>
@@ -654,138 +596,105 @@ export default function VouchersPage() {
           </div>
           
           {/* Vouchers Table - Desktop */}
-          <div className="hidden md:block bg-black border border-gray-800 rounded-2xl shadow-xl overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-800 text-sm">
-              <thead className="bg-[#0A0A0A]">
-                <tr>
-                  <th 
-                    className="px-6 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-900 group"
-                    onClick={() => handleSort('voucherNumber')}
-                  >
-                    <div className="flex items-center">
-                      Voucher #
-                      {getSortIcon('voucherNumber')}
-                    </div>
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
-                    Type
-                  </th>
-                  <th 
-                    className="px-6 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-900 group"
-                    onClick={() => handleSort('date')}
-                  >
-                    <div className="flex items-center">
-                      Date
-                      {getSortIcon('date')}
-                    </div>
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
-                    Narration
-                  </th>
-                  <th 
-                    className="px-6 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-900 group"
-                    onClick={() => handleSort('amount')}
-                  >
-                    <div className="flex items-center">
-                      Amount
-                      {getSortIcon('amount')}
-                    </div>
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-300 uppercase tracking-wider">
-                    Actions
-                  </th>
+          <div className="hidden md:block rounded-xl overflow-hidden transition-colors duration-500"
+            style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}>
+            <table className="min-w-full divide-y text-sm" style={{ borderColor: th.tableBorder }}>
+              <thead>
+                <tr style={{ background: th.tableHeaderBg }}>
+                  {[
+                    { label: 'Voucher #', key: 'voucherNumber' },
+                    { label: 'Type', key: null },
+                    { label: 'Date', key: 'date' },
+                    { label: 'Narration', key: null },
+                    { label: 'Amount', key: 'amount' },
+                    { label: 'Status', key: null },
+                    { label: 'Actions', key: null },
+                  ].map(h => (
+                    <th key={h.label}
+                      className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${h.key ? 'cursor-pointer' : ''}`}
+                      style={{ color: th.tableHeaderText }}
+                      onClick={() => h.key && handleSort(h.key)}>
+                      <div className="flex items-center">
+                        {h.label}{h.key && getSortIcon(h.key)}
+                      </div>
+                    </th>
+                  ))}
                 </tr>
               </thead>
-              <tbody className="bg-black divide-y divide-gray-800">
+              <tbody>
                 {loading && vouchers.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-gray-400">
-                      <div className="flex justify-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#E84545]"></div>
-                      </div>
-                      <p className="mt-2">Loading vouchers...</p>
+                    <td colSpan={7} className="px-6 py-12 text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#E84545] mx-auto mb-2"></div>
+                      <p style={{ color: th.emptyText }}>Loading vouchers...</p>
                     </td>
                   </tr>
                 ) : sortedVouchers.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-gray-400">
-                      <FileText className="h-16 w-16 mx-auto mb-4 text-gray-700" />
-                      <p className="text-gray-400 text-lg font-medium">No vouchers found</p>
+                    <td colSpan={7} className="px-6 py-12 text-center">
+                      <FileText className="h-16 w-16 mx-auto mb-4" style={{ color: th.emptyIcon }} />
+                      <p className="text-lg font-medium" style={{ color: th.emptyText }}>No vouchers found</p>
                       {(filterType !== 'all' || filterStatus !== 'all' || searchTerm) && (
-                        <button
-                          onClick={clearFilters}
-                          className="mt-4 px-4 py-2 bg-[#E84545] text-white text-sm font-semibold rounded-lg hover:bg-[#cc3c3c] transition-all"
-                        >
+                        <button onClick={clearFilters}
+                          className="mt-4 px-4 py-2 text-white text-sm font-semibold rounded-lg"
+                          style={{ background: 'linear-gradient(to right,#E84545,#cc3c3c)' }}>
                           Clear filters
                         </button>
                       )}
                     </td>
                   </tr>
                 ) : (
-                  sortedVouchers.map((voucher) => (
-                    <tr key={voucher._id} className="hover:bg-gray-900 transition-colors group">
+                  sortedVouchers.map(voucher => (
+                    <tr key={voucher._id} className="transition-colors"
+                      style={{ borderTop: `1px solid ${th.tableBorder}` }}
+                      onMouseEnter={el => (el.currentTarget.style.background = th.tableRowHover)}
+                      onMouseLeave={el => (el.currentTarget.style.background = 'transparent')}>
                       <td className="px-6 py-4">
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium text-white group-hover:text-red-400">{voucher.voucherNumber}</p>
-                          {voucher.referenceNumber && (
-                            <p className="text-xs text-gray-500">Ref: {voucher.referenceNumber}</p>
-                          )}
-                        </div>
+                        <p className="text-sm font-medium text-[#E84545]">{voucher.voucherNumber}</p>
+                        {voucher.referenceNumber && (
+                          <p className="text-xs mt-0.5" style={{ color: th.cardMuted }}>Ref: {voucher.referenceNumber}</p>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           {getVoucherTypeIcon(voucher.voucherType)}
-                          <span className="text-sm capitalize text-gray-200">{voucher.voucherType}</span>
+                          <span className="text-sm capitalize" style={{ color: th.cardSubtext }}>{voucher.voucherType}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <p className="text-sm text-gray-200">
-                          {new Date(voucher.date).toLocaleDateString()}
-                        </p>
+                      <td className="px-6 py-4 text-sm" style={{ color: th.cardSubtext }}>
+                        {new Date(voucher.date).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4">
-                        <p className="text-sm text-gray-200 line-clamp-2 max-w-xs">{voucher.narration}</p>
+                        <p className="text-sm line-clamp-2 max-w-xs" style={{ color: th.cardSubtext }}>{voucher.narration}</p>
                       </td>
                       <td className="px-6 py-4">
-                        <p className="text-sm font-semibold text-white group-hover:text-red-400">
+                        <p className="text-sm font-semibold" style={{ color: th.cardTitle }}>
                           QAR {voucher.totalDebit?.toLocaleString() || '0'}
                         </p>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`px-3 py-1.5 inline-flex items-center gap-1.5 text-xs font-semibold rounded-full ${getStatusColor(voucher.status)} group-hover:border-[#E84545] transition-all`}>
+                        <span className={`px-3 py-1.5 inline-flex items-center gap-1.5 text-xs font-semibold rounded-full border ${getStatusColor(voucher.status)}`}>
                           {getStatusIcon(voucher.status)}
                           <span className="capitalize">{voucher.status}</span>
                         </span>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex justify-end gap-2">
-                          <button
-                            onClick={() => router.push(`/autocityPro/vouchers/${voucher._id}`)}
-                            className="p-2 rounded-lg bg-gray-900 text-gray-400 hover:bg-[#E84545] hover:text-white transition-all group-hover:border border-[#E84545]"
-                            title="View voucher"
-                          >
+                          <button onClick={() => router.push(`/autocityPro/vouchers/${voucher._id}`)}
+                            className="p-2 rounded-lg transition-all"
+                            style={{ background: th.actionBtnBg, border: `1px solid ${th.actionBtnBorder}`, color: th.actionBtnText }}>
                             <Eye className="h-4 w-4" />
                           </button>
                           {voucher.status === 'draft' && (
                             <>
-                              <button
-                                onClick={() => router.push(`/autocityPro/vouchers/${voucher._id}/edit`)}
-                                className="p-2 rounded-lg bg-gray-900 text-gray-400 hover:bg-[#E84545] hover:text-white transition-all group-hover:border border-[#E84545]"
-                                title="Edit voucher"
-                              >
+                              <button onClick={() => router.push(`/autocityPro/vouchers/${voucher._id}/edit`)}
+                                className="p-2 rounded-lg transition-all"
+                                style={{ background: th.actionBtnBg, border: `1px solid ${th.actionBtnBorder}`, color: th.actionBtnText }}>
                                 <Edit className="h-4 w-4" />
                               </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteVoucher(voucher._id, voucher.voucherNumber);
-                                }}
-                                className="p-2 rounded-lg bg-gray-900 text-gray-400 hover:bg-[#E84545] hover:text-white transition-all group-hover:border border-[#E84545]"
-                                title="Delete voucher"
-                              >
+                              <button onClick={e => { e.stopPropagation(); handleDeleteVoucher(voucher._id, voucher.voucherNumber); }}
+                                className="p-2 rounded-lg transition-all"
+                                style={{ background: th.actionBtnBg, border: `1px solid ${th.actionBtnBorder}`, color: '#E84545' }}>
                                 <Trash2 className="h-4 w-4" />
                               </button>
                             </>
@@ -798,102 +707,62 @@ export default function VouchersPage() {
               </tbody>
             </table>
 
-            {/* Loading More Indicator - Desktop */}
             {loadingMore && (
-              <div className="flex justify-center py-6 border-t border-gray-800">
-                <div className="flex items-center gap-2 text-gray-400">
+              <div className="flex justify-center py-6" style={{ borderTop: `1px solid ${th.tableBorder}` }}>
+                <div className="flex items-center gap-2" style={{ color: th.cardMuted }}>
                   <Loader2 className="h-5 w-5 animate-spin text-[#E84545]" />
                   <span className="text-sm">Loading more vouchers...</span>
                 </div>
               </div>
             )}
 
-            {/* Scroll Trigger - Desktop */}
             <div ref={bottomRef} className="h-1" />
 
-            {/* End Indicator */}
             {!hasMore && vouchers.length > 0 && (
-              <div className="text-center py-6 border-t border-gray-800">
-                <p className="text-gray-500 text-sm">
-                  All {vouchers.length} vouchers loaded
-                </p>
+              <div className="text-center py-6" style={{ borderTop: `1px solid ${th.tableBorder}` }}>
+                <p className="text-sm" style={{ color: th.emptyText }}>All {vouchers.length} vouchers loaded</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Mobile Safe Area Bottom Padding */}
         <div className="md:hidden h-20"></div>
       </div>
 
       {/* Mobile Filter Modal */}
       {showFilters && (
-        <div className="md:hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 animate-in fade-in duration-200">
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-b from-black to-[#0A0A0A] rounded-t-3xl border-t border-gray-800 p-6 animate-in slide-in-from-bottom duration-300">
+        <div className="md:hidden fixed inset-0 bg-black/80 backdrop-blur-md z-50 animate-in fade-in duration-200">
+          <div className="absolute bottom-0 left-0 right-0 rounded-t-3xl border-t p-6 animate-in slide-in-from-bottom duration-300"
+            style={{ background: th.modalBg, borderColor: th.modalBorder }}>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-bold text-white">Filters & Sort</h2>
-              <button
-                onClick={() => setShowFilters(false)}
-                className="p-2 rounded-xl bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
-              >
+              <h2 className="text-lg font-bold" style={{ color: th.modalTitle }}>Filters & Sort</h2>
+              <button onClick={() => setShowFilters(false)} className="p-2 rounded-xl"
+                style={{ background: th.modalCloseBg, color: th.modalCloseText }}>
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Voucher Type</label>
-                <select
-                  value={filterType}
-                  onChange={(e) => setFilterType(e.target.value)}
-                  className="w-full px-3 py-2 bg-black border border-gray-800 rounded-lg text-white focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                >
-                  <option value="all">All Types</option>
-                  <option value="payment">Payment</option>
-                  <option value="receipt">Receipt</option>
-                  <option value="journal">Journal</option>
-                  <option value="contra">Contra</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Status</label>
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="w-full px-3 py-2 bg-black border border-gray-800 rounded-lg text-white focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                >
-                  <option value="all">All Status</option>
-                  <option value="draft">Draft</option>
-                  <option value="posted">Posted</option>
-                  <option value="approved">Approved</option>
-                  <option value="void">Void</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Sort By</label>
-                <select
-                  value={sortConfig.key}
-                  onChange={(e) => handleSort(e.target.value)}
-                  className="w-full px-3 py-2 bg-black border border-gray-800 rounded-lg text-white focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                >
-                  <option value="date">Date (Newest First)</option>
-                  <option value="amount">Amount (High to Low)</option>
-                  <option value="voucherNumber">Voucher # (A-Z)</option>
-                </select>
-              </div>
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={() => {
-                    clearFilters();
-                    setShowFilters(false);
-                  }}
-                  className="flex-1 px-4 py-3 bg-black border border-gray-800 rounded-lg text-gray-300 hover:text-white hover:border-[#E84545] transition-colors active:scale-95"
-                >
+              {[
+                { label: 'Voucher Type', val: filterType, set: setFilterType, opts: [['all','All Types'],['payment','Payment'],['receipt','Receipt'],['journal','Journal'],['contra','Contra']] },
+                { label: 'Status', val: filterStatus, set: setFilterStatus, opts: [['all','All Status'],['draft','Draft'],['posted','Posted'],['approved','Approved'],['void','Void']] },
+              ].map(f => (
+                <div key={f.label}>
+                  <label className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>{f.label}</label>
+                  <select value={f.val} onChange={e => f.set(e.target.value)} className="w-full px-3 py-3 rounded-xl"
+                    style={{ background: th.modalSelectBg, border: `1px solid ${th.modalSelectBorder}`, color: th.modalSelectText }}>
+                    {f.opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                </div>
+              ))}
+              <div className="flex gap-3 pt-4" style={{ borderTop: `1px solid ${th.modalBorder}` }}>
+                <button onClick={() => { clearFilters(); setShowFilters(false); }}
+                  className="flex-1 px-4 py-3 rounded-xl"
+                  style={{ background: th.actionBtnBg, border: `1px solid ${th.actionBtnBorder}`, color: th.actionBtnText }}>
                   Clear All
                 </button>
-                <button
-                  onClick={() => setShowFilters(false)}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] rounded-lg text-white font-semibold active:scale-95 transition-all hover:shadow-lg hover:shadow-red-900/30"
-                >
+                <button onClick={() => setShowFilters(false)}
+                  className="flex-1 px-4 py-3 rounded-xl text-white font-semibold"
+                  style={{ background: 'linear-gradient(to right,#E84545,#cc3c3c)' }}>
                   Apply
                 </button>
               </div>
@@ -904,52 +773,34 @@ export default function VouchersPage() {
 
       {/* Mobile Action Menu */}
       {showMobileMenu && (
-        <div className="md:hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 animate-in fade-in duration-200">
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-b from-black to-[#0A0A0A] rounded-t-3xl border-t border-gray-800 p-6 animate-in slide-in-from-bottom duration-300">
+        <div className="md:hidden fixed inset-0 bg-black/80 backdrop-blur-md z-50 animate-in fade-in duration-200">
+          <div className="absolute bottom-0 left-0 right-0 rounded-t-3xl border-t p-6 animate-in slide-in-from-bottom duration-300"
+            style={{ background: th.modalBg, borderColor: th.modalBorder }}>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-bold text-white">Actions</h2>
-              <button
-                onClick={() => setShowMobileMenu(false)}
-                className="p-2 rounded-xl bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
-              >
+              <h2 className="text-lg font-bold" style={{ color: th.modalTitle }}>Actions</h2>
+              <button onClick={() => setShowMobileMenu(false)} className="p-2 rounded-xl"
+                style={{ background: th.modalCloseBg, color: th.modalCloseText }}>
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div className="space-y-3">
-              {voucherTypes.map((type) => (
-                <button
-                  key={type.value}
-                  onClick={() => {
-                    router.push(type.href);
-                    setShowMobileMenu(false);
-                  }}
-                  className="w-full p-4 bg-black border border-gray-800 rounded-xl text-gray-300 font-semibold hover:bg-gray-900 hover:border-[#E84545] transition-all flex items-center gap-3 active:scale-95"
-                >
-                  <div className={`p-2 bg-${type.color}-900/20 border border-${type.color}-800/50 rounded-lg`}>
-                    {getVoucherTypeIcon(type.value)}
-                  </div>
+              {voucherTypes.map(type => (
+                <button key={type.value} onClick={() => { router.push(type.href); setShowMobileMenu(false); }}
+                  className="w-full p-4 rounded-xl font-semibold flex items-center gap-3 active:scale-95 transition-all"
+                  style={{ background: th.actionBtnBg, border: `1px solid ${th.actionBtnBorder}`, color: th.actionBtnText }}>
+                  {getVoucherTypeIcon(type.value)}
                   <span>Create {type.label}</span>
                 </button>
               ))}
-              <button
-                onClick={() => {
-                  downloadVouchersCSV();
-                  setShowMobileMenu(false);
-                }}
-                className="w-full p-4 bg-black border border-gray-800 rounded-xl text-gray-300 font-semibold hover:bg-gray-900 hover:border-[#E84545] transition-all flex items-center justify-between active:scale-95"
-              >
-                <span>Export CSV</span>
-                <FileDown className="h-5 w-5" />
+              <button onClick={() => { downloadVouchersCSV(); setShowMobileMenu(false); }}
+                className="w-full p-4 rounded-xl font-semibold flex items-center justify-between active:scale-95 transition-all"
+                style={{ background: th.actionBtnBg, border: `1px solid ${th.actionBtnBorder}`, color: th.actionBtnText }}>
+                <span>Export CSV</span><FileDown className="h-5 w-5" />
               </button>
-              <button
-                onClick={() => {
-                  handleRefresh();
-                  setShowMobileMenu(false);
-                }}
-                className="w-full p-4 bg-black border border-gray-800 rounded-xl text-gray-300 font-semibold hover:bg-gray-900 hover:border-[#E84545] transition-all flex items-center justify-between active:scale-95"
-              >
-                <span>Refresh Data</span>
-                <RefreshCw className="h-5 w-5" />
+              <button onClick={() => { handleRefresh(); setShowMobileMenu(false); }}
+                className="w-full p-4 rounded-xl font-semibold flex items-center justify-between active:scale-95 transition-all"
+                style={{ background: th.actionBtnBg, border: `1px solid ${th.actionBtnBorder}`, color: th.actionBtnText }}>
+                <span>Refresh Data</span><RefreshCw className="h-5 w-5" />
               </button>
             </div>
           </div>

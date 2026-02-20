@@ -20,7 +20,7 @@ export default function VoucherEditPage() {
     date: '',
     narration: '',
     referenceNumber: '',
-    entries: [{ accountId: '', debit: 0, credit: 0, narration: '' }],
+    entries: [{ id: typeof crypto !== 'undefined' ? crypto.randomUUID() : Math.random().toString(), accountId: '', debit: 0, credit: 0, narration: '' }],
   });
   
   useEffect(() => {

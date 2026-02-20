@@ -143,6 +143,7 @@ export default function ContraVoucherPage() {
       narration = 'Withdrawal from bank';
       newEntries = [
         {
+          id: crypto.randomUUID(),
           accountId: cashAccount._id,
           accountName: cashAccount.accountName,
           debit: amount,
@@ -150,6 +151,7 @@ export default function ContraVoucherPage() {
           narration: narration,
         },
         {
+          id: crypto.randomUUID(),
           accountId: bankAccount._id,
           accountName: bankAccount.accountName,
           debit: 0,
@@ -162,6 +164,7 @@ export default function ContraVoucherPage() {
       narration = 'Deposit to bank';
       newEntries = [
         {
+          id: crypto.randomUUID(),
           accountId: bankAccount._id,
           accountName: bankAccount.accountName,
           debit: amount,
@@ -169,6 +172,7 @@ export default function ContraVoucherPage() {
           narration: narration,
         },
         {
+          id: crypto.randomUUID(),
           accountId: cashAccount._id,
           accountName: cashAccount.accountName,
           debit: 0,

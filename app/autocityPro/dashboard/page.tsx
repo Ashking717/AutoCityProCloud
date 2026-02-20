@@ -33,6 +33,8 @@ import {
   Zap,
   Sun,
   Moon,
+  CarFront,
+  Gauge,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -504,33 +506,95 @@ export default function DashboardPage() {
 
 
   // ── Loading skeleton ──────────────────────────────────────────────────────
-  if (loading && !dashboardData) {
+if (loading && !dashboardData) {
     return (
       <MainLayout user={user} onLogout={handleLogout}>
-        <div className="min-h-screen transition-colors duration-500" style={{ background: th.pageBg }}>
+        <div className="min-h-screen transition-colors duration-500 relative overflow-hidden" style={{ background: th.pageBg }}>
+          
+          {/* Custom Automotive Keyframes */}
+          <style dangerouslySetInnerHTML={{ __html: `
+            @keyframes drive {
+              0% { transform: translateX(-100px) skewX(10deg); opacity: 0; }
+              20% { opacity: 1; transform: translateX(10%) skewX(0deg); }
+              80% { opacity: 1; transform: translateX(90%) skewX(0deg); }
+              100% { transform: translateX(calc(100vw + 100px)) skewX(-10deg); opacity: 0; }
+            }
+            @keyframes rev-needle {
+              0% { transform: rotate(-45deg); }
+              10% { transform: rotate(80deg); }
+              20% { transform: rotate(40deg); }
+              30% { transform: rotate(110deg); }
+              50% { transform: rotate(60deg); }
+              70% { transform: rotate(130deg); }
+              100% { transform: rotate(-45deg); }
+            }
+            @keyframes road-lines {
+              0% { background-position: 0 0; }
+              100% { background-position: -200px 0; }
+            }
+          `}} />
+
           {isMobile && showDynamicIsland && <DashboardDynamicIsland th={th} stats={stats} isDark={isDark} formatCompactCurrency={formatCompactCurrency} />}
           <DashboardMobileHeader isLoading th={th} router={router} user={user} period={period} setShowMobileFilter={setShowMobileFilter} handleRefresh={handleRefresh} refreshing={refreshing} setShowMobileMenu={setShowMobileMenu} lastUpdated={lastUpdated} />
 
           {/* Desktop Header */}
           <div
-            className="hidden md:block py-11 border-b shadow-xl transition-colors duration-500"
+            className="hidden md:block py-11 border-b shadow-xl transition-colors duration-500 relative overflow-hidden"
             style={{
               background: `linear-gradient(135deg, ${th.headerBgFrom}, ${th.headerBgVia}, ${th.headerBgTo})`,
               borderColor: th.headerBorder,
             }}
           >
-            <div className="px-8">
-              <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3"
-                style={{ color: th.headerTitle }}
-              >
-                <Sparkles className="h-8 w-8 text-[#E84545]" />
+            {/* Subtle header speed-lines effect */}
+            <div className="absolute inset-0 pointer-events-none opacity-20" style={{ 
+              backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(255,255,255,0.2) 40px, rgba(255,255,255,0.2) 80px)',
+              backgroundSize: '200px 100%',
+              animation: 'road-lines 1s linear infinite'
+            }} />
+
+            <div className="px-8 relative z-10">
+              <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3" style={{ color: th.headerTitle }}>
+                <div className="relative">
+                  <Gauge className="h-8 w-8 text-[#E84545]" />
+                  {/* Fake speedometer needle revving */}
+                  <div className="absolute top-[50%] left-[50%] w-[2px] h-[12px] bg-white origin-bottom -translate-x-1/2 -translate-y-full rounded-t-full" style={{ animation: 'rev-needle 3s ease-in-out infinite' }} />
+                </div>
                 Dashboard
               </h1>
-              <p className="mt-2" style={{ color: th.headerSubText }}>Loading your data...</p>
+              <p className="mt-2 flex items-center gap-2 font-medium" style={{ color: th.headerSubText }}>
+                <span className="w-2 h-2 rounded-full bg-[#E84545] animate-pulse" />
+                Revving up your metrics...
+              </p>
             </div>
           </div>
 
-          <div className="px-4 md:px-6 pt-[140px] md:pt-6 pb-6">
+          <div className="px-4 md:px-6 pt-[140px] md:pt-6 pb-6 relative z-10">
+            
+            {/* Thematic Automotive Loader */}
+            <div className="flex flex-col items-center justify-center py-10 mb-8 rounded-3xl border border-white/5 backdrop-blur-md" 
+              style={{ background: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.4)' }}>
+              
+              <div className="relative w-full max-w-md h-16 mb-4 overflow-hidden border-b-4 border-[#E84545]/20">
+                {/* Dashed Road Line */}
+                <div className="absolute bottom-1 w-[200%] h-0.5 bg-transparent" style={{
+                  backgroundImage: `linear-gradient(90deg, ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} 50%, transparent 50%)`,
+                  backgroundSize: '30px 100%',
+                  animation: 'road-lines 0.5s linear infinite'
+                }} />
+                
+                {/* Moving Car */}
+                <div className="absolute bottom-2 left-0" style={{ animation: 'drive 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite' }}>
+                  <CarFront className="h-8 w-8 text-[#E84545] drop-shadow-[0_0_8px_rgba(232,69,69,0.8)]" />
+                  {/* Tail lights blur */}
+                  <div className="absolute top-1/2 -left-4 w-6 h-2 bg-red-500/50 blur-sm rounded-full" />
+                </div>
+              </div>
+
+              <h3 className="text-lg font-bold tracking-wide" style={{ color: th.headerTitle }}>Loading</h3>
+              <p className="text-sm mt-1" style={{ color: th.headerSubText }}></p>
+            </div>
+
+            {/* Existing Skeletons */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 mb-6">
               {[1, 2, 3, 4, 5].map((n) => <StatCardSkeleton key={n} isDark={isDark} />)}
             </div>
@@ -539,7 +603,6 @@ export default function DashboardPage() {
       </MainLayout>
     );
   }
-
   // ── Error screen ─────────────────────────────────────────────────────────
   if (error && !dashboardData) {
     return (
@@ -677,7 +740,7 @@ export default function DashboardPage() {
                   className="text-3xl font-bold tracking-tight flex items-center gap-3"
                   style={{ color: th.headerTitle }}
                 >
-                  <Sparkles className="h-8 w-8 text-[#E84545]" />
+                  <Gauge className="h-8 w-8 text-[#E84545]" />
                   Dashboard
                 </h1>
                 <div className="flex items-center gap-2 mt-2">

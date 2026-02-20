@@ -163,43 +163,33 @@ export default function LoginPage() {
   // ── Theme tokens ──────────────────────────────────────────────────────────
   const th = {
     pageBg:          isDark ? '#000000'                                               : '#f1f5f9',
-    // Animated blobs
     blobOpacity1:    isDark ? '0.30'                                                  : '0.12',
     blobOpacity2:    isDark ? '0.25'                                                  : '0.10',
     blobOpacity3:    isDark ? '0.10'                                                  : '0.05',
-    // Language button
     langBtnBg:       isDark ? 'rgba(28,28,30,0.95)'                                   : 'rgba(255,255,255,0.95)',
     langBtnBorder:   isDark ? 'rgba(255,255,255,0.08)'                                : 'rgba(0,0,0,0.08)',
     langBtnText:     isDark ? '#ffffff'                                               : '#111827',
-    // Card (ios-card)
     cardBg:          isDark ? 'rgba(28,28,30,0.95)'                                   : 'rgba(255,255,255,0.97)',
     cardBorder:      isDark ? 'rgba(255,255,255,0.08)'                                : 'rgba(0,0,0,0.06)',
-    // Text
     title:           isDark ? '#dc2626'                                               : '#991b1b',
     subtitle:        isDark ? '#9ca3af'                                               : '#6b7280',
     support:         isDark ? '#6b7280'                                               : '#9ca3af',
     headingMain:     isDark ? '#ffffff'                                               : '#111827',
     headingDesc:     isDark ? '#9ca3af'                                               : '#6b7280',
     labelText:       isDark ? '#d1d5db'                                               : '#374151',
-    // Input
     inputBg:         isDark ? 'rgba(58,58,60,0.40)'                                   : 'rgba(0,0,0,0.04)',
     inputBorder:     isDark ? 'rgba(255,255,255,0.06)'                                : 'rgba(0,0,0,0.10)',
     inputText:       isDark ? '#ffffff'                                               : '#111827',
     inputPH:         isDark ? '#6b7280'                                               : '#9ca3af',
     inputIcon:       isDark ? '#6b7280'                                               : '#9ca3af',
     inputFocusBg:    isDark ? 'rgba(58,58,60,0.60)'                                   : 'rgba(0,0,0,0.06)',
-    // Checkbox
     checkboxBorder:  isDark ? 'rgba(255,255,255,0.20)'                                : 'rgba(0,0,0,0.15)',
     checkboxBg:      isDark ? 'rgba(58,58,60,0.40)'                                   : 'rgba(0,0,0,0.04)',
     rememberText:    isDark ? '#d1d5db'                                               : '#374151',
-    // Error box
     errorBg:         isDark ? 'rgba(239,68,68,0.10)'                                  : 'rgba(239,68,68,0.08)',
     errorBorder:     isDark ? 'rgba(239,68,68,0.20)'                                  : 'rgba(239,68,68,0.20)',
-    // Back link
     backLinkText:    isDark ? '#9ca3af'                                               : '#6b7280',
-    // Footer support text
     footerText:      isDark ? '#6b7280'                                               : '#9ca3af',
-    // Theme badge
     badgeBg:         isDark ? 'rgba(0,0,0,0.40)'                                     : 'rgba(255,255,255,0.80)',
     badgeBorder:     isDark ? 'rgba(255,255,255,0.15)'                                : 'rgba(153,27,27,0.20)',
     badgeText:       isDark ? 'rgba(255,255,255,0.70)'                                : '#991b1b',
@@ -231,7 +221,9 @@ export default function LoginPage() {
       style={{ background: th.pageBg, color: th.headingMain }}
       dir={isRTL ? 'rtl' : 'ltr'}>
 
-      <style>{`
+      {/* FIX: Replaced `<style>{...}</style>` with `<style dangerouslySetInnerHTML={{ __html: ... }} />` */}
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
         * { -webkit-tap-highlight-color: transparent; }
         body {
@@ -273,7 +265,8 @@ export default function LoginPage() {
         }
         input[type="checkbox"]:focus { outline: none; box-shadow: 0 0 0 4px rgba(255,59,48,0.1); }
         input::placeholder { color: #6b7280; }
-      `}</style>
+      `
+      }} />
 
       {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">

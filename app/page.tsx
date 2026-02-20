@@ -68,8 +68,14 @@ interface Content {
     callUsDesc: string;
     emailUs: string;
     businessHours: string;
-    satThu: string;
-    friday: string;
+    regularHours: string;
+    ramadanHours: string;
+    daysSatThu: string;
+    daysFriday: string;
+    regularSatThuTime: string;
+    regularFridayTime: string;
+    ramadanSatThuTime: string;
+    ramadanFridayTime: string;
   };
   footer: {
     description: string;
@@ -84,7 +90,7 @@ interface Content {
   };
 }
 
-// Content translations with SEO-optimized text
+// Content translations
 const content: Record<'en' | 'ar', Content> = {
   en: {
     nav: {
@@ -107,7 +113,7 @@ const content: Record<'en' | 'ar', Content> = {
       stats: [
         { value: '3', label: 'Doha Branches' },
         { value: '8+', label: 'Services' },
-        { value: '10,000+', label: 'Products' },
+        { value: '10K+', label: 'Products' },
       ],
     },
     showcase: {
@@ -214,17 +220,23 @@ const content: Record<'en' | 'ar', Content> = {
     },
     contact: {
       label: 'Contact Auto City Qatar',
-      title: 'Get in Touch - Car Accessories Qatar',
+      title: 'Get in Touch',
       description: 'Contact us for car accessories in Qatar. We\'re here to help with all your automotive needs across Doha.',
       callUs: 'Call Our Doha Branches',
       callUsDesc: 'Available during business hours',
       emailUs: 'Email Us',
       businessHours: 'Business Hours',
-      satThu: 'Saturday – Thursday',
-      friday: 'Friday',
+      regularHours: 'Standard Timings',
+      ramadanHours: 'Ramadan Timings',
+      daysSatThu: 'Saturday – Thursday',
+      daysFriday: 'Friday',
+      regularSatThuTime: '8:00 AM – 12:30 PM, 3:30 PM – 11:00 PM',
+      regularFridayTime: '3:00 PM – 9:00 PM',
+      ramadanSatThuTime: '9:00 AM – 12:00 PM, 2:00 PM – 5:00 PM, 7:00 PM – 1:00 AM',
+      ramadanFridayTime: '2:30 PM – 5:30 PM, 7:00 PM – 1:00 AM',
     },
     footer: {
-      description: 'Auto City Qatar - Leading car accessories shop in Doha. Premium auto parts, genuine OEM parts, aftermarket accessories, stereo systems, window tinting, and professional automotive services. Your complete car accessories solution in Qatar.',
+      description: 'Auto City Qatar - Leading car accessories shop in Doha. Premium auto parts, genuine OEM parts, aftermarket accessories, stereo systems, window tinting, and professional automotive services.',
       services: 'Car Accessories',
       contact: 'Contact',
       ourBranches: 'Doha Branches',
@@ -269,7 +281,7 @@ const content: Record<'en' | 'ar', Content> = {
       stats: [
         { value: '٣', label: 'فروع في الدوحة' },
         { value: '+٨', label: 'خدمات' },
-        { value: '+١٠٬٠٠٠', label: 'منتج' },
+        { value: '+١٠K', label: 'منتج' },
       ],
     },
     showcase: {
@@ -366,7 +378,7 @@ const content: Record<'en' | 'ar', Content> = {
     },
     branches: {
       label: 'مواقعنا في الدوحة',
-      title: 'قم بزيارة متاجر إكسسوارات السيارات لدينا',
+      title: 'قم بزيارة فروعنا',
       description: 'ثلاثة متاجر إكسسوارات سيارات مريحة في الدوحة، قطر. قم بزيارة أي موقع للحصول على قطع غيار وخدمات سيارات متميزة.',
       items: [
         { name: 'فرع الغرافة', area: 'الدوحة، قطر', desc: 'متجر إكسسوارات السيارات في الغرافة' },
@@ -376,17 +388,23 @@ const content: Record<'en' | 'ar', Content> = {
     },
     contact: {
       label: 'اتصل بـ اوتو سيتي قطر',
-      title: 'تواصل معنا - إكسسوارات السيارات قطر',
+      title: 'تواصل معنا',
       description: 'اتصل بنا للحصول على إكسسوارات السيارات في قطر. نحن هنا لمساعدتك في جميع احتياجات سيارتك في الدوحة.',
       callUs: 'اتصل بفروعنا في الدوحة',
       callUsDesc: 'متاح خلال ساعات العمل',
       emailUs: 'راسلنا',
       businessHours: 'ساعات العمل',
-      satThu: 'السبت – الخميس',
-      friday: 'الجمعة',
+      regularHours: 'الأوقات العادية',
+      ramadanHours: 'أوقات شهر رمضان',
+      daysSatThu: 'السبت – الخميس',
+      daysFriday: 'الجمعة',
+      regularSatThuTime: '8:00 صباحاً – 12:30 مساءً ، 3:30 مساءً – 11:00 مساءً',
+      regularFridayTime: '3:00 مساءً – 9:00 مساءً',
+      ramadanSatThuTime: '9:00 صباحاً – 12:00 مساءً ، 2:00 مساءً – 5:00 مساءً ، 7:00 مساءً – 1:00 صباحاً',
+      ramadanFridayTime: '2:30 مساءً – 5:30 مساءً ، 7:00 مساءً – 1:00 صباحاً',
     },
     footer: {
-      description: 'اوتو سيتي قطر - متجر إكسسوارات السيارات الرائد في الدوحة. قطع غيار سيارات متميزة، قطع غيار OEM أصلية، إكسسوارات بديلة، أنظمة صوت، تظليل نوافذ، وخدمات سيارات احترافية. حل إكسسوارات السيارات الكامل في قطر.',
+      description: 'اوتو سيتي قطر - متجر إكسسوارات السيارات الرائد في الدوحة. قطع غيار سيارات متميزة، قطع غيار OEM أصلية، إكسسوارات بديلة، أنظمة صوت، تظليل نوافذ، وخدمات سيارات احترافية.',
       services: 'إكسسوارات السيارات',
       contact: 'اتصل بنا',
       ourBranches: 'فروع الدوحة',
@@ -421,43 +439,38 @@ const phoneNumbers = [
 ];
 
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
   :root {
     --scrollbar-track: #f1f5f9;
-    --noise-opacity: 0.008;
-    --glass-bg: rgba(255, 255, 255, 0.8);
-    --glass-border: rgba(0, 0, 0, 0.05);
-    --glass-dark-bg: rgba(255, 255, 255, 0.95);
-    --glass-dark-border: rgba(0, 0, 0, 0.05);
+    --noise-opacity: 0.015;
+    --glass-bg: rgba(255, 255, 255, 0.6);
+    --glass-border: rgba(255, 255, 255, 0.4);
+    --glass-dark-bg: rgba(15, 15, 15, 0.4);
+    --glass-dark-border: rgba(255, 255, 255, 0.08);
+    --brand-red: #E84545;
   }
 
   .theme-dark {
     --scrollbar-track: #0A0A0A;
-    --noise-opacity: 0.015;
-    --glass-bg: rgba(255, 255, 255, 0.03);
-    --glass-border: rgba(255, 255, 255, 0.05);
-    --glass-dark-bg: rgba(0, 0, 0, 0.6);
-    --glass-dark-border: rgba(255, 255, 255, 0.05);
+    --glass-bg: var(--glass-dark-bg);
+    --glass-border: var(--glass-dark-border);
   }
 
   .theme-light {
     --scrollbar-track: #f1f5f9;
-    --noise-opacity: 0.008;
     --glass-bg: rgba(255, 255, 255, 0.8);
     --glass-border: rgba(0, 0, 0, 0.05);
-    --glass-dark-bg: rgba(255, 255, 255, 0.95);
-    --glass-dark-border: rgba(0, 0, 0, 0.05);
   }
 
   .ltr {
     direction: ltr;
-    font-family: 'Outfit', sans-serif;
+    font-family: 'Plus Jakarta Sans', sans-serif;
   }
 
   .rtl {
     direction: rtl;
-    font-family: 'Tajawal', sans-serif;
+    font-family: 'Cairo', sans-serif;
   }
 
   html {
@@ -465,53 +478,39 @@ const styles = `
   }
 
   ::-webkit-scrollbar {
-    width: 8px;
+    width: 6px;
   }
   ::-webkit-scrollbar-track {
     background: var(--scrollbar-track);
   }
   ::-webkit-scrollbar-thumb {
-    background: #E84545;
-    border-radius: 4px;
+    background: var(--brand-red);
+    border-radius: 10px;
   }
 
   @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(60px); }
+    from { opacity: 0; transform: translateY(40px); }
     to { opacity: 1; transform: translateY(0); }
   }
 
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-
   @keyframes scaleIn {
-    from { opacity: 0; transform: scale(0.9); }
+    from { opacity: 0; transform: scale(0.95); }
     to { opacity: 1; transform: scale(1); }
   }
 
-  @keyframes pulse-ring {
-    0% { transform: scale(0.8); opacity: 0.5; }
-    100% { transform: scale(1.4); opacity: 0; }
-  }
-
-  @keyframes shimmer {
-    0% { background-position: -1000px 0; }
-    100% { background-position: 1000px 0; }
+  @keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+    100% { transform: translateY(0px); }
   }
 
   .animate-fade-in-up {
-    animation: fadeInUp 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    opacity: 0;
-  }
-
-  .animate-fade-in {
-    animation: fadeIn 1s ease forwards;
+    animation: fadeInUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
     opacity: 0;
   }
 
   .animate-scale-in {
-    animation: scaleIn 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: scaleIn 1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
     opacity: 0;
   }
 
@@ -519,68 +518,59 @@ const styles = `
   .delay-200 { animation-delay: 0.2s; }
   .delay-300 { animation-delay: 0.3s; }
   .delay-400 { animation-delay: 0.4s; }
-  .delay-500 { animation-delay: 0.5s; }
-  .delay-600 { animation-delay: 0.6s; }
 
   .hover-lift {
-    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
   .hover-lift:hover {
-    transform: translateY(-8px);
+    transform: translateY(-6px);
+    box-shadow: 0 15px 30px -10px rgba(0,0,0,0.1);
   }
-
-  .hover-glow:hover {
-    box-shadow: 0 0 40px rgba(232, 69, 69, 0.3);
+  .theme-dark .hover-lift:hover {
+    box-shadow: 0 15px 30px -10px rgba(232, 69, 69, 0.15);
   }
 
   .glass {
     background: var(--glass-bg);
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border: 1px solid var(--glass-border);
   }
 
-  .glass-dark {
-    background: var(--glass-dark-bg);
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid var(--glass-dark-border);
+  .btn-primary {
+    background: linear-gradient(135deg, #E84545 0%, #D83434 100%);
+    box-shadow: 0 4px 15px rgba(232, 69, 69, 0.3);
+    transition: all 0.3s ease;
   }
-
-  .noise::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: 1000;
-    opacity: var(--noise-opacity);
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  .btn-primary:hover {
+    box-shadow: 0 8px 25px rgba(232, 69, 69, 0.5);
+    transform: translateY(-2px);
   }
 
   .line-accent {
     position: relative;
+    padding-bottom: 0.5rem;
   }
   .line-accent::after {
     content: '';
     position: absolute;
-    bottom: -12px;
+    bottom: 0;
     left: 0;
     width: 60px;
-    height: 3px;
-    background: #E84545;
+    height: 4px;
+    background: linear-gradient(90deg, #E84545, transparent);
+    border-radius: 4px;
   }
-
   .rtl .line-accent::after {
     left: auto;
     right: 0;
+    background: linear-gradient(-90deg, #E84545, transparent);
   }
-
   .line-accent-center::after {
     left: 50%;
     transform: translateX(-50%);
+    background: #E84545;
   }
-
   .rtl .line-accent-center::after {
     left: 50%;
     right: auto;
@@ -590,49 +580,46 @@ const styles = `
   .media-overlay {
     position: relative;
     overflow: hidden;
-    border-radius: 1rem;
+    border-radius: 1.25rem;
     cursor: pointer;
   }
-
   .media-overlay::after {
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, transparent 60%);
-    opacity: 0;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0,0,0,0.2) 50%, transparent 100%);
+    opacity: 0.8;
     transition: opacity 0.4s ease;
   }
-
   .media-overlay:hover::after {
     opacity: 1;
   }
-
   .play-button {
     position: absolute;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%);
-    width: 64px;
-    height: 64px;
-    background: rgba(232, 69, 69, 0.9);
+    transform: translate(-50%, -50%) scale(0.9);
+    width: 70px;
+    height: 70px;
+    background: rgba(232, 69, 69, 0.95);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     opacity: 0;
-    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-    pointer-events: none;
+    transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+    box-shadow: 0 0 20px rgba(232, 69, 69, 0.5);
+    z-index: 20;
   }
-
   .media-overlay:hover .play-button {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1.1);
+    transform: translate(-50%, -50%) scale(1);
   }
-
-  .shimmer-effect {
-    background: linear-gradient(90deg, transparent, rgba(232, 69, 69, 0.1), transparent);
-    background-size: 200% 100%;
-    animation: shimmer 3s infinite;
+  .media-overlay img, .media-overlay video {
+    transition: transform 0.6s ease;
+  }
+  .media-overlay:hover img, .media-overlay:hover video {
+    transform: scale(1.05);
   }
 `;
 
@@ -656,218 +643,181 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, []);
 
+  if (!mounted) return null;
+
   return (
-    <div suppressHydrationWarning className={`min-h-screen ${isDark ? 'theme-dark bg-[#050505] text-white' : 'theme-light bg-gray-50 text-gray-900'} overflow-x-hidden ${isRTL ? 'rtl' : 'ltr'} transition-colors duration-500`}>
-      {/* Styles extracted to a JS string to avoid SSR/client quote-escaping mismatch */}
+    <div suppressHydrationWarning className={`min-h-screen ${isDark ? 'theme-dark bg-[#0a0a0a] text-white' : 'theme-light bg-gray-50 text-gray-900'} overflow-x-hidden ${isRTL ? 'rtl' : 'ltr'} transition-colors duration-500`}>
       <style suppressHydrationWarning dangerouslySetInnerHTML={{ __html: styles }} />
 
-      <div className="noise" />
+      {/* Subtle Noise Overlay */}
+      <div className="fixed inset-0 pointer-events-none opacity-[0.015] z-50 mix-blend-overlay" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")` }} />
 
       {/* Media Modal */}
       {selectedMedia && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95" onClick={() => setSelectedMedia(null)}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md transition-all" onClick={() => setSelectedMedia(null)}>
           <button
             onClick={() => setSelectedMedia(null)}
-            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
-            aria-label="Close modal"
+            className="absolute top-6 right-6 p-3 rounded-full bg-white/10 hover:bg-[#E84545] transition-colors"
           >
             <X className="w-6 h-6 text-white" />
           </button>
-          <div className="relative max-w-6xl w-full max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
-            <div className="text-center mb-4">
-              <h3 className="text-2xl font-bold text-white">{selectedMedia.title}</h3>
+          <div className="relative max-w-6xl w-full max-h-[90vh] animate-scale-in" onClick={(e) => e.stopPropagation()}>
+            <div className="text-center mb-6">
+              <h3 className="text-2xl lg:text-3xl font-bold text-white tracking-tight">{selectedMedia.title}</h3>
             </div>
-            {selectedMedia.type === 'video' ? (
-              <video src={selectedMedia.src} controls autoPlay className="w-full h-auto rounded-xl" />
-            ) : (
-              <Image src={selectedMedia.src} alt={selectedMedia.title} width={1200} height={675} className="w-full h-auto rounded-xl" />
-            )}
+            <div className="rounded-2xl overflow-hidden shadow-2xl shadow-[#E84545]/20 border border-white/10">
+                {selectedMedia.type === 'video' ? (
+                <video src={selectedMedia.src} controls autoPlay className="w-full h-auto" />
+                ) : (
+                <Image src={selectedMedia.src} alt={selectedMedia.title} width={1200} height={675} className="w-full h-auto" />
+                )}
+            </div>
           </div>
         </div>
       )}
 
       {/* Navigation */}
-      <header className="fixed top-0 left-0 right-0 z-50" role="banner">
-        <div className="glass-dark">
-          <nav className="max-w-7xl mx-auto px-6 lg:px-8" aria-label="Main navigation">
-            <div className="flex items-center justify-between h-20">
-              <Link href="/" className="relative h-12 w-48" aria-label="Auto City Qatar - Car Accessories Shop in Doha">
-                <Image
-                  src="/login.png"
-                  alt="Auto City Qatar - Premium Car Accessories in Doha"
-                  fill
-                  sizes="192px"
-                  className="object-contain object-left"
-                  priority
-                />
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 glass transition-all duration-300">
+        <nav className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="flex items-center justify-between h-20">
+            <Link href="/" className="relative h-12 w-48 transition-transform hover:scale-105">
+              <Image
+                src="/login.png"
+                alt="Auto City Qatar"
+                fill
+                sizes="192px"
+                className="object-contain object-left"
+                priority
+              />
+            </Link>
+
+            <ul className="hidden lg:flex items-center gap-10">
+              {['services', 'showcase', 'about', 'branches', 'contact'].map((key) => (
+                <li key={key}>
+                  <a
+                    href={`#${key}`}
+                    className={`text-sm font-semibold tracking-wide ${isDark ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'} transition-colors relative group`}
+                  >
+                    {t.nav[key as keyof typeof t.nav]}
+                    <span className="absolute -bottom-2 left-0 w-0 h-0.5 bg-[#E84545] group-hover:w-full transition-all duration-300 ease-out" />
+                  </a>
+                </li>
+              ))}
+            </ul>
+
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={() => setIsDark(!isDark)}
+                className="hidden md:flex items-center justify-center w-10 h-10 rounded-full border border-gray-500/20 hover:bg-gray-500/10 transition-colors"
+              >
+                {isDark ? <Moon className="w-4 h-4 text-[#E84545]" /> : <Sun className="w-4 h-4 text-[#E84545]" />}
+              </button>
+
+              <button
+                onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-full border ${isDark ? 'border-white/10 hover:border-[#E84545]/50 bg-white/5' : 'border-gray-200 hover:border-[#E84545]/50 bg-white'} transition-all`}
+              >
+                <Globe className="w-4 h-4 text-[#E84545]" />
+                <span className="text-sm font-bold">{lang === 'en' ? 'العربية' : 'EN'}</span>
+              </button>
+
+              <Link
+                href="/autocityPro/login"
+                className="hidden md:block px-7 py-2.5 btn-primary text-white text-sm font-bold rounded-full tracking-wide"
+              >
+                {t.nav.Login}
               </Link>
-
-              <ul className="hidden lg:flex items-center gap-10">
-                {[
-                  { key: 'services', href: '#services' },
-                  { key: 'showcase', href: '#showcase' },
-                  { key: 'about', href: '#about' },
-                  { key: 'branches', href: '#branches' },
-                  { key: 'contact', href: '#contact' },
-                ].map((item) => (
-                  <li key={item.key}>
-                    <a
-                      href={item.href}
-                      className={`text-sm font-medium ${isDark ? 'text-gray-400 hover:text-[#E84545]' : 'text-gray-600 hover:text-[#E84545]'} transition-colors duration-300 relative group`}
-                    >
-                      {t.nav[item.key as keyof typeof t.nav]}
-                      <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#E84545] group-hover:w-full transition-all duration-300" />
-                    </a>
-                  </li>
-                ))}
-              </ul>
-
-              <div className="flex items-center gap-4">
-                <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300/10">
-                  {isDark ? (
-                    <Moon className="w-4 h-4 text-[#E84545]" aria-hidden="true" />
-                  ) : (
-                    <Sun className="w-4 h-4 text-[#E84545]" aria-hidden="true" />
-                  )}
-                </div>
-
-                <button
-                  onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border ${isDark ? 'border-white/10 hover:border-[#E84545]/50' : 'border-gray-200 hover:border-[#E84545]/50'} transition-colors`}
-                  aria-label={lang === 'en' ? 'Switch to Arabic' : 'Switch to English'}
-                >
-                  <Globe className="w-4 h-4 text-[#E84545]" aria-hidden="true" />
-                  <span className="text-sm font-medium">{lang === 'en' ? 'العربية' : 'English'}</span>
-                </button>
-
-                <Link
-                  href="/autocityPro/login"
-                  className="hidden md:block px-6 py-2.5 bg-[#E84545] text-white text-sm font-semibold rounded-lg hover:bg-[#cc3c3c] transition-all duration-300 hover-glow"
-                >
-                  {t.nav.Login}
-                </Link>
-              </div>
             </div>
-          </nav>
-        </div>
+          </div>
+        </nav>
       </header>
 
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center pt-20" aria-labelledby="hero-heading">
-        <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
-          <div className={`absolute -top-1/4 -right-1/4 w-[800px] h-[800px] rounded-full ${isDark ? 'opacity-10' : 'opacity-5'} bg-[#E84545] blur-[150px]`} />
-          <div
-            className={`absolute inset-0 ${isDark ? 'opacity-[0.02]' : 'opacity-[0.01]'}`}
-            style={{
-              backgroundImage: `linear-gradient(to right, #E84545 1px, transparent 1px), linear-gradient(to bottom, #E84545 1px, transparent 1px)`,
-              backgroundSize: '80px 80px'
-            }}
-          />
-          <div
-            className={`absolute top-0 right-0 w-1/2 h-full ${isDark ? 'opacity-[0.03]' : 'opacity-[0.015]'}`}
-            style={{
-              backgroundImage: `repeating-linear-gradient(-45deg, #E84545, #E84545 1px, transparent 1px, transparent 60px)`
-            }}
-          />
+      <section className="relative min-h-screen flex items-center pt-28 pb-20 overflow-hidden">
+        {/* Premium Background Elements */}
+        <div className="absolute inset-0 z-0">
+          <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] rounded-full bg-[#E84545]/20 blur-[120px]" />
+          <div className="absolute bottom-[-10%] left-[-5%] w-[600px] h-[600px] rounded-full bg-[#E84545]/10 blur-[120px]" />
+          <div className={`absolute inset-0 ${isDark ? 'opacity-[0.03]' : 'opacity-[0.05]'}`}
+               style={{ backgroundImage: `linear-gradient(${isDark ? 'rgba(255,255,255,1)' : 'rgba(0,0,0,1)'} 1px, transparent 1px), linear-gradient(90deg, ${isDark ? 'rgba(255,255,255,1)' : 'rgba(0,0,0,1)'} 1px, transparent 1px)`, backgroundSize: '60px 60px' }} />
         </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-8 py-20">
+        <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-8 w-full">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <div>
-              <div className={`animate-fade-in-up inline-flex items-center gap-3 px-4 py-2 rounded-full border border-[#E84545]/30 ${isDark ? 'bg-[#E84545]/5' : 'bg-[#E84545]/10'} mb-8`}>
-                <span className="w-2 h-2 rounded-full bg-[#E84545] animate-pulse" aria-hidden="true" />
-                <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{t.hero.badge}</span>
+            <div className="max-w-2xl">
+              <div className={`animate-fade-in-up inline-flex items-center gap-3 px-5 py-2.5 rounded-full border border-[#E84545]/30 ${isDark ? 'bg-[#E84545]/10' : 'bg-[#E84545]/5'} backdrop-blur-md mb-8`}>
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#E84545] opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#E84545]"></span>
+                </span>
+                <span className={`text-sm font-semibold tracking-wide ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{t.hero.badge}</span>
               </div>
 
-              <h1 id="hero-heading" className="animate-fade-in-up delay-100">
-                <span className={`block text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-gray-900'} mb-4`}>
+              <h1 className="animate-fade-in-up delay-100 mb-6">
+                <span className={`block text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight mb-2 ${isDark ? 'bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400' : 'text-gray-900'}`}>
                   {t.hero.title1}
                 </span>
-                <span className="block text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-[#E84545]">
+                <span className="block text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-[#E84545] to-[#ff6b6b]">
                   {t.hero.title2}
                 </span>
               </h1>
 
-              <p className={`animate-fade-in-up delay-200 text-xl ${isDark ? 'text-gray-500' : 'text-gray-600'} mt-6 mb-8`}>
+              <p className={`animate-fade-in-up delay-200 text-xl md:text-2xl font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-6`}>
                 {t.hero.subtitle}
               </p>
 
-              <p className={`animate-fade-in-up delay-300 text-lg ${isDark ? 'text-gray-400' : 'text-gray-600'} max-w-lg mb-6 leading-relaxed`}>
+              <p className={`animate-fade-in-up delay-300 text-base md:text-lg ${isDark ? 'text-gray-400' : 'text-gray-600'} mb-10 leading-relaxed`}>
                 {t.hero.description}
               </p>
 
-              <p className={`animate-fade-in-up delay-300 text-base ${isDark ? 'text-gray-500' : 'text-gray-500'} max-w-lg mb-10 leading-relaxed`}>
-                {t.hero.intro}
-              </p>
-
-              <div className="animate-fade-in-up delay-400 flex flex-wrap gap-4">
-                <a
-                  href="#services"
-                  className="group inline-flex items-center gap-2 px-8 py-4 bg-[#E84545] text-white font-semibold rounded-lg hover:bg-[#cc3c3c] transition-all duration-300 hover-glow"
-                >
+              <div className="animate-fade-in-up delay-400 flex flex-wrap gap-5">
+                <a href="#services" className="group flex items-center gap-2 px-8 py-4 btn-primary text-white font-bold rounded-full">
                   {t.hero.cta1}
-                  <ArrowRight className={`w-5 h-5 group-hover:translate-x-1 transition-transform ${isRTL ? 'rotate-180 group-hover:-translate-x-1' : ''}`} aria-hidden="true" />
+                  <ArrowRight className={`w-5 h-5 group-hover:translate-x-1 transition-transform ${isRTL ? 'rotate-180 group-hover:-translate-x-1' : ''}`} />
                 </a>
-                <a
-                  href="#contact"
-                  className={`inline-flex items-center gap-2 px-8 py-4 border ${isDark ? 'border-white/20 text-white hover:border-[#E84545]' : 'border-gray-300 text-gray-900 hover:border-[#E84545]'} font-semibold rounded-lg hover:text-[#E84545] transition-all duration-300`}
-                >
+                <a href="#contact" className={`flex items-center gap-2 px-8 py-4 border-2 ${isDark ? 'border-white/20 text-white hover:border-white hover:bg-white/5' : 'border-gray-900 text-gray-900 hover:bg-gray-50'} font-bold rounded-full transition-all`}>
                   {t.hero.cta2}
                 </a>
               </div>
 
-              <div className={`animate-fade-in-up delay-500 flex gap-12 mt-16 pt-10 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+              {/* Elevated Stats */}
+              <div className="animate-fade-in-up delay-400 mt-16 grid grid-cols-3 gap-4 lg:gap-8">
                 {t.hero.stats.map((stat) => (
-                  <div key={stat.label}>
-                    <div className="text-3xl font-bold text-[#E84545]">{stat.value}</div>
-                    <div className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-600'} mt-1`}>{stat.label}</div>
+                  <div key={stat.label} className="glass rounded-2xl p-4 text-center border-t border-white/10 shadow-lg">
+                    <div className="text-3xl md:text-4xl font-extrabold text-[#E84545] mb-1">{stat.value}</div>
+                    <div className={`text-xs md:text-sm font-semibold uppercase tracking-wider ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{stat.label}</div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="animate-scale-in delay-300 relative hidden lg:block">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center justify-center" aria-hidden="true">
-                  <div className={`w-[400px] h-[400px] border ${isDark ? 'border-[#E84545]/10' : 'border-[#E84545]/20'} rounded-full`} />
-                  <div className={`absolute w-[500px] h-[500px] border ${isDark ? 'border-[#E84545]/5' : 'border-[#E84545]/10'} rounded-full`} />
-                  <div
-                    className={`absolute w-[300px] h-[300px] border-2 ${isDark ? 'border-[#E84545]/20' : 'border-[#E84545]/30'} rounded-full`}
-                    style={{ animation: 'pulse-ring 3s ease-out infinite' }}
+            <div className="animate-scale-in delay-200 relative hidden lg:block" style={{ animation: 'float 6s ease-in-out infinite' }}>
+              <div className="relative w-full aspect-square max-w-[500px] mx-auto flex items-center justify-center">
+                <div className="absolute inset-0 bg-gradient-to-tr from-[#E84545]/20 to-transparent rounded-[40px] rotate-6 blur-md" />
+                <div className="glass rounded-[40px] w-full h-full p-12 relative z-10 border border-white/20 shadow-2xl flex items-center justify-center">
+                  <Image
+                    src="/logo.png"
+                    alt="Auto City Qatar"
+                    width={400}
+                    height={200}
+                    className="object-contain filter drop-shadow-2xl"
                   />
-                </div>
-                <div className="relative w-[400px] h-[400px] mx-auto flex items-center justify-center">
-                  <div className="glass rounded-3xl p-12 hover-lift">
-                    <Image
-                      src="/logo.png"
-                      alt="Auto City Qatar - Leading Car Accessories Provider in Doha"
-                      width={300}
-                      height={150}
-                      className="object-contain"
-                    />
-                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 animate-fade-in delay-600">
-          <a href="#services" className={`flex flex-col items-center gap-2 ${isDark ? 'text-gray-500' : 'text-gray-400'} hover:text-[#E84545] transition-colors`} aria-label="Scroll to car accessories services">
-            <ChevronDown className="w-5 h-5 animate-bounce" aria-hidden="true" />
-          </a>
-        </div>
       </section>
 
       {/* Services Section */}
-      <section id="services" className="relative py-32" aria-labelledby="services-heading">
+      <section id="services" className="relative py-24 lg:py-32">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <header className="text-center mb-20">
-            <span className="text-[#E84545] text-sm font-semibold tracking-[0.2em] uppercase">{t.services.label}</span>
-            <h2 id="services-heading" className="text-4xl md:text-5xl font-bold mt-4 mb-6 relative inline-block line-accent line-accent-center">
+            <span className="text-[#E84545] text-sm font-bold tracking-[0.2em] uppercase mb-3 block">{t.services.label}</span>
+            <h2 className="text-4xl md:text-5xl font-extrabold mb-6 relative inline-block line-accent line-accent-center">
               {t.services.title}
             </h2>
-            <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-lg max-w-2xl mx-auto mt-8`}>
+            <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-lg max-w-2xl mx-auto mt-6`}>
               {t.services.description}
             </p>
           </header>
@@ -878,16 +828,13 @@ export default function HomePage() {
               return (
                 <article
                   key={service.title}
-                  className={`group relative p-6 lg:p-8 ${isDark ? 'bg-[#0A0A0A] border-white/5' : 'bg-white border-gray-200'} border rounded-2xl hover:border-[#E84545]/30 hover-lift transition-all duration-500`}
-                  itemScope
-                  itemType="https://schema.org/Service"
+                  className={`group relative p-8 glass rounded-3xl border border-transparent ${isDark ? 'hover:border-[#E84545]/40 hover:bg-white/[0.02]' : 'hover:border-[#E84545]/40 hover:bg-white'} hover-lift overflow-hidden`}
                 >
-                  <div className={`w-12 h-12 rounded-xl ${isDark ? 'bg-[#E84545]/10' : 'bg-[#E84545]/5'} flex items-center justify-center mb-5 group-hover:bg-[#E84545] transition-colors duration-300`}>
-                    <Icon className="w-6 h-6 text-[#E84545] group-hover:text-white transition-colors duration-300" aria-hidden="true" />
+                  <div className={`w-14 h-14 rounded-2xl ${isDark ? 'bg-[#E84545]/10' : 'bg-[#E84545]/5'} flex items-center justify-center mb-6 group-hover:bg-[#E84545] transition-colors duration-500`}>
+                    <Icon className="w-7 h-7 text-[#E84545] group-hover:text-white transition-colors duration-500" />
                   </div>
-                  <h3 className="text-lg font-bold mb-3" itemProp="name">{service.title}</h3>
-                  <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm leading-relaxed`} itemProp="description">{service.description}</p>
-                  <div className="absolute bottom-0 left-0 w-full h-1 bg-[#E84545] scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left rounded-b-2xl" aria-hidden="true" />
+                  <h3 className="text-xl font-bold mb-3">{service.title}</h3>
+                  <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm leading-relaxed`}>{service.description}</p>
                 </article>
               );
             })}
@@ -896,89 +843,60 @@ export default function HomePage() {
       </section>
 
       {/* Showcase Section */}
-      <section id="showcase" className={`relative py-32 ${isDark ? 'bg-[#0A0A0A]' : 'bg-white'}`} aria-labelledby="showcase-heading">
+      <section id="showcase" className={`relative py-24 lg:py-32 ${isDark ? 'bg-[#0f0f0f]' : 'bg-gray-100'} border-y ${isDark ? 'border-white/5' : 'border-gray-200'}`}>
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <header className="text-center mb-20">
-            <span className="text-[#E84545] text-sm font-semibold tracking-[0.2em] uppercase">{t.showcase.label}</span>
-            <h2 id="showcase-heading" className="text-4xl md:text-5xl font-bold mt-4 mb-6 relative inline-block line-accent line-accent-center">
+          <header className="text-center mb-16">
+            <span className="text-[#E84545] text-sm font-bold tracking-[0.2em] uppercase mb-3 block">{t.showcase.label}</span>
+            <h2 className="text-4xl md:text-5xl font-extrabold mb-6 relative inline-block line-accent line-accent-center">
               {t.showcase.title}
             </h2>
-            <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-lg max-w-2xl mx-auto mt-8`}>
-              {t.showcase.description}
-            </p>
           </header>
 
-          <div className="mb-16">
+          <div className="mb-8">
             <div
-              className="relative group overflow-hidden rounded-3xl cursor-pointer"
+              className="media-overlay rounded-[2rem]"
               onClick={() => setSelectedMedia({ src: t.showcase.items[0].media, type: t.showcase.items[0].type, title: t.showcase.items[0].title })}
             >
               {t.showcase.items[0].type === 'video' ? (
-                <video
-                  ref={(el) => { videoRefs.current['featured'] = el; }}
-                  src={t.showcase.items[0].media}
-                  className="w-full h-[500px] object-cover"
-                  loop
-                  muted
-                  playsInline
-                />
+                <video src={t.showcase.items[0].media} className="w-full h-[600px] object-cover" autoPlay loop muted playsInline />
               ) : (
-                <Image
-                  src={t.showcase.items[0].media}
-                  alt={t.showcase.items[0].title}
-                  width={1200}
-                  height={500}
-                  className="w-full h-[500px] object-cover"
-                />
+                <Image src={t.showcase.items[0].media} alt={t.showcase.items[0].title} width={1200} height={600} className="w-full h-[600px] object-cover" />
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex items-end p-8 lg:p-12">
-                <div className="w-full">
-                  <h3 className="text-3xl lg:text-4xl font-bold text-white mb-3">{t.showcase.items[0].title}</h3>
-                  <p className="text-gray-300 text-lg max-w-2xl">{t.showcase.items[0].description}</p>
+              <div className="absolute inset-0 flex flex-col justify-end p-8 lg:p-12 z-10">
+                <div className="max-w-3xl">
+                  <h3 className="text-3xl lg:text-5xl font-extrabold text-white mb-4 tracking-tight">{t.showcase.items[0].title}</h3>
+                  <p className="text-gray-200 text-lg md:text-xl font-medium">{t.showcase.items[0].description}</p>
                 </div>
               </div>
               {t.showcase.items[0].type === 'video' && (
                 <div className="play-button">
-                  <Play className="w-6 h-6 text-white ml-1" />
+                  <Play className="w-8 h-8 text-white ml-1" />
                 </div>
               )}
             </div>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {t.showcase.items.slice(1).map((item, idx) => (
+            {t.showcase.items.slice(1).map((item) => (
               <div
                 key={item.title}
-                className="media-overlay group"
+                className="media-overlay rounded-2xl group"
                 onClick={() => setSelectedMedia({ src: item.media, type: item.type, title: item.title })}
               >
                 {item.type === 'video' ? (
-                  <video
-                    ref={(el) => { videoRefs.current[`showcase-${idx}`] = el; }}
-                    src={item.media}
-                    className="w-full h-64 object-cover rounded-2xl"
-                    loop
-                    muted
-                    playsInline
-                  />
+                  <video src={item.media} className="w-full h-72 object-cover" autoPlay loop muted playsInline />
                 ) : (
-                  <Image
-                    src={item.media}
-                    alt={item.title}
-                    width={400}
-                    height={300}
-                    className="w-full h-64 object-cover rounded-2xl"
-                  />
+                  <Image src={item.media} alt={item.title} width={400} height={300} className="w-full h-72 object-cover" />
                 )}
                 <div className="absolute inset-0 flex flex-col justify-end p-6 z-10">
-                  <h4 className="text-white font-bold text-lg mb-1">{item.title}</h4>
-                  <p className="text-gray-300 text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <h4 className="text-white font-bold text-xl mb-1">{item.title}</h4>
+                  <p className="text-gray-300 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-y-2 group-hover:translate-y-0">
                     {item.description}
                   </p>
                 </div>
                 {item.type === 'video' && (
-                  <div className="play-button">
-                    <Play className="w-5 h-5 text-white ml-1" />
+                  <div className="play-button !w-14 !h-14">
+                    <Play className="w-6 h-6 text-white ml-1" />
                   </div>
                 )}
               </div>
@@ -988,103 +906,76 @@ export default function HomePage() {
       </section>
 
       {/* About Section */}
-      <section id="about" className="relative py-32" aria-labelledby="about-heading">
+      <section id="about" className="relative py-24 lg:py-32">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div>
-              <span className="text-[#E84545] text-sm font-semibold tracking-[0.2em] uppercase">{t.about.label}</span>
-              <h2 id="about-heading" className="text-4xl md:text-5xl font-bold mt-4 mb-8 relative line-accent">
+              <span className="text-[#E84545] text-sm font-bold tracking-[0.2em] uppercase mb-3 block">{t.about.label}</span>
+              <h2 className="text-4xl md:text-5xl font-extrabold mb-8 relative line-accent">
                 {t.about.title}
               </h2>
-              <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-lg mb-6 leading-relaxed`}>
+              <p className={`${isDark ? 'text-gray-300' : 'text-gray-700'} text-lg mb-6 leading-relaxed`}>
                 {t.about.description1}
               </p>
               <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-lg mb-10 leading-relaxed`}>
                 {t.about.description2}
               </p>
-              <ul className="grid grid-cols-2 gap-4">
+              <ul className="grid grid-cols-2 gap-y-4 gap-x-6">
                 {t.about.features.map((item) => (
                   <li key={item} className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-[#E84545]" aria-hidden="true" />
-                    <span className={`${isDark ? 'text-gray-300' : 'text-gray-700'} text-sm`}>{item}</span>
+                    <div className="w-2 h-2 rounded-full bg-[#E84545] shadow-[0_0_8px_#E84545]" />
+                    <span className={`${isDark ? 'text-gray-300' : 'text-gray-700'} font-medium`}>{item}</span>
                   </li>
                 ))}
               </ul>
             </div>
 
-            <div className="relative">
-              <div className="glass rounded-3xl p-10 lg:p-16">
+            <div className="relative p-4">
+              <div className="absolute inset-0 bg-gradient-to-tr from-[#E84545] to-transparent opacity-20 rounded-[3rem] blur-2xl" />
+              <div className="glass rounded-[3rem] p-12 lg:p-20 relative z-10 border border-white/10">
                 <div className="text-center">
                   <Image
                     src="/login.png"
-                    alt="Auto City Qatar - Premium Car Accessories Shop in Doha"
-                    width={350}
-                    height={175}
-                    className="mx-auto mb-8"
+                    alt="Auto City Qatar"
+                    width={400}
+                    height={200}
+                    className="mx-auto mb-10 filter drop-shadow-xl"
                   />
-                  <div className="space-y-2">
-                    <p className="text-xl font-semibold">{lang === 'en' ? 'Auto City Qatar' : 'اوتو سيتي قطر'}</p>
-                    <p className={`text-lg ${isDark ? 'text-gray-500' : 'text-gray-600'}`}>{lang === 'en' ? 'Car Accessories & Auto Parts' : 'إكسسوارات السيارات وقطع الغيار'}</p>
+                  <div className="space-y-3">
+                    <p className="text-2xl font-extrabold tracking-wide">{lang === 'en' ? 'Auto City Qatar' : 'اوتو سيتي قطر'}</p>
+                    <p className={`text-lg font-medium tracking-wider uppercase ${isDark ? 'text-[#E84545]' : 'text-[#D83434]'}`}>
+                      {lang === 'en' ? 'Premium Auto Upgrades' : 'ترقيات سيارات متميزة'}
+                    </p>
                   </div>
                 </div>
               </div>
-              <div className={`absolute -top-4 ${isRTL ? '-left-4' : '-right-4'} w-24 h-24 border-t-2 ${isRTL ? 'border-l-2 rounded-tl-3xl' : 'border-r-2 rounded-tr-3xl'} border-[#E84545]/30`} aria-hidden="true" />
-              <div className={`absolute -bottom-4 ${isRTL ? '-right-4' : '-left-4'} w-24 h-24 border-b-2 ${isRTL ? 'border-r-2 rounded-br-3xl' : 'border-l-2 rounded-bl-3xl'} border-[#E84545]/30`} aria-hidden="true" />
             </div>
           </div>
         </div>
       </section>
 
-      {/* FAQ Section */}
-      {lang === 'en' && (
-        <section className={`relative py-32 ${isDark ? 'bg-[#0A0A0A]' : 'bg-white'}`} aria-labelledby="faq-heading">
-          <div className="max-w-4xl mx-auto px-6 lg:px-8">
-            <header className="text-center mb-16">
-              <h2 id="faq-heading" className="text-4xl md:text-5xl font-bold relative inline-block line-accent line-accent-center">
-                {t.faq.title}
-              </h2>
-            </header>
-            <div className="space-y-6">
-              {t.faq.items.map((item) => (
-                <div key={item.q} className="glass rounded-2xl p-8" itemScope itemType="https://schema.org/Question">
-                  <h3 className="text-xl font-bold mb-4 text-[#E84545]" itemProp="name">{item.q}</h3>
-                  <div itemScope itemProp="acceptedAnswer" itemType="https://schema.org/Answer">
-                    <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} leading-relaxed`} itemProp="text">{item.a}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
       {/* Branches Section */}
-      <section id="branches" className="relative py-32" aria-labelledby="branches-heading">
+      <section id="branches" className={`relative py-24 lg:py-32 ${isDark ? 'bg-[#0f0f0f]' : 'bg-gray-100'} border-y ${isDark ? 'border-white/5' : 'border-gray-200'}`}>
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <header className="text-center mb-16">
-            <span className="text-[#E84545] text-sm font-semibold tracking-[0.2em] uppercase">{t.branches.label}</span>
-            <h2 id="branches-heading" className="text-4xl md:text-5xl font-bold mt-4 mb-6 relative inline-block line-accent line-accent-center">
+            <span className="text-[#E84545] text-sm font-bold tracking-[0.2em] uppercase mb-3 block">{t.branches.label}</span>
+            <h2 className="text-4xl md:text-5xl font-extrabold mb-6 relative inline-block line-accent line-accent-center">
               {t.branches.title}
             </h2>
-            <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-lg max-w-2xl mx-auto mt-8`}>
-              {t.branches.description}
-            </p>
           </header>
 
-          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {t.branches.items.map((branch) => (
               <article
                 key={branch.name}
-                className={`group p-8 ${isDark ? 'bg-[#050505] border-white/5' : 'bg-gray-50 border-gray-200'} border rounded-2xl text-center hover:border-[#E84545]/30 hover-lift transition-all duration-300`}
-                itemScope
-                itemType="https://schema.org/LocalBusiness"
+                className="group p-8 glass rounded-3xl text-center hover-lift border border-transparent hover:border-[#E84545]/40"
               >
-                <div className={`w-16 h-16 rounded-full ${isDark ? 'bg-[#E84545]/10' : 'bg-[#E84545]/5'} flex items-center justify-center mx-auto mb-6 group-hover:bg-[#E84545] transition-colors duration-300`}>
-                  <MapPin className="w-7 h-7 text-[#E84545] group-hover:text-white transition-colors duration-300" aria-hidden="true" />
+                <div className={`w-16 h-16 rounded-2xl ${isDark ? 'bg-[#E84545]/10' : 'bg-[#E84545]/5'} flex items-center justify-center mx-auto mb-6 group-hover:bg-[#E84545] transition-colors duration-300`}>
+                  <MapPin className="w-8 h-8 text-[#E84545] group-hover:text-white transition-colors duration-300" />
                 </div>
-                <h3 className="text-xl font-bold mb-2" itemProp="name">{branch.name}</h3>
-                <p className={`${isDark ? 'text-gray-500' : 'text-gray-600'} mb-2`} itemProp="address">{branch.area}</p>
-                <p className={`text-sm ${isDark ? 'text-gray-600' : 'text-gray-500'}`}>{branch.desc}</p>
+                <h3 className="text-2xl font-bold mb-2">{branch.name}</h3>
+                <p className={`font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2`}>{branch.area}</p>
+                <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{branch.desc}</p>
               </article>
             ))}
           </div>
@@ -1092,155 +983,131 @@ export default function HomePage() {
       </section>
 
       {/* Contact Section */}
-      <section id="contact" className={`relative py-32 ${isDark ? 'bg-[#0A0A0A]' : 'bg-white'}`} aria-labelledby="contact-heading">
+      <section id="contact" className="relative py-24 lg:py-32">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <header className="text-center mb-16">
-            <span className="text-[#E84545] text-sm font-semibold tracking-[0.2em] uppercase">{t.contact.label}</span>
-            <h2 id="contact-heading" className="text-4xl md:text-5xl font-bold mt-4 mb-6 relative inline-block line-accent line-accent-center">
+            <span className="text-[#E84545] text-sm font-bold tracking-[0.2em] uppercase mb-3 block">{t.contact.label}</span>
+            <h2 className="text-4xl md:text-5xl font-extrabold mb-6 relative inline-block line-accent line-accent-center">
               {t.contact.title}
             </h2>
-            <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-lg mt-8`}>
-              {t.contact.description}
-            </p>
           </header>
 
-          <div className="grid lg:grid-cols-2 gap-12 max-w-5xl mx-auto">
-            <div className="glass rounded-2xl p-8">
-              <div className="flex items-center gap-3 mb-8">
-                <div className={`w-12 h-12 rounded-xl ${isDark ? 'bg-[#E84545]/10' : 'bg-[#E84545]/5'} flex items-center justify-center`}>
-                  <Phone className="w-6 h-6 text-[#E84545]" aria-hidden="true" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold">{t.contact.callUs}</h3>
-                  <p className={`${isDark ? 'text-gray-500' : 'text-gray-600'} text-sm`}>{t.contact.callUsDesc}</p>
-                </div>
-              </div>
-              <address className="space-y-4 not-italic">
-                {phoneNumbers.map((phone) => (
-                  <a
-                    key={phone}
-                    href={`tel:${phone.replace(/\s/g, '')}`}
-                    className={`flex items-center justify-between p-4 ${isDark ? 'bg-white/5 hover:bg-[#E84545]/10' : 'bg-gray-100 hover:bg-[#E84545]/5'} rounded-xl transition-colors group`}
-                    dir="ltr"
-                    itemProp="telephone"
-                  >
-                    <span className="text-lg font-medium">{phone}</span>
-                    <ArrowRight className={`w-5 h-5 ${isDark ? 'text-gray-500' : 'text-gray-400'} group-hover:text-[#E84545] group-hover:translate-x-1 transition-all`} aria-hidden="true" />
-                  </a>
-                ))}
-              </address>
-            </div>
-
-            <div className="space-y-6">
-              <div className="glass rounded-2xl p-8">
-                <address className="flex items-center gap-3 not-italic">
-                  <div className={`w-12 h-12 rounded-xl ${isDark ? 'bg-[#E84545]/10' : 'bg-[#E84545]/5'} flex items-center justify-center`}>
-                    <Mail className="w-6 h-6 text-[#E84545]" aria-hidden="true" />
+          <div className="grid lg:grid-cols-2 gap-8 max-w-5xl mx-auto">
+            <div className="space-y-8">
+              <div className="glass rounded-3xl p-8 lg:p-10 border border-white/10">
+                <div className="flex items-center gap-4 mb-8">
+                  <div className={`w-14 h-14 rounded-2xl ${isDark ? 'bg-[#E84545]/10' : 'bg-[#E84545]/5'} flex items-center justify-center`}>
+                    <Phone className="w-7 h-7 text-[#E84545]" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold">{t.contact.emailUs}</h3>
-                    <a href="mailto:info@autocityqatar.com" className={`${isDark ? 'text-gray-400' : 'text-gray-600'} hover:text-[#E84545] transition-colors`} itemProp="email">
-                      info@autocityqatar.com
-                    </a>
+                    <h3 className="text-2xl font-bold">{t.contact.callUs}</h3>
+                    <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'} font-medium`}>{t.contact.callUsDesc}</p>
                   </div>
+                </div>
+                <address className="space-y-4 not-italic">
+                  {phoneNumbers.map((phone) => (
+                    <a key={phone} href={`tel:${phone.replace(/\s/g, '')}`} className={`flex items-center justify-between p-5 ${isDark ? 'bg-white/5 hover:bg-[#E84545]/10 border border-white/5' : 'bg-gray-100 hover:bg-gray-200 border border-gray-200'} rounded-2xl transition-all group`} dir="ltr">
+                      <span className="text-xl font-bold tracking-wider">{phone}</span>
+                      <ArrowRight className={`w-6 h-6 text-[#E84545] group-hover:translate-x-2 transition-transform`} />
+                    </a>
+                  ))}
                 </address>
               </div>
 
-              <div className="glass rounded-2xl p-8">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className={`w-12 h-12 rounded-xl ${isDark ? 'bg-[#E84545]/10' : 'bg-[#E84545]/5'} flex items-center justify-center`}>
-                    <Clock className="w-6 h-6 text-[#E84545]" aria-hidden="true" />
-                  </div>
-                  <h3 className="text-lg font-bold">{t.contact.businessHours}</h3>
+              <div className="glass rounded-3xl p-8 lg:p-10 border border-white/10 flex flex-col sm:flex-row items-start sm:items-center gap-5">
+                <div className={`w-14 h-14 rounded-2xl ${isDark ? 'bg-[#E84545]/10' : 'bg-[#E84545]/5'} flex items-center justify-center shrink-0`}>
+                  <Mail className="w-7 h-7 text-[#E84545]" />
                 </div>
-                <dl className="space-y-3">
-                  <div className={`flex justify-between items-center py-2 border-b ${isDark ? 'border-white/5' : 'border-gray-200'}`}>
-                    <dt className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t.contact.satThu}</dt>
-                    <dd className="font-medium" dir="ltr">
-                      <time dateTime="08:00">8:00 AM</time> – <time dateTime="20:00">8:00 PM</time>
-                    </dd>
-                  </div>
-                  <div className="flex justify-between items-center py-2">
-                    <dt className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t.contact.friday}</dt>
-                    <dd className="font-medium" dir="ltr">
-                      <time dateTime="14:00">2:00 PM</time> – <time dateTime="20:00">8:00 PM</time>
-                    </dd>
-                  </div>
-                </dl>
+                <div>
+                  <h3 className="text-xl font-bold mb-1">{t.contact.emailUs}</h3>
+                  <a href="mailto:info@autocityqatar.com" className={`text-lg font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'} hover:text-[#E84545] transition-colors break-all`}>
+                    info@autocityqatar.com
+                  </a>
+                </div>
               </div>
             </div>
+
+            {/* Timings Card */}
+            <div className="glass rounded-3xl p-8 lg:p-10 border border-white/10 h-full">
+              <div className="flex items-center gap-4 mb-8">
+                <div className={`w-14 h-14 rounded-2xl ${isDark ? 'bg-[#E84545]/10' : 'bg-[#E84545]/5'} flex items-center justify-center`}>
+                  <Clock className="w-7 h-7 text-[#E84545]" />
+                </div>
+                <h3 className="text-2xl font-bold">{t.contact.businessHours}</h3>
+              </div>
+
+              <div className="space-y-8">
+                {/* Regular Timings */}
+                <div>
+                  <h4 className="text-sm font-bold tracking-widest uppercase text-[#E84545] mb-4">{t.contact.regularHours}</h4>
+                  <dl className="space-y-3">
+                    <div className={`flex flex-col xl:flex-row xl:justify-between py-3 border-b ${isDark ? 'border-white/5' : 'border-gray-200'}`}>
+                      <dt className={`font-semibold mb-1 xl:mb-0 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t.contact.daysSatThu}</dt>
+                      <dd className="font-bold xl:text-right" dir="ltr">{t.contact.regularSatThuTime}</dd>
+                    </div>
+                    <div className="flex flex-col xl:flex-row xl:justify-between py-3">
+                      <dt className={`font-semibold mb-1 xl:mb-0 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t.contact.daysFriday}</dt>
+                      <dd className="font-bold xl:text-right" dir="ltr">{t.contact.regularFridayTime}</dd>
+                    </div>
+                  </dl>
+                </div>
+
+                {/* Ramadan Timings */}
+                <div>
+                  <h4 className="text-sm font-bold tracking-widest uppercase text-[#E84545] mb-4">{t.contact.ramadanHours}</h4>
+                  <dl className="space-y-3">
+                    <div className={`flex flex-col xl:flex-row xl:justify-between py-3 border-b ${isDark ? 'border-white/5' : 'border-gray-200'}`}>
+                      <dt className={`font-semibold mb-1 xl:mb-0 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t.contact.daysSatThu}</dt>
+                      <dd className="font-bold xl:text-right leading-relaxed" dir="ltr">{t.contact.ramadanSatThuTime}</dd>
+                    </div>
+                    <div className="flex flex-col xl:flex-row xl:justify-between py-3">
+                      <dt className={`font-semibold mb-1 xl:mb-0 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t.contact.daysFriday}</dt>
+                      <dd className="font-bold xl:text-right leading-relaxed" dir="ltr">{t.contact.ramadanFridayTime}</dd>
+                    </div>
+                  </dl>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className={`relative py-16 border-t ${isDark ? 'border-white/5' : 'border-gray-200'}`} role="contentinfo">
+      <footer className={`relative pt-20 pb-10 border-t ${isDark ? 'border-white/10 bg-[#050505]' : 'border-gray-200 bg-white'}`}>
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="grid md:grid-cols-4 gap-12 mb-16">
             <div className="md:col-span-2">
-              <Image
-                src="/login.png"
-                alt="Auto City Qatar - Car Accessories Shop"
-                width={180}
-                height={90}
-                className="mb-6"
-              />
-              <p className={`${isDark ? 'text-gray-500' : 'text-gray-600'} max-w-sm leading-relaxed mb-6 text-sm`}>
+              <Image src="/login.png" alt="Auto City Qatar" width={200} height={100} className="mb-6" />
+              <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} max-w-md leading-relaxed mb-6 font-medium`}>
                 {t.footer.description}
               </p>
-              <p className="text-[#E84545] font-semibold">
-                {lang === 'en' ? 'اوتو سيتي لزينة السيارات' : 'Auto City Car Accessories'}
-              </p>
             </div>
-
-            <nav aria-label="Footer car accessories services">
-              <h4 className="font-semibold mb-6">{t.footer.services}</h4>
-              <ul className={`space-y-3 ${isDark ? 'text-gray-500' : 'text-gray-600'} text-sm`}>
-                {t.services.items.slice(0, 5).map((service) => (
-                  <li key={service.title}>{service.title}</li>
+            
+            <nav>
+              <h4 className="text-lg font-bold mb-6">{t.footer.services}</h4>
+              <ul className={`space-y-4 ${isDark ? 'text-gray-400' : 'text-gray-600'} font-medium`}>
+                {t.services.items.slice(0, 4).map((service) => (
+                  <li key={service.title}><a href="#services" className="hover:text-[#E84545] transition-colors">{service.title}</a></li>
                 ))}
               </ul>
             </nav>
 
             <address className="not-italic">
-              <h4 className="font-semibold mb-6">{t.footer.contact}</h4>
-              <ul className={`space-y-3 ${isDark ? 'text-gray-500' : 'text-gray-600'} text-sm`}>
+              <h4 className="text-lg font-bold mb-6">{t.footer.contact}</h4>
+              <ul className={`space-y-4 ${isDark ? 'text-gray-400' : 'text-gray-600'} font-medium`}>
                 {phoneNumbers.map((phone) => (
-                  <li key={phone} dir="ltr">
-                    <a href={`tel:${phone.replace(/\s/g, '')}`} className="hover:text-[#E84545] transition-colors">
-                      {phone}
-                    </a>
-                  </li>
+                  <li key={phone} dir="ltr"><a href={`tel:${phone.replace(/\s/g, '')}`} className="hover:text-[#E84545] transition-colors">{phone}</a></li>
                 ))}
-                <li className="pt-2">
-                  <a href="mailto:info@autocityqatar.com" className="hover:text-[#E84545] transition-colors">
-                    info@autocityqatar.com
-                  </a>
-                </li>
               </ul>
             </address>
           </div>
 
-          <div className={`py-8 border-t border-b ${isDark ? 'border-white/5' : 'border-gray-200'} mb-8`}>
-            <div className={`flex flex-wrap items-center justify-center gap-8 ${isDark ? 'text-gray-500' : 'text-gray-600'} text-sm`}>
-              <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{t.footer.ourBranches}:</span>
-              {t.branches.items.map((branch) => (
-                <span key={branch.name} className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-[#E84545]" aria-hidden="true" />
-                  {branch.name}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className={`${isDark ? 'text-gray-500' : 'text-gray-600'} text-sm`}>
-              © {new Date().getFullYear()} {lang === 'en' ? 'Auto City Qatar - Car Accessories Shop in Doha' : 'اوتو سيتي قطر - متجر إكسسوارات السيارات في الدوحة'}. {t.footer.rights}
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6 pt-8 border-t border-white/10 font-medium">
+            <p className={`${isDark ? 'text-gray-500' : 'text-gray-500'} text-sm`}>
+              © {new Date().getFullYear()} Auto City Qatar. {t.footer.rights}
             </p>
-            <Link
-              href="/autocityPro/login"
-              className={`${isDark ? 'text-gray-500' : 'text-gray-600'} hover:text-[#E84545] transition-colors text-sm`}
-            >
+            <Link href="/autocityPro/login" className={`${isDark ? 'text-gray-500' : 'text-gray-500'} hover:text-[#E84545] transition-colors text-sm font-bold`}>
               {t.nav.Login}
             </Link>
           </div>

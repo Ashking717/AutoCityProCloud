@@ -1,4 +1,3 @@
-//components/ui/InvoicePrint.tsx
 "use client";
 
 import React, { useEffect, useCallback, useState } from "react";
@@ -111,7 +110,7 @@ export default function InvoicePrint({
   if (loading) {
     return (
       <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-        <div className="bg-white px-6 py-4">Loading invoice…</div>
+        <div className="bg-white text-black px-6 py-4 rounded-md">Loading invoice…</div>
       </div>
     );
   }
@@ -122,19 +121,22 @@ export default function InvoicePrint({
   const taxRate = outlet.settings?.taxRate || 0;
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
-      <div className="bg-white w-full max-w-4xl shadow-lg overflow-auto max-h-screen">
+    <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4 print:p-0 print:bg-transparent">
+      <div 
+        id="print-section"
+        className="bg-white text-black w-full max-w-4xl shadow-lg overflow-auto max-h-[90vh] print:max-h-none print:overflow-visible print:shadow-none"
+      >
         {/* Actions */}
-        <div className="flex justify-end gap-2 p-4 print:hidden border-b">
+        <div className="flex justify-end gap-2 p-4 print:hidden border-b border-gray-200">
           <button
             onClick={handlePrint}
-            className="px-4 py-2 bg-black text-white hover:bg-gray-800 transition-colors"
+            className="px-4 py-2 bg-black text-white hover:bg-gray-800 transition-colors rounded"
           >
             Print
           </button>
           <button
             onClick={onClose}
-            className="px-4 py-2 border hover:bg-gray-50 transition-colors"
+            className="px-4 py-2 border border-gray-300 hover:bg-gray-50 transition-colors rounded"
           >
             Close
           </button>
@@ -173,7 +175,7 @@ export default function InvoicePrint({
           {/* FROM and Invoice Details */}
           <div className="flex justify-between mb-12">
             <div className="text-sm leading-relaxed">
-              <p>{outlet.name}</p>
+              <p className="font-bold">{outlet.name}</p>
               {outlet.address?.street && <p>{outlet.address.street}</p>}
               {outlet.address?.city && (
                 <p>
@@ -352,22 +354,21 @@ export default function InvoicePrint({
           body * {
             visibility: hidden;
           }
-          .bg-white,
-          .bg-white * {
+          #print-section,
+          #print-section * {
             visibility: visible;
           }
-          .bg-white {
+          #print-section {
             position: absolute;
             left: 0;
             top: 0;
             width: 100%;
-            max-width: 100%;
             margin: 0;
             padding: 0;
-            box-shadow: none;
           }
-          button {
-            display: none !important;
+          /* Removes browser default scrollbars when printing */
+          ::-webkit-scrollbar {
+            display: none;
           }
         }
       `}</style>

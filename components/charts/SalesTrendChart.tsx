@@ -1,4 +1,4 @@
-import { Line } from 'react-chartjs-2';
+import dynamic from 'next/dynamic';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -12,6 +12,8 @@ import {
 } from 'chart.js';
 import { TrendingUp, AlertTriangle } from 'lucide-react';
 import { useState, useEffect } from 'react';
+
+const Line = dynamic(() => import('react-chartjs-2').then(mod => ({ default: mod.Line })), { ssr: false });
 
 ChartJS.register(
   CategoryScale,

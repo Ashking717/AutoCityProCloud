@@ -29,6 +29,7 @@ import {
 import toast from "react-hot-toast";
 
 interface BalanceEntry {
+  id: string;
   accountId: string;
   accountCode: string;
   accountName: string;
@@ -146,7 +147,7 @@ export default function OpeningBalancePage() {
   const addEntry = () => {
     setEntries([
       ...entries,
-      { accountId: "", accountCode: "", accountName: "", accountType: "", balance: 0 },
+      { id: crypto.randomUUID(), accountId: "", accountCode: "", accountName: "", accountType: "", balance: 0 },
     ]);
   };
 
@@ -341,8 +342,9 @@ export default function OpeningBalancePage() {
             
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-white/60 mb-1">As of Date</label>
+                <label htmlFor="mobile-balance-date" className="block text-xs text-white/60 mb-1">As of Date</label>
                 <input
+                  id="mobile-balance-date"
                   type="date"
                   value={balanceDate}
                   onChange={(e) => setBalanceDate(e.target.value)}
@@ -406,10 +408,11 @@ export default function OpeningBalancePage() {
 
             {/* Date Selection - Desktop */}
             <div className="mt-6 max-w-md">
-              <label className="block text-sm font-medium text-white mb-2">
+              <label htmlFor="desktop-balance-date" className="block text-sm font-medium text-white mb-2">
                 As of Date
               </label>
               <input
+                id="desktop-balance-date"
                 type="date"
                 value={balanceDate}
                 onChange={(e) => setBalanceDate(e.target.value)}
@@ -516,13 +519,14 @@ export default function OpeningBalancePage() {
                     <div className="md:hidden space-y-3">
                       {entries.map((entry, index) => (
                         <div
-                          key={index}
+                          key={entry.id}
                           className="bg-gradient-to-br from-[#0A0A0A] to-black border border-gray-800 rounded-xl p-4 hover:border-[#E84545] transition-colors"
                         >
                           <div className="flex justify-between items-start mb-3">
                             <div className="flex-1 min-w-0 mr-2">
-                              <label className="block text-xs text-white/60 mb-1">Select Account</label>
+                              <label htmlFor={`entry-account-${index}`} className="block text-xs text-white/60 mb-1">Select Account</label>
                               <select
+                                id={`entry-account-${index}`}
                                 value={entry.accountId}
                                 onChange={(e) => updateEntry(index, "accountId", e.target.value)}
                                 className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
@@ -571,10 +575,11 @@ export default function OpeningBalancePage() {
                               </div>
 
                               <div>
-                                <label className="block text-xs text-white/60 mb-1">Balance Amount</label>
+                                <label htmlFor={`entry-balance-${index}`} className="block text-xs text-white/60 mb-1">Balance Amount</label>
                                 <div className="relative">
                                   <span className="absolute left-3 top-2.5 text-gray-400 text-sm">QAR</span>
                                   <input
+                                    id={`entry-balance-${index}`}
                                     type="number"
                                     value={entry.balance || ''}
                                     onChange={(e) => updateEntry(index, "balance", parseFloat(e.target.value) || 0)}
@@ -605,7 +610,7 @@ export default function OpeningBalancePage() {
                         </thead>
                         <tbody className="bg-black divide-y divide-gray-800">
                           {entries.map((entry, index) => (
-                            <tr key={index} className="hover:bg-gray-900 transition-colors">
+                            <tr key={entry.id} className="hover:bg-gray-900 transition-colors">
                               <td className="px-6 py-4">
                                 <select
                                   value={entry.accountId}

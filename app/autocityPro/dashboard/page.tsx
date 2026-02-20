@@ -167,6 +167,117 @@ const StatCardSkeleton = ({ isDark }: { isDark: boolean }) => (
   </div>
 );
 
+const DashboardDynamicIsland = ({ th, stats, isDark, formatCompactCurrency }: {
+  th: any; stats: DashboardStats; isDark: boolean; formatCompactCurrency: (n: number) => string;
+}) => (
+  <div className="fixed top-2 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
+    <div
+      className="rounded-[28px] px-6 py-3 shadow-2xl backdrop-blur-xl pointer-events-auto animate-in slide-in-from-top duration-500"
+      style={{
+        background: th.islandBg,
+        border: `1px solid ${th.islandBorder}`,
+        color: th.islandText,
+      }}
+    >
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+          <span className="text-xs font-medium" style={{ color: th.islandText }}>Live</span>
+        </div>
+        <div className="h-3 w-px" style={{ background: th.islandDivider }} />
+        <div className="flex items-center gap-1.5">
+          <Zap className="h-3 w-3 text-[#E84545]" />
+          <span className="text-xs font-semibold" style={{ color: th.islandText }}>{formatCompactCurrency(stats.todaySales)}</span>
+        </div>
+        {stats.lowStockItems > 0 && (
+          <>
+            <div className="h-3 w-px" style={{ background: th.islandDivider }} />
+            <div className="flex items-center gap-1">
+              <AlertCircle className="h-3 w-3 text-orange-500" />
+              <span className="text-xs font-medium text-orange-400">{stats.lowStockItems}</span>
+            </div>
+          </>
+        )}
+        <div className="h-3 w-px" style={{ background: th.islandDivider }} />
+        {isDark
+          ? <Moon className="h-3 w-3 text-[#E84545]" />
+          : <Sun  className="h-3 w-3 text-[#E84545]" />}
+      </div>
+    </div>
+  </div>
+);
+
+const DashboardMobileHeader = ({ isLoading = false, th, router, user, period, setShowMobileFilter, handleRefresh, refreshing, setShowMobileMenu, lastUpdated }: {
+  isLoading?: boolean; th: any; router: any; user: any; period: string;
+  setShowMobileFilter: (v: boolean) => void; handleRefresh: () => void; refreshing: boolean;
+  setShowMobileMenu: (v: boolean) => void; lastUpdated: Date | null;
+}) => (
+  <div
+    className="md:hidden fixed top-0 left-0 right-0 z-40 backdrop-blur-xl pt-safe"
+    style={{
+      background: th.mobileHeaderBg,
+      borderBottom: `1px solid ${th.mobileHeaderBorder}`,
+    }}
+  >
+    <div className="px-4 py-3 mt-12">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.back()}
+            className="p-2 rounded-xl active:scale-95 transition-all"
+            style={{ background: th.mobileHeaderBtnBg, color: th.mobileHeaderBtnText }}
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <div>
+            <h1 className="text-xl font-bold" style={{ color: th.mobileHeaderTitle }}>Dashboard</h1>
+            <p className="text-xs" style={{ color: th.mobileHeaderSub }}>
+              {isLoading ? 'Loading...' : `Hi, ${user?.firstName}!`}
+            </p>
+          </div>
+        </div>
+        {!isLoading && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowMobileFilter(true)}
+              className="px-3 py-2 text-xs font-medium rounded-lg flex items-center gap-1.5 active:scale-95 transition-all"
+              style={{
+                background: th.periodBtnBg,
+                border: `1px solid ${th.periodBtnBorder}`,
+                color: '#E84545',
+              }}
+            >
+              <span>{period.charAt(0).toUpperCase() + period.slice(1)}</span>
+              <ChevronRightIcon className="h-3 w-3" />
+            </button>
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="p-2 rounded-lg active:scale-95 transition-all disabled:opacity-50"
+              style={{ background: th.mobileHeaderBtnBg, color: th.mobileHeaderBtnText }}
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            </button>
+            <button
+              onClick={() => setShowMobileMenu(true)}
+              className="p-2 rounded-lg active:scale-95 transition-all"
+              style={{ background: th.mobileHeaderBtnBg, color: th.mobileHeaderBtnText }}
+            >
+              <MoreVertical className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+      </div>
+      {lastUpdated && !isLoading && (
+        <div className="flex items-center gap-1.5 text-xs" style={{ color: th.timeText }}>
+          <Clock className="h-3 w-3" />
+          <span>Updated {formatTime(lastUpdated)} ({getTimezoneOffset()})</span>
+        </div>
+      )}
+    </div>
+  </div>
+);
+
 export default function DashboardPage() {
   const router = useRouter();
   const isDark = useTimeBasedTheme();
@@ -184,7 +295,7 @@ export default function DashboardPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [showDynamicIsland, setShowDynamicIsland] = useState(true);
-  const [currentTime, setCurrentTime] = useState<Date>(getCurrentDateInTimezone());
+  const [currentTime, setCurrentTime] = useState<Date>(() => getCurrentDateInTimezone());
   const hasFetched = useRef(false);
 
   const stats = dashboardData?.stats || defaultStats;
@@ -391,121 +502,14 @@ export default function DashboardPage() {
     { value: 'year',  label: 'Year'  },
   ];
 
-  // ── Shared sub-components ─────────────────────────────────────────────────
-
-  const DynamicIsland = () => (
-    <div className="fixed top-2 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
-      <div
-        className="rounded-[28px] px-6 py-3 shadow-2xl backdrop-blur-xl pointer-events-auto animate-in slide-in-from-top duration-500"
-        style={{
-          background: th.islandBg,
-          border: `1px solid ${th.islandBorder}`,
-          color: th.islandText,
-        }}
-      >
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-xs font-medium" style={{ color: th.islandText }}>Live</span>
-          </div>
-          <div className="h-3 w-px" style={{ background: th.islandDivider }} />
-          <div className="flex items-center gap-1.5">
-            <Zap className="h-3 w-3 text-[#E84545]" />
-            <span className="text-xs font-semibold" style={{ color: th.islandText }}>{formatCompactCurrency(stats.todaySales)}</span>
-          </div>
-          {stats.lowStockItems > 0 && (
-            <>
-              <div className="h-3 w-px" style={{ background: th.islandDivider }} />
-              <div className="flex items-center gap-1">
-                <AlertCircle className="h-3 w-3 text-orange-500" />
-                <span className="text-xs font-medium text-orange-400">{stats.lowStockItems}</span>
-              </div>
-            </>
-          )}
-          {/* Theme indicator */}
-          <div className="h-3 w-px" style={{ background: th.islandDivider }} />
-          {isDark
-            ? <Moon className="h-3 w-3 text-[#E84545]" />
-            : <Sun  className="h-3 w-3 text-[#E84545]" />}
-        </div>
-      </div>
-    </div>
-  );
-
-  const MobileHeader = ({ isLoading = false }: { isLoading?: boolean }) => (
-    <div
-      className="md:hidden fixed top-0 left-0 right-0 z-40 backdrop-blur-xl pt-safe"
-      style={{
-        background: th.mobileHeaderBg,
-        borderBottom: `1px solid ${th.mobileHeaderBorder}`,
-      }}
-    >
-      <div className="px-4 py-3 mt-12">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.back()}
-              className="p-2 rounded-xl active:scale-95 transition-all"
-              style={{ background: th.mobileHeaderBtnBg, color: th.mobileHeaderBtnText }}
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <div>
-              <h1 className="text-xl font-bold" style={{ color: th.mobileHeaderTitle }}>Dashboard</h1>
-              <p className="text-xs" style={{ color: th.mobileHeaderSub }}>
-                {isLoading ? 'Loading...' : `Hi, ${user?.firstName}!`}
-              </p>
-            </div>
-          </div>
-          {!isLoading && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowMobileFilter(true)}
-                className="px-3 py-2 text-xs font-medium rounded-lg flex items-center gap-1.5 active:scale-95 transition-all"
-                style={{
-                  background: th.periodBtnBg,
-                  border: `1px solid ${th.periodBtnBorder}`,
-                  color: '#E84545',
-                }}
-              >
-                <span>{period.charAt(0).toUpperCase() + period.slice(1)}</span>
-                <ChevronRightIcon className="h-3 w-3" />
-              </button>
-              <button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="p-2 rounded-lg active:scale-95 transition-all disabled:opacity-50"
-                style={{ background: th.mobileHeaderBtnBg, color: th.mobileHeaderBtnText }}
-              >
-                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-              </button>
-              <button
-                onClick={() => setShowMobileMenu(true)}
-                className="p-2 rounded-lg active:scale-95 transition-all"
-                style={{ background: th.mobileHeaderBtnBg, color: th.mobileHeaderBtnText }}
-              >
-                <MoreVertical className="h-4 w-4" />
-              </button>
-            </div>
-          )}
-        </div>
-        {lastUpdated && !isLoading && (
-          <div className="flex items-center gap-1.5 text-xs" style={{ color: th.timeText }}>
-            <Clock className="h-3 w-3" />
-            <span>Updated {formatTime(lastUpdated)} ({getTimezoneOffset()})</span>
-          </div>
-        )}
-      </div>
-    </div>
-  );
 
   // ── Loading skeleton ──────────────────────────────────────────────────────
   if (loading && !dashboardData) {
     return (
       <MainLayout user={user} onLogout={handleLogout}>
         <div className="min-h-screen transition-colors duration-500" style={{ background: th.pageBg }}>
-          {isMobile && showDynamicIsland && <DynamicIsland />}
-          <MobileHeader isLoading />
+          {isMobile && showDynamicIsland && <DashboardDynamicIsland th={th} stats={stats} isDark={isDark} formatCompactCurrency={formatCompactCurrency} />}
+          <DashboardMobileHeader isLoading th={th} router={router} user={user} period={period} setShowMobileFilter={setShowMobileFilter} handleRefresh={handleRefresh} refreshing={refreshing} setShowMobileMenu={setShowMobileMenu} lastUpdated={lastUpdated} />
 
           {/* Desktop Header */}
           <div
@@ -528,7 +532,7 @@ export default function DashboardPage() {
 
           <div className="px-4 md:px-6 pt-[140px] md:pt-6 pb-6">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 mb-6">
-              {[1, 2, 3, 4, 5].map((i) => <StatCardSkeleton key={i} isDark={isDark} />)}
+              {[1, 2, 3, 4, 5].map((n) => <StatCardSkeleton key={n} isDark={isDark} />)}
             </div>
           </div>
         </div>
@@ -617,10 +621,10 @@ export default function DashboardPage() {
         style={{ background: th.pageBg }}
       >
         {/* Dynamic Island */}
-        {isMobile && showDynamicIsland && <DynamicIsland />}
+        {isMobile && showDynamicIsland && <DashboardDynamicIsland th={th} stats={stats} isDark={isDark} formatCompactCurrency={formatCompactCurrency} />}
 
         {/* Mobile Header */}
-        <MobileHeader />
+        <DashboardMobileHeader th={th} router={router} user={user} period={period} setShowMobileFilter={setShowMobileFilter} handleRefresh={handleRefresh} refreshing={refreshing} setShowMobileMenu={setShowMobileMenu} lastUpdated={lastUpdated} />
 
         {/* Mobile Filter Modal */}
         {showMobileFilter && (
@@ -751,7 +755,7 @@ export default function DashboardPage() {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
               {statCards.map((stat, index) => (
                 <div
-                  key={index}
+                  key={stat.title}
                   className="rounded-2xl shadow-lg p-4 transition-all duration-300 active:scale-[0.98] group cursor-pointer"
                   style={{
                     background: `linear-gradient(135deg, ${th.cardBgFrom}, ${th.cardBgTo})`,
@@ -850,7 +854,7 @@ export default function DashboardPage() {
                 },
               ].map((row, i) => (
                 <div
-                  key={i}
+                  key={row.label}
                   className="p-3 md:p-4 rounded-xl"
                   style={{ background: th.perfSectionBg, border: `1px solid ${th.perfSectionBorder}` }}
                 >
@@ -875,7 +879,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-6">
             {(['SalesTrendChart', 'TopProductsChart'] as const).map((name, i) => (
               <Suspense
-                key={i}
+                key={name}
                 fallback={
                   <div
                     className="rounded-2xl shadow-lg p-4 md:p-6"
@@ -1012,7 +1016,7 @@ export default function DashboardPage() {
                     },
                   ].map((row, i) => (
                     <div
-                      key={i}
+                      key={row.label}
                       className="flex items-center justify-between p-2 rounded-lg"
                       style={{ background: th.summaryRowBg }}
                     >
@@ -1049,7 +1053,7 @@ export default function DashboardPage() {
                   { label: 'Filters',   icon: Filter,     action: () => { setShowFilters(true); setShowMobileMenu(false); } },
                 ].map((item, i) => (
                   <button
-                    key={i}
+                    key={item.label}
                     onClick={item.action}
                     className="w-full p-4 rounded-2xl font-semibold transition-all flex items-center justify-between active:scale-[0.98]"
                     style={{
@@ -1071,7 +1075,7 @@ export default function DashboardPage() {
       {/* Mobile Safe Area */}
       <div className="md:hidden h-24" />
 
-      <style jsx global>{`
+      <style>{`
         @supports (padding: max(0px)) {
           .pt-safe { padding-top: max(12px, env(safe-area-inset-top)); }
         }

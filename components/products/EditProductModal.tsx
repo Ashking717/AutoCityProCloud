@@ -219,36 +219,35 @@ export default function EditProductModal({
             <div className="md:col-span-2">
               <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                 Product Name *
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                />
               </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-              />
             </div>
 
             <div className="md:col-span-2">
               <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                 Description
+                <textarea
+                  value={formData.description}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
+                  rows={2}
+                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                />
               </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
-                }
-                rows={2}
-                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-              />
             </div>
 
             <div>
               <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                 Category
-              </label>
-              <div className="flex gap-2">
+                <div className="flex gap-2">
                 <select
                   value={formData.categoryId}
                   onChange={(e) =>
@@ -277,63 +276,64 @@ export default function EditProductModal({
                   <Plus className="h-4 w-4" />
                 </button>
               </div>
+              </label>
             </div>
 
             <div>
               <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                 SKU *
+                <input
+                  type="text"
+                  value={formData.sku}
+                  onChange={(e) =>
+                    setFormData({ ...formData, sku: e.target.value })
+                  }
+                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                />
               </label>
-              <input
-                type="text"
-                value={formData.sku}
-                onChange={(e) =>
-                  setFormData({ ...formData, sku: e.target.value })
-                }
-                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-              />
             </div>
 
             <div>
               <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                 Barcode
+                <input
+                  type="text"
+                  value={formData.barcode}
+                  onChange={(e) =>
+                    setFormData({ ...formData, barcode: e.target.value })
+                  }
+                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                />
               </label>
-              <input
-                type="text"
-                value={formData.barcode}
-                onChange={(e) =>
-                  setFormData({ ...formData, barcode: e.target.value })
-                }
-                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-              />
             </div>
 
             <div>
               <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                 Unit
+                <select
+                  value={formData.unit}
+                  onChange={(e) =>
+                    setFormData({ ...formData, unit: e.target.value })
+                  }
+                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                >
+                  <option value="pcs" className="text-[#050505]">
+                    Pieces
+                  </option>
+                  <option value="kg" className="text-[#050505]">
+                    Kilogram
+                  </option>
+                  <option value="liter" className="text-[#050505]">
+                    Liter
+                  </option>
+                  <option value="meter" className="text-[#050505]">
+                    Meter
+                  </option>
+                  <option value="box" className="text-[#050505]">
+                    Box
+                  </option>
+                </select>
               </label>
-              <select
-                value={formData.unit}
-                onChange={(e) =>
-                  setFormData({ ...formData, unit: e.target.value })
-                }
-                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-              >
-                <option value="pcs" className="text-[#050505]">
-                  Pieces
-                </option>
-                <option value="kg" className="text-[#050505]">
-                  Kilogram
-                </option>
-                <option value="liter" className="text-[#050505]">
-                  Liter
-                </option>
-                <option value="meter" className="text-[#050505]">
-                  Meter
-                </option>
-                <option value="box" className="text-[#050505]">
-                  Box
-                </option>
-              </select>
             </div>
           </div>
 
@@ -359,131 +359,131 @@ export default function EditProductModal({
               <div>
                 <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                   Make *
-                </label>
-                <select
-                  value={formData.carMake}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      carMake: e.target.value as CarMake | "",
-                      carModel: "",
-                    })
-                  }
-                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                >
-                  <option value="" className="text-[#050505]">
-                    Select Make
-                  </option>
-                  {Object.keys(carMakesModels).map((make) => (
-                    <option key={make} value={make} className="text-[#050505]">
-                      {make}
+                  <select
+                    value={formData.carMake}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        carMake: e.target.value as CarMake | "",
+                        carModel: "",
+                      })
+                    }
+                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                  >
+                    <option value="" className="text-[#050505]">
+                      Select Make
                     </option>
-                  ))}
-                </select>
+                    {Object.keys(carMakesModels).map((make) => (
+                      <option key={make} value={make} className="text-[#050505]">
+                        {make}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </div>
 
               <div>
                 <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                   Model
+                  <select
+                    value={formData.carModel}
+                    onChange={(e) =>
+                      setFormData({ ...formData, carModel: e.target.value })
+                    }
+                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                    disabled={!formData.carMake}
+                  >
+                    <option value="" className="text-[#050505]">
+                      Select Model
+                    </option>
+                    {formData.carMake &&
+                      carMakesModels[formData.carMake as CarMake]?.map(
+                        (model: string) => (
+                          <option
+                            key={model}
+                            value={model}
+                            className="text-[#050505]"
+                          >
+                            {model}
+                          </option>
+                        )
+                      )}
+                  </select>
                 </label>
-                <select
-                  value={formData.carModel}
-                  onChange={(e) =>
-                    setFormData({ ...formData, carModel: e.target.value })
-                  }
-                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                  disabled={!formData.carMake}
-                >
-                  <option value="" className="text-[#050505]">
-                    Select Model
-                  </option>
-                  {formData.carMake &&
-                    carMakesModels[formData.carMake as CarMake]?.map(
-                      (model: string) => (
-                        <option
-                          key={model}
-                          value={model}
-                          className="text-[#050505]"
-                        >
-                          {model}
-                        </option>
-                      )
-                    )}
-                </select>
               </div>
 
               <div>
                 <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                   Variant
-                </label>
-                <select
-                  value={formData.variant}
-                  onChange={(e) =>
-                    setFormData({ ...formData, variant: e.target.value })
-                  }
-                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                >
-                  <option value="" className="text-[#050505]">
-                    Select Variant
-                  </option>
-                  {vehicleVariants.map((variant) => (
-                    <option
-                      key={variant}
-                      value={variant}
-                      className="text-[#050505]"
-                    >
-                      {variant}
+                  <select
+                    value={formData.variant}
+                    onChange={(e) =>
+                      setFormData({ ...formData, variant: e.target.value })
+                    }
+                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                  >
+                    <option value="" className="text-[#050505]">
+                      Select Variant
                     </option>
-                  ))}
-                  <option value="custom" className="text-[#050505]">
-                    Custom...
-                  </option>
-                </select>
+                    {vehicleVariants.map((variant) => (
+                      <option
+                        key={variant}
+                        value={variant}
+                        className="text-[#050505]"
+                      >
+                        {variant}
+                      </option>
+                    ))}
+                    <option value="custom" className="text-[#050505]">
+                      Custom...
+                    </option>
+                  </select>
+                </label>
               </div>
 
               <div>
                 <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                   Color
-                </label>
-                <select
-                  value={formData.color}
-                  onChange={(e) =>
-                    setFormData({ ...formData, color: e.target.value })
-                  }
-                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                >
-                  <option value="" className="text-[#050505]">
-                    Select Color
-                  </option>
-                  {vehicleColors.map((color) => (
-                    <option
-                      key={color}
-                      value={color}
-                      className="text-[#050505]"
-                    >
-                      {color}
+                  <select
+                    value={formData.color}
+                    onChange={(e) =>
+                      setFormData({ ...formData, color: e.target.value })
+                    }
+                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                  >
+                    <option value="" className="text-[#050505]">
+                      Select Color
                     </option>
-                  ))}
-                  <option value="custom" className="text-[#050505]">
-                    Custom...
-                  </option>
-                </select>
+                    {vehicleColors.map((color) => (
+                      <option
+                        key={color}
+                        value={color}
+                        className="text-[#050505]"
+                      >
+                        {color}
+                      </option>
+                    ))}
+                    <option value="custom" className="text-[#050505]">
+                      Custom...
+                    </option>
+                  </select>
+                </label>
               </div>
 
               {formData.variant === "custom" && (
                 <div className="md:col-span-2">
                   <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                     Custom Variant
+                    <input
+                      type="text"
+                      value={formData.variant === "custom" ? "" : formData.variant}
+                      onChange={(e) =>
+                        setFormData({ ...formData, variant: e.target.value })
+                      }
+                      className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                      placeholder="Enter custom variant"
+                    />
                   </label>
-                  <input
-                    type="text"
-                    value={formData.variant === "custom" ? "" : formData.variant}
-                    onChange={(e) =>
-                      setFormData({ ...formData, variant: e.target.value })
-                    }
-                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                    placeholder="Enter custom variant"
-                  />
                 </div>
               )}
 
@@ -491,57 +491,58 @@ export default function EditProductModal({
                 <div className="md:col-span-2">
                   <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                     Custom Color
+                    <input
+                      type="text"
+                      value={formData.color === "custom" ? "" : formData.color}
+                      onChange={(e) =>
+                        setFormData({ ...formData, color: e.target.value })
+                      }
+                      className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                      placeholder="Enter custom color"
+                    />
                   </label>
-                  <input
-                    type="text"
-                    value={formData.color === "custom" ? "" : formData.color}
-                    onChange={(e) =>
-                      setFormData({ ...formData, color: e.target.value })
-                    }
-                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                    placeholder="Enter custom color"
-                  />
                 </div>
               )}
 
               <div className="md:col-span-2">
-                <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
+                <label htmlFor="edit-product-year-from" className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                   Year Range (Compatibility)
-                </label>
-                <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs text-gray-400 mb-1">
                       From
+                      <input
+                        id="edit-product-year-from"
+                        type="number"
+                        value={formData.yearFrom}
+                        onChange={(e) =>
+                          setFormData({ ...formData, yearFrom: e.target.value })
+                        }
+                        className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                        placeholder="e.g., 2015"
+                        min="1900"
+                        max="2100"
+                      />
                     </label>
-                    <input
-                      type="number"
-                      value={formData.yearFrom}
-                      onChange={(e) =>
-                        setFormData({ ...formData, yearFrom: e.target.value })
-                      }
-                      className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                      placeholder="e.g., 2015"
-                      min="1900"
-                      max="2100"
-                    />
                   </div>
                   <div>
                     <label className="block text-xs text-gray-400 mb-1">
                       To
+                      <input
+                        type="number"
+                        value={formData.yearTo}
+                        onChange={(e) =>
+                          setFormData({ ...formData, yearTo: e.target.value })
+                        }
+                        className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                        placeholder="e.g., 2020"
+                        min="1900"
+                        max="2100"
+                      />
                     </label>
-                    <input
-                      type="number"
-                      value={formData.yearTo}
-                      onChange={(e) =>
-                        setFormData({ ...formData, yearTo: e.target.value })
-                      }
-                      className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                      placeholder="e.g., 2020"
-                      min="1900"
-                      max="2100"
-                    />
                   </div>
-                </div>
+                  </div>
+                </label>
                 <p className="text-xs text-gray-500 mt-1">
                   Leave "To" empty for current year onwards (e.g., 2018+)
                 </p>
@@ -550,16 +551,16 @@ export default function EditProductModal({
               <div>
                 <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                   Part Number
+                  <input
+                    type="text"
+                    value={formData.partNumber}
+                    onChange={(e) =>
+                      setFormData({ ...formData, partNumber: e.target.value })
+                    }
+                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                    placeholder="Part number"
+                  />
                 </label>
-                <input
-                  type="text"
-                  value={formData.partNumber}
-                  onChange={(e) =>
-                    setFormData({ ...formData, partNumber: e.target.value })
-                  }
-                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-                  placeholder="Part number"
-                />
               </div>
             </div>
           )}
@@ -568,57 +569,57 @@ export default function EditProductModal({
             <div>
               <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                 Cost Price
+                <input
+                  type="number"
+                  value={formData.costPrice}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      costPrice: parseFloat(e.target.value),
+                    })
+                  }
+                  min="0"
+                  step="0.01"
+                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                />
               </label>
-              <input
-                type="number"
-                value={formData.costPrice}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    costPrice: parseFloat(e.target.value),
-                  })
-                }
-                min="0"
-                step="0.01"
-                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-              />
             </div>
             <div>
               <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                 Selling Price
+                <input
+                  type="number"
+                  value={formData.sellingPrice}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      sellingPrice: parseFloat(e.target.value),
+                    })
+                  }
+                  min="0"
+                  step="0.01"
+                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                />
               </label>
-              <input
-                type="number"
-                value={formData.sellingPrice}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    sellingPrice: parseFloat(e.target.value),
-                  })
-                }
-                min="0"
-                step="0.01"
-                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-              />
             </div>
             <div>
               <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                 Tax Rate (%)
+                <input
+                  type="number"
+                  value={formData.taxRate}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      taxRate: parseFloat(e.target.value),
+                    })
+                  }
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                />
               </label>
-              <input
-                type="number"
-                value={formData.taxRate}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    taxRate: parseFloat(e.target.value),
-                  })
-                }
-                min="0"
-                max="100"
-                step="0.1"
-                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-              />
             </div>
           </div>
 
@@ -626,36 +627,36 @@ export default function EditProductModal({
             <div>
               <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                 Current Stock
+                <input
+                  type="number"
+                  value={formData.currentStock}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      currentStock: parseFloat(e.target.value),
+                    })
+                  }
+                  min="0"
+                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                />
               </label>
-              <input
-                type="number"
-                value={formData.currentStock}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    currentStock: parseFloat(e.target.value),
-                  })
-                }
-                min="0"
-                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-              />
             </div>
             <div>
               <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                 Min Stock
+                <input
+                  type="number"
+                  value={formData.minStock}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      minStock: parseFloat(e.target.value),
+                    })
+                  }
+                  min="0"
+                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                />
               </label>
-              <input
-                type="number"
-                value={formData.minStock}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    minStock: parseFloat(e.target.value),
-                  })
-                }
-                min="0"
-                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
-              />
             </div>
           </div>
         </div>

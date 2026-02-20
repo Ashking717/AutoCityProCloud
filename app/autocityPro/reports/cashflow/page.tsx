@@ -40,6 +40,44 @@ interface CashFlowData {
   };
 }
 
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('en-QA', {
+    style: 'currency',
+    currency: 'QAR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+};
+
+const formatCompactCurrency = (amount: number) => {
+  if (amount >= 1000000) return `QR${(amount / 1000000).toFixed(1)}M`;
+  if (amount >= 10000) return `QR${(amount / 1000).toFixed(1)}K`;
+  return `QR${amount.toFixed(0)}`;
+};
+
+function CashFlowItems({ items, isMobile }: { items: { [key: string]: number }; isMobile: boolean }) {
+  if (!items || Object.keys(items).length === 0) {
+    return (
+      <div className="text-center py-4">
+        <p className="text-white/40 text-xs md:text-sm">No activities in this period</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {Object.entries(items).map(([name, value]) => (
+        <div key={name} className="flex justify-between items-center hover:bg-white/5 px-3 py-2.5 rounded transition-colors">
+          <span className="text-white/80 text-xs md:text-sm truncate pr-2">{name}</span>
+          <span className={`font-semibold text-xs md:text-sm flex-shrink-0 ${value >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+            {value >= 0 ? '+' : ''}{isMobile ? formatCompactCurrency(value) : formatCurrency(value)}
+          </span>
+        </div>
+      ))}
+    </>
+  );
+}
+
 export default function CashFlowPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
@@ -113,40 +151,6 @@ export default function CashFlowPage() {
     toast.success('Export feature coming soon!');
   };
   
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-QA', {
-      style: 'currency',
-      currency: 'QAR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  };
-
-  const formatCompactCurrency = (amount: number) => {
-    if (amount >= 1000000) return `QR${(amount / 1000000).toFixed(1)}M`;
-    if (amount >= 10000) return `QR${(amount / 1000).toFixed(1)}K`;
-    return `QR${amount.toFixed(0)}`;
-  };
-  
-  const renderCashFlowItems = (items: { [key: string]: number }) => {
-    if (!items || Object.keys(items).length === 0) {
-      return (
-        <div className="text-center py-4">
-          <p className="text-white/40 text-xs md:text-sm">No activities in this period</p>
-        </div>
-      );
-    }
-
-    return Object.entries(items).map(([name, value]) => (
-      <div key={name} className="flex justify-between items-center hover:bg-white/5 px-3 py-2.5 rounded transition-colors">
-        <span className="text-white/80 text-xs md:text-sm truncate pr-2">{name}</span>
-        <span className={`font-semibold text-xs md:text-sm flex-shrink-0 ${value >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-          {value >= 0 ? '+' : ''}{isMobile ? formatCompactCurrency(value) : formatCurrency(value)}
-        </span>
-      </div>
-    ));
-  };
-
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     window.location.href = "/autocityPro/login";
@@ -286,10 +290,11 @@ export default function CashFlowPage() {
           <div className="bg-[#0A0A0A] rounded-xl shadow-lg border border-white/5 p-6 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
               <div>
-                <label className="block text-sm font-medium text-white mb-2">
+                <label htmlFor="cashflow-from-date" className="block text-sm font-medium text-white mb-2">
                   From Date
                 </label>
                 <input
+                  id="cashflow-from-date"
                   type="date"
                   value={dateRange.fromDate}
                   onChange={(e) => setDateRange({ ...dateRange, fromDate: e.target.value })}
@@ -298,10 +303,11 @@ export default function CashFlowPage() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-white mb-2">
+                <label htmlFor="cashflow-to-date" className="block text-sm font-medium text-white mb-2">
                   To Date
                 </label>
                 <input
+                  id="cashflow-to-date"
                   type="date"
                   value={dateRange.toDate}
                   onChange={(e) => setDateRange({ ...dateRange, toDate: e.target.value })}
@@ -440,7 +446,7 @@ export default function CashFlowPage() {
                       </div>
                     </div>
                     <div className="p-3 md:p-4">
-                      {renderCashFlowItems(reportData.operatingActivities.items)}
+                      <CashFlowItems items={reportData.operatingActivities.items} isMobile={isMobile} />
                     </div>
                   </div>
                   
@@ -460,7 +466,7 @@ export default function CashFlowPage() {
                       </div>
                     </div>
                     <div className="p-3 md:p-4">
-                      {renderCashFlowItems(reportData.investingActivities.items)}
+                      <CashFlowItems items={reportData.investingActivities.items} isMobile={isMobile} />
                     </div>
                   </div>
                   
@@ -480,7 +486,7 @@ export default function CashFlowPage() {
                       </div>
                     </div>
                     <div className="p-3 md:p-4">
-                      {renderCashFlowItems(reportData.financingActivities.items)}
+                      <CashFlowItems items={reportData.financingActivities.items} isMobile={isMobile} />
                     </div>
                   </div>
                   

@@ -365,31 +365,31 @@ export default function SuppliersPage() {
                 ))}
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Email</label>
-                <input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })}
+                <label htmlFor="supplier-email" className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Email</label>
+                <input id="supplier-email" type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })}
                   placeholder="email@example.com" className={modalInputCls} style={modalInputStyle} />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Address</label>
-                <textarea value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })}
+                <label htmlFor="supplier-address" className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Address</label>
+                <textarea id="supplier-address" value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })}
                   rows={2} placeholder="Business address"
                   className={`${modalInputCls} resize-none`} style={modalInputStyle} />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Tax Number</label>
-                  <input type="text" value={formData.taxNumber} onChange={e => setFormData({ ...formData, taxNumber: e.target.value })}
+                  <label htmlFor="supplier-tax-number" className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Tax Number</label>
+                  <input id="supplier-tax-number" type="text" value={formData.taxNumber} onChange={e => setFormData({ ...formData, taxNumber: e.target.value })}
                     placeholder="Tax/VAT number" className={modalInputCls} style={modalInputStyle} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Credit Limit</label>
-                  <input type="number" value={formData.creditLimit} onChange={e => setFormData({ ...formData, creditLimit: parseFloat(e.target.value)||0 })}
+                  <label htmlFor="supplier-credit-limit" className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Credit Limit</label>
+                  <input id="supplier-credit-limit" type="number" value={formData.creditLimit} onChange={e => setFormData({ ...formData, creditLimit: parseFloat(e.target.value)||0 })}
                     step="0.01" placeholder="0.00" className={modalInputCls} style={modalInputStyle} />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Payment Terms</label>
-                <input type="text" value={formData.paymentTerms} onChange={e => setFormData({ ...formData, paymentTerms: e.target.value })}
+                <label htmlFor="supplier-payment-terms" className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Payment Terms</label>
+                <input id="supplier-payment-terms" type="text" value={formData.paymentTerms} onChange={e => setFormData({ ...formData, paymentTerms: e.target.value })}
                   placeholder="e.g., Net 30" className={modalInputCls} style={modalInputStyle} />
               </div>
               <div className="flex flex-col md:flex-row justify-end gap-3 pt-4">

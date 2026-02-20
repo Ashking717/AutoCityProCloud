@@ -247,8 +247,8 @@ export default function CustomersPage() {
               { icon: <User className="h-5 w-5 text-[#E84545]" />, label: "Total Customers", value: customers.length, bg: th.statIconBg },
               { icon: <FileText className="h-5 w-5" style={{ color: th.iconGreen }} />, label: "Active", value: customers.length, color: th.statValueGreen, bg: isDark ? "rgba(34,197,94,0.10)" : "rgba(34,197,94,0.08)" },
               { icon: <Search className="h-5 w-5" style={{ color: th.iconBlue }} />, label: "Search Results", value: filteredCustomers.length, bg: isDark ? "rgba(59,130,246,0.10)" : "rgba(59,130,246,0.08)" },
-            ].map((stat, i) => (
-              <div key={i} className="rounded-2xl p-4 transition-colors duration-500"
+            ].map((stat) => (
+              <div key={stat.label} className="rounded-2xl p-4 transition-colors duration-500"
                 style={{ background: th.statCardBg, border: `1px solid ${th.statCardBorder}` }}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="p-2 rounded-xl" style={{ background: stat.bg }}>{stat.icon}</div>

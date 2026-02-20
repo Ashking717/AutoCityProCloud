@@ -301,9 +301,12 @@ export default function ProductsPage() {
     }
   };
 
-  useEffect(() => {
+  const [prevFilterKey, setPrevFilterKey] = useState('');
+  const filterKey = `${searchTerm}-${filterCategory}-${filterMake}-${filterIsVehicle}`;
+  if (filterKey !== prevFilterKey) {
+    setPrevFilterKey(filterKey);
     setSelectedProductIndex(-1);
-  }, [searchTerm, filterCategory, filterMake, filterIsVehicle]);
+  }
 
   useEffect(() => {
     const loadData = async () => {
@@ -1073,10 +1076,11 @@ export default function ProductsPage() {
             {showFilters && (
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4 border-t border-white/10">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                  <label htmlFor="filter-type" className="block text-sm font-medium text-gray-300 mb-1">
                     Type
                   </label>
                   <select
+                    id="filter-type"
                     value={filterIsVehicle}
                     onChange={(e) => setFilterIsVehicle(e.target.value)}
                     className="w-full px-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white"
@@ -1116,10 +1120,11 @@ export default function ProductsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                  <label htmlFor="filter-make" className="block text-sm font-medium text-gray-300 mb-1">
                     Car Make
                   </label>
                   <select
+                    id="filter-make"
                     value={filterMake}
                     onChange={(e) => setFilterMake(e.target.value)}
                     className="w-full px-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white"
@@ -1166,10 +1171,11 @@ export default function ProductsPage() {
 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label htmlFor="filter-type-mobile" className="block text-sm font-medium text-gray-300 mb-2">
                       Type
                     </label>
                     <select
+                      id="filter-type-mobile"
                       value={filterIsVehicle}
                       onChange={(e) => setFilterIsVehicle(e.target.value)}
                       className="w-full px-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white"
@@ -1186,10 +1192,11 @@ export default function ProductsPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label htmlFor="filter-category-mobile" className="block text-sm font-medium text-gray-300 mb-2">
                       Category
                     </label>
                     <select
+                      id="filter-category-mobile"
                       value={filterCategory}
                       onChange={(e) => setFilterCategory(e.target.value)}
                       className="w-full px-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white"
@@ -1209,10 +1216,11 @@ export default function ProductsPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label htmlFor="filter-make-mobile" className="block text-sm font-medium text-gray-300 mb-2">
                       Car Make
                     </label>
                     <select
+                      id="filter-make-mobile"
                       value={filterMake}
                       onChange={(e) => setFilterMake(e.target.value)}
                       className="w-full px-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white"
@@ -1472,6 +1480,9 @@ export default function ProductsPage() {
                   filteredProducts.map((product) => (
                     <div
                       key={product._id}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') router.push(`/autocityPro/products/${product._id}`); }}
                       className="p-4 hover:bg-white/2 transition-all active:bg-white/5"
                       onClick={() =>
                         router.push(`/autocityPro/products/${product._id}`)
@@ -1758,10 +1769,11 @@ export default function ProductsPage() {
             <div className="p-4 md:p-6">
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
+                  <label htmlFor="new-category-name" className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                     Category Name *
                   </label>
                   <input
+                    id="new-category-name"
                     type="text"
                     value={newCategoryName}
                     onChange={(e) => setNewCategoryName(e.target.value)}
@@ -1914,7 +1926,7 @@ export default function ProductsPage() {
       {/* Mobile Safe Area Bottom Padding */}
       <div className="md:hidden h-24"></div>
 
-      <style jsx global>{`
+      <style>{`
         @supports (padding: max(0px)) {
           .md\\:hidden.fixed.top-16 {
             padding-top: max(12px, env(safe-area-inset-top));
@@ -1922,5 +1934,7 @@ export default function ProductsPage() {
         }
       `}</style>
     </MainLayout>
+  );
+}>
   );
 }

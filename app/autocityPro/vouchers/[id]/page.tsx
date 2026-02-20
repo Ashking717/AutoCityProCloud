@@ -406,9 +406,9 @@ export default function VoucherViewPage() {
                 <span className="text-sm text-slate-500">{voucher.entries.length} entries</span>
               </div>
               
-              {voucher.entries.map((entry: any, index: number) => (
+              {voucher.entries.map((entry: any) => (
                 <div 
-                  key={index} 
+                  key={entry._id || `${entry.accountName}-${entry.debit}-${entry.credit}`} 
                   className="bg-gradient-to-br from-[#0A0A0A] to-slate-900 border border-white/10 rounded-xl p-4 hover:border-[#E84545]/30 transition-all active:scale-[0.98]"
                 >
                   <div className="flex justify-between items-start mb-3">
@@ -447,8 +447,8 @@ export default function VoucherViewPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/10">
-                  {voucher.entries.map((entry: any, index: number) => (
-                    <tr key={index} className="hover:bg-white/5 transition-colors">
+                  {voucher.entries.map((entry: any) => (
+                    <tr key={entry._id || `${entry.accountName}-${entry.debit}-${entry.credit}`} className="hover:bg-white/5 transition-colors">
                       <td className="px-6 py-4">
                         <p className="text-sm font-medium text-white">{entry.accountName}</p>
                       </td>

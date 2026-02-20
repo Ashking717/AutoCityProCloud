@@ -110,17 +110,25 @@ export default function LedgerEntriesPage() {
     return () => window.removeEventListener("resize", checkIfMobile);
   }, []);
 
-  useEffect(() => {
-    if (user) {
-      resetAndFetch();
-    }
-  }, [
-    user,
-    voucherTypeFilter,
-    referenceTypeFilter,
-    dateRange.fromDate,
-    dateRange.toDate,
-  ]);
+  const handleVoucherTypeChange = (value: string) => {
+    setVoucherTypeFilter(value);
+    resetAndFetch({ voucherType: value });
+  };
+
+  const handleReferenceTypeChange = (value: string) => {
+    setReferenceTypeFilter(value);
+    resetAndFetch({ referenceType: value });
+  };
+
+  const handleFromDateChange = (value: string) => {
+    setDateRange(prev => ({ ...prev, fromDate: value }));
+    resetAndFetch({ fromDate: value });
+  };
+
+  const handleToDateChange = (value: string) => {
+    setDateRange(prev => ({ ...prev, toDate: value }));
+    resetAndFetch({ toDate: value });
+  };
 
   // Infinite scroll observer
   useEffect(() => {
@@ -155,20 +163,21 @@ export default function LedgerEntriesPage() {
       if (res.ok) {
         const data = await res.json();
         setUser(data.user);
+        resetAndFetch();
       }
     } catch (error) {
       console.error("Failed to fetch user");
     }
   };
 
-  const resetAndFetch = () => {
+  const resetAndFetch = (overrides?: { voucherType?: string; referenceType?: string; fromDate?: string; toDate?: string; search?: string }) => {
     setEntries([]);
     setPage(1);
     setHasMore(true);
-    fetchEntries(1, true);
+    fetchEntries(1, true, overrides);
   };
 
-  const fetchEntries = async (pageNum: number = 1, reset: boolean = false) => {
+  const fetchEntries = async (pageNum: number = 1, reset: boolean = false, overrides?: { voucherType?: string; referenceType?: string; fromDate?: string; toDate?: string; search?: string }) => {
     console.log("fetchEntries called", { pageNum, reset, currentPage: page });
     
     if (reset) {
@@ -181,20 +190,23 @@ export default function LedgerEntriesPage() {
       const params = new URLSearchParams({
         page: pageNum.toString(),
         limit: "50",
-        fromDate: dateRange.fromDate,
-        toDate: dateRange.toDate,
+        fromDate: overrides?.fromDate ?? dateRange.fromDate,
+        toDate: overrides?.toDate ?? dateRange.toDate,
       });
 
-      if (voucherTypeFilter !== "all") {
-        params.append("voucherType", voucherTypeFilter);
+      const vType = overrides?.voucherType ?? voucherTypeFilter;
+      if (vType !== "all") {
+        params.append("voucherType", vType);
       }
 
-      if (referenceTypeFilter !== "all") {
-        params.append("referenceType", referenceTypeFilter);
+      const rType = overrides?.referenceType ?? referenceTypeFilter;
+      if (rType !== "all") {
+        params.append("referenceType", rType);
       }
 
-      if (searchTerm) {
-        params.append("search", searchTerm);
+      const search = overrides?.search ?? searchTerm;
+      if (search) {
+        params.append("search", search);
       }
 
       console.log("Fetching with params:", params.toString());
@@ -361,15 +373,17 @@ export default function LedgerEntriesPage() {
   ];
 
   const clearFilters = () => {
-    setSearchTerm("");
-    setVoucherTypeFilter("all");
-    setReferenceTypeFilter("all");
-    setDateRange({
+    const defaults = {
       fromDate: new Date(new Date().getFullYear(), 0, 1)
         .toISOString()
         .split("T")[0],
       toDate: new Date().toISOString().split("T")[0],
-    });
+    };
+    setSearchTerm("");
+    setVoucherTypeFilter("all");
+    setReferenceTypeFilter("all");
+    setDateRange(defaults);
+    resetAndFetch({ voucherType: "all", referenceType: "all", search: "", ...defaults });
   };
 
   return (
@@ -471,7 +485,7 @@ export default function LedgerEntriesPage() {
                   <span>Export CSV</span>
                 </button>
                 <button
-                  onClick={resetAndFetch}
+                  onClick={() => resetAndFetch()}
                   className="flex items-center space-x-2 px-4 py-2.5 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-lg hover:bg-white/20 transition-all group"
                 >
                   <RefreshCw className="h-4 w-4 group-hover:scale-110 transition-transform" />
@@ -568,7 +582,7 @@ export default function LedgerEntriesPage() {
               <div>
                 <select
                   value={voucherTypeFilter}
-                  onChange={(e) => setVoucherTypeFilter(e.target.value)}
+                  onChange={(e) => handleVoucherTypeChange(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
                 >
                   {voucherTypes.map((type) => (
@@ -582,7 +596,7 @@ export default function LedgerEntriesPage() {
               <div>
                 <select
                   value={referenceTypeFilter}
-                  onChange={(e) => setReferenceTypeFilter(e.target.value)}
+                  onChange={(e) => handleReferenceTypeChange(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
                 >
                   {referenceTypes.map((type) => (
@@ -597,9 +611,7 @@ export default function LedgerEntriesPage() {
                 <input
                   type="date"
                   value={dateRange.fromDate}
-                  onChange={(e) =>
-                    setDateRange({ ...dateRange, fromDate: e.target.value })
-                  }
+                  onChange={(e) => handleFromDateChange(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
                 />
               </div>
@@ -608,9 +620,7 @@ export default function LedgerEntriesPage() {
                 <input
                   type="date"
                   value={dateRange.toDate}
-                  onChange={(e) =>
-                    setDateRange({ ...dateRange, toDate: e.target.value })
-                  }
+                  onChange={(e) => handleToDateChange(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
                 />
               </div>
@@ -885,12 +895,13 @@ export default function LedgerEntriesPage() {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label htmlFor="filter-voucher-type" className="block text-sm font-medium text-gray-300 mb-2">
                   Voucher Type
                 </label>
                 <select
+                  id="filter-voucher-type"
                   value={voucherTypeFilter}
-                  onChange={(e) => setVoucherTypeFilter(e.target.value)}
+                  onChange={(e) => handleVoucherTypeChange(e.target.value)}
                   className="w-full px-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white"
                 >
                   {voucherTypes.map((type) => (
@@ -902,12 +913,13 @@ export default function LedgerEntriesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label htmlFor="filter-reference-type" className="block text-sm font-medium text-gray-300 mb-2">
                   Reference Type
                 </label>
                 <select
+                  id="filter-reference-type"
                   value={referenceTypeFilter}
-                  onChange={(e) => setReferenceTypeFilter(e.target.value)}
+                  onChange={(e) => handleReferenceTypeChange(e.target.value)}
                   className="w-full px-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white"
                 >
                   {referenceTypes.map((type) => (
@@ -919,29 +931,27 @@ export default function LedgerEntriesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label htmlFor="filter-from-date" className="block text-sm font-medium text-gray-300 mb-2">
                   From Date
                 </label>
                 <input
+                  id="filter-from-date"
                   type="date"
                   value={dateRange.fromDate}
-                  onChange={(e) =>
-                    setDateRange({ ...dateRange, fromDate: e.target.value })
-                  }
+                  onChange={(e) => handleFromDateChange(e.target.value)}
                   className="w-full px-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label htmlFor="filter-to-date" className="block text-sm font-medium text-gray-300 mb-2">
                   To Date
                 </label>
                 <input
+                  id="filter-to-date"
                   type="date"
                   value={dateRange.toDate}
-                  onChange={(e) =>
-                    setDateRange({ ...dateRange, toDate: e.target.value })
-                  }
+                  onChange={(e) => handleToDateChange(e.target.value)}
                   className="w-full px-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white"
                 />
               </div>

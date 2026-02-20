@@ -229,8 +229,8 @@ export default function ReportsPage() {
               <h2 className="text-lg md:text-xl font-bold" style={{ color: th.featuresSectionTitle }}>Report Features</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-              {features.map((f, i) => (
-                <div key={i} className="flex items-start gap-3 p-4 rounded-xl transition-all group"
+              {features.map((f) => (
+                <div key={f.title} className="flex items-start gap-3 p-4 rounded-xl transition-all group"
                   style={{ background: th.featureItemBg, border: `1px solid ${th.featureItemBorder}` }}
                   onMouseEnter={e => (e.currentTarget.style.borderColor = th.featureItemHover)}
                   onMouseLeave={e => (e.currentTarget.style.borderColor = th.featureItemBorder)}>
@@ -253,8 +253,8 @@ export default function ReportsPage() {
               {[
                 { icon:<FileText className="h-4 w-4 text-blue-400" />, label:'Available', value:reports.length.toString(), sub:'Reports' },
                 { icon:<TrendingUp className="h-4 w-4 text-green-400" />, label:'Real-time', value:'Live', sub:'Data' },
-              ].map((s, i) => (
-                <div key={i} className="rounded-xl p-4 transition-colors duration-500"
+              ].map((s) => (
+                <div key={s.label} className="rounded-xl p-4 transition-colors duration-500"
                   style={{ background: `linear-gradient(135deg,${th.statBgFrom},${th.statBgTo})`, border: `1px solid ${th.statBorder}` }}>
                   <div className="flex items-center gap-2 mb-2">
                     {s.icon}

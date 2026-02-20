@@ -263,12 +263,13 @@ export default function NewJournalVoucherPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label htmlFor="journal-date" className="block text-sm font-medium text-slate-300 mb-2">
                   Date <span className="text-red-400">*</span>
                 </label>
                 <div className="relative">
                   <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                   <input
+                    id="journal-date"
                     type="date"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
@@ -278,10 +279,11 @@ export default function NewJournalVoucherPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label htmlFor="journal-ref" className="block text-sm font-medium text-slate-300 mb-2">
                   Reference Number
                 </label>
                 <input
+                  id="journal-ref"
                   type="text"
                   value={referenceNumber}
                   onChange={(e) => setReferenceNumber(e.target.value)}
@@ -291,10 +293,11 @@ export default function NewJournalVoucherPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label htmlFor="journal-type" className="block text-sm font-medium text-slate-300 mb-2">
                   Voucher Type
                 </label>
                 <input
+                  id="journal-type"
                   type="text"
                   value="Journal Entry"
                   disabled
@@ -304,10 +307,11 @@ export default function NewJournalVoucherPage() {
             </div>
 
             <div className="mt-4">
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+              <label htmlFor="journal-narration" className="block text-sm font-medium text-slate-300 mb-2">
                 Narration <span className="text-red-400">*</span>
               </label>
               <textarea
+                id="journal-narration"
                 value={narration}
                 onChange={(e) => setNarration(e.target.value)}
                 placeholder="Enter voucher narration..."
@@ -360,10 +364,11 @@ export default function NewJournalVoucherPage() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                       <div className="lg:col-span-2">
-                        <label className="block text-xs font-medium text-slate-400 mb-2">
+                        <label htmlFor={`journal-account-${entry.id}`} className="block text-xs font-medium text-slate-400 mb-2">
                           Account <span className="text-red-400">*</span>
                         </label>
                         <select
+                          id={`journal-account-${entry.id}`}
                           value={entry.accountId}
                           onChange={(e) => updateEntry(entry.id, 'accountId', e.target.value)}
                           className="w-full px-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
@@ -378,12 +383,13 @@ export default function NewJournalVoucherPage() {
                       </div>
 
                       <div>
-                        <label className="block text-xs font-medium text-slate-400 mb-2">
+                        <label htmlFor={`journal-debit-${entry.id}`} className="block text-xs font-medium text-slate-400 mb-2">
                           Debit (QAR)
                         </label>
                         <div className="relative">
                           <DollarSign className="absolute left-3 top-2 h-4 w-4 text-slate-400" />
                           <input
+                            id={`journal-debit-${entry.id}`}
                             type="number"
                             step="0.01"
                             min="0"
@@ -396,12 +402,13 @@ export default function NewJournalVoucherPage() {
                       </div>
 
                       <div>
-                        <label className="block text-xs font-medium text-slate-400 mb-2">
+                        <label htmlFor={`journal-credit-${entry.id}`} className="block text-xs font-medium text-slate-400 mb-2">
                           Credit (QAR)
                         </label>
                         <div className="relative">
                           <DollarSign className="absolute left-3 top-2 h-4 w-4 text-slate-400" />
                           <input
+                            id={`journal-credit-${entry.id}`}
                             type="number"
                             step="0.01"
                             min="0"
@@ -414,10 +421,11 @@ export default function NewJournalVoucherPage() {
                       </div>
 
                       <div>
-                        <label className="block text-xs font-medium text-slate-400 mb-2">
+                        <label htmlFor={`journal-entry-narration-${entry.id}`} className="block text-xs font-medium text-slate-400 mb-2">
                           Entry Narration
                         </label>
                         <input
+                          id={`journal-entry-narration-${entry.id}`}
                           type="text"
                           value={entry.narration}
                           onChange={(e) => updateEntry(entry.id, 'narration', e.target.value)}

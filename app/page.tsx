@@ -289,7 +289,7 @@ export default function HomePage() {
   return (
     <div className={`min-h-screen ${isDark ? 'bg-[#050505] text-white' : 'bg-gray-50 text-gray-900'} overflow-x-hidden ${isRTL ? 'rtl' : 'ltr'} transition-colors duration-500`}>
       {/* Custom Styles */}
-      <style jsx global>{`
+      <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap');
         
         .ltr {
@@ -390,13 +390,13 @@ export default function HomePage() {
 
         .glass {
           background: ${isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.8)'};
-          backdrop-filter: blur(20px);
+          backdrop-filter: blur(10px);
           border: 1px solid ${isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'};
         }
 
         .glass-dark {
           background: ${isDark ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.95)'};
-          backdrop-filter: blur(20px);
+          backdrop-filter: blur(10px);
           border-bottom: 1px solid ${isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'};
         }
 
@@ -456,6 +456,7 @@ export default function HomePage() {
                   src="/login.png"
                   alt="Auto City Qatar - Premium Car Accessories in Doha"
                   fill
+                  sizes="192px"
                   className="object-contain object-left"
                   priority
                 />
@@ -591,7 +592,7 @@ export default function HomePage() {
 
               <div className={`animate-fade-in-up delay-500 flex gap-12 mt-16 pt-10 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
                 {t.hero.stats.map((stat, i) => (
-                  <div key={i}>
+                  <div key={stat.label}>
                     <div className="text-3xl font-bold text-[#E84545]">{stat.value}</div>
                     <div className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-600'} mt-1`}>{stat.label}</div>
                   </div>
@@ -652,7 +653,7 @@ export default function HomePage() {
               const Icon = serviceIcons[i];
               return (
                 <article
-                  key={i}
+                  key={service.title}
                   className={`group relative p-6 lg:p-8 ${isDark ? 'bg-[#0A0A0A] border-white/5' : 'bg-white border-gray-200'} border rounded-2xl hover:border-[#E84545]/30 hover-lift transition-all duration-500`}
                   itemScope
                   itemType="https://schema.org/Service"
@@ -692,7 +693,7 @@ export default function HomePage() {
 
               <ul className="grid grid-cols-2 gap-4">
                 {t.about.features.map((item, i) => (
-                  <li key={i} className="flex items-center gap-3">
+                  <li key={item} className="flex items-center gap-3">
                     <div className="w-2 h-2 rounded-full bg-[#E84545]" aria-hidden="true" />
                     <span className={`${isDark ? 'text-gray-300' : 'text-gray-700'} text-sm`}>{item}</span>
                   </li>
@@ -736,7 +737,7 @@ export default function HomePage() {
 
             <div className="space-y-6">
               {t.faq.items.map((item, i) => (
-                <div key={i} className="glass rounded-2xl p-8" itemScope itemType="https://schema.org/Question">
+                <div key={item.q} className="glass rounded-2xl p-8" itemScope itemType="https://schema.org/Question">
                   <h3 className="text-xl font-bold mb-4 text-[#E84545]" itemProp="name">{item.q}</h3>
                   <div itemScope itemProp="acceptedAnswer" itemType="https://schema.org/Answer">
                     <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} leading-relaxed`} itemProp="text">{item.a}</p>
@@ -764,7 +765,7 @@ export default function HomePage() {
           <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
             {t.branches.items.map((branch, i) => (
               <article
-                key={i}
+                key={branch.name}
                 className={`group p-8 ${isDark ? 'bg-[#050505] border-white/5' : 'bg-gray-50 border-gray-200'} border rounded-2xl text-center hover:border-[#E84545]/30 hover-lift transition-all duration-300`}
                 itemScope
                 itemType="https://schema.org/LocalBusiness"
@@ -810,7 +811,7 @@ export default function HomePage() {
               <address className="space-y-4 not-italic">
                 {phoneNumbers.map((phone, i) => (
                   <a
-                    key={i}
+                    key={phone}
                     href={`tel:${phone.replace(/\s/g, '')}`}
                     className={`flex items-center justify-between p-4 ${isDark ? 'bg-white/5 hover:bg-[#E84545]/10' : 'bg-gray-100 hover:bg-[#E84545]/5'} rounded-xl transition-colors group`}
                     dir="ltr"
@@ -894,7 +895,7 @@ export default function HomePage() {
               <h4 className="font-semibold mb-6">{t.footer.services}</h4>
               <ul className={`space-y-3 ${isDark ? 'text-gray-500' : 'text-gray-600'} text-sm`}>
                 {t.services.items.slice(0, 5).map((service, i) => (
-                  <li key={i}>{service.title}</li>
+                  <li key={service.title}>{service.title}</li>
                 ))}
               </ul>
             </nav>
@@ -904,7 +905,7 @@ export default function HomePage() {
               <h4 className="font-semibold mb-6">{t.footer.contact}</h4>
               <ul className={`space-y-3 ${isDark ? 'text-gray-500' : 'text-gray-600'} text-sm`}>
                 {phoneNumbers.map((phone, i) => (
-                  <li key={i} dir="ltr">
+                  <li key={phone} dir="ltr">
                     <a href={`tel:${phone.replace(/\s/g, '')}`} className="hover:text-[#E84545] transition-colors">
                       {phone}
                     </a>
@@ -924,7 +925,7 @@ export default function HomePage() {
             <div className={`flex flex-wrap items-center justify-center gap-8 ${isDark ? 'text-gray-500' : 'text-gray-600'} text-sm`}>
               <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{t.footer.ourBranches}:</span>
               {t.branches.items.map((branch, i) => (
-                <span key={i} className="flex items-center gap-2">
+                <span key={branch.name} className="flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-[#E84545]" aria-hidden="true" />
                   {branch.name}
                 </span>

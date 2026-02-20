@@ -209,7 +209,7 @@ setLedgerSummary({
     return map[type] || (isDark ? "bg-gray-500/20 text-gray-300" : "bg-gray-100 text-gray-600");
   };
 
-  const fmt = (n: number) => new Intl.NumberFormat("en-US", { minimumFractionDigits: 2 }).format(n);
+  const fmt = (n: number) => new Intl.NumberFormat("en-US", { minimumFractionDigits: 0 }).format(n);
   const fmtDrCr = (n: number, type: string) => {
     const normalDebit = ["asset", "expense"].includes(type);
     const isDr = normalDebit ? n >= 0 : n < 0;
@@ -371,6 +371,9 @@ setLedgerSummary({
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredAccounts.map(acc => (
                     <div key={acc._id}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openLedger(acc); }}
                       className="rounded-xl p-4 cursor-pointer transition-all duration-300 group"
                       style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}
                       onMouseEnter={e => (e.currentTarget.style.borderColor = th.cardHoverBorder)}
@@ -414,13 +417,13 @@ setLedgerSummary({
                 style={{ background: th.filterPanelBg, border: `1px solid ${th.filterPanelBorder}` }}>
                 <div className="flex flex-col md:flex-row gap-3 items-end">
                   <div className="flex-1">
-                    <label className="block text-xs mb-1" style={{ color: th.tableHeaderText }}>From Date</label>
-                    <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}
+                    <label htmlFor="ledger-from-date" className="block text-xs mb-1" style={{ color: th.tableHeaderText }}>From Date</label>
+                    <input id="ledger-from-date" type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}
                       className="w-full px-3 py-2 rounded-lg text-sm" style={selectStyle} />
                   </div>
                   <div className="flex-1">
-                    <label className="block text-xs mb-1" style={{ color: th.tableHeaderText }}>To Date</label>
-                    <input type="date" value={toDate} onChange={e => setToDate(e.target.value)}
+                    <label htmlFor="ledger-to-date" className="block text-xs mb-1" style={{ color: th.tableHeaderText }}>To Date</label>
+                    <input id="ledger-to-date" type="date" value={toDate} onChange={e => setToDate(e.target.value)}
                       className="w-full px-3 py-2 rounded-lg text-sm" style={selectStyle} />
                   </div>
                   <button onClick={() => fetchLedger(selectedAccount)}
@@ -513,13 +516,13 @@ setLedgerSummary({
                 style={{ background: th.filterPanelBg, border: `1px solid ${th.filterPanelBorder}` }}>
                 <div className="flex flex-col md:flex-row gap-3 items-end">
                   <div className="flex-1">
-                    <label className="block text-xs mb-1" style={{ color: th.tableHeaderText }}>From</label>
-                    <input type="date" value={tbDateRange.fromDate} onChange={e => setTbDateRange(p => ({ ...p, fromDate: e.target.value }))}
+                    <label htmlFor="tb-from-date" className="block text-xs mb-1" style={{ color: th.tableHeaderText }}>From</label>
+                    <input id="tb-from-date" type="date" value={tbDateRange.fromDate} onChange={e => setTbDateRange(p => ({ ...p, fromDate: e.target.value }))}
                       className="w-full px-3 py-2 rounded-lg text-sm" style={selectStyle} />
                   </div>
                   <div className="flex-1">
-                    <label className="block text-xs mb-1" style={{ color: th.tableHeaderText }}>To</label>
-                    <input type="date" value={tbDateRange.toDate} onChange={e => setTbDateRange(p => ({ ...p, toDate: e.target.value }))}
+                    <label htmlFor="tb-to-date" className="block text-xs mb-1" style={{ color: th.tableHeaderText }}>To</label>
+                    <input id="tb-to-date" type="date" value={tbDateRange.toDate} onChange={e => setTbDateRange(p => ({ ...p, toDate: e.target.value }))}
                       className="w-full px-3 py-2 rounded-lg text-sm" style={selectStyle} />
                   </div>
                   <button onClick={fetchTrialBalance} className="px-4 py-2 rounded-lg text-sm text-white font-semibold"
@@ -625,8 +628,8 @@ setLedgerSummary({
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Account Type</label>
-                <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="w-full px-3 py-3 rounded-xl"
+                <label htmlFor="ledger-account-type" className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Account Type</label>
+                <select id="ledger-account-type" value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="w-full px-3 py-3 rounded-xl"
                   style={{ background: th.modalSelectBg, border: `1px solid ${th.modalSelectBorder}`, color: th.modalSelectText }}>
                   <option value="all">All Types</option>
                   {["asset","liability","equity","revenue","expense"].map(t => (

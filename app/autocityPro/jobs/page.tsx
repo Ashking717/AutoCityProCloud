@@ -388,7 +388,7 @@ export default function JobsPage() {
                 { value: priorityFilter, onChange: (v: string) => { setPriorityFilter(v); setPage(1); }, opts: [["all","All Priorities"],["LOW","Low"],["MEDIUM","Medium"],["HIGH","High"],["URGENT","Urgent"]] },
                 { value: convertedFilter, onChange: (v: string) => { setConvertedFilter(v); setPage(1); }, opts: [["all","All Jobs"],["false","Not Converted"],["true","Converted to Sale"]] },
               ].map((s, i) => (
-                <select key={i} value={s.value} onChange={e => s.onChange(e.target.value)}
+                <select key={s.opts[0][1]} value={s.value} onChange={e => s.onChange(e.target.value)}
                   className="w-full px-3 py-2.5 rounded-lg text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent appearance-none"
                   style={selectStyle}>
                   {s.opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}

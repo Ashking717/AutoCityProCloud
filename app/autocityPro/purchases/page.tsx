@@ -90,6 +90,32 @@ type ViewMode = 'grid' | 'list' | 'compact';
 type SortField = 'date' | 'amount' | 'supplier' | 'status' | 'balance';
 type SortOrder = 'asc' | 'desc';
 
+const PaymentToggle = ({ compact = false, th, paymentStatusFilter, setPaymentStatusFilter, unpaidCount, totalCount }: {
+  compact?: boolean; th: any; paymentStatusFilter: string;
+  setPaymentStatusFilter: (v: string) => void; unpaidCount: number; totalCount: number;
+}) => (
+  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${compact ? 'flex-1' : ''}`}
+    style={{ background: th.toggleBg, borderColor: th.toggleBorder }}>
+    <button
+      onClick={() => setPaymentStatusFilter('unpaid')}
+      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${compact ? 'flex-1 justify-center' : ''} ${paymentStatusFilter === 'unpaid' ? 'bg-[#E84545] text-white shadow-lg' : ''}`}
+      style={paymentStatusFilter !== 'unpaid' ? { color: th.toggleInactive } : {}}
+    >
+      <AlertCircle className="h-3 w-3" />
+      Unpaid ({unpaidCount})
+    </button>
+    <div className="h-4 w-px" style={{ background: th.dividerStrong }} />
+    <button
+      onClick={() => setPaymentStatusFilter('all')}
+      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${compact ? 'flex-1 justify-center' : ''} ${paymentStatusFilter === 'all' ? 'bg-[#E84545] text-white shadow-lg' : ''}`}
+      style={paymentStatusFilter !== 'all' ? { color: th.toggleInactive } : {}}
+    >
+      <FileText className="h-3 w-3" />
+      All ({totalCount})
+    </button>
+  </div>
+);
+
 export default function PurchasesPage() {
   const router = useRouter();
   const isDark = useTimeBasedTheme();
@@ -418,29 +444,6 @@ export default function PurchasesPage() {
     );
   }
 
-  // Reusable payment toggle component (inline)
-  const PaymentToggle = ({ compact = false }: { compact?: boolean }) => (
-    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${compact ? 'flex-1' : ''}`}
-      style={{ background: th.toggleBg, borderColor: th.toggleBorder }}>
-      <button
-        onClick={() => setPaymentStatusFilter('unpaid')}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${compact ? 'flex-1 justify-center' : ''} ${paymentStatusFilter === 'unpaid' ? 'bg-[#E84545] text-white shadow-lg' : ''}`}
-        style={paymentStatusFilter !== 'unpaid' ? { color: th.toggleInactive } : {}}
-      >
-        <AlertCircle className="h-3 w-3" />
-        Unpaid ({allPurchases.filter(p => p.balanceDue > 0).length})
-      </button>
-      <div className="h-4 w-px" style={{ background: th.dividerStrong }} />
-      <button
-        onClick={() => setPaymentStatusFilter('all')}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${compact ? 'flex-1 justify-center' : ''} ${paymentStatusFilter === 'all' ? 'bg-[#E84545] text-white shadow-lg' : ''}`}
-        style={paymentStatusFilter !== 'all' ? { color: th.toggleInactive } : {}}
-      >
-        <FileText className="h-3 w-3" />
-        All ({allPurchases.length})
-      </button>
-    </div>
-  );
 
   return (
     <MainLayout user={user} onLogout={handleLogout}>
@@ -626,8 +629,8 @@ export default function PurchasesPage() {
                     sub: <span className="text-xs" style={{ color: th.textMuted }}>{stats.overduePayments} pending payments</span>,
                     hoverBorder: isDark ? 'rgba(249,115,22,0.30)' : 'rgba(249,115,22,0.25)',
                   },
-                ].map((card, i) => (
-                  <div key={i} className="rounded-2xl p-5 transition-all group relative overflow-hidden border cursor-default"
+                ].map((card) => (
+                  <div key={card.label} className="rounded-2xl p-5 transition-all group relative overflow-hidden border cursor-default"
                     style={{ background: th.cardBg, borderColor: th.cardBorder }}
                     onMouseEnter={e => (e.currentTarget.style.borderColor = card.hoverBorder)}
                     onMouseLeave={e => (e.currentTarget.style.borderColor = th.cardBorder)}>
@@ -677,7 +680,7 @@ export default function PurchasesPage() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <h3 className="font-semibold" style={{ color: th.textPrimary }}>Filters & Search</h3>
-                  <PaymentToggle />
+                  <PaymentToggle th={th} paymentStatusFilter={paymentStatusFilter} setPaymentStatusFilter={setPaymentStatusFilter} unpaidCount={allPurchases.filter(p => p.balanceDue > 0).length} totalCount={allPurchases.length} />
                   {(statusFilter !== 'all' || supplierFilter !== 'all' || paymentMethodFilter !== 'all' || dateRange.startDate) && (
                     <button onClick={clearFilters} className="text-xs text-[#E84545] hover:text-[#E84545]/80 transition-colors flex items-center gap-1">
                       <X className="h-3 w-3" />Clear all
@@ -686,7 +689,7 @@ export default function PurchasesPage() {
                 </div>
                 <div className="flex items-center gap-1 p-1 rounded-lg" style={{ background: th.inputBg }}>
                   {(['grid', 'list', 'compact'] as ViewMode[]).map((mode, i) => {
-                    const icons = [<Grid className="h-4 w-4" />, <List className="h-4 w-4" />, <Layers className="h-4 w-4" />];
+                    const icons = [<Grid key="grid" className="h-4 w-4" />, <List key="list" className="h-4 w-4" />, <Layers key="layers" className="h-4 w-4" />];
                     return (
                       <button key={mode} onClick={() => setViewMode(mode)}
                         className={`p-2 rounded-lg transition-all ${viewMode === mode ? 'bg-[#E84545] text-white' : ''}`}
@@ -705,11 +708,11 @@ export default function PurchasesPage() {
                     className={`w-full pl-10 pr-4 py-2.5 rounded-xl ${inputClass}`} style={inputStyle} />
                 </div>
                 {[
-                  { value: statusFilter, onChange: setStatusFilter, opts: [['all','All Status'],['COMPLETED','✓ Completed'],['DRAFT','○ Draft'],['CANCELLED','✕ Cancelled']] },
-                  { value: supplierFilter, onChange: setSupplierFilter, opts: [['all','All Suppliers'], ...suppliers.map(s => [s._id, s.name])] },
-                  { value: paymentMethodFilter, onChange: setPaymentMethodFilter, opts: [['all','All Payments'],['CASH','💵 Cash'],['CARD','💳 Card'],['BANK_TRANSFER','🏦 Bank Transfer'],['CREDIT','📋 Credit']] },
-                ].map((s, i) => (
-                  <select key={i} value={s.value} onChange={e => s.onChange(e.target.value)}
+                  { id: 'status', value: statusFilter, onChange: setStatusFilter, opts: [['all','All Status'],['COMPLETED','✓ Completed'],['DRAFT','○ Draft'],['CANCELLED','✕ Cancelled']] },
+                  { id: 'supplier', value: supplierFilter, onChange: setSupplierFilter, opts: [['all','All Suppliers'], ...suppliers.map(s => [s._id, s.name])] },
+                  { id: 'payment', value: paymentMethodFilter, onChange: setPaymentMethodFilter, opts: [['all','All Payments'],['CASH','💵 Cash'],['CARD','💳 Card'],['BANK_TRANSFER','🏦 Bank Transfer'],['CREDIT','📋 Credit']] },
+                ].map((s) => (
+                  <select key={s.id} value={s.value} onChange={e => s.onChange(e.target.value)}
                     className={`px-4 py-2.5 rounded-xl appearance-none ${inputClass}`} style={inputStyle}>
                     {s.opts.map(([v,l]) => <option key={v} value={v}>{l}</option>)}
                   </select>
@@ -785,7 +788,7 @@ export default function PurchasesPage() {
               {isMobile && (
                 <div className="space-y-4">
                   {filteredAndSortedPurchases.map(purchase => (
-                    <div key={purchase._id} onClick={() => router.push(`/autocityPro/purchases/${purchase._id}`)}
+                    <div key={purchase._id} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') router.push(`/autocityPro/purchases/${purchase._id}`); }} onClick={() => router.push(`/autocityPro/purchases/${purchase._id}`)}
                       className="rounded-2xl shadow-lg p-4 active:scale-[0.98] transition-all relative overflow-hidden group border cursor-pointer"
                       style={{ background: th.cardBg, borderColor: th.cardBorder }}
                       onMouseEnter={e => (e.currentTarget.style.borderColor = th.cardBorderHover)}
@@ -843,12 +846,12 @@ export default function PurchasesPage() {
               {!isMobile && viewMode === 'grid' && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                   {filteredAndSortedPurchases.map(purchase => (
-                    <div key={purchase._id} onClick={() => router.push(`/autocityPro/purchases/${purchase._id}`)}
+                    <div key={purchase._id} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') router.push(`/autocityPro/purchases/${purchase._id}`); }} onClick={() => router.push(`/autocityPro/purchases/${purchase._id}`)}
                       className="rounded-2xl shadow-lg p-5 transition-all cursor-pointer group relative overflow-hidden border"
                       style={{ background: th.cardBg, borderColor: th.cardBorder }}
                       onMouseEnter={e => (e.currentTarget.style.borderColor = th.cardBorderHover)}
                       onMouseLeave={e => (e.currentTarget.style.borderColor = th.cardBorder)}>
-                      <div className="absolute top-4 left-4 z-20" onClick={e => { e.stopPropagation(); toggleSelectPurchase(purchase._id); }}>
+                      <div role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); toggleSelectPurchase(purchase._id); } }} className="absolute top-4 left-4 z-20" onClick={e => { e.stopPropagation(); toggleSelectPurchase(purchase._id); }}>
                         <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${selectedPurchases.has(purchase._id) ? 'bg-[#E84545] border-[#E84545]' : ''}`}
                           style={!selectedPurchases.has(purchase._id) ? { borderColor: th.dividerStrong } : {}}>
                           {selectedPurchases.has(purchase._id) && <CheckCircle className="h-3 w-3 text-white" />}
@@ -923,8 +926,8 @@ export default function PurchasesPage() {
                             { label:'Payment', field:null },
                             { label:'Status', field:'status' as SortField },
                             { label:'Actions', field:null },
-                          ].map((h, i) => (
-                            <th key={i} className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${h.field ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                          ].map((h) => (
+                            <th key={h.label} className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${h.field ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
                               style={{ color: th.tableHeadText }}
                               onClick={() => h.field && toggleSort(h.field)}>
                               <div className="flex items-center gap-2">
@@ -1011,13 +1014,13 @@ export default function PurchasesPage() {
                 <div className="rounded-2xl shadow-lg overflow-hidden border transition-colors duration-500" style={{ background: th.cardBg, borderColor: th.cardBorder }}>
                   <div>
                     {filteredAndSortedPurchases.map(purchase => (
-                      <div key={purchase._id} onClick={() => router.push(`/autocityPro/purchases/${purchase._id}`)}
+                      <div key={purchase._id} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') router.push(`/autocityPro/purchases/${purchase._id}`); }} onClick={() => router.push(`/autocityPro/purchases/${purchase._id}`)}
                         className="flex items-center justify-between p-4 transition-all cursor-pointer group border-b"
                         style={{ borderColor: th.tableRowDivider }}
                         onMouseEnter={e => (e.currentTarget.style.background = th.tableRowHover)}
                         onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                         <div className="flex items-center gap-4 flex-1">
-                          <div onClick={e => { e.stopPropagation(); toggleSelectPurchase(purchase._id); }}>
+                          <div role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); toggleSelectPurchase(purchase._id); } }} onClick={e => { e.stopPropagation(); toggleSelectPurchase(purchase._id); }}>
                             <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${selectedPurchases.has(purchase._id) ? 'bg-[#E84545] border-[#E84545]' : ''}`}
                               style={!selectedPurchases.has(purchase._id) ? { borderColor: th.dividerStrong } : {}}>
                               {selectedPurchases.has(purchase._id) && <CheckCircle className="h-3 w-3 text-white" />}
@@ -1187,7 +1190,7 @@ export default function PurchasesPage() {
 
       <div className="md:hidden h-24" />
 
-      <style jsx global>{`
+      <style>{`
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
       `}</style>

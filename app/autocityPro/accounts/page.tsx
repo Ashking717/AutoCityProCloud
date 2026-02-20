@@ -379,7 +379,7 @@ export default function AccountsPage() {
               const colors = getSummaryColors(type);
               const isActive = filterType === type;
               return (
-                <div key={type} onClick={() => setFilterType(filterType === type ? 'all' : type)}
+                <div key={type} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setFilterType(filterType === type ? 'all' : type); }} onClick={() => setFilterType(filterType === type ? 'all' : type)}
                   className="rounded-xl p-4 md:p-6 cursor-pointer transition-all active:scale-[0.98]"
                   style={{ background: th.cardBg, border: `1px solid ${isActive ? '#E84545' : th.cardBorder}`, boxShadow: isActive ? '0 0 0 2px rgba(232,69,69,0.15)' : 'none' }}
                   onMouseEnter={e => !isActive && (e.currentTarget.style.borderColor = th.cardHoverBorder)}
@@ -573,8 +573,8 @@ export default function AccountsPage() {
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>Account Type *</label>
-                  <select value={formData.accountType}
+                  <label htmlFor="account-type" className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>Account Type *</label>
+                  <select id="account-type" value={formData.accountType}
                     onChange={e => setFormData({ ...formData, accountType: e.target.value as any, accountSubType: '', accountGroup: '' })}
                     disabled={editingAccount?.isSystem}
                     className="w-full px-3 py-2 rounded-lg appearance-none focus:ring-2 focus:ring-[#E84545] disabled:opacity-50"
@@ -583,8 +583,8 @@ export default function AccountsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>Sub Type</label>
-                  <select value={formData.accountSubType} onChange={e => setFormData({ ...formData, accountSubType: e.target.value })}
+                  <label htmlFor="account-sub-type" className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>Sub Type</label>
+                  <select id="account-sub-type" value={formData.accountSubType} onChange={e => setFormData({ ...formData, accountSubType: e.target.value })}
                     disabled={editingAccount?.isSystem}
                     className="w-full px-3 py-2 rounded-lg appearance-none focus:ring-2 focus:ring-[#E84545] disabled:opacity-50"
                     style={modalInputStyle}>
@@ -593,8 +593,8 @@ export default function AccountsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>Account Group *</label>
-                  <select value={formData.accountGroup} onChange={e => setFormData({ ...formData, accountGroup: e.target.value })} required
+                  <label htmlFor="account-group" className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>Account Group *</label>
+                  <select id="account-group" value={formData.accountGroup} onChange={e => setFormData({ ...formData, accountGroup: e.target.value })} required
                     className="w-full px-3 py-2 rounded-lg appearance-none focus:ring-2 focus:ring-[#E84545]"
                     style={modalInputStyle}>
                     <option value="">Select Group</option>
@@ -613,8 +613,8 @@ export default function AccountsPage() {
                   style={modalInputStyle} placeholder="0.00" />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>Description</label>
-                <textarea value={formData.description} rows={3} onChange={e => setFormData({ ...formData, description: e.target.value })}
+                <label htmlFor="account-description" className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>Description</label>
+                <textarea id="account-description" value={formData.description} rows={3} onChange={e => setFormData({ ...formData, description: e.target.value })}
                   className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545]"
                   style={modalInputStyle} placeholder="Optional description" />
               </div>

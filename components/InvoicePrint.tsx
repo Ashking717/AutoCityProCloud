@@ -1,7 +1,8 @@
 //components/ui/InvoicePrint.tsx
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useCallback, useState } from "react";
+import Image from "next/image";
 
 interface InvoiceItem {
   name: string;
@@ -80,32 +81,32 @@ export default function InvoicePrint({
 
   const handlePrint = () => window.print();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [outletRes, customerRes] = await Promise.all([
-          fetch(`/api/outlets/${outletId}`, { credentials: "include" }),
-          fetch(`/api/customers/${customerId}`, { credentials: "include" }),
-        ]);
+  const fetchData = useCallback(async () => {
+    try {
+      const [outletRes, customerRes] = await Promise.all([
+        fetch(`/api/outlets/${outletId}`, { credentials: "include" }),
+        fetch(`/api/customers/${customerId}`, { credentials: "include" }),
+      ]);
 
-        if (outletRes.ok) {
-          const data = await outletRes.json();
-          setOutlet(data.outlet);
-        }
-
-        if (customerRes.ok) {
-          const data = await customerRes.json();
-          setCustomer(data.customer);
-        }
-      } catch (err) {
-        console.error("Failed to load invoice data", err);
-      } finally {
-        setLoading(false);
+      if (outletRes.ok) {
+        const data = await outletRes.json();
+        setOutlet(data.outlet);
       }
-    };
 
-    fetchData();
+      if (customerRes.ok) {
+        const data = await customerRes.json();
+        setCustomer(data.customer);
+      }
+    } catch (err) {
+      console.error("Failed to load invoice data", err);
+    } finally {
+      setLoading(false);
+    }
   }, [outletId, customerId]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   if (loading) {
     return (
@@ -158,11 +159,13 @@ export default function InvoicePrint({
               </h1>
             </div>
 
-            <div className="w-32 h-32 rounded-full bg-gray-400 flex items-center justify-center overflow-hidden">
-              <img
+            <div className="relative w-32 h-32 rounded-full bg-gray-400 flex items-center justify-center overflow-hidden">
+              <Image
                 src="/logo.png"
                 alt="Logo"
-                className="w-full h-full object-cover"
+                fill
+                sizes="128px"
+                className="object-cover"
               />
             </div>
           </div>
@@ -263,8 +266,8 @@ export default function InvoicePrint({
               </tr>
             </thead>
             <tbody>
-              {invoice.items.map((item, i) => (
-                <tr key={i} className="border-b border-black">
+              {invoice.items.map((item) => (
+                <tr key={`${item.name}-${item.quantity}-${item.unitPrice}`} className="border-b border-black">
                   <td className="py-3 px-3 border-r border-black">
                     {item.quantity}
                   </td>
@@ -329,7 +332,7 @@ export default function InvoicePrint({
 
           {/* Signature */}
           <div className="flex justify-end mr-30 mb-12">
-            <img src="/seal.png" alt="Seal" className="h-40 w-40 rotate-[15deg] opacity-80" />
+            <Image src="/seal.png" alt="Seal" width={160} height={160} className="rotate-[15deg] opacity-80" />
           </div>
 
           {/* Footer */}
@@ -344,7 +347,7 @@ export default function InvoicePrint({
       </div>
 
       {/* Print Styles */}
-      <style jsx global>{`
+      <style>{`
         @media print {
           body * {
             visibility: hidden;

@@ -715,8 +715,8 @@ export default function SettingsPage() {
                   </div>
                 ))}
                 <div>
-                  <label className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Role <span className="text-red-400">*</span></label>
-                  <select value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value as UserRoleType })}
+                  <label htmlFor="new-user-role" className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Role <span className="text-red-400">*</span></label>
+                  <select id="new-user-role" value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value as UserRoleType })}
                     className={modalInputCls} style={modalInputStyle}>
                     {user?.role === 'SUPERADMIN' && <option value={UserRole.SUPERADMIN}>Super Admin</option>}
                     <option value={UserRole.ADMIN}>Admin</option>

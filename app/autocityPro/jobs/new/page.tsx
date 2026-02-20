@@ -165,11 +165,12 @@ export default function NewJobPage() {
     return () => window.removeEventListener("resize", check);
   }, []);
   useEffect(() => { searchInputRef.current?.focus(); }, []);
-  useEffect(() => {
-    if (selectedCustomer) {
-      setVehicleInfo({ registrationNumber: selectedCustomer.vehicleRegistrationNumber || "", make: selectedCustomer.vehicleMake || "", model: selectedCustomer.vehicleModel || "", year: selectedCustomer.vehicleYear?.toString() || "", color: selectedCustomer.vehicleColor || "", vin: selectedCustomer.vehicleVIN || "", mileage: "" });
+  const handleSelectCustomer = (customer: ICustomer | null) => {
+    setSelectedCustomer(customer);
+    if (customer) {
+      setVehicleInfo({ registrationNumber: customer.vehicleRegistrationNumber || "", make: customer.vehicleMake || "", model: customer.vehicleModel || "", year: customer.vehicleYear?.toString() || "", color: customer.vehicleColor || "", vin: customer.vehicleVIN || "", mileage: "" });
     }
-  }, [selectedCustomer]);
+  };
 
   const fetchUser = async () => {
     try { const res = await fetch("/api/auth/me", { credentials: "include" }); if (res.ok) { const d = await res.json(); setUser(d.user); } } catch {}
@@ -199,7 +200,7 @@ export default function NewJobPage() {
       });
       if (res.ok) {
         const d = await res.json(); toast.success("Customer added!");
-        setCustomers([...customers, d.customer]); setSelectedCustomer(d.customer); setShowAddCustomer(false);
+        setCustomers([...customers, d.customer]); handleSelectCustomer(d.customer); setShowAddCustomer(false);
         setNewCustomer({ name:"", phone:"", email:"", address:"", vehicleRegistrationNumber:"", vehicleMake:"", vehicleModel:"", vehicleYear:"", vehicleColor:"", vehicleVIN:"" });
       } else { const e = await res.json(); toast.error(e.error || "Failed to add customer"); }
     } catch { toast.error("Failed to add customer"); }
@@ -346,16 +347,18 @@ export default function NewJobPage() {
                 </h2>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2" style={{ color: th.panelTitle }}>Job Title *</label>
+                    <label className="block text-sm font-medium mb-2" style={{ color: th.panelTitle }}>Job Title *
                     <input type="text" value={jobTitle} onChange={e => setJobTitle(e.target.value)} placeholder="Enter job title..."
                       className="w-full px-3 py-3 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
                       style={inputStyle} />
+                    </label>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2" style={{ color: th.panelTitle }}>Description (Optional)</label>
+                    <label className="block text-sm font-medium mb-2" style={{ color: th.panelTitle }}>Description (Optional)
                     <textarea value={jobDescription} onChange={e => setJobDescription(e.target.value)} placeholder="Additional details..." rows={3}
                       className="w-full px-3 py-3 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent resize-none"
                       style={inputStyle} />
+                    </label>
                   </div>
                   <div className="pt-4" style={{ borderTop: `1px solid ${th.divider}` }}>
                     <VoiceNoteRecorder voiceNotes={voiceNotes} onChange={setVoiceNotes} onUploadingChange={setIsVoiceUploading}
@@ -396,7 +399,7 @@ export default function NewJobPage() {
                       {filteredProducts.length === 0 ? (
                         <div className="text-center py-8"><Search className="h-12 w-12 mx-auto mb-3" style={{ color: th.emptyIcon }} /><p style={{ color: th.emptyText }}>No products found</p></div>
                       ) : filteredProducts.map(p => (
-                        <div key={p._id} onClick={() => addToItems(p)} className="p-4 rounded-lg cursor-pointer transition-all"
+                        <div key={p._id} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') addToItems(p); }} onClick={() => addToItems(p)} className="p-4 rounded-lg cursor-pointer transition-all"
                           style={{ background: th.productCardBg, border: `1px solid ${th.productCardBorder}` }}
                           onMouseEnter={e => (e.currentTarget.style.borderColor = th.productCardHover)}
                           onMouseLeave={e => (e.currentTarget.style.borderColor = th.productCardBorder)}>
@@ -430,7 +433,7 @@ export default function NewJobPage() {
                       <p className="text-sm mt-2" style={{ color: th.subText }}>Search for parts or add labor charges</p>
                     </div>
                   ) : items.map((item, index) => (
-                    <div key={index} className="rounded-lg p-3 md:p-4" style={{ background: th.itemBg, border: `1px solid ${th.itemBorder}` }}>
+                    <div key={item.productId || `${item.sku}-${index}`} className="rounded-lg p-3 md:p-4" style={{ background: th.itemBg, border: `1px solid ${th.itemBorder}` }}>
                       <div className="flex justify-between items-start mb-2">
                         <h3 className="font-semibold text-sm flex items-center gap-2" style={{ color: th.itemTitle }}>
                           {item.isLabor && <Wrench className="h-4 w-4 text-[#E84545]" />}{item.productName}
@@ -459,7 +462,7 @@ export default function NewJobPage() {
               {/* Customer */}
               <div className="rounded-xl p-4 md:p-6 transition-colors duration-500" style={{ background: th.panelBg, border: `1px solid ${th.panelBorder}` }}>
                 <h2 className="text-lg font-bold mb-4" style={{ color: th.panelTitle }}>Customer *</h2>
-                <select value={selectedCustomer?._id || ""} onChange={e => setSelectedCustomer(customers.find(c => c._id === e.target.value) || null)}
+                <select value={selectedCustomer?._id || ""} onChange={e => handleSelectCustomer(customers.find(c => c._id === e.target.value) || null)}
                   className="w-full px-3 py-2 mb-3 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-sm"
                   style={selectStyle}>
                   <option value="">Select Customer</option>
@@ -513,7 +516,7 @@ export default function NewJobPage() {
                 <h2 className="text-lg font-bold mb-4" style={{ color: th.panelTitle }}>Priority & Status</h2>
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-sm font-medium mb-2" style={{ color: th.panelTitle }}>Priority</label>
+                    <label className="block text-sm font-medium mb-2" style={{ color: th.panelTitle }}>Priority
                     <div className="grid grid-cols-2 gap-2">
                       {(["LOW","MEDIUM","HIGH","URGENT"] as const).map(p => (
                         <button key={p} onClick={() => setPriority(p)}
@@ -523,9 +526,10 @@ export default function NewJobPage() {
                         </button>
                       ))}
                     </div>
+                    </label>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2" style={{ color: th.panelTitle }}>Status</label>
+                    <label className="block text-sm font-medium mb-2" style={{ color: th.panelTitle }}>Status
                     <div className="grid grid-cols-2 gap-2">
                       {[
                         { val: "DRAFT" as const, icon: <FileText className="h-4 w-4" />, sel: isDark ? "bg-gray-500/20 text-gray-300 border-gray-500/30" : "bg-gray-100 text-gray-600 border-gray-200" },
@@ -538,6 +542,7 @@ export default function NewJobPage() {
                         </button>
                       ))}
                     </div>
+                    </label>
                   </div>
                 </div>
               </div>
@@ -563,12 +568,14 @@ export default function NewJobPage() {
                 </h2>
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-sm font-medium mb-2" style={{ color: th.panelTitle }}>Estimated Start</label>
+                    <label className="block text-sm font-medium mb-2" style={{ color: th.panelTitle }}>Estimated Start
                     <input type="datetime-local" value={estimatedStartDate} onChange={e => setEstimatedStartDate(e.target.value)} className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] text-sm" style={inputStyle} />
+                    </label>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2" style={{ color: th.panelTitle }}>Estimated Completion</label>
+                    <label className="block text-sm font-medium mb-2" style={{ color: th.panelTitle }}>Estimated Completion
                     <input type="datetime-local" value={estimatedCompletionDate} onChange={e => setEstimatedCompletionDate(e.target.value)} className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] text-sm" style={inputStyle} />
+                    </label>
                   </div>
                 </div>
               </div>
@@ -633,16 +640,19 @@ export default function NewJobPage() {
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>Name *</label>
+                  <label className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>Name *
                   <input type="text" value={newCustomer.name} onChange={e => setNewCustomer({ ...newCustomer, name: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={inputStyle} />
+                  </label>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>Phone *</label>
+                  <label className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>Phone *
                   <input type="text" value={newCustomer.phone} onChange={e => setNewCustomer({ ...newCustomer, phone: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={inputStyle} />
+                  </label>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>Email</label>
+                  <label className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>Email
                   <input type="email" value={newCustomer.email} onChange={e => setNewCustomer({ ...newCustomer, email: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={inputStyle} />
+                  </label>
                 </div>
               </div>
               <div className="pt-4" style={{ borderTop: `1px solid ${th.divider}` }}>
@@ -690,12 +700,14 @@ export default function NewJobPage() {
                 </div>
               ))}
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>Hours/Quantity</label>
+                <label className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>Hours/Quantity
                 <input type="number" value={laborCharge.hours} onChange={e=>setLaborCharge({...laborCharge,hours:parseFloat(e.target.value)||1})} min="0.5" step="0.5" className="w-full px-3 py-2 rounded-lg" style={inputStyle} />
+                </label>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>Notes</label>
+                <label className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>Notes
                 <textarea value={laborCharge.notes} onChange={e=>setLaborCharge({...laborCharge,notes:e.target.value})} rows={2} placeholder="Additional details..." className="w-full px-3 py-2 rounded-lg resize-none" style={inputStyle} />
+                </label>
               </div>
               <div className="flex justify-end gap-3 pt-4">
                 <button onClick={() => setShowAddLabor(false)} className="px-4 py-2 rounded-lg" style={{ background: th.modalCancelBg, border: `1px solid ${th.modalCancelBorder}`, color: th.modalCancelText }}>Cancel</button>

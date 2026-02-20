@@ -27,6 +27,38 @@ function useTimeBasedTheme() {
   return isDark;
 }
 
+const SectionPanel = ({ children, th }: { children: React.ReactNode; th: any }) => (
+  <div className="rounded-2xl shadow-xl overflow-hidden transition-colors duration-500"
+    style={{
+      background: `linear-gradient(135deg, ${th.tableBgFrom}, ${th.tableBgTo})`,
+      border: `1px solid ${th.tableBorder}`,
+    }}
+  >
+    {children}
+  </div>
+);
+
+const TableHead = ({ cols, th }: { cols: string[]; th: any }) => (
+  <thead style={{ background: th.tableHeadBg }}>
+    <tr>
+      {cols.map(c => (
+        <th key={c} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider"
+          style={{ color: th.tableHeadText }}
+        >{c}</th>
+      ))}
+    </tr>
+  </thead>
+);
+
+const EmptyRow = ({ colSpan, icon: Icon, label, th }: { colSpan: number; icon: any; label: string; th: any }) => (
+  <tr>
+    <td colSpan={colSpan} className="px-6 py-8 text-center">
+      <Icon className="h-10 w-10 mx-auto mb-2" style={{ color: th.emptyIcon }} />
+      <p className="text-sm" style={{ color: th.emptyText }}>{label}</p>
+    </td>
+  </tr>
+);
+
 export default function PurchasesPortalPage() {
   const router = useRouter();
   const isDark = useTimeBasedTheme();
@@ -260,38 +292,6 @@ export default function PurchasesPortalPage() {
     window.location.href = '/autocityPro/login';
   };
 
-  // ── Shared table / card section renderer ─────────────────────────────────
-  const SectionPanel = ({ children }: { children: React.ReactNode }) => (
-    <div className="rounded-2xl shadow-xl overflow-hidden transition-colors duration-500"
-      style={{
-        background: `linear-gradient(135deg, ${th.tableBgFrom}, ${th.tableBgTo})`,
-        border: `1px solid ${th.tableBorder}`,
-      }}
-    >
-      {children}
-    </div>
-  );
-
-  const TableHead = ({ cols }: { cols: string[] }) => (
-    <thead style={{ background: th.tableHeadBg }}>
-      <tr>
-        {cols.map(c => (
-          <th key={c} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider"
-            style={{ color: th.tableHeadText }}
-          >{c}</th>
-        ))}
-      </tr>
-    </thead>
-  );
-
-  const EmptyRow = ({ colSpan, icon: Icon, label }: { colSpan: number; icon: any; label: string }) => (
-    <tr>
-      <td colSpan={colSpan} className="px-6 py-8 text-center">
-        <Icon className="h-10 w-10 mx-auto mb-2" style={{ color: th.emptyIcon }} />
-        <p className="text-sm" style={{ color: th.emptyText }}>{label}</p>
-      </td>
-    </tr>
-  );
 
   return (
     <MainLayout user={user} onLogout={handleLogout}>
@@ -426,8 +426,8 @@ export default function PurchasesPortalPage() {
             {showFilters && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4" style={{ borderTop: `1px solid ${th.filterBorder2}` }}>
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: th.filterLabel }}>Transaction Type</label>
-                  <select value={filterType} onChange={e => setFilterType(e.target.value)}
+                  <label htmlFor="portal-filter-type" className="block text-sm font-medium mb-1" style={{ color: th.filterLabel }}>Transaction Type</label>
+                  <select id="portal-filter-type" value={filterType} onChange={e => setFilterType(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg transition-colors duration-500"
                     style={{ background: th.selectBg, border: `1px solid ${th.selectBorder}`, color: th.selectText }}
                   >
@@ -464,8 +464,8 @@ export default function PurchasesPortalPage() {
                 </div>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2" style={{ color: th.filterLabel }}>Transaction Type</label>
-                    <select value={filterType} onChange={e => setFilterType(e.target.value)}
+                    <label htmlFor="portal-filter-type-mobile" className="block text-sm font-medium mb-2" style={{ color: th.filterLabel }}>Transaction Type</label>
+                    <select id="portal-filter-type-mobile" value={filterType} onChange={e => setFilterType(e.target.value)}
                       className="w-full px-3 py-2 rounded-lg"
                       style={{ background: th.selectBg, border: `1px solid ${th.selectBorder}`, color: th.selectText }}
                     >
@@ -564,10 +564,10 @@ export default function PurchasesPortalPage() {
                 <PlusCircle className="h-4 w-4" /><span className="text-sm">Add New</span>
               </button>
             </div>
-            <SectionPanel>
+            <SectionPanel th={th}>
               {/* Desktop table */}
               <table className="min-w-full hidden md:table" style={{ borderCollapse: 'collapse' }}>
-                <TableHead cols={['Name','Product Count','Created At']} />
+                <TableHead th={th} cols={['Name','Product Count','Created At']} />
                 <tbody>
                   {filteredCategories.length > 0 ? filteredCategories.map(cat => (
                     <tr key={cat.id} className="transition-colors" style={{ borderTop: `1px solid ${th.tableDivider}` }}
@@ -578,7 +578,7 @@ export default function PurchasesPortalPage() {
                       <td className="px-6 py-4 text-sm" style={{ color: th.tableCellSecondary }}>{cat.productCount}</td>
                       <td className="px-6 py-4 text-sm" style={{ color: th.tableCellSecondary }}>{cat.createdAt}</td>
                     </tr>
-                  )) : <EmptyRow colSpan={3} icon={Tag} label="No categories found" />}
+                  )) : <EmptyRow th={th} colSpan={3} icon={Tag} label="No categories found" />}
                 </tbody>
               </table>
               {/* Mobile cards */}
@@ -610,9 +610,9 @@ export default function PurchasesPortalPage() {
                 <PlusCircle className="h-4 w-4" /><span className="text-sm">Add New</span>
               </button>
             </div>
-            <SectionPanel>
+            <SectionPanel th={th}>
               <table className="min-w-full hidden md:table" style={{ borderCollapse: 'collapse' }}>
-                <TableHead cols={['Name','Total Purchases','Pending Amount','Rating']} />
+                <TableHead th={th} cols={['Name','Total Purchases','Pending Amount','Rating']} />
                 <tbody>
                   {filteredSuppliers.length > 0 ? filteredSuppliers.map(sup => (
                     <tr key={sup.id} className="transition-colors" style={{ borderTop: `1px solid ${th.tableDivider}` }}
@@ -624,7 +624,7 @@ export default function PurchasesPortalPage() {
                       <td className="px-6 py-4 text-sm" style={{ color: th.tableCellSecondary }}>{formatCurrency(sup.pendingAmount)}</td>
                       <td className="px-6 py-4 text-sm" style={{ color: th.tableCellSecondary }}>{sup.rating}</td>
                     </tr>
-                  )) : <EmptyRow colSpan={4} icon={Truck} label="No suppliers found" />}
+                  )) : <EmptyRow th={th} colSpan={4} icon={Truck} label="No suppliers found" />}
                 </tbody>
               </table>
               <div className="md:hidden">
@@ -650,9 +650,9 @@ export default function PurchasesPortalPage() {
           {/* Recent Transactions */}
           <div className="mb-6 md:mb-8">
             <h2 className="text-lg md:text-xl font-bold mb-4" style={{ color: th.sectionTitle }}>Recent Transactions</h2>
-            <SectionPanel>
+            <SectionPanel th={th}>
               <table className="min-w-full hidden md:table" style={{ borderCollapse: 'collapse' }}>
-                <TableHead cols={['Type','Vendor/Category','Amount','Date','Status']} />
+                <TableHead th={th} cols={['Type','Vendor/Category','Amount','Date','Status']} />
                 <tbody>
                   {filteredTransactions.length > 0 ? filteredTransactions.map(trans => (
                     <tr key={trans.id} className="transition-colors" style={{ borderTop: `1px solid ${th.tableDivider}` }}
@@ -665,7 +665,7 @@ export default function PurchasesPortalPage() {
                       <td className="px-6 py-4 text-sm" style={{ color: th.tableCellSecondary }}>{trans.date}</td>
                       <td className="px-6 py-4 text-sm capitalize" style={{ color: th.tableCellSecondary }}>{trans.status}</td>
                     </tr>
-                  )) : <EmptyRow colSpan={5} icon={History} label="No transactions found" />}
+                  )) : <EmptyRow th={th} colSpan={5} icon={History} label="No transactions found" />}
                 </tbody>
               </table>
               <div className="md:hidden">
@@ -732,7 +732,7 @@ export default function PurchasesPortalPage() {
 
       <div className="md:hidden h-24" />
 
-      <style jsx global>{`
+      <style>{`
         .line-clamp-2 {
           display: -webkit-box;
           -webkit-line-clamp: 2;

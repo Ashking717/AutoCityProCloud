@@ -187,7 +187,7 @@ export default function StockPage() {
 
   const fetchProducts = async (page = 1, append = false) => {
     try {
-      if (!append) setLoading(true); else setIsLoadingMore(true);
+      if (!append) { setCurrentPage(page); setProducts([]); setHasMoreProducts(true); setLoading(true); } else { setIsLoadingMore(true); }
       const params = new URLSearchParams({ page: page.toString(), limit: '50' });
       if (searchTerm)   params.append('search',    searchTerm);
       if (filterCategory) params.append('categoryId', filterCategory);
@@ -218,7 +218,7 @@ export default function StockPage() {
   };
 
   const loadMoreProducts = () => { if (!isLoadingMore && hasMoreProducts) fetchProducts(currentPage + 1, true); };
-  const handleRefresh    = () => { setCurrentPage(1); setProducts([]); setHasMoreProducts(true); fetchProducts(1, false); toast.success('Stock data refreshed'); };
+  const handleRefresh    = () => { fetchProducts(1, false); toast.success('Stock data refreshed'); };
 
   useEffect(() => {
     fetchUser(); fetchCategories(); fetchProducts(1, false);
@@ -227,7 +227,7 @@ export default function StockPage() {
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  useEffect(() => { setCurrentPage(1); setProducts([]); setHasMoreProducts(true); fetchProducts(1, false); }, [searchTerm, filterStatus, filterCategory, filterMake, filterModel, filterVariant, filterColor, filterYear, filterIsVehicle]);
+  useEffect(() => { fetchProducts(1, false); }, [searchTerm, filterStatus, filterCategory, filterMake, filterModel, filterVariant, filterColor, filterYear, filterIsVehicle]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(entries => {
@@ -271,10 +271,10 @@ export default function StockPage() {
   const totalStockCode = convertToStockCode(globalStats.totalValue);
 
   const statusConfig = (p: any) => {
-    if (p.currentStock <= 0)            return { text:'Out of Stock', mobileBg:'bg-red-900/20',    mobileText:'text-red-400',    desktopClass:'bg-red-900/30 text-red-400 border border-red-800/50',    icon: <AlertTriangle className="h-4 w-4" /> };
-    if (p.currentStock <= p.minStock)   return { text:'Critical',     mobileBg:'bg-orange-900/20', mobileText:'text-orange-400', desktopClass:'bg-orange-900/30 text-orange-400 border border-orange-800/50', icon: <AlertTriangle className="h-4 w-4" /> };
-    if (p.currentStock <= p.reorderPoint)return { text:'Low Stock',   mobileBg:'bg-yellow-900/20', mobileText:'text-yellow-400', desktopClass:'bg-yellow-900/30 text-yellow-400 border border-yellow-800/50', icon: <TrendingDown className="h-4 w-4" /> };
-    return { text:'In Stock', mobileBg:'bg-green-900/20', mobileText:'text-green-400', desktopClass:'bg-green-900/30 text-green-400 border border-green-800/50', icon: <TrendingUp className="h-4 w-4" /> };
+    if (p.currentStock <= 0)            return { text:'Out of Stock', mobileBg:'bg-red-900/20',    mobileText:'text-red-400',    desktopClass:'bg-white text-red-400 border border-red-800/50',    icon: <AlertTriangle className="h-4 w-4" /> };
+    if (p.currentStock <= p.minStock)   return { text:'Critical',     mobileBg:'bg-orange-900/20', mobileText:'text-orange-400', desktopClass:'bg-white text-orange-400 border border-orange-800/50', icon: <AlertTriangle className="h-4 w-4" /> };
+    if (p.currentStock <= p.reorderPoint)return { text:'Low Stock',   mobileBg:'bg-yellow-900/20', mobileText:'text-yellow-400', desktopClass:'bg-white text-yellow-400 border border-yellow-800/50', icon: <TrendingDown className="h-4 w-4" /> };
+    return { text:'In Stock', mobileBg:'bg-green-900/20', mobileText:'text-green-400', desktopClass:'bg-white text-green-400 border border-green-800/50', icon: <TrendingUp className="h-4 w-4" /> };
   };
 
   // ── Shared select style ───────────────────────────────────────────────────
@@ -328,9 +328,9 @@ export default function StockPage() {
               </div>
               <div className="flex items-center gap-2">
                 {[
-                  { action: handleRefresh, icon: <RefreshCw className="h-4 w-4" /> },
-                ].map((btn, i) => (
-                  <button key={i} onClick={btn.action} className="p-2 rounded-xl active:scale-95 transition-all"
+                  { id: 'refresh', action: handleRefresh, icon: <RefreshCw className="h-4 w-4" /> },
+                ].map((btn) => (
+                  <button key={btn.id} onClick={btn.action} className="p-2 rounded-xl active:scale-95 transition-all"
                     style={{ background: th.mobileBtnBg, color: th.mobileBtnText }}>{btn.icon}</button>
                 ))}
                 <button onClick={() => setShowFilters(true)} className="p-2 rounded-xl active:scale-95 transition-all relative"
@@ -447,11 +447,11 @@ export default function StockPage() {
                   style={selectStyle} />
               </div>
               {[
-                { value: filterStatus, onChange: (v: string) => setFilterStatus(v), opts: [['all','All Status'],['low','Low Stock'],['critical','Critical'],['out','Out of Stock']] },
-                { value: filterCategory, onChange: (v: string) => setFilterCategory(v), opts: [['','All Categories'], ...categories.map(c => [c._id, c.name])] },
-                { value: filterIsVehicle, onChange: (v: string) => setFilterIsVehicle(v), opts: [['all','All Types'],['vehicle','Vehicles/Parts Only'],['non-vehicle','Non-Vehicle Only']] },
-              ].map((s, i) => (
-                <div key={i} className="relative">
+                { id: 'status', value: filterStatus, onChange: (v: string) => setFilterStatus(v), opts: [['all','All Status'],['low','Low Stock'],['critical','Critical'],['out','Out of Stock']] },
+                { id: 'category', value: filterCategory, onChange: (v: string) => setFilterCategory(v), opts: [['','All Categories'], ...categories.map(c => [c._id, c.name])] },
+                { id: 'type', value: filterIsVehicle, onChange: (v: string) => setFilterIsVehicle(v), opts: [['all','All Types'],['vehicle','Vehicles/Parts Only'],['non-vehicle','Non-Vehicle Only']] },
+              ].map((s) => (
+                <div key={s.id} className="relative">
                   <select value={s.value} onChange={e => s.onChange(e.target.value)}
                     className="w-full px-3 py-2 text-sm rounded focus:ring-2 focus:ring-[#E84545] focus:border-transparent appearance-none"
                     style={selectStyle}
@@ -512,8 +512,8 @@ export default function StockPage() {
                     filterVariant  && { label: `Variant: ${filterVariant}`, clear: () => setFilterVariant('') },
                     filterColor    && { label: `Color: ${filterColor}`,   clear: () => setFilterColor('') },
                     filterYear     && { label: `Year: ${filterYear}`,     clear: () => setFilterYear('') },
-                  ].filter(Boolean).map((tag: any, i) => (
-                    <span key={i} className="px-2 py-1 text-[#E84545] text-xs rounded-full flex items-center gap-1"
+                  ].filter(Boolean).map((tag: any) => (
+                    <span key={tag.label} className="px-2 py-1 text-[#E84545] text-xs rounded-full flex items-center gap-1"
                       style={{ background: th.filterTagBg }}>
                       {tag.label}<X className="h-3 w-3 cursor-pointer" onClick={tag.clear} />
                     </span>
@@ -714,8 +714,8 @@ export default function StockPage() {
                     { label:'Variant', value: filterVariant, onChange: setFilterVariant, opts: [['','All Variants'], ...availableVariants.map(v => [v,v])] },
                     { label:'Color',   value: filterColor,   onChange: setFilterColor,   opts: [['','All Colors'],   ...availableColors.map(c => [c,c])] },
                     { label:'Year (filters by range)', value: filterYear, onChange: setFilterYear, opts: [['','All Years'], ...availableYears.map(y => [String(y), String(y)])] },
-                  ].map((s, i) => (
-                    <div key={i}>
+                  ].map((s) => (
+                    <div key={s.label}>
                       <label className="block text-xs mb-1" style={{ color: th.mobileCardLabel }}>{s.label}</label>
                       <select value={s.value} onChange={e => s.onChange(e.target.value)} disabled={(s as any).disabled}
                         className="w-full px-3 py-2 rounded-lg text-sm disabled:opacity-50" style={mobileSelectStyle}>

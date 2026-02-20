@@ -32,7 +32,7 @@ import {
   Bell,
   Zap,
 } from 'lucide-react';
-import { Line, Bar } from 'react-chartjs-2';
+import dynamic from 'next/dynamic';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -45,6 +45,9 @@ import {
   Legend,
   Filler,
 } from 'chart.js';
+
+const Line = dynamic(() => import('react-chartjs-2').then(mod => ({ default: mod.Line })), { ssr: false });
+const Bar = dynamic(() => import('react-chartjs-2').then(mod => ({ default: mod.Bar })), { ssr: false });
 import toast from 'react-hot-toast';
 import {
   formatTime,
@@ -167,7 +170,7 @@ export default function DashboardPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [showDynamicIsland, setShowDynamicIsland] = useState(true);
-  const [currentTime, setCurrentTime] = useState<Date>(getCurrentDateInTimezone());
+  const [currentTime, setCurrentTime] = useState<Date>(() => getCurrentDateInTimezone());
   const hasFetched = useRef(false);
 
   const stats = dashboardData?.stats || defaultStats;
@@ -658,7 +661,7 @@ export default function DashboardPage() {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
               {statCards.map((stat, index) => (
                 <div
-                  key={index}
+                  key={stat.title}
                   className="group bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl shadow-lg p-4 hover:border-[#E84545]/30 hover:shadow-xl hover:shadow-[#E84545]/5 transition-all duration-300 active:scale-[0.98]"
                 >
                   <div className="flex items-start justify-between mb-3">
@@ -944,7 +947,7 @@ export default function DashboardPage() {
       <div className="md:hidden h-24"></div>
 
       {/* Custom Styles */}
-      <style jsx global>{`
+      <style>{`
         @supports (padding: max(0px)) {
           .md\\:hidden.fixed.top-16 {
             padding-top: max(12px, env(safe-area-inset-top));

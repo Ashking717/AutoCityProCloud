@@ -27,6 +27,27 @@ interface UserProfile {
   outletName: string | null; isActive: boolean; outletCode: string | null;
 }
 
+const FieldCard = ({ label, children, th }: { label: string; children: React.ReactNode; th: any }) => (
+  <div className="rounded-lg p-3 md:p-4 active:scale-[0.98] transition-all"
+    style={{ background: th.fieldBg, border: `1px solid ${th.fieldBorder}` }}>
+    <p className="text-xs mb-1" style={{ color: th.fieldLabel }}>{label}</p>
+    {children}
+  </div>
+);
+
+const SectionCard = ({ title, icon: Icon, iconColor = 'text-[#E84545]', children, action, th }: { title: string; icon: any; iconColor?: string; children: React.ReactNode; action?: React.ReactNode; th: any }) => (
+  <div className="rounded-2xl p-4 md:p-6 shadow-xl transition-colors duration-500"
+    style={{ background: `linear-gradient(135deg,${th.cardBgFrom},${th.cardBgTo})`, border: `1px solid ${th.cardBorder}` }}>
+    <div className="flex items-center justify-between mb-4 md:mb-6">
+      <h3 className="text-base md:text-lg font-semibold flex items-center space-x-2" style={{ color: th.cardTitle }}>
+        <Icon className={`w-4 h-4 md:w-5 md:h-5 ${iconColor}`} /><span>{title}</span>
+      </h3>
+      {action}
+    </div>
+    {children}
+  </div>
+);
+
 export default function AdminProfilePage() {
   const router = useRouter();
   const isDark = useTimeBasedTheme();
@@ -164,26 +185,6 @@ export default function AdminProfilePage() {
   const modalInputCls = "w-full px-3 py-2 md:px-4 md:py-2.5 text-sm rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none pr-12 transition-colors duration-500";
   const modalInputStyle = { background: th.modalInputBg, border: `1px solid ${th.modalInputBorder}`, color: th.modalInputText };
 
-  const FieldCard = ({ label, children }: { label: string; children: React.ReactNode }) => (
-    <div className="rounded-lg p-3 md:p-4 active:scale-[0.98] transition-all"
-      style={{ background: th.fieldBg, border: `1px solid ${th.fieldBorder}` }}>
-      <p className="text-xs mb-1" style={{ color: th.fieldLabel }}>{label}</p>
-      {children}
-    </div>
-  );
-
-  const SectionCard = ({ title, icon: Icon, iconColor = 'text-[#E84545]', children, action }: any) => (
-    <div className="rounded-2xl p-4 md:p-6 shadow-xl transition-colors duration-500"
-      style={{ background: `linear-gradient(135deg,${th.cardBgFrom},${th.cardBgTo})`, border: `1px solid ${th.cardBorder}` }}>
-      <div className="flex items-center justify-between mb-4 md:mb-6">
-        <h3 className="text-base md:text-lg font-semibold flex items-center space-x-2" style={{ color: th.cardTitle }}>
-          <Icon className={`w-4 h-4 md:w-5 md:h-5 ${iconColor}`} /><span>{title}</span>
-        </h3>
-        {action}
-      </div>
-      {children}
-    </div>
-  );
 
   if (loading) return (
     <MainLayout user={user} onLogout={handleLogout}>
@@ -281,7 +282,7 @@ export default function AdminProfilePage() {
               <div className="lg:col-span-2 space-y-4 md:space-y-6">
 
                 {/* Personal Info */}
-                <SectionCard title="Personal Information" icon={User}
+                <SectionCard th={th} title="Personal Information" icon={User}
                   action={!editMode && (
                     <button onClick={() => setEditMode(true)}
                       className="px-3 py-1.5 md:px-4 md:py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] hover:opacity-90 text-white rounded-lg flex items-center space-x-2 transition-all text-sm active:scale-95">
@@ -304,13 +305,13 @@ export default function AdminProfilePage() {
                           </div>
                         ))}
                         <div>
-                          <label className="block text-xs md:text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Username</label>
-                          <input type="text" value={editForm.username} onChange={e => setEditForm({ ...editForm, username: e.target.value })}
+                          <label htmlFor="profile-username" className="block text-xs md:text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Username</label>
+                          <input id="profile-username" type="text" value={editForm.username} onChange={e => setEditForm({ ...editForm, username: e.target.value })}
                             placeholder="Username" className={inputCls} style={inputStyle} />
                         </div>
                         <div>
-                          <label className="block text-xs md:text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Email <span className="text-red-400">*</span></label>
-                          <input type="email" value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })}
+                          <label htmlFor="profile-email" className="block text-xs md:text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Email <span className="text-red-400">*</span></label>
+                          <input id="profile-email" type="email" value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })}
                             placeholder="email@example.com" className={inputCls} style={inputStyle} />
                         </div>
                       </div>
@@ -328,10 +329,10 @@ export default function AdminProfilePage() {
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6">
-                      <FieldCard label="First Name"><p className="font-medium text-base md:text-lg" style={{ color: th.fieldValue }}>{user.firstName}</p></FieldCard>
-                      <FieldCard label="Last Name"><p className="font-medium text-base md:text-lg" style={{ color: th.fieldValue }}>{user.lastName || '-'}</p></FieldCard>
-                      <FieldCard label="Username"><p className="font-medium text-base md:text-lg" style={{ color: th.fieldValue }}>@{user.username}</p></FieldCard>
-                      <FieldCard label="Email Address">
+                      <FieldCard th={th} label="First Name"><p className="font-medium text-base md:text-lg" style={{ color: th.fieldValue }}>{user.firstName}</p></FieldCard>
+                      <FieldCard th={th} label="Last Name"><p className="font-medium text-base md:text-lg" style={{ color: th.fieldValue }}>{user.lastName || '-'}</p></FieldCard>
+                      <FieldCard th={th} label="Username"><p className="font-medium text-base md:text-lg" style={{ color: th.fieldValue }}>@{user.username}</p></FieldCard>
+                      <FieldCard th={th} label="Email Address">
                         <div className="flex items-center space-x-2">
                           <Mail className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" style={{ color: th.fieldLabel }} />
                           <p className="font-medium text-sm md:text-base truncate" style={{ color: th.fieldValue }}>{user.email}</p>
@@ -343,16 +344,16 @@ export default function AdminProfilePage() {
 
                 {/* Outlet Info */}
                 {user.outletId && (
-                  <SectionCard title="Outlet Information" icon={Building}>
+                  <SectionCard th={th} title="Outlet Information" icon={Building}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6">
-                      <FieldCard label="Assigned Outlet"><p className="font-medium text-base md:text-lg" style={{ color: th.fieldValue }}>{user.outletName || 'N/A'}</p></FieldCard>
-                      <FieldCard label="Outlet Code"><p className="font-medium text-base md:text-lg" style={{ color: th.fieldValue }}>{user.outletCode || 'N/A'}</p></FieldCard>
+                      <FieldCard th={th} label="Assigned Outlet"><p className="font-medium text-base md:text-lg" style={{ color: th.fieldValue }}>{user.outletName || 'N/A'}</p></FieldCard>
+                      <FieldCard th={th} label="Outlet Code"><p className="font-medium text-base md:text-lg" style={{ color: th.fieldValue }}>{user.outletCode || 'N/A'}</p></FieldCard>
                     </div>
                   </SectionCard>
                 )}
 
                 {/* Security */}
-                <SectionCard title="Security Settings" icon={Lock} iconColor="text-red-400">
+                <SectionCard th={th} title="Security Settings" icon={Lock} iconColor="text-red-400">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6">
                     <div className="rounded-lg p-4 active:scale-[0.98] transition-all"
                       style={{ background: th.fieldBg, border: `1px solid ${th.fieldBorder}` }}>

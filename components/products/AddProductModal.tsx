@@ -258,11 +258,12 @@ export default function AddProductModal({
           {/* Basic Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2 relative">
-              <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
+              <label htmlFor="add-product-name" className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                 Product Name *
               </label>
 
               <input
+                id="add-product-name"
                 ref={nameInputRef}
                 type="text"
                 value={formData.name}
@@ -329,7 +330,11 @@ export default function AddProductModal({
                   <div className="max-h-48 overflow-y-auto">
                     {nameSuggestions.map((name, index) => (
                       <div
-                        key={index}
+                        key={name}
+                        role="option"
+                        aria-selected={highlightedIndex === index}
+                        tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); setFormData({ ...formData, name }); setShowNameSuggestions(false); setHighlightedIndex(-1); } }}
                         ref={(el) => {
                           suggestionRefs.current[index] = el;
                         }}
@@ -354,10 +359,11 @@ export default function AddProductModal({
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
+              <label htmlFor="add-product-description" className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                 Description
               </label>
               <textarea
+                id="add-product-description"
                 value={formData.description}
                 onChange={(e) =>
                   setFormData({ ...formData, description: e.target.value })
@@ -369,11 +375,12 @@ export default function AddProductModal({
             </div>
 
             <div>
-              <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
+              <label htmlFor="add-product-category" className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                 Category
               </label>
               <div className="flex gap-2">
                 <select
+                  id="add-product-category"
                   value={formData.categoryId}
                   onChange={(e) =>
                     setFormData({ ...formData, categoryId: e.target.value })
@@ -404,10 +411,11 @@ export default function AddProductModal({
             </div>
 
             <div>
-              <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
+              <label htmlFor="add-product-barcode" className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                 Barcode
               </label>
               <input
+                id="add-product-barcode"
                 type="text"
                 value={formData.barcode}
                 onChange={(e) =>
@@ -419,10 +427,11 @@ export default function AddProductModal({
             </div>
 
             <div>
-              <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
+              <label htmlFor="add-product-unit" className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                 Unit
               </label>
               <select
+                id="add-product-unit"
                 value={formData.unit}
                 onChange={(e) =>
                   setFormData({ ...formData, unit: e.target.value })
@@ -475,7 +484,6 @@ export default function AddProductModal({
               <div>
                 <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                   Make *
-                </label>
                 <select
                   value={formData.carMake}
                   onChange={(e) =>
@@ -496,12 +504,12 @@ export default function AddProductModal({
                     </option>
                   ))}
                 </select>
+                </label>
               </div>
 
               <div>
                 <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                   Model
-                </label>
                 <select
                   value={formData.carModel}
                   onChange={(e) =>
@@ -524,12 +532,12 @@ export default function AddProductModal({
                       </option>
                     ))}
                 </select>
+                </label>
               </div>
 
               <div>
                 <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                   Variant
-                </label>
                 <select
                   value={formData.variant}
                   onChange={(e) =>
@@ -553,12 +561,12 @@ export default function AddProductModal({
                     Custom...
                   </option>
                 </select>
+                </label>
               </div>
 
               <div>
                 <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                   Color
-                </label>
                 <select
                   value={formData.color}
                   onChange={(e) =>
@@ -582,13 +590,13 @@ export default function AddProductModal({
                     Custom...
                   </option>
                 </select>
+                </label>
               </div>
 
               {formData.variant === "custom" && (
                 <div className="md:col-span-2">
                   <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                     Custom Variant
-                  </label>
                   <input
                     type="text"
                     value={formData.variant === "custom" ? "" : formData.variant}
@@ -598,6 +606,7 @@ export default function AddProductModal({
                     className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
                     placeholder="Enter custom variant"
                   />
+                  </label>
                 </div>
               )}
 
@@ -605,7 +614,6 @@ export default function AddProductModal({
                 <div className="md:col-span-2">
                   <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                     Custom Color
-                  </label>
                   <input
                     type="text"
                     value={formData.color === "custom" ? "" : formData.color}
@@ -615,19 +623,19 @@ export default function AddProductModal({
                     className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
                     placeholder="Enter custom color"
                   />
+                  </label>
                 </div>
               )}
 
               <div className="md:col-span-2">
-                <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
+                <label htmlFor="add-product-year-from" className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                   Year Range (Compatibility)
-                </label>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs text-gray-400 mb-1">
                       From
-                    </label>
                     <input
+                      id="add-product-year-from"
                       type="number"
                       value={formData.yearFrom}
                       onChange={(e) =>
@@ -638,11 +646,11 @@ export default function AddProductModal({
                       min="1900"
                       max="2100"
                     />
+                    </label>
                   </div>
                   <div>
                     <label className="block text-xs text-gray-400 mb-1">
                       To
-                    </label>
                     <input
                       type="number"
                       value={formData.yearTo}
@@ -654,8 +662,10 @@ export default function AddProductModal({
                       min="1900"
                       max="2100"
                     />
+                    </label>
                   </div>
                 </div>
+                </label>
                 <p className="text-xs text-gray-500 mt-1">
                   Leave "To" empty for current year onwards (e.g., 2018+)
                 </p>
@@ -664,7 +674,6 @@ export default function AddProductModal({
               <div>
                 <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                   Part Number
-                </label>
                 <input
                   type="text"
                   value={formData.partNumber}
@@ -674,6 +683,7 @@ export default function AddProductModal({
                   className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
                   placeholder="Part number"
                 />
+                </label>
               </div>
             </div>
           )}
@@ -683,7 +693,6 @@ export default function AddProductModal({
             <div>
               <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                 Cost Price
-              </label>
               <input
                 type="number"
                 value={formData.costPrice}
@@ -697,11 +706,11 @@ export default function AddProductModal({
                 step="0.01"
                 className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
               />
+              </label>
             </div>
             <div>
               <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                 Selling Price
-              </label>
               <input
                 type="number"
                 value={formData.sellingPrice}
@@ -715,11 +724,11 @@ export default function AddProductModal({
                 step="0.01"
                 className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
               />
+              </label>
             </div>
             <div>
               <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                 Tax Rate (%)
-              </label>
               <input
                 type="number"
                 value={formData.taxRate}
@@ -734,6 +743,7 @@ export default function AddProductModal({
                 step="0.1"
                 className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
               />
+              </label>
             </div>
           </div>
 
@@ -742,7 +752,6 @@ export default function AddProductModal({
             <div>
               <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                 Current Stock
-              </label>
               <input
                 type="number"
                 value={formData.currentStock}
@@ -755,11 +764,11 @@ export default function AddProductModal({
                 min="0"
                 className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
               />
+              </label>
             </div>
             <div>
               <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                 Min Stock
-              </label>
               <input
                 type="number"
                 value={formData.minStock}
@@ -772,6 +781,7 @@ export default function AddProductModal({
                 min="0"
                 className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
               />
+              </label>
             </div>
           </div>
         </div>

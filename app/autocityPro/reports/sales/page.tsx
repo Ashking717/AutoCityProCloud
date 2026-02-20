@@ -269,8 +269,9 @@ export default function SalesReportPage() {
             {/* Desktop Filters */}
             <div className="mt-6 grid grid-cols-5 gap-4">
               <div>
-                <label className="block text-sm font-medium text-white/80 mb-2">From Date</label>
+                <label htmlFor="sales-report-from" className="block text-sm font-medium text-white/80 mb-2">From Date</label>
                 <input
+                  id="sales-report-from"
                   type="date"
                   value={dateRange.fromDate}
                   onChange={(e) => setDateRange({ ...dateRange, fromDate: e.target.value })}
@@ -278,8 +279,9 @@ export default function SalesReportPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-white/80 mb-2">To Date</label>
+                <label htmlFor="sales-report-to" className="block text-sm font-medium text-white/80 mb-2">To Date</label>
                 <input
+                  id="sales-report-to"
                   type="date"
                   value={dateRange.toDate}
                   onChange={(e) => setDateRange({ ...dateRange, toDate: e.target.value })}
@@ -287,8 +289,9 @@ export default function SalesReportPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-white/80 mb-2">View Mode</label>
+                <label htmlFor="sales-report-view" className="block text-sm font-medium text-white/80 mb-2">View Mode</label>
                 <select
+                  id="sales-report-view"
                   value={viewMode}
                   onChange={(e) => setViewMode(e.target.value as any)}
                   className="w-full px-3 py-2.5 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:border-white/40 focus:ring-2 focus:ring-white/20 backdrop-blur-sm"
@@ -300,10 +303,11 @@ export default function SalesReportPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-white/80 mb-2">Search</label>
+                <label htmlFor="sales-report-search" className="block text-sm font-medium text-white/80 mb-2">Search</label>
                 <div className="relative">
                   <Search className="absolute left-3 top-2.5 h-4 w-4 text-white/60" />
                   <input
+                    id="sales-report-search"
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -634,8 +638,9 @@ export default function SalesReportPage() {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">From Date</label>
+                <label htmlFor="sales-report-from-mobile" className="block text-sm font-medium text-slate-400 mb-2">From Date</label>
                 <input
+                  id="sales-report-from-mobile"
                   type="date"
                   value={dateRange.fromDate}
                   onChange={(e) => setDateRange({ ...dateRange, fromDate: e.target.value })}
@@ -643,8 +648,9 @@ export default function SalesReportPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">To Date</label>
+                <label htmlFor="sales-report-to-mobile" className="block text-sm font-medium text-slate-400 mb-2">To Date</label>
                 <input
+                  id="sales-report-to-mobile"
                   type="date"
                   value={dateRange.toDate}
                   onChange={(e) => setDateRange({ ...dateRange, toDate: e.target.value })}

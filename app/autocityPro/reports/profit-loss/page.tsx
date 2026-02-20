@@ -42,6 +42,38 @@ interface ProfitLossData {
   };
 }
 
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('en-QA', {
+    style: 'currency',
+    currency: 'QAR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+};
+
+const formatCompactCurrency = (amount: number) => {
+  if (amount >= 1000000) return `QR${(amount / 1000000).toFixed(1)}M`;
+  if (amount >= 10000) return `QR${(amount / 1000).toFixed(1)}K`;
+  return formatCurrency(amount);
+};
+
+function CategoryItems({ items, isExpense, isMobile }: { items: { [key: string]: number }; isExpense: boolean; isMobile: boolean }) {
+  return (
+    <>
+      {Object.entries(items).map(([name, value]) => (
+        <div key={name} className="flex justify-between hover:bg-slate-700/50 p-2 rounded transition-colors">
+          <span className="text-slate-300 capitalize text-xs md:text-sm truncate pr-2">
+            {name.replace(/([A-Z])/g, ' $1').trim()}
+          </span>
+          <span className={`font-semibold text-xs md:text-sm flex-shrink-0 ${isExpense ? 'text-red-400' : 'text-green-400'}`}>
+            {isMobile ? formatCompactCurrency(isExpense ? -Math.abs(value) : Math.abs(value)) : formatCurrency(isExpense ? -Math.abs(value) : Math.abs(value))}
+          </span>
+        </div>
+      ))}
+    </>
+  );
+}
+
 export default function ProfitLossPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
@@ -153,34 +185,6 @@ export default function ProfitLossPage() {
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     window.location.href = '/autocityPro/login';
-  };
-  
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-QA', {
-      style: 'currency',
-      currency: 'QAR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  };
-
-  const formatCompactCurrency = (amount: number) => {
-    if (amount >= 1000000) return `QR${(amount / 1000000).toFixed(1)}M`;
-    if (amount >= 10000) return `QR${(amount / 1000).toFixed(1)}K`;
-    return formatCurrency(amount);
-  };
-  
-  const renderCategoryItems = (items: { [key: string]: number }, isExpense: boolean = false) => {
-    return Object.entries(items).map(([name, value]) => (
-      <div key={name} className="flex justify-between hover:bg-slate-700/50 p-2 rounded transition-colors">
-        <span className="text-slate-300 capitalize text-xs md:text-sm truncate pr-2">
-          {name.replace(/([A-Z])/g, ' $1').trim()}
-        </span>
-        <span className={`font-semibold text-xs md:text-sm flex-shrink-0 ${isExpense ? 'text-red-400' : 'text-green-400'}`}>
-          {isMobile ? formatCompactCurrency(isExpense ? -Math.abs(value) : Math.abs(value)) : formatCurrency(isExpense ? -Math.abs(value) : Math.abs(value))}
-        </span>
-      </div>
-    ));
   };
   
   const calculateMargin = (profit: number, revenue: number) => {
@@ -339,13 +343,14 @@ export default function ProfitLossPage() {
           <div className="bg-black/30 rounded-xl shadow-lg border border-slate-700 p-6 mb-6">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
               <div className="lg:col-span-3">
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label htmlFor="pl-from-date" className="block text-sm font-medium text-slate-300 mb-2">
                   <span className="flex items-center">
                     <span className="h-2 w-2 bg-green-400 rounded-full mr-2"></span>
                     From Date
                   </span>
                 </label>
                 <input
+                  id="pl-from-date"
                   type="date"
                   value={dateRange.fromDate}
                   onChange={(e) => setDateRange({ ...dateRange, fromDate: e.target.value })}
@@ -354,13 +359,14 @@ export default function ProfitLossPage() {
               </div>
               
               <div className="lg:col-span-3">
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label htmlFor="pl-to-date" className="block text-sm font-medium text-slate-300 mb-2">
                   <span className="flex items-center">
                     <span className="h-2 w-2 bg-green-400 rounded-full mr-2"></span>
                     To Date
                   </span>
                 </label>
                 <input
+                  id="pl-to-date"
                   type="date"
                   value={dateRange.toDate}
                   onChange={(e) => setDateRange({ ...dateRange, toDate: e.target.value })}
@@ -467,7 +473,7 @@ export default function ProfitLossPage() {
                   </div>
                   <div className="space-y-1 md:space-y-2 pl-3 md:pl-5">
                     {Object.keys(reportData.revenue.items).length > 0 ? (
-                      renderCategoryItems(reportData.revenue.items, false)
+                      <CategoryItems items={reportData.revenue.items} isExpense={false} isMobile={isMobile} />
                     ) : (
                       <div className="text-center py-4">
                         <p className="text-slate-400 text-xs md:text-sm">No revenue items found</p>
@@ -489,7 +495,7 @@ export default function ProfitLossPage() {
                   </div>
                   <div className="space-y-1 md:space-y-2 pl-3 md:pl-5">
                     {Object.keys(reportData.costOfSales.items).length > 0 ? (
-                      renderCategoryItems(reportData.costOfSales.items, true)
+                      <CategoryItems items={reportData.costOfSales.items} isExpense={true} isMobile={isMobile} />
                     ) : (
                       <div className="text-center py-4">
                         <p className="text-slate-400 text-xs md:text-sm">No cost of sales items found</p>
@@ -525,7 +531,7 @@ export default function ProfitLossPage() {
                   </div>
                   <div className="space-y-1 md:space-y-2 pl-3 md:pl-5">
                     {Object.keys(reportData.expenses.items).length > 0 ? (
-                      renderCategoryItems(reportData.expenses.items, true)
+                      <CategoryItems items={reportData.expenses.items} isExpense={true} isMobile={isMobile} />
                     ) : (
                       <div className="text-center py-4">
                         <p className="text-slate-400 text-xs md:text-sm">No expense items found</p>
@@ -561,7 +567,7 @@ export default function ProfitLossPage() {
                       </span>
                     </div>
                     <div className="space-y-1 md:space-y-2 pl-3 md:pl-5">
-                      {renderCategoryItems(reportData.otherIncome.items, false)}
+                      <CategoryItems items={reportData.otherIncome.items} isExpense={false} isMobile={isMobile} />
                     </div>
                   </div>
                 )}
@@ -579,7 +585,7 @@ export default function ProfitLossPage() {
                       </span>
                     </div>
                     <div className="space-y-1 md:space-y-2 pl-3 md:pl-5">
-                      {renderCategoryItems(reportData.otherExpenses.items, true)}
+                      <CategoryItems items={reportData.otherExpenses.items} isExpense={true} isMobile={isMobile} />
                     </div>
                   </div>
                 )}

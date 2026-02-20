@@ -54,7 +54,7 @@ export default function CreateExpenseForm({ onClose, onSuccess }: CreateExpenseF
     vendorName: '', vendorPhone: '', vendorEmail: '', referenceNumber: '',
     taxAmount: 0, notes: '', isRecurring: false, recurringFrequency: 'MONTHLY',
   });
-  const [items, setItems] = useState([{ description: '', accountId: '', amount: 0, notes: '' }]);
+  const [items, setItems] = useState([{ id: 'init-0', description: '', accountId: '', amount: 0, notes: '' }]);
 
   // ── Theme tokens ──────────────────────────────────────────────────────────
   const th = {
@@ -119,7 +119,7 @@ export default function CreateExpenseForm({ onClose, onSuccess }: CreateExpenseF
     } catch {}
   };
 
-  const addItem = () => setItems([...items, { description: '', accountId: '', amount: 0, notes: '' }]);
+  const addItem = () => setItems([...items, { id: crypto.randomUUID(), description: '', accountId: '', amount: 0, notes: '' }]);
   const removeItem = (i: number) => { if (items.length > 1) setItems(items.filter((_, idx) => idx !== i)); };
   const updateItem = (i: number, field: string, value: any) => {
     const n = [...items]; n[i] = { ...n[i], [field]: value }; setItems(n);
@@ -172,19 +172,19 @@ export default function CreateExpenseForm({ onClose, onSuccess }: CreateExpenseF
           {/* Category & Payment Method */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-2" style={{ color: th.label }}>
+              <label htmlFor="expense-category" className="block text-sm font-medium mb-2" style={{ color: th.label }}>
                 Expense Category <span className="text-red-400">*</span>
               </label>
-              <select value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })}
+              <select id="expense-category" value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })}
                 className={inputClass} style={inputStyle} required>
                 {EXPENSE_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2" style={{ color: th.label }}>
+              <label htmlFor="expense-payment-method" className="block text-sm font-medium mb-2" style={{ color: th.label }}>
                 Payment Method <span className="text-red-400">*</span>
               </label>
-              <select value={formData.paymentMethod} onChange={e => setFormData({ ...formData, paymentMethod: e.target.value })}
+              <select id="expense-payment-method" value={formData.paymentMethod} onChange={e => setFormData({ ...formData, paymentMethod: e.target.value })}
                 className={inputClass} style={inputStyle} required>
                 {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
               </select>
@@ -194,10 +194,10 @@ export default function CreateExpenseForm({ onClose, onSuccess }: CreateExpenseF
           {/* Payment Account */}
           {formData.paymentMethod !== 'CREDIT' && (
             <div>
-              <label className="block text-sm font-medium mb-2" style={{ color: th.label }}>
+              <label htmlFor="expense-payment-account" className="block text-sm font-medium mb-2" style={{ color: th.label }}>
                 Payment Account <span className="text-red-400">*</span>
               </label>
-              <select value={formData.paymentAccountId} onChange={e => setFormData({ ...formData, paymentAccountId: e.target.value })}
+              <select id="expense-payment-account" value={formData.paymentAccountId} onChange={e => setFormData({ ...formData, paymentAccountId: e.target.value })}
                 className={inputClass} style={inputStyle} required>
                 <option value="">Select payment account</option>
                 {paymentAccounts.map(a => <option key={a._id} value={a._id}>{a.code} - {a.name}</option>)}
@@ -225,9 +225,9 @@ export default function CreateExpenseForm({ onClose, onSuccess }: CreateExpenseF
           {/* Expense Items */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <label className="block text-sm font-medium" style={{ color: th.label }}>
+              <span className="block text-sm font-medium" style={{ color: th.label }}>
                 Expense Items <span className="text-red-400">*</span>
-              </label>
+              </span>
               <button type="button" onClick={addItem}
                 className="px-3 py-1.5 bg-[#E84545] hover:bg-[#cc3c3c] text-white rounded-lg text-sm flex items-center space-x-1 transition-colors">
                 <Plus className="w-4 h-4" /><span>Add Item</span>
@@ -235,7 +235,7 @@ export default function CreateExpenseForm({ onClose, onSuccess }: CreateExpenseF
             </div>
 
             {items.map((item, index) => (
-              <div key={index} className="rounded-lg p-4 space-y-3 border"
+              <div key={item.id} className="rounded-lg p-4 space-y-3 border"
                 style={{ background: th.itemCardBg, borderColor: th.itemCardBorder }}>
                 <div className="flex items-start justify-between">
                   <span className="text-sm font-medium" style={{ color: th.itemLabel }}>Item {index + 1}</span>
@@ -293,8 +293,8 @@ export default function CreateExpenseForm({ onClose, onSuccess }: CreateExpenseF
 
           {/* Notes */}
           <div>
-            <label className="block text-sm font-medium mb-2" style={{ color: th.label }}>Notes</label>
-            <textarea value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })}
+            <label htmlFor="expense-notes" className="block text-sm font-medium mb-2" style={{ color: th.label }}>Notes</label>
+            <textarea id="expense-notes" value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })}
               rows={3} className="w-full px-4 py-2.5 rounded-lg focus:ring-2 focus:ring-[#E84545] outline-none resize-none"
               style={inputStyle} placeholder="Additional notes or comments..." />
           </div>

@@ -189,6 +189,9 @@ export default function CustomerLedgerPage() {
                 customers.map((customer) => (
                   <div
                     key={customer._id}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fetchLedger(customer._id); }}
                     onClick={() => fetchLedger(customer._id)}
                     className="bg-[#0A0A0A] rounded-xl p-4 border border-white/5 active:scale-[0.98] transition-all"
                   >
@@ -384,8 +387,9 @@ export default function CustomerLedgerPage() {
           <div className="bg-[#0A0A0A] rounded-xl shadow-lg border border-white/5 p-6 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-white mb-1">From Date</label>
+                <label htmlFor="cl-from-date" className="block text-sm font-medium text-white mb-1">From Date</label>
                 <input
+                  id="cl-from-date"
                   type="date"
                   value={dateRange.fromDate}
                   onChange={(e) => setDateRange({ ...dateRange, fromDate: e.target.value })}
@@ -393,8 +397,9 @@ export default function CustomerLedgerPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-white mb-1">To Date</label>
+                <label htmlFor="cl-to-date" className="block text-sm font-medium text-white mb-1">To Date</label>
                 <input
+                  id="cl-to-date"
                   type="date"
                   value={dateRange.toDate}
                   onChange={(e) => setDateRange({ ...dateRange, toDate: e.target.value })}
@@ -452,8 +457,8 @@ export default function CustomerLedgerPage() {
                     <p className="text-white/60">No transactions found</p>
                   </div>
                 ) : (
-                  ledgerData.ledgerEntries.map((entry: any, index: number) => (
-                    <div key={index} className="bg-[#0A0A0A] rounded-xl p-3 border border-white/5 active:scale-[0.98] transition-all">
+                  ledgerData.ledgerEntries.map((entry: any) => (
+                    <div key={`${entry.reference}-${entry.date}`} className="bg-[#0A0A0A] rounded-xl p-3 border border-white/5 active:scale-[0.98] transition-all">
                       <div className="flex items-start justify-between mb-2">
                         <div>
                           <p className="text-xs font-medium text-white">{entry.reference}</p>
@@ -507,8 +512,8 @@ export default function CustomerLedgerPage() {
                         </td>
                       </tr>
                     ) : (
-                      ledgerData.ledgerEntries.map((entry: any, index: number) => (
-                        <tr key={index} className="hover:bg-white/5 transition-colors">
+                      ledgerData.ledgerEntries.map((entry: any) => (
+                        <tr key={`${entry.reference}-${entry.date}`} className="hover:bg-white/5 transition-colors">
                           <td className="px-6 py-4 text-sm text-white">
                             {new Date(entry.date).toLocaleDateString()}
                           </td>

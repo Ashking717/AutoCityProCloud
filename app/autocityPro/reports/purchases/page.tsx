@@ -161,11 +161,11 @@ export default function PurchasesReportPage() {
         <div className="hidden md:block px-8 py-6">
           <div className="bg-[#0A0A0A] rounded-xl shadow-lg border border-white/5 p-6 mb-6">
             <div className="grid grid-cols-5 gap-4">
-              <div><label className="block text-sm font-medium text-white mb-1">From Date</label>
-                <input type="date" value={dateRange.fromDate} onChange={(e) => setDateRange({ ...dateRange, fromDate: e.target.value })} className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg text-white focus:ring-2 focus:ring-[#E84545]" />
+              <div><label htmlFor="purchases-from-date" className="block text-sm font-medium text-white mb-1">From Date</label>
+                <input id="purchases-from-date" type="date" value={dateRange.fromDate} onChange={(e) => setDateRange({ ...dateRange, fromDate: e.target.value })} className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg text-white focus:ring-2 focus:ring-[#E84545]" />
               </div>
-              <div><label className="block text-sm font-medium text-white mb-1">To Date</label>
-                <input type="date" value={dateRange.toDate} onChange={(e) => setDateRange({ ...dateRange, toDate: e.target.value })} className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg text-white focus:ring-2 focus:ring-[#E84545]" />
+              <div><label htmlFor="purchases-to-date" className="block text-sm font-medium text-white mb-1">To Date</label>
+                <input id="purchases-to-date" type="date" value={dateRange.toDate} onChange={(e) => setDateRange({ ...dateRange, toDate: e.target.value })} className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg text-white focus:ring-2 focus:ring-[#E84545]" />
               </div>
               <div className="flex items-end">
                 <button onClick={fetchReport} disabled={loading} className="w-full px-4 py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-lg hover:opacity-90 transition-all">Generate</button>

@@ -117,11 +117,6 @@ export default function ProductDetailPage() {
     reason: "",
   });
 
-  // Quick stats
-  const [lowStockAlert, setLowStockAlert] = useState(false);
-  const [profitMargin, setProfitMargin] = useState(0);
-  const [totalValue, setTotalValue] = useState(0);
-  
   // Add loading states for API calls
   const [loadingStockHistory, setLoadingStockHistory] = useState(false);
   const [loadingSaleHistory, setLoadingSaleHistory] = useState(false);
@@ -138,26 +133,25 @@ export default function ProductDetailPage() {
     return () => window.removeEventListener("resize", checkIfMobile);
   }, []);
 
-  // Fetch user only once
-  useEffect(() => {
-    const fetchUserOnce = async () => {
-      try {
-        const res = await fetch("/api/auth/me", { credentials: "include" });
-        if (res.ok) {
-          const data = await res.json();
-          setUser(data.user);
-        } else {
-          setUser(null);
-        }
-      } catch (error) {
+  const fetchUserOnce = useCallback(async () => {
+    try {
+      const res = await fetch("/api/auth/me", { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setUser(data.user);
+      } else {
         setUser(null);
-      } finally {
-        setUserLoading(false);
       }
-    };
+    } catch (error) {
+      setUser(null);
+    } finally {
+      setUserLoading(false);
+    }
+  }, []);
 
+  useEffect(() => {
     fetchUserOnce();
-  }, []); // Empty dependency array - fetch user only once
+  }, [fetchUserOnce]);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -258,22 +252,11 @@ export default function ProductDetailPage() {
     }
   }, [activeTab, user, initialLoadComplete, fetchStockHistory, fetchSaleHistory]);
 
-  // Calculate stats when product changes
-  useEffect(() => {
-    if (product) {
-      // Calculate low stock alert
-      setLowStockAlert(product.currentStock <= product.minStock);
-      
-      // Calculate profit margin
-      if (product.costPrice > 0) {
-        const margin = ((product.sellingPrice - product.costPrice) / product.costPrice) * 100;
-        setProfitMargin(margin);
-      }
-      
-      // Calculate total value
-      setTotalValue(product.sellingPrice * product.currentStock);
-    }
-  }, [product]);
+  const lowStockAlert = product ? product.currentStock <= product.minStock : false;
+  const profitMargin = product && product.costPrice > 0
+    ? ((product.sellingPrice - product.costPrice) / product.costPrice) * 100
+    : 0;
+  const totalValue = product ? product.sellingPrice * product.currentStock : 0;
 
   const handleDeleteProduct = async () => {
     if (!product) return;
@@ -825,10 +808,11 @@ export default function ProductDetailPage() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                      <label htmlFor="stock-adjustment-type" className="block text-sm font-medium text-gray-300 mb-2">
                         Adjustment Type
                       </label>
                       <select
+                        id="stock-adjustment-type"
                         value={stockAdjustment.type}
                         onChange={(e) =>
                           setStockAdjustment({
@@ -844,10 +828,11 @@ export default function ProductDetailPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                      <label htmlFor="stock-adjustment-quantity" className="block text-sm font-medium text-gray-300 mb-2">
                         Quantity
                       </label>
                       <input
+                        id="stock-adjustment-quantity"
                         type="number"
                         value={stockAdjustment.quantity || ""}
                         onChange={(e) =>
@@ -862,10 +847,11 @@ export default function ProductDetailPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                      <label htmlFor="stock-adjustment-reason" className="block text-sm font-medium text-gray-300 mb-2">
                         Reason (Optional)
                       </label>
                       <input
+                        id="stock-adjustment-reason"
                         type="text"
                         value={stockAdjustment.reason}
                         onChange={(e) =>

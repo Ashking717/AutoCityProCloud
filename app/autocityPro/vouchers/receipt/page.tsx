@@ -7,6 +7,7 @@ import { ArrowLeft, Save, Send, Plus, Trash2, DollarSign, AlertCircle, Info, Che
 import toast from 'react-hot-toast';
 
 interface VoucherEntry {
+  id: string;
   accountId: string;
   accountName: string;
   debit: number;
@@ -28,8 +29,8 @@ export default function ReceiptVoucherPage() {
   });
   
   const [entries, setEntries] = useState<VoucherEntry[]>([
-    { accountId: '', accountName: '', debit: 0, credit: 0, narration: '' },
-    { accountId: '', accountName: '', debit: 0, credit: 0, narration: '' },
+    { id: 'init-0', accountId: '', accountName: '', debit: 0, credit: 0, narration: '' },
+    { id: 'init-1', accountId: '', accountName: '', debit: 0, credit: 0, narration: '' },
   ]);
   
   useEffect(() => {
@@ -89,7 +90,7 @@ export default function ReceiptVoucherPage() {
   };
   
   const addEntry = () => {
-    setEntries([...entries, { accountId: '', accountName: '', debit: 0, credit: 0, narration: '' }]);
+    setEntries([...entries, { id: crypto.randomUUID(), accountId: '', accountName: '', debit: 0, credit: 0, narration: '' }]);
   };
   
   const removeEntry = (index: number) => {
@@ -310,7 +311,7 @@ export default function ReceiptVoucherPage() {
                     <h3 className="text-lg font-semibold text-slate-100 mb-3">Example Transactions</h3>
                     <div className="space-y-3">
                       {exampleTransactions.map((example, index) => (
-                        <div key={index} className="p-3 bg-slate-800/30 rounded-lg border border-slate-700">
+                        <div key={example.description} className="p-3 bg-slate-800/30 rounded-lg border border-slate-700">
                           <p className="text-sm text-slate-200 mb-1">{example.description}</p>
                           <div className="grid grid-cols-3 gap-2 text-xs">
                             <div className="text-green-400">
@@ -368,10 +369,11 @@ export default function ReceiptVoucherPage() {
             <h2 className="text-lg font-semibold text-slate-100 mb-4">Basic Information</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">
+                <label htmlFor="receipt-date" className="block text-sm font-medium text-slate-300 mb-1">
                   Date <span className="text-red-400">*</span>
                 </label>
                 <input
+                  id="receipt-date"
                   type="date"
                   value={formData.date}
                   onChange={(e) => setFormData({ ...formData, date: e.target.value })}
@@ -380,8 +382,9 @@ export default function ReceiptVoucherPage() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Reference Number</label>
+                <label htmlFor="receipt-ref" className="block text-sm font-medium text-slate-300 mb-1">Reference Number</label>
                 <input
+                  id="receipt-ref"
                   type="text"
                   value={formData.referenceNumber}
                   onChange={(e) => setFormData({ ...formData, referenceNumber: e.target.value })}
@@ -391,10 +394,11 @@ export default function ReceiptVoucherPage() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">
+                <label htmlFor="receipt-narration" className="block text-sm font-medium text-slate-300 mb-1">
                   Narration <span className="text-red-400">*</span>
                 </label>
                 <input
+                  id="receipt-narration"
                   type="text"
                   value={formData.narration}
                   onChange={(e) => setFormData({ ...formData, narration: e.target.value })}
@@ -434,7 +438,7 @@ export default function ReceiptVoucherPage() {
                 </thead>
                 <tbody className="bg-slate-900 divide-y divide-slate-800">
                   {entries.map((entry, index) => (
-                    <tr key={index} className="hover:bg-slate-800/50 transition-colors">
+                    <tr key={entry.id} className="hover:bg-slate-800/50 transition-colors">
                       <td className="px-4 py-4">
                         <select
                           value={entry.accountId}

@@ -216,8 +216,9 @@ export default function DaybookPage() {
           <div className="bg-[#0A0A0A] rounded-xl shadow-lg border border-white/5 p-6 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-white mb-1">Select Date</label>
+                <label htmlFor="daybook-date" className="block text-sm font-medium text-white mb-1">Select Date</label>
                 <input
+                  id="daybook-date"
                   type="date"
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
@@ -332,8 +333,8 @@ export default function DaybookPage() {
                   <p className="text-white/60">No transactions for this day</p>
                 </div>
               ) : (
-                entries.map((entry: any, index: number) => (
-                  <div key={index} className="bg-[#111111] rounded-xl p-3 border border-white/5 active:scale-[0.98] transition-all">
+                entries.map((entry: any) => (
+                  <div key={`${entry.reference}-${entry.time}`} className="bg-[#111111] rounded-xl p-3 border border-white/5 active:scale-[0.98] transition-all">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <span className={`px-2 py-1 text-[10px] font-semibold rounded-full ${
@@ -402,8 +403,8 @@ export default function DaybookPage() {
                       </td>
                     </tr>
                   ) : (
-                    entries.map((entry: any, index: number) => (
-                      <tr key={index} className="hover:bg-white/5 transition-colors">
+                    entries.map((entry: any) => (
+                      <tr key={`${entry.reference}-${entry.time}`} className="hover:bg-white/5 transition-colors">
                         <td className="px-6 py-4 text-sm text-white">
                           {new Date(entry.time).toLocaleTimeString('en-US', { 
                             hour: '2-digit', 

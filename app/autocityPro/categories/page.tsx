@@ -20,6 +20,60 @@ function useTimeBasedTheme() {
   return isDark;
 }
 
+const CategoryModal = ({ title, onSubmit, onClose, submitLabel, th, formData, setFormData, submitting, modalInputStyle }: {
+  title: string; onSubmit: (e: React.FormEvent) => void;
+  onClose: () => void; submitLabel: string; th: any;
+  formData: { name: string; description: string }; setFormData: (v: any) => void;
+  submitting: boolean; modalInputStyle: any;
+}) => (
+  <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'rgba(0,0,0,0.70)' }}>
+    <div className="rounded-xl shadow-2xl max-w-md w-full transition-colors duration-500"
+      style={{ background: th.modalBg, border: `1px solid ${th.modalBorder}` }}>
+      <div className="flex justify-between items-center px-6 py-4" style={{ borderBottom: `1px solid ${th.modalHdrBorder}` }}>
+        <h2 className="text-xl font-bold" style={{ color: th.modalTitle }}>{title}</h2>
+        <button onClick={onClose} className="transition-colors" style={{ color: th.modalCloseText }}>
+          <X className="h-6 w-6" />
+        </button>
+      </div>
+      <form onSubmit={onSubmit} className="p-6 space-y-4">
+        <div>
+          <label htmlFor="category-name" className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>
+            Category Name <span className="text-red-400">*</span>
+          </label>
+          <input id="category-name" type="text" required value={formData.name}
+            onChange={e => setFormData({ ...formData, name: e.target.value })}
+            placeholder="e.g., Vehicles, Parts, Accessories"
+            className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
+            style={modalInputStyle}
+          />
+        </div>
+        <div>
+          <label htmlFor="category-description" className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>Description</label>
+          <textarea id="category-description" value={formData.description}
+            onChange={e => setFormData({ ...formData, description: e.target.value })}
+            placeholder="Optional description" rows={3}
+            className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors resize-none"
+            style={modalInputStyle}
+          />
+        </div>
+        <div className="flex justify-end space-x-3 pt-4" style={{ borderTop: `1px solid ${th.modalFtrBorder}` }}>
+          <button type="button" onClick={onClose}
+            className="px-4 py-2 rounded-lg transition-colors"
+            style={{ border: `1px solid ${th.modalCancelBorder}`, color: th.modalCancelText }}
+            onMouseEnter={e => (e.currentTarget.style.background = th.modalCancelHover)}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+            Cancel
+          </button>
+          <button type="submit" disabled={submitting}
+            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50">
+            {submitting ? (submitLabel.startsWith('Add') ? 'Adding...' : 'Updating...') : submitLabel}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+);
+
 export default function CategoriesPage() {
   const isDark = useTimeBasedTheme();
   const [user, setUser] = useState<any>(null);
@@ -159,58 +213,6 @@ export default function CategoriesPage() {
     color: th.modalInputText,
   };
 
-  // Shared modal shell
-  const Modal = ({ title, onSubmit, onClose, submitLabel }: {
-    title: string; onSubmit: (e: React.FormEvent) => void;
-    onClose: () => void; submitLabel: string;
-  }) => (
-    <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'rgba(0,0,0,0.70)' }}>
-      <div className="rounded-xl shadow-2xl max-w-md w-full transition-colors duration-500"
-        style={{ background: th.modalBg, border: `1px solid ${th.modalBorder}` }}>
-        <div className="flex justify-between items-center px-6 py-4" style={{ borderBottom: `1px solid ${th.modalHdrBorder}` }}>
-          <h2 className="text-xl font-bold" style={{ color: th.modalTitle }}>{title}</h2>
-          <button onClick={onClose} className="transition-colors" style={{ color: th.modalCloseText }}>
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-        <form onSubmit={onSubmit} className="p-6 space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>
-              Category Name <span className="text-red-400">*</span>
-            </label>
-            <input type="text" required value={formData.name}
-              onChange={e => setFormData({ ...formData, name: e.target.value })}
-              placeholder="e.g., Vehicles, Parts, Accessories"
-              className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
-              style={modalInputStyle}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>Description</label>
-            <textarea value={formData.description}
-              onChange={e => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Optional description" rows={3}
-              className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors resize-none"
-              style={modalInputStyle}
-            />
-          </div>
-          <div className="flex justify-end space-x-3 pt-4" style={{ borderTop: `1px solid ${th.modalFtrBorder}` }}>
-            <button type="button" onClick={onClose}
-              className="px-4 py-2 rounded-lg transition-colors"
-              style={{ border: `1px solid ${th.modalCancelBorder}`, color: th.modalCancelText }}
-              onMouseEnter={e => (e.currentTarget.style.background = th.modalCancelHover)}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-              Cancel
-            </button>
-            <button type="submit" disabled={submitting}
-              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50">
-              {submitting ? (submitLabel.startsWith('Add') ? 'Adding...' : 'Updating...') : submitLabel}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
 
   return (
     <MainLayout user={user} onLogout={handleLogout}>
@@ -308,8 +310,8 @@ export default function CategoriesPage() {
         </div>
       </div>
 
-      {showAddModal  && <Modal title="Add New Category" onSubmit={handleSubmit}  onClose={() => setShowAddModal(false)}  submitLabel="Add Category"    />}
-      {showEditModal && <Modal title="Edit Category"     onSubmit={handleUpdate} onClose={() => setShowEditModal(false)} submitLabel="Update Category" />}
+      {showAddModal  && <CategoryModal title="Add New Category" onSubmit={handleSubmit}  onClose={() => setShowAddModal(false)}  submitLabel="Add Category"    th={th} formData={formData} setFormData={setFormData} submitting={submitting} modalInputStyle={modalInputStyle} />}
+      {showEditModal && <CategoryModal title="Edit Category"     onSubmit={handleUpdate} onClose={() => setShowEditModal(false)} submitLabel="Update Category" th={th} formData={formData} setFormData={setFormData} submitting={submitting} modalInputStyle={modalInputStyle} />}
     </MainLayout>
   );
 }

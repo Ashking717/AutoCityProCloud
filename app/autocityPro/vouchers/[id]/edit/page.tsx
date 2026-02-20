@@ -66,6 +66,7 @@ export default function VoucherEditPage() {
           narration: voucherData.narration || '',
           referenceNumber: voucherData.referenceNumber || '',
           entries: voucherData.entries.map((entry: any) => ({
+            id: entry._id || crypto.randomUUID(),
             accountId: entry.accountId,
             debit: entry.debit || 0,
             credit: entry.credit || 0,
@@ -89,7 +90,7 @@ export default function VoucherEditPage() {
       ...formData,
       entries: [
         ...formData.entries,
-        { accountId: '', debit: 0, credit: 0, narration: '' },
+        { id: crypto.randomUUID(), accountId: '', debit: 0, credit: 0, narration: '' },
       ],
     });
   };
@@ -240,12 +241,13 @@ export default function VoucherEditPage() {
               <h2 className="text-lg font-semibold text-slate-100 mb-4">Basic Information</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1">
+                  <label htmlFor="edit-voucher-date" className="block text-sm font-medium text-slate-300 mb-1">
                     Date <span className="text-red-400">*</span>
                   </label>
                   <div className="relative">
                     <Calendar className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
                     <input
+                      id="edit-voucher-date"
                       type="date"
                       value={formData.date}
                       onChange={(e) => setFormData({ ...formData, date: e.target.value })}
@@ -256,8 +258,9 @@ export default function VoucherEditPage() {
                 </div>
                 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-slate-300 mb-1">Reference Number</label>
+                  <label htmlFor="edit-voucher-ref" className="block text-sm font-medium text-slate-300 mb-1">Reference Number</label>
                   <input
+                    id="edit-voucher-ref"
                     type="text"
                     value={formData.referenceNumber}
                     onChange={(e) => setFormData({ ...formData, referenceNumber: e.target.value })}
@@ -268,10 +271,11 @@ export default function VoucherEditPage() {
               </div>
               
               <div className="mt-4">
-                <label className="block text-sm font-medium text-slate-300 mb-1">
+                <label htmlFor="edit-voucher-narration" className="block text-sm font-medium text-slate-300 mb-1">
                   Narration <span className="text-red-400">*</span>
                 </label>
                 <textarea
+                  id="edit-voucher-narration"
                   value={formData.narration}
                   onChange={(e) => setFormData({ ...formData, narration: e.target.value })}
                   required
@@ -310,7 +314,7 @@ export default function VoucherEditPage() {
                   </thead>
                   <tbody className="bg-slate-900 divide-y divide-slate-800">
                     {formData.entries.map((entry, index) => (
-                      <tr key={index} className="hover:bg-slate-800/50 transition-colors">
+                      <tr key={entry.id} className="hover:bg-slate-800/50 transition-colors">
                         <td className="px-4 py-4">
                           <select
                             value={entry.accountId}

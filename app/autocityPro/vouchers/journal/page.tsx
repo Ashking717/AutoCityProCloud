@@ -576,8 +576,9 @@ export default function JournalVouchersPage() {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Status</label>
+                <label htmlFor="journal-filter-status" className="block text-sm font-medium text-gray-300 mb-2">Status</label>
                 <select
+                  id="journal-filter-status"
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value)}
                   className="w-full px-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white"

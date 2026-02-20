@@ -19,6 +19,7 @@ import {
 import toast from 'react-hot-toast';
 
 interface VoucherEntry {
+  id: string;
   accountId: string;
   accountName: string;
   debit: number;
@@ -49,8 +50,8 @@ export default function ContraVoucherPage() {
   });
   
   const [entries, setEntries] = useState<VoucherEntry[]>([
-    { accountId: '', accountName: '', debit: 0, credit: 0, narration: '' },
-    { accountId: '', accountName: '', debit: 0, credit: 0, narration: '' },
+    { id: 'init-0', accountId: '', accountName: '', debit: 0, credit: 0, narration: '' },
+    { id: 'init-1', accountId: '', accountName: '', debit: 0, credit: 0, narration: '' },
   ]);
   
   useEffect(() => {
@@ -210,7 +211,7 @@ export default function ContraVoucherPage() {
   };
   
   const addEntry = () => {
-    setEntries([...entries, { accountId: '', accountName: '', debit: 0, credit: 0, narration: '' }]);
+    setEntries([...entries, { id: crypto.randomUUID(), accountId: '', accountName: '', debit: 0, credit: 0, narration: '' }]);
   };
   
   const removeEntry = (index: number) => {
@@ -501,7 +502,7 @@ export default function ContraVoucherPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Type Selection */}
                 <div className="col-span-full">
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Transaction Type</label>
+                  <span className="block text-sm font-medium text-slate-300 mb-2">Transaction Type</span>
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={() => setQuickVoucherType('withdrawal')}
@@ -537,7 +538,7 @@ export default function ContraVoucherPage() {
                 
                 {/* Bank Account */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1">Bank Account</label>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Bank Account
                   <select
                     value={selectedBankAccount}
                     onChange={(e) => setSelectedBankAccount(e.target.value)}
@@ -552,11 +553,12 @@ export default function ContraVoucherPage() {
                         </option>
                       ))}
                   </select>
+                  </label>
                 </div>
                 
                 {/* Cash Account */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1">Cash Account</label>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Cash Account
                   <select
                     value={selectedCashAccount}
                     onChange={(e) => setSelectedCashAccount(e.target.value)}
@@ -571,11 +573,12 @@ export default function ContraVoucherPage() {
                         </option>
                       ))}
                   </select>
+                  </label>
                 </div>
                 
                 {/* Amount */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1">Amount (QAR)</label>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Amount (QAR)
                   <input
                     type="number"
                     value={quickAmount}
@@ -585,6 +588,7 @@ export default function ContraVoucherPage() {
                     placeholder="0.00"
                     className="w-full px-3 py-2.5 bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white text-right text-lg font-semibold"
                   />
+                  </label>
                 </div>
                 
                 {/* Create Button */}
@@ -617,17 +621,17 @@ export default function ContraVoucherPage() {
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">
                   Date <span className="text-[#E84545]">*</span>
-                </label>
                 <input
                   type="date"
                   value={formData.date}
                   onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                   className="w-full px-3 py-2.5 bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white"
                 />
+                </label>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Reference Number</label>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Reference Number
                 <input
                   type="text"
                   value={formData.referenceNumber}
@@ -635,12 +639,12 @@ export default function ContraVoucherPage() {
                   placeholder="Optional"
                   className="w-full px-3 py-2.5 bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white"
                 />
+                </label>
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">
                   Narration <span className="text-[#E84545]">*</span>
-                </label>
                 <input
                   type="text"
                   value={formData.narration}
@@ -648,6 +652,7 @@ export default function ContraVoucherPage() {
                   placeholder="e.g., Withdrawal from bank"
                   className="w-full px-3 py-2.5 bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white"
                 />
+                </label>
               </div>
             </div>
           </div>
@@ -669,7 +674,7 @@ export default function ContraVoucherPage() {
             
             <div className="divide-y divide-white/10 p-4 space-y-4">
               {entries.map((entry, index) => (
-                <div key={index} className="pb-4 pt-4 first:pt-0 border-b border-white/10 last:border-0 last:pb-0">
+                <div key={entry.id} className="pb-4 pt-4 first:pt-0 border-b border-white/10 last:border-0 last:pb-0">
                   <div className="flex justify-between items-center mb-3">
                     <h3 className="text-sm font-medium text-white">Entry #{index + 1}</h3>
                     <button
@@ -683,7 +688,7 @@ export default function ContraVoucherPage() {
                   
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">Account</label>
+                      <label className="block text-xs font-medium text-slate-300 mb-1">Account
                       <select
                         value={entry.accountId}
                         onChange={(e) => updateEntry(index, 'accountId', e.target.value)}
@@ -696,10 +701,11 @@ export default function ContraVoucherPage() {
                           </option>
                         ))}
                       </select>
+                      </label>
                     </div>
                     
                     <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">Narration</label>
+                      <label className="block text-xs font-medium text-slate-300 mb-1">Narration
                       <input
                         type="text"
                         value={entry.narration}
@@ -707,11 +713,12 @@ export default function ContraVoucherPage() {
                         placeholder="Entry description"
                         className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm"
                       />
+                      </label>
                     </div>
                     
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs font-medium text-slate-300 mb-1">Debit (QAR)</label>
+                        <label className="block text-xs font-medium text-slate-300 mb-1">Debit (QAR)
                         <input
                           type="number"
                           value={entry.debit || ''}
@@ -721,9 +728,10 @@ export default function ContraVoucherPage() {
                           className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm text-right"
                           placeholder="0.00"
                         />
+                        </label>
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-slate-300 mb-1">Credit (QAR)</label>
+                        <label className="block text-xs font-medium text-slate-300 mb-1">Credit (QAR)
                         <input
                           type="number"
                           value={entry.credit || ''}
@@ -733,6 +741,7 @@ export default function ContraVoucherPage() {
                           className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm text-right"
                           placeholder="0.00"
                         />
+                        </label>
                       </div>
                     </div>
                   </div>
@@ -791,7 +800,7 @@ export default function ContraVoucherPage() {
                 </thead>
                 <tbody className="divide-y divide-white/10">
                   {entries.map((entry, index) => (
-                    <tr key={index} className="hover:bg-white/5 transition-colors">
+                    <tr key={entry.id} className="hover:bg-white/5 transition-colors">
                       <td className="px-4 py-4">
                         <select
                           value={entry.accountId}

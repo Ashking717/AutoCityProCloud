@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import { jsonLd } from './metadata';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+import Script from "next/script";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -133,37 +134,13 @@ export default function RootLayout({
   return (
     <html lang="en" style={{ backgroundColor: '#000000' }}>
       <head>
-        {/* JSON-LD Structured Data for SEO */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
+        <Script id="json-ld" type="application/ld+json" strategy="afterInteractive">
+          {JSON.stringify(jsonLd)}
+        </Script>
         
-        {/* Performance Optimization */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        
-        {/* Theme Color - Black for login page consistency */}
         <meta name="theme-color" content="#000000" />
         <meta name="msapplication-TileColor" content="#000000" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        
-        {/* Prevent white background on overscroll */}
-        <style dangerouslySetInnerHTML={{ __html: `
-          html, body {
-            background-color: #000000;
-            overscroll-behavior: none;
-            -webkit-overflow-scrolling: touch;
-          }
-          
-          /* iOS Safari specific fix */
-          @supports (-webkit-touch-callout: none) {
-            html, body {
-              min-height: 100vh;
-              min-height: -webkit-fill-available;
-            }
-          }
-        `}} />
       </head>
       <body className={`${inter.className} bg-black`} style={{ backgroundColor: '#000000' }}>
         <Toaster position="top-right" />

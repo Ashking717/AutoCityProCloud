@@ -31,7 +31,7 @@ export function Input({ label, error, className, ...props }: InputProps) {
   );
 }
 
-export function TextArea({ label, error, className, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { label?: string; error?: string }) {
+function TextArea({ label, error, className, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { label?: string; error?: string }) {
   return (
     <div className="w-full">
       {label && (

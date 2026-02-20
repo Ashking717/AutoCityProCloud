@@ -65,7 +65,7 @@ export default function ClosingPreview({
     if (closingDate) {
       fetchPreview();
     }
-  }, [closingType, closingDate, outletId]);
+  }, []);
 
   const fetchPreview = async () => {
     setLoading(true);

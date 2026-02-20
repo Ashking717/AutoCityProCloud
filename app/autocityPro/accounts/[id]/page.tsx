@@ -411,46 +411,51 @@ export default function AccountDetailPage() {
                     </div>
                     <div className="grid grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-sm font-medium mb-1" style={{ color: th.labelText }}>Account Type *</label>
+                        <label className="block text-sm font-medium mb-1" style={{ color: th.labelText }}>Account Type *
                         <select value={formData.accountType}
                           onChange={e => setFormData({ ...formData, accountType: e.target.value as any, accountSubType: '', accountGroup: '' })}
                           className="w-full px-3 py-2 rounded-lg appearance-none focus:ring-2 focus:ring-[#E84545]"
                           style={inputStyle}>
                           {['asset','liability','equity','revenue','expense'].map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>)}
                         </select>
+                        </label>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium mb-1" style={{ color: th.labelText }}>Sub Type</label>
+                        <label className="block text-sm font-medium mb-1" style={{ color: th.labelText }}>Sub Type
                         <select value={formData.accountSubType} onChange={e => setFormData({ ...formData, accountSubType: e.target.value })}
                           className="w-full px-3 py-2 rounded-lg appearance-none focus:ring-2 focus:ring-[#E84545]"
                           style={inputStyle}>
                           <option value="">Select Sub Type</option>
                           {(accountSubTypes[formData.accountType] || []).map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                         </select>
+                        </label>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium mb-1" style={{ color: th.labelText }}>Account Group *</label>
+                        <label className="block text-sm font-medium mb-1" style={{ color: th.labelText }}>Account Group *
                         <select value={formData.accountGroup} onChange={e => setFormData({ ...formData, accountGroup: e.target.value })}
                           className="w-full px-3 py-2 rounded-lg appearance-none focus:ring-2 focus:ring-[#E84545]"
                           style={inputStyle}>
                           <option value="">Select Group</option>
                           {(accountGroups[formData.accountType] || []).map(g => <option key={g} value={g}>{g}</option>)}
                         </select>
+                        </label>
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1" style={{ color: th.labelText }}>Opening Balance</label>
+                      <label className="block text-sm font-medium mb-1" style={{ color: th.labelText }}>Opening Balance
                       <input type="number" value={formData.openingBalance} step="0.01"
                         onChange={e => setFormData({ ...formData, openingBalance: parseFloat(e.target.value) || 0 })}
                         className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545]"
                         style={inputStyle} />
+                      </label>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1" style={{ color: th.labelText }}>Description</label>
+                      <label className="block text-sm font-medium mb-1" style={{ color: th.labelText }}>Description
                       <textarea value={formData.description} rows={4}
                         onChange={e => setFormData({ ...formData, description: e.target.value })}
                         className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545]"
                         style={inputStyle} placeholder="Optional description" />
+                      </label>
                     </div>
                   </div>
                 </div>
@@ -461,11 +466,11 @@ export default function AccountDetailPage() {
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-6">
                       <div>
-                        <label className="text-sm" style={{ color: th.cardMuted }}>Account Number</label>
+                        <span className="text-sm" style={{ color: th.cardMuted }}>Account Number</span>
                         <p className="text-lg font-semibold mt-1" style={{ color: th.cardTitle }}>{accountCode}</p>
                       </div>
                       <div>
-                        <label className="text-sm" style={{ color: th.cardMuted }}>Account Type</label>
+                        <span className="text-sm" style={{ color: th.cardMuted }}>Account Type</span>
                         <div className="mt-1">
                           <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-full border capitalize ${getTypeBadge(accountType)}`}>
                             {getAccountTypeIcon(accountType)}{accountType}
@@ -475,19 +480,19 @@ export default function AccountDetailPage() {
                     </div>
                     <div className="grid grid-cols-2 gap-6">
                       <div>
-                        <label className="text-sm" style={{ color: th.cardMuted }}>Sub Type</label>
+                        <span className="text-sm" style={{ color: th.cardMuted }}>Sub Type</span>
                         <p className="text-lg font-semibold mt-1" style={{ color: th.cardTitle }}>
                           {accountSubTypes[accountType]?.find(s => s.value === accountSubType)?.label || accountSubType || '-'}
                         </p>
                       </div>
                       <div>
-                        <label className="text-sm" style={{ color: th.cardMuted }}>Account Group</label>
+                        <span className="text-sm" style={{ color: th.cardMuted }}>Account Group</span>
                         <p className="text-lg font-semibold mt-1" style={{ color: th.cardTitle }}>{account.accountGroup || '-'}</p>
                       </div>
                     </div>
                     {account.description && (
                       <div>
-                        <label className="text-sm" style={{ color: th.cardMuted }}>Description</label>
+                        <span className="text-sm" style={{ color: th.cardMuted }}>Description</span>
                         <p className="mt-1" style={{ color: th.cardSubtext }}>{account.description}</p>
                       </div>
                     )}
@@ -502,7 +507,7 @@ export default function AccountDetailPage() {
                       </div>
                     )}
                     <div className="pt-4" style={{ borderTop: `1px solid ${th.sectionBorder}` }}>
-                      <label className="text-sm" style={{ color: th.cardMuted }}>Created</label>
+                      <span className="text-sm" style={{ color: th.cardMuted }}>Created</span>
                       <p className="mt-1" style={{ color: th.cardSubtext }}>
                         {new Date(account.createdAt).toLocaleDateString()} at {new Date(account.createdAt).toLocaleTimeString()}
                       </p>
@@ -557,21 +562,21 @@ export default function AccountDetailPage() {
                 <h2 className="text-xl font-bold mb-4" style={{ color: th.cardTitle }}>Balance Summary</h2>
                 <div className="space-y-4">
                   <div className="p-4 rounded-xl" style={{ background: th.innerBg, border: `1px solid ${th.innerBorder}` }}>
-                    <label className="text-sm" style={{ color: th.cardMuted }}>Opening Balance</label>
+                    <span className="text-sm" style={{ color: th.cardMuted }}>Opening Balance</span>
                     <p className="text-2xl font-bold mt-1" style={{ color: th.cardTitle }}>QAR {(account.openingBalance || 0).toFixed(2)}</p>
                   </div>
                   <div className="p-4 rounded-xl transition-colors"
                     style={{ background: th.innerBg, border: `1px solid ${th.innerBorder}` }}
                     onMouseEnter={e => (e.currentTarget.style.borderColor = th.cardHoverBorder)}
                     onMouseLeave={e => (e.currentTarget.style.borderColor = th.innerBorder)}>
-                    <label className="text-sm" style={{ color: th.cardMuted }}>Current Balance</label>
+                    <span className="text-sm" style={{ color: th.cardMuted }}>Current Balance</span>
                     <p className={`text-3xl font-bold mt-1 ${(account.currentBalance || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                       QAR {(account.currentBalance || 0).toFixed(2)}
                     </p>
                   </div>
                   <div className="p-4 rounded-xl" style={{ background: th.innerBg, border: `1px solid ${th.innerBorder}` }}>
                     <div className="flex items-center justify-between">
-                      <label className="text-sm" style={{ color: th.cardMuted }}>Change</label>
+                      <span className="text-sm" style={{ color: th.cardMuted }}>Change</span>
                       {balanceChange !== 0 && (balanceChange > 0
                         ? <TrendingUp className="h-5 w-5 text-green-400" />
                         : <TrendingDown className="h-5 w-5 text-red-400" />)}

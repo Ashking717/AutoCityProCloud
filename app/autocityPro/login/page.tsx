@@ -50,6 +50,101 @@ const content = {
   },
 };
 
+function LoginForm({
+  prefix,
+  t,
+  th,
+  isRTL,
+  identifier,
+  setIdentifier,
+  password,
+  setPassword,
+  showPassword,
+  setShowPassword,
+  rememberMe,
+  setRememberMe,
+  setShowForgotPassword,
+  handleSubmit,
+  loading,
+}: {
+  prefix: string;
+  t: typeof content.en;
+  th: any;
+  isRTL: boolean;
+  identifier: string;
+  setIdentifier: (v: string) => void;
+  password: string;
+  setPassword: (v: string) => void;
+  showPassword: boolean;
+  setShowPassword: (v: boolean) => void;
+  rememberMe: boolean;
+  setRememberMe: (v: boolean) => void;
+  setShowForgotPassword: (v: boolean) => void;
+  handleSubmit: (e: React.FormEvent) => void;
+  loading: boolean;
+}) {
+  return (
+    <div className="space-y-5">
+      <div>
+        <label htmlFor={`${prefix}-identifier`} className="block text-sm font-semibold mb-2" style={{ color: th.labelText }}>
+          {t.identifier}
+        </label>
+        <div className="relative">
+          <User className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 -translate-y-1/2 w-5 h-5`} style={{ color: th.inputIcon }} />
+          <input id={`${prefix}-identifier`} type="text" value={identifier}
+            onChange={e => setIdentifier(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSubmit(e)}
+            placeholder={t.identifierPlaceholder} required autoComplete="username"
+            className={`${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} w-full py-4 rounded-2xl focus:outline-none text-base transition-all duration-300`}
+            style={{ background: th.inputBg, border: `0.5px solid ${th.inputBorder}`, color: th.inputText }}
+          />
+        </div>
+      </div>
+      <div>
+        <label htmlFor={`${prefix}-password`} className="block text-sm font-semibold mb-2" style={{ color: th.labelText }}>
+          {t.password}
+        </label>
+        <div className="relative">
+          <Lock className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 -translate-y-1/2 w-5 h-5`} style={{ color: th.inputIcon }} />
+          <input id={`${prefix}-password`} type={showPassword ? 'text' : 'password'} value={password}
+            onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSubmit(e)}
+            placeholder={t.passwordPlaceholder} required autoComplete="current-password"
+            className={`${isRTL ? 'pr-12 pl-12' : 'pl-12 pr-12'} w-full py-4 rounded-2xl focus:outline-none text-base transition-all duration-300`}
+            style={{ background: th.inputBg, border: `0.5px solid ${th.inputBorder}`, color: th.inputText }}
+          />
+          <button type="button" onClick={() => setShowPassword(!showPassword)}
+            className={`absolute ${isRTL ? 'left-4' : 'right-4'} top-1/2 -translate-y-1/2 hover:text-gray-300 transition-colors active:scale-95`}
+            style={{ color: th.inputIcon }}>
+            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+          </button>
+        </div>
+      </div>
+      <div className="flex items-center justify-between">
+        <label htmlFor={`${prefix}-remember`} className="flex items-center cursor-pointer group">
+          <input id={`${prefix}-remember`} type="checkbox" checked={rememberMe}
+            onChange={e => setRememberMe(e.target.checked)} className="cursor-pointer"
+            style={{ '--checkbox-border': th.checkboxBorder, '--checkbox-bg': th.checkboxBg } as any} />
+          <span className={`${isRTL ? 'mr-3' : 'ml-3'} text-sm font-medium transition-colors`} style={{ color: th.rememberText }}>
+            {t.rememberMe}
+          </span>
+        </label>
+        <button type="button" onClick={() => setShowForgotPassword(true)}
+          className="text-sm font-semibold text-red-500 hover:text-red-400 transition-colors active:scale-95">
+          {t.forgotPassword}
+        </button>
+      </div>
+      <button onClick={handleSubmit} disabled={loading}
+        className="w-full py-4 rounded-2xl text-white font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] transition-all ios-button">
+        {loading ? (
+          <span className="flex items-center justify-center gap-2">
+            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            {t.signingIn}
+          </span>
+        ) : t.signInButton}
+      </button>
+    </div>
+  );
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const isDark = useTimeBasedTheme();
@@ -131,74 +226,12 @@ export default function LoginPage() {
     }
   };
 
-  // Shared form fields render
-  const renderForm = (prefix: string) => (
-    <div className="space-y-5">
-      <div>
-        <label htmlFor={`${prefix}-identifier`} className="block text-sm font-semibold mb-2" style={{ color: th.labelText }}>
-          {t.identifier}
-        </label>
-        <div className="relative">
-          <User className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 -translate-y-1/2 w-5 h-5`} style={{ color: th.inputIcon }} />
-          <input id={`${prefix}-identifier`} type="text" value={identifier}
-            onChange={e => setIdentifier(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSubmit(e)}
-            placeholder={t.identifierPlaceholder} required autoComplete="username"
-            className={`${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} w-full py-4 rounded-2xl focus:outline-none text-base transition-all duration-300`}
-            style={{ background: th.inputBg, border: `0.5px solid ${th.inputBorder}`, color: th.inputText }}
-          />
-        </div>
-      </div>
-      <div>
-        <label htmlFor={`${prefix}-password`} className="block text-sm font-semibold mb-2" style={{ color: th.labelText }}>
-          {t.password}
-        </label>
-        <div className="relative">
-          <Lock className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 -translate-y-1/2 w-5 h-5`} style={{ color: th.inputIcon }} />
-          <input id={`${prefix}-password`} type={showPassword ? 'text' : 'password'} value={password}
-            onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSubmit(e)}
-            placeholder={t.passwordPlaceholder} required autoComplete="current-password"
-            className={`${isRTL ? 'pr-12 pl-12' : 'pl-12 pr-12'} w-full py-4 rounded-2xl focus:outline-none text-base transition-all duration-300`}
-            style={{ background: th.inputBg, border: `0.5px solid ${th.inputBorder}`, color: th.inputText }}
-          />
-          <button type="button" onClick={() => setShowPassword(!showPassword)}
-            className={`absolute ${isRTL ? 'left-4' : 'right-4'} top-1/2 -translate-y-1/2 hover:text-gray-300 transition-colors active:scale-95`}
-            style={{ color: th.inputIcon }}>
-            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-          </button>
-        </div>
-      </div>
-      <div className="flex items-center justify-between">
-        <label htmlFor={`${prefix}-remember`} className="flex items-center cursor-pointer group">
-          <input id={`${prefix}-remember`} type="checkbox" checked={rememberMe}
-            onChange={e => setRememberMe(e.target.checked)} className="cursor-pointer"
-            style={{ '--checkbox-border': th.checkboxBorder, '--checkbox-bg': th.checkboxBg } as any} />
-          <span className={`${isRTL ? 'mr-3' : 'ml-3'} text-sm font-medium transition-colors`} style={{ color: th.rememberText }}>
-            {t.rememberMe}
-          </span>
-        </label>
-        <button type="button" onClick={() => setShowForgotPassword(true)}
-          className="text-sm font-semibold text-red-500 hover:text-red-400 transition-colors active:scale-95">
-          {t.forgotPassword}
-        </button>
-      </div>
-      <button onClick={handleSubmit} disabled={loading}
-        className="w-full py-4 rounded-2xl text-white font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] transition-all ios-button">
-        {loading ? (
-          <span className="flex items-center justify-center gap-2">
-            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            {t.signingIn}
-          </span>
-        ) : t.signInButton}
-      </button>
-    </div>
-  );
-
   return (
     <div className="min-h-screen text-white flex items-center justify-center p-4 relative overflow-hidden transition-colors duration-700"
       style={{ background: th.pageBg, color: th.headingMain }}
       dir={isRTL ? 'rtl' : 'ltr'}>
 
-      <style jsx global>{`
+      <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
         * { -webkit-tap-highlight-color: transparent; }
         body {
@@ -303,7 +336,23 @@ export default function LoginPage() {
                 <p className="text-red-400 text-sm font-medium">{error}</p>
               </div>
             )}
-            {renderForm('desktop')}
+            <LoginForm
+              prefix="desktop"
+              t={t}
+              th={th}
+              isRTL={isRTL}
+              identifier={identifier}
+              setIdentifier={setIdentifier}
+              password={password}
+              setPassword={setPassword}
+              showPassword={showPassword}
+              setShowPassword={setShowPassword}
+              rememberMe={rememberMe}
+              setRememberMe={setRememberMe}
+              setShowForgotPassword={setShowForgotPassword}
+              handleSubmit={handleSubmit}
+              loading={loading}
+            />
             <div className="mt-6 text-center">
               <Link href="/" className="inline-flex items-center gap-2 text-sm font-medium hover:text-red-500 transition-colors active:scale-95"
                 style={{ color: th.backLinkText }}>
@@ -338,7 +387,23 @@ export default function LoginPage() {
                 <p className="text-red-400 text-sm font-medium">{error}</p>
               </div>
             )}
-            {renderForm('mobile')}
+            <LoginForm
+              prefix="mobile"
+              t={t}
+              th={th}
+              isRTL={isRTL}
+              identifier={identifier}
+              setIdentifier={setIdentifier}
+              password={password}
+              setPassword={setPassword}
+              showPassword={showPassword}
+              setShowPassword={setShowPassword}
+              rememberMe={rememberMe}
+              setRememberMe={setRememberMe}
+              setShowForgotPassword={setShowForgotPassword}
+              handleSubmit={handleSubmit}
+              loading={loading}
+            />
             <div className="mt-6 text-center">
               <Link href="/" className="inline-flex items-center gap-2 text-sm font-medium hover:text-red-500 transition-colors active:scale-95"
                 style={{ color: th.backLinkText }}>
@@ -382,7 +447,7 @@ function ForgotPasswordModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir={isRTL ? 'rtl' : 'ltr'}>
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" onClick={onClose} />
+      <div role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClose(); }} className="absolute inset-0 bg-black/80 backdrop-blur-xl" onClick={onClose} />
       <div className="relative w-full max-w-md rounded-3xl p-8 shadow-2xl transform transition-all"
         style={{ background: th.cardBg, border: `0.5px solid ${th.cardBorder}` }}>
         {!success ? (

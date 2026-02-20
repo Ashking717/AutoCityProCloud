@@ -301,8 +301,8 @@ export default function PurchaseDetailPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {purchase.items.map((item: any, index: number) => (
-                        <tr key={index} style={{ borderTop: `1px solid ${th.tableRowDivider}` }}
+                      {purchase.items.map((item: any) => (
+                        <tr key={item._id || `${item.sku}-${item.name}`} style={{ borderTop: `1px solid ${th.tableRowDivider}` }}
                           onMouseEnter={e => (e.currentTarget.style.background = th.tableRowHover)}
                           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                           <td className="px-4 py-4">
@@ -461,10 +461,10 @@ export default function PurchaseDetailPage() {
                 </div>
                 {/* Amount */}
                 <div>
-                  <label className="block text-sm font-medium mb-2" style={{ color: th.textPrimary }}>
+                  <label htmlFor="payment-amount" className="block text-sm font-medium mb-2" style={{ color: th.textPrimary }}>
                     Payment Amount <span className="text-[#E84545]">*</span>
                   </label>
-                  <input type="number" value={paymentForm.amount}
+                  <input id="payment-amount" type="number" value={paymentForm.amount}
                     onChange={e => setPaymentForm({ ...paymentForm, amount: e.target.value })}
                     placeholder="0.00" max={purchase.balanceDue} step="0.01"
                     className={`w-full px-4 py-3 rounded-xl ${inputClass}`} style={inputStyle} />
@@ -475,10 +475,10 @@ export default function PurchaseDetailPage() {
                 </div>
                 {/* Method */}
                 <div>
-                  <label className="block text-sm font-medium mb-2" style={{ color: th.textPrimary }}>
+                  <label htmlFor="payment-method" className="block text-sm font-medium mb-2" style={{ color: th.textPrimary }}>
                     Payment Method <span className="text-[#E84545]">*</span>
                   </label>
-                  <select value={paymentForm.paymentMethod} onChange={e => setPaymentForm({ ...paymentForm, paymentMethod: e.target.value })}
+                  <select id="payment-method" value={paymentForm.paymentMethod} onChange={e => setPaymentForm({ ...paymentForm, paymentMethod: e.target.value })}
                     className={`w-full px-4 py-3 rounded-xl ${inputClass}`} style={inputStyle}>
                     <option value="CASH">Cash</option>
                     <option value="CARD">Card</option>
@@ -487,15 +487,15 @@ export default function PurchaseDetailPage() {
                 </div>
                 {/* Date */}
                 <div>
-                  <label className="block text-sm font-medium mb-2" style={{ color: th.textPrimary }}>Payment Date</label>
-                  <input type="date" value={paymentForm.paymentDate}
+                  <label htmlFor="payment-date" className="block text-sm font-medium mb-2" style={{ color: th.textPrimary }}>Payment Date</label>
+                  <input id="payment-date" type="date" value={paymentForm.paymentDate}
                     onChange={e => setPaymentForm({ ...paymentForm, paymentDate: e.target.value })}
                     className={`w-full px-4 py-3 rounded-xl ${inputClass}`} style={inputStyle} />
                 </div>
                 {/* Reference */}
                 <div>
-                  <label className="block text-sm font-medium mb-2" style={{ color: th.textPrimary }}>Reference Number (Optional)</label>
-                  <input type="text" value={paymentForm.referenceNumber}
+                  <label htmlFor="payment-reference" className="block text-sm font-medium mb-2" style={{ color: th.textPrimary }}>Reference Number (Optional)</label>
+                  <input id="payment-reference" type="text" value={paymentForm.referenceNumber}
                     onChange={e => setPaymentForm({ ...paymentForm, referenceNumber: e.target.value })}
                     placeholder="Check #, Transaction ID, etc."
                     className={`w-full px-4 py-3 rounded-xl ${inputClass}`}
@@ -503,8 +503,8 @@ export default function PurchaseDetailPage() {
                 </div>
                 {/* Notes */}
                 <div>
-                  <label className="block text-sm font-medium mb-2" style={{ color: th.textPrimary }}>Notes (Optional)</label>
-                  <textarea value={paymentForm.notes} onChange={e => setPaymentForm({ ...paymentForm, notes: e.target.value })}
+                  <label htmlFor="payment-notes" className="block text-sm font-medium mb-2" style={{ color: th.textPrimary }}>Notes (Optional)</label>
+                  <textarea id="payment-notes" value={paymentForm.notes} onChange={e => setPaymentForm({ ...paymentForm, notes: e.target.value })}
                     rows={3} placeholder="Additional notes..."
                     className={`w-full px-4 py-3 rounded-xl resize-none ${inputClass}`} style={inputStyle} />
                 </div>

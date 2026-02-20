@@ -441,8 +441,8 @@ export default function ActivityLogsPage() {
                 style={{ background: th.filterPanelBg, border: `1px solid ${th.filterPanelBorder}` }}
               >
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: th.filterLabelText }}>Module</label>
-                  <select value={filterModule} onChange={(e) => setFilterModule(e.target.value)}
+                  <label htmlFor="logs-module" className="block text-sm font-medium mb-1" style={{ color: th.filterLabelText }}>Module</label>
+                  <select id="logs-module" value={filterModule} onChange={(e) => setFilterModule(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent capitalize transition-colors duration-500"
                     style={inputStyle}
                   >
@@ -450,8 +450,8 @@ export default function ActivityLogsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: th.filterLabelText }}>Action Type</label>
-                  <select value={filterActionType} onChange={(e) => setFilterActionType(e.target.value)}
+                  <label htmlFor="logs-action-type" className="block text-sm font-medium mb-1" style={{ color: th.filterLabelText }}>Action Type</label>
+                  <select id="logs-action-type" value={filterActionType} onChange={(e) => setFilterActionType(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent capitalize transition-colors duration-500"
                     style={inputStyle}
                   >
@@ -459,15 +459,15 @@ export default function ActivityLogsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: th.filterLabelText }}>Start Date</label>
-                  <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
+                  <label htmlFor="logs-start-date" className="block text-sm font-medium mb-1" style={{ color: th.filterLabelText }}>Start Date</label>
+                  <input id="logs-start-date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent transition-colors duration-500"
                     style={inputStyle}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: th.filterLabelText }}>End Date</label>
-                  <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
+                  <label htmlFor="logs-end-date" className="block text-sm font-medium mb-1" style={{ color: th.filterLabelText }}>End Date</label>
+                  <input id="logs-end-date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent transition-colors duration-500"
                     style={inputStyle}
                   />
@@ -675,13 +675,13 @@ export default function ActivityLogsPage() {
                 </div>
               ))}
               <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: th.modalItemText }}>Start Date</label>
-                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+                <label htmlFor="logs-start-date-mobile" className="block text-sm font-medium mb-2" style={{ color: th.modalItemText }}>Start Date</label>
+                <input id="logs-start-date-mobile" type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg" style={mobileInputStyle} />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: th.modalItemText }}>End Date</label>
-                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+                <label htmlFor="logs-end-date-mobile" className="block text-sm font-medium mb-2" style={{ color: th.modalItemText }}>End Date</label>
+                <input id="logs-end-date-mobile" type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg" style={mobileInputStyle} />
               </div>
               <div className="flex gap-3 pt-4">

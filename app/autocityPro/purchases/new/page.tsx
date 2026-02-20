@@ -60,6 +60,46 @@ interface User {
   role: string;
 }
 
+const PaymentWarning = ({ total, paymentMethod, amountPaid, formatCurrency }: { total: number; paymentMethod: string; amountPaid: number; formatCurrency: (n: number) => string }) => {
+  if (paymentMethod === "credit" && amountPaid === 0) return (
+    <div className="p-3 bg-orange-500/10 border border-orange-500/20 rounded-xl mb-4">
+      <div className="flex items-start gap-2"><AlertCircle className="h-4 w-4 text-orange-400 mt-0.5 flex-shrink-0" /><div>
+        <p className="text-orange-400 text-sm font-semibold">Full Credit Purchase</p>
+        <p className="text-orange-300 text-xs mt-1">You'll need to record payments later to clear the balance.</p>
+      </div></div>
+    </div>
+  );
+  if (amountPaid > 0 && amountPaid < total) return (
+    <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl mb-4">
+      <div className="flex items-start gap-2"><AlertCircle className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" /><div>
+        <p className="text-blue-400 text-sm font-semibold">Partial Payment</p>
+        <p className="text-blue-300 text-xs mt-1">Paying {formatCurrency(amountPaid)} now. Balance of {formatCurrency(total - amountPaid)} will be on credit.</p>
+      </div></div>
+    </div>
+  );
+  if (amountPaid >= total && total > 0) return (
+    <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-xl mb-4">
+      <div className="flex items-start gap-2"><CheckCircle className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" /><div>
+        <p className="text-green-400 text-sm font-semibold">Full Payment</p>
+        <p className="text-green-300 text-xs mt-1">Purchase will be fully paid with no outstanding balance.</p>
+      </div></div>
+    </div>
+  );
+  return null;
+};
+
+const PctButtons = ({ th, total, setAmountPaid }: { th: any; total: number; setAmountPaid: (v: number) => void }) => (
+  <div className="grid grid-cols-4 gap-2 mt-2">
+    {[0, 25, 50, 100].map(pct => (
+      <button key={pct} onClick={() => setAmountPaid(pct === 0 ? 0 : Math.round(total * (pct / 100) * 100) / 100)}
+        className="px-2 py-1.5 rounded-lg text-xs transition-all"
+        style={{ background: th.pctBtnBg, border: `1px solid ${th.pctBtnBorder}`, color: th.pctBtnText }}>
+        {pct}%
+      </button>
+    ))}
+  </div>
+);
+
 export default function NewPurchasePage() {
   const router = useRouter();
   const isDark = useTimeBasedTheme();
@@ -310,34 +350,6 @@ export default function NewPurchasePage() {
     return paymentMethod;
   };
 
-  const PaymentWarning = () => {
-    const { total } = calculateTotals();
-    if (paymentMethod === "credit" && amountPaid === 0) return (
-      <div className="p-3 bg-orange-500/10 border border-orange-500/20 rounded-xl mb-4">
-        <div className="flex items-start gap-2"><AlertCircle className="h-4 w-4 text-orange-400 mt-0.5 flex-shrink-0" /><div>
-          <p className="text-orange-400 text-sm font-semibold">Full Credit Purchase</p>
-          <p className="text-orange-300 text-xs mt-1">You'll need to record payments later to clear the balance.</p>
-        </div></div>
-      </div>
-    );
-    if (amountPaid > 0 && amountPaid < total) return (
-      <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl mb-4">
-        <div className="flex items-start gap-2"><AlertCircle className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" /><div>
-          <p className="text-blue-400 text-sm font-semibold">Partial Payment</p>
-          <p className="text-blue-300 text-xs mt-1">Paying {formatCurrency(amountPaid)} now. Balance of {formatCurrency(total - amountPaid)} will be on credit.</p>
-        </div></div>
-      </div>
-    );
-    if (amountPaid >= total && total > 0) return (
-      <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-xl mb-4">
-        <div className="flex items-start gap-2"><CheckCircle className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" /><div>
-          <p className="text-green-400 text-sm font-semibold">Full Payment</p>
-          <p className="text-green-300 text-xs mt-1">Purchase will be fully paid with no outstanding balance.</p>
-        </div></div>
-      </div>
-    );
-    return null;
-  };
 
   const handleSubmit = async () => {
     if (cart.length === 0) { toast.error("Cart is empty"); return; }
@@ -381,18 +393,6 @@ export default function NewPurchasePage() {
   const handleLogout = async () => { await fetch("/api/auth/logout", { method: "POST", credentials: "include" }); window.location.href = "/autocityPro/login"; };
   const formatCurrency = (n: number) => new Intl.NumberFormat("en-QA", { style: "currency", currency: "QAR", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 
-  // Shared percentage buttons
-  const PctButtons = () => (
-    <div className="grid grid-cols-4 gap-2 mt-2">
-      {[0, 25, 50, 100].map(pct => (
-        <button key={pct} onClick={() => setAmountPaid(pct === 0 ? 0 : Math.round(totals.total * (pct / 100) * 100) / 100)}
-          className="px-2 py-1.5 rounded-lg text-xs transition-all"
-          style={{ background: th.pctBtnBg, border: `1px solid ${th.pctBtnBorder}`, color: th.pctBtnText }}>
-          {pct}%
-        </button>
-      ))}
-    </div>
-  );
 
   return (
     <MainLayout user={user} onLogout={handleLogout}>
@@ -501,7 +501,7 @@ export default function NewPurchasePage() {
                     ) : (
                       <>
                         {filteredProducts.map(product => (
-                          <div key={product._id} onClick={() => addToCart(product)}
+                          <div key={product._id} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') addToCart(product); }} onClick={() => addToCart(product)}
                             className="p-4 rounded-xl cursor-pointer transition-all active:scale-[0.98] border"
                             style={{ background: th.itemBg, borderColor: th.itemBorder }}
                             onMouseEnter={e => (e.currentTarget.style.borderColor = th.cardBorderHover)}
@@ -556,7 +556,7 @@ export default function NewPurchasePage() {
                     </div>
                   ) : (
                     cart.map((item, index) => (
-                      <div key={index} className="rounded-xl p-4 border" style={{ background: th.itemBg, borderColor: th.itemBorder }}>
+                      <div key={item.productId} className="rounded-xl p-4 border" style={{ background: th.itemBg, borderColor: th.itemBorder }}>
                         <div className="flex justify-between items-start mb-3">
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold truncate" style={{ color: th.textPrimary }}>{item.productName}</h3>
@@ -581,7 +581,7 @@ export default function NewPurchasePage() {
                             </div>
                           ))}
                           <div>
-                            <label className="text-[10px] mb-1 block" style={{ color: th.textMuted }}>Unit</label>
+                            <span className="text-[10px] mb-1 block" style={{ color: th.textMuted }}>Unit</span>
                             <div className="px-2 py-2 rounded-lg text-sm flex items-center justify-center border"
                               style={{ background: th.itemBg, borderColor: th.itemBorder, color: th.textPrimary }}>{item.unit}</div>
                           </div>
@@ -633,8 +633,8 @@ export default function NewPurchasePage() {
                 </h2>
                 <div className="space-y-3">
                   <div>
-                    <label className="text-sm mb-2 block" style={{ color: th.textSecondary }}>Payment Method</label>
-                    <select value={paymentMethod} onChange={e => { const m = e.target.value as any; setPaymentMethod(m); if (m === "credit" && amountPaid > 0) toast('Tip: Leave "Amount Paid" as 0 for full credit', { icon: "💡", duration: 4000 }); }}
+                    <label htmlFor="purchase-payment-method" className="text-sm mb-2 block" style={{ color: th.textSecondary }}>Payment Method</label>
+                    <select id="purchase-payment-method" value={paymentMethod} onChange={e => { const m = e.target.value as any; setPaymentMethod(m); if (m === "credit" && amountPaid > 0) toast('Tip: Leave "Amount Paid" as 0 for full credit', { icon: "💡", duration: 4000 }); }}
                       className={`w-full px-4 py-3 rounded-xl ${inputClass}`} style={inputStyle}>
                       <option value="cash">Cash</option><option value="card">Card</option>
                       <option value="bank_transfer">Bank Transfer</option><option value="credit">Credit</option>
@@ -656,7 +656,7 @@ export default function NewPurchasePage() {
                         </button>
                       )}
                     </div>
-                    {totals.total > 0 && <PctButtons />}
+                    {totals.total > 0 && <PctButtons th={th} total={totals.total} setAmountPaid={setAmountPaid} />}
                   </div>
                 </div>
               </div>
@@ -666,7 +666,7 @@ export default function NewPurchasePage() {
                 <h2 className="text-lg font-bold mb-4 flex items-center" style={{ color: th.textPrimary }}>
                   <Calculator className="h-5 w-5 mr-2 text-[#E84545]" />Summary
                 </h2>
-                <PaymentWarning />
+                <PaymentWarning total={totals.total} paymentMethod={paymentMethod} amountPaid={amountPaid} formatCurrency={formatCurrency} />
                 <div className="space-y-3">
                   {[
                     { label:'Subtotal:', value: formatCurrency(totals.subtotal) },
@@ -724,8 +724,8 @@ export default function NewPurchasePage() {
               <div className="p-4 md:p-6">
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs md:text-sm font-medium mb-1" style={{ color: th.textSecondary }}>Category Name *</label>
-                    <input type="text" value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)}
+                    <label htmlFor="new-category-name" className="block text-xs md:text-sm font-medium mb-1" style={{ color: th.textSecondary }}>Category Name *</label>
+                    <input id="new-category-name" type="text" value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)}
                       className={`w-full px-3 py-2 rounded-lg text-sm md:text-base ${inputClass}`} style={inputStyle}
                       placeholder="Enter category name" onKeyDown={e => e.key === "Enter" && handleQuickAddCategory()} />
                   </div>
@@ -762,7 +762,7 @@ export default function NewPurchasePage() {
                   </div>
                 ) : (
                   cart.map((item, index) => (
-                    <div key={index} className="rounded-2xl p-4 border" style={{ background: th.itemBg, borderColor: th.itemBorder }}>
+                    <div key={item.productId} className="rounded-2xl p-4 border" style={{ background: th.itemBg, borderColor: th.itemBorder }}>
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex-1 min-w-0 pr-2">
                           <h3 className="font-semibold truncate" style={{ color: th.textPrimary }}>{item.productName}</h3>
@@ -790,14 +790,14 @@ export default function NewPurchasePage() {
                           </div>
                           <div className="grid grid-cols-2 gap-2">
                             <div>
-                              <label className="text-[10px] mb-1 block" style={{ color: th.textMuted }}>Tax Rate %</label>
-                              <input type="number" value={item.taxRate}
+                              <label htmlFor="cart-tax-rate" className="text-[10px] mb-1 block" style={{ color: th.textMuted }}>Tax Rate %</label>
+                              <input id="cart-tax-rate" type="number" value={item.taxRate}
                                 onChange={e => updateCartItem(item.productId, "taxRate", parseFloat(e.target.value) || 0)}
                                 min={0} max={100}
                                 className={`w-full px-3 py-2 rounded-lg text-sm ${inputClass}`} style={inputStyle} />
                             </div>
                             <div>
-                              <label className="text-[10px] mb-1 block" style={{ color: th.textMuted }}>Unit</label>
+                              <span className="text-[10px] mb-1 block" style={{ color: th.textMuted }}>Unit</span>
                               <div className="px-3 py-2 rounded-lg text-sm flex items-center justify-center border h-[38px]"
                                 style={{ background: th.itemBg, borderColor: th.itemBorder, color: th.textPrimary }}>{item.unit}</div>
                             </div>
@@ -814,8 +814,8 @@ export default function NewPurchasePage() {
                               { label:'Qty', value: item.quantity },
                               { label:'Price', value: item.unitPrice.toFixed(2), border: true },
                               { label:'Tax', value: `${item.taxRate}%` },
-                            ].map((s, i) => (
-                              <div key={i} className={`text-center ${s.border ? 'border-x' : ''}`} style={s.border ? { borderColor: th.dividerStrong } : {}}>
+                            ].map((s) => (
+                              <div key={s.label} className={`text-center ${s.border ? 'border-x' : ''}`} style={s.border ? { borderColor: th.dividerStrong } : {}}>
                                 <p className="text-[10px] mb-1" style={{ color: th.textMuted }}>{s.label}</p>
                                 <p className="font-semibold text-sm" style={{ color: th.textPrimary }}>{s.value}</p>
                               </div>
@@ -866,8 +866,8 @@ export default function NewPurchasePage() {
               <div className="space-y-4">
                 {/* Supplier */}
                 <div>
-                  <label className="block text-sm font-medium mb-2" style={{ color: th.textSecondary }}>Supplier *</label>
-                  <select value={selectedSupplier?._id || ""} onChange={e => setSelectedSupplier(suppliers.find(s => s._id === e.target.value))}
+                  <label htmlFor="mobile-purchase-supplier" className="block text-sm font-medium mb-2" style={{ color: th.textSecondary }}>Supplier *</label>
+                  <select id="mobile-purchase-supplier" value={selectedSupplier?._id || ""} onChange={e => setSelectedSupplier(suppliers.find(s => s._id === e.target.value))}
                     className={`w-full px-4 py-3 rounded-xl ${inputClass}`} style={inputStyle}>
                     <option value="">Select Supplier</option>
                     {suppliers.map(s => <option key={s._id} value={s._id}>{s.name} - {s.phone}</option>)}
@@ -885,8 +885,8 @@ export default function NewPurchasePage() {
                 </div>
                 {/* Payment Method */}
                 <div>
-                  <label className="block text-sm font-medium mb-2" style={{ color: th.textSecondary }}>Payment Method</label>
-                  <select value={paymentMethod} onChange={e => { const m = e.target.value as any; setPaymentMethod(m); if (m === "credit" && amountPaid > 0) toast('Tip: Leave "Amount Paid" as 0 for full credit', { icon: "💡", duration: 4000 }); }}
+                  <label htmlFor="mobile-payment-method" className="block text-sm font-medium mb-2" style={{ color: th.textSecondary }}>Payment Method</label>
+                  <select id="mobile-payment-method" value={paymentMethod} onChange={e => { const m = e.target.value as any; setPaymentMethod(m); if (m === "credit" && amountPaid > 0) toast('Tip: Leave "Amount Paid" as 0 for full credit', { icon: "💡", duration: 4000 }); }}
                     className={`w-full px-4 py-3 rounded-xl ${inputClass}`} style={inputStyle}>
                     <option value="cash">Cash</option><option value="card">Card</option>
                     <option value="bank_transfer">Bank Transfer</option><option value="credit">Credit</option>
@@ -901,12 +901,12 @@ export default function NewPurchasePage() {
                     onChange={e => { const v = parseFloat(e.target.value) || 0; if (v > totals.total) { toast.error("Amount cannot exceed total"); setAmountPaid(totals.total); } else setAmountPaid(v); }}
                     placeholder="0.00" max={totals.total} step="0.01"
                     className={`w-full px-4 py-3 rounded-xl ${inputClass}`} style={inputStyle} />
-                  {totals.total > 0 && <PctButtons />}
+                  {totals.total > 0 && <PctButtons th={th} total={totals.total} setAmountPaid={setAmountPaid} />}
                 </div>
                 {/* Summary */}
                 <div className="rounded-xl p-4 border" style={{ background: th.itemBg, borderColor: th.itemBorder }}>
                   <h3 className="font-semibold mb-3" style={{ color: th.textPrimary }}>Order Summary</h3>
-                  <div className="mb-3"><PaymentWarning /></div>
+                  <div className="mb-3"><PaymentWarning total={totals.total} paymentMethod={paymentMethod} amountPaid={amountPaid} formatCurrency={formatCurrency} /></div>
                   <div className="space-y-2 text-sm">
                     {[
                       { label:'Items:', value: cart.length },
@@ -981,8 +981,8 @@ export default function NewPurchasePage() {
                     </div>
                   ))}
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium mb-2" style={{ color: th.textPrimary }}>Address</label>
-                    <textarea value={newSupplier.address} onChange={e => setNewSupplier({ ...newSupplier, address: e.target.value })}
+                    <label htmlFor="new-supplier-address" className="block text-sm font-medium mb-2" style={{ color: th.textPrimary }}>Address</label>
+                    <textarea id="new-supplier-address" value={newSupplier.address} onChange={e => setNewSupplier({ ...newSupplier, address: e.target.value })}
                       rows={3} className={`w-full px-4 py-3 rounded-xl resize-none ${inputClass}`} style={inputStyle} placeholder="Supplier address" />
                   </div>
                 </div>

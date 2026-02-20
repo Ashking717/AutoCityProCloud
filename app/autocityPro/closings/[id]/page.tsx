@@ -98,13 +98,6 @@ export default function ClosingDetailPage() {
     fetchClosingDetails();
   }, [params.id]);
 
-  // Fetch average sales when closing data is loaded
-  useEffect(() => {
-    if (closing) {
-      fetchAverageSales();
-    }
-  }, [closing]);
-
   const fetchUser = async () => {
     try {
       const res = await fetch('/api/auth/me', { credentials: 'include' });
@@ -128,6 +121,7 @@ export default function ClosingDetailPage() {
       }
 
       setClosing(data.closing);
+      fetchAverageSales(data.closing);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -135,15 +129,16 @@ export default function ClosingDetailPage() {
     }
   };
 
-  const fetchAverageSales = async () => {
-    if (!closing) return;
+  const fetchAverageSales = async (closingData?: ClosingData) => {
+    const target = closingData || closing;
+    if (!target) return;
 
     try {
       setLoadingAverage(true);
-      const closingDate = new Date(closing.closingDate);
+      const closingDate = new Date(target.closingDate);
       
       let params;
-      if (closing.closingType === 'day') {
+      if (target.closingType === 'day') {
         // For daily closing: get all daily closings in the same month
         const year = closingDate.getFullYear();
         const month = closingDate.getMonth();
@@ -180,7 +175,7 @@ export default function ClosingDetailPage() {
           const totalSales = closings.reduce((sum, c) => sum + c.totalRevenue, 0);
           const avgSales = totalSales / closings.length;
           
-          const periodLabel = closing.closingType === 'day' 
+          const periodLabel = target.closingType === 'day' 
             ? closingDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
             : closingDate.getFullYear().toString();
           
@@ -188,7 +183,7 @@ export default function ClosingDetailPage() {
             averageSales: avgSales,
             periodCount: closings.length,
             totalPeriodSales: totalSales,
-            periodType: closing.closingType === 'day' ? 'month' : 'year',
+            periodType: target.closingType === 'day' ? 'month' : 'year',
             periodLabel,
           });
         }

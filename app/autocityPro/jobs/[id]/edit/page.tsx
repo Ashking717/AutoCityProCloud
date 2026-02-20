@@ -340,14 +340,16 @@ export default function EditJobPage() {
                 </h2>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2" style={{ color: th.panelTitle }}>Job Title *</label>
+                    <label className="block text-sm font-medium mb-2" style={{ color: th.panelTitle }}>Job Title *
                     <input type="text" value={jobTitle} onChange={e => setJobTitle(e.target.value)} placeholder="e.g., Oil Change & Brake Inspection"
                       className="w-full px-3 py-3 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent" style={inputStyle} />
+                    </label>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2" style={{ color: th.panelTitle }}>Description (Optional)</label>
+                    <label className="block text-sm font-medium mb-2" style={{ color: th.panelTitle }}>Description (Optional)
                     <textarea value={jobDescription} onChange={e => setJobDescription(e.target.value)} placeholder="Additional details..." rows={3}
                       className="w-full px-3 py-3 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent resize-none" style={inputStyle} />
+                    </label>
                   </div>
                   <div className="pt-4" style={{ borderTop: `1px solid ${th.divider}` }}>
                     <VoiceNoteRecorder voiceNotes={voiceNotes} onChange={setVoiceNotes} onUploadingChange={setIsVoiceUploading}
@@ -387,7 +389,7 @@ export default function EditJobPage() {
                       {filteredProducts.length === 0 ? (
                         <div className="text-center py-8"><Search className="h-12 w-12 mx-auto mb-3" style={{ color: th.emptyIcon }} /><p style={{ color: th.emptyText }}>No products found</p></div>
                       ) : filteredProducts.map(p => (
-                        <div key={p._id} onClick={() => addToItems(p)} className="p-4 rounded-lg cursor-pointer transition-all"
+                        <div key={p._id} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') addToItems(p); }} onClick={() => addToItems(p)} className="p-4 rounded-lg cursor-pointer transition-all"
                           style={{ background: th.productCardBg, border: `1px solid ${th.productCardBorder}` }}
                           onMouseEnter={e => (e.currentTarget.style.borderColor = th.productCardHover)}
                           onMouseLeave={e => (e.currentTarget.style.borderColor = th.productCardBorder)}>
@@ -418,7 +420,7 @@ export default function EditJobPage() {
                       <p className="text-sm mt-2" style={{ color: th.subText }}>Search for parts or add labor charges</p>
                     </div>
                   ) : items.map((item, index) => (
-                    <div key={index} className="rounded-lg p-3 md:p-4" style={{ background: th.itemBg, border: `1px solid ${th.itemBorder}` }}>
+                    <div key={item.productId || `${item.sku}-${index}`} className="rounded-lg p-3 md:p-4" style={{ background: th.itemBg, border: `1px solid ${th.itemBorder}` }}>
                       <div className="flex justify-between items-start mb-2">
                         <h3 className="font-semibold text-sm flex items-center gap-2" style={{ color: th.itemTitle }}>
                           {item.isLabor && <Wrench className="h-4 w-4 text-[#E84545]" />}{item.productName}
@@ -446,14 +448,16 @@ export default function EditJobPage() {
                 <h2 className="text-lg font-bold mb-4" style={{ color: th.panelTitle }}>Notes</h2>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2" style={{ color: th.panelTitle }}>Internal Notes</label>
+                    <label className="block text-sm font-medium mb-2" style={{ color: th.panelTitle }}>Internal Notes
                     <textarea value={internalNotes} onChange={e => setInternalNotes(e.target.value)} placeholder="Notes for internal use only..." rows={3}
                       className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] resize-none" style={inputStyle} />
+                    </label>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2" style={{ color: th.panelTitle }}>Customer Notes</label>
+                    <label className="block text-sm font-medium mb-2" style={{ color: th.panelTitle }}>Customer Notes
                     <textarea value={customerNotes} onChange={e => setCustomerNotes(e.target.value)} placeholder="Notes visible to customer..." rows={3}
                       className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] resize-none" style={inputStyle} />
+                    </label>
                   </div>
                 </div>
               </div>
@@ -466,7 +470,7 @@ export default function EditJobPage() {
                 <h2 className="text-lg font-bold mb-4" style={{ color: th.panelTitle }}>Priority & Status</h2>
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-sm font-medium mb-2" style={{ color: th.panelTitle }}>Priority</label>
+                    <label className="block text-sm font-medium mb-2" style={{ color: th.panelTitle }}>Priority
                     <div className="grid grid-cols-2 gap-2">
                       {(["LOW","MEDIUM","HIGH","URGENT"] as const).map(p => (
                         <button key={p} onClick={() => setPriority(p)}
@@ -476,15 +480,17 @@ export default function EditJobPage() {
                         </button>
                       ))}
                     </div>
+                    </label>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2" style={{ color: th.panelTitle }}>Status</label>
+                    <label className="block text-sm font-medium mb-2" style={{ color: th.panelTitle }}>Status
                     <select value={status} onChange={e => setStatus(e.target.value as any)} className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545]" style={selectStyle}>
                       <option value="DRAFT">DRAFT</option>
                       <option value="PENDING">PENDING</option>
                       <option value="IN_PROGRESS">IN PROGRESS</option>
                       <option value="COMPLETED">COMPLETED</option>
                     </select>
+                    </label>
                   </div>
                 </div>
               </div>
@@ -550,19 +556,22 @@ export default function EditJobPage() {
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>Description *</label>
+                <label className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>Description *
                 <input type="text" value={laborCharge.description} onChange={e => setLaborCharge({ ...laborCharge, description: e.target.value })}
                   placeholder="e.g., Engine repair, Oil change" className="w-full px-3 py-2 rounded-lg" style={inputStyle} />
+                </label>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>Hours/Quantity</label>
+                <label className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>Hours/Quantity
                 <input type="number" value={laborCharge.hours} onChange={e => setLaborCharge({ ...laborCharge, hours: parseFloat(e.target.value) || 1 })}
                   min="0.5" step="0.5" className="w-full px-3 py-2 rounded-lg" style={inputStyle} />
+                </label>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>Notes</label>
+                <label className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>Notes
                 <textarea value={laborCharge.notes} onChange={e => setLaborCharge({ ...laborCharge, notes: e.target.value })}
                   rows={2} placeholder="Additional details..." className="w-full px-3 py-2 rounded-lg resize-none" style={inputStyle} />
+                </label>
               </div>
               <div className="flex justify-end gap-3 pt-4">
                 <button onClick={() => setShowAddLabor(false)} className="px-4 py-2 rounded-lg"

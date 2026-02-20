@@ -275,16 +275,17 @@ export default function SalesPage() {
 
   useEffect(() => { fetchUser(); fetchSales(); }, [dateRange, pagination.page, statusFilter]);
 
-  useEffect(() => {
-    if (!selectedSaleForEdit) return;
-    setEditItems(selectedSaleForEdit.items.map((item: any) => ({
+  const openEditModal = (sale: any) => {
+    setSelectedSaleForEdit(sale);
+    setEditItems(sale.items.map((item: any) => ({
       sku: item.sku, name: item.name, quantity: item.quantity,
       unitPrice: item.unitPrice, discount: item.discount || 0, taxRate: item.taxRate || 0,
     })));
-    setEditPaymentMethod(selectedSaleForEdit.paymentMethod);
-    setEditAmountPaid(selectedSaleForEdit.amountPaid);
+    setEditPaymentMethod(sale.paymentMethod);
+    setEditAmountPaid(sale.amountPaid);
     setEditNotes("");
-  }, [selectedSaleForEdit]);
+    setShowEditModal(true);
+  };
 
   const fetchUser = async () => {
     try {
@@ -797,7 +798,7 @@ export default function SalesPage() {
                           onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
 
                           <td className="px-4 py-3 whitespace-nowrap">
-                            <span className="text-sm font-medium text-[#E84545] hover:text-[#cc3c3c] cursor-pointer transition-colors" onClick={() => handleViewDetails(sale)}>
+                            <span role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleViewDetails(sale); }} className="text-sm font-medium text-[#E84545] hover:text-[#cc3c3c] cursor-pointer transition-colors" onClick={() => handleViewDetails(sale)}>
                               {sale.invoiceNumber}
                             </span>
                             {sale.returnStatus && (
@@ -861,7 +862,7 @@ export default function SalesPage() {
                                   {[
                                     { show: true,                                                   label: "View Details",     icon: <Eye className="h-3 w-3" />,       color: th.dropdownItemText, action: () => handleViewDetails(sale) },
                                     { show: sale.status === "COMPLETED",                            label: "Print Invoice",    icon: <Printer className="h-3 w-3" />,   color: "#60a5fa",           action: () => handlePrintInvoice(sale) },
-                                    { show: sale.status === "COMPLETED" && !sale.returnStatus,      label: "Edit (Correction)",icon: <Edit className="h-3 w-3" />,      color: "#60a5fa",           action: () => { setSelectedSaleForEdit(sale); setShowEditModal(true); } },
+                                    { show: sale.status === "COMPLETED" && !sale.returnStatus,      label: "Edit (Correction)",icon: <Edit className="h-3 w-3" />,      color: "#60a5fa",           action: () => openEditModal(sale) },
                                     { show: sale.status === "COMPLETED" && !sale.returnStatus,      label: "Return Items",     icon: <Undo className="h-3 w-3" />,      color: "#facc15",           action: () => handleReturnSale(sale) },
                                     { show: sale.status === "COMPLETED" && sale.returnStatus === "PARTIAL_RETURN", label: "Return More", icon: <Undo className="h-3 w-3" />, color: "#facc15", action: () => handleReturnSale(sale) },
                                     { show: sale.status === "COMPLETED" && sale.balanceDue < 0,     label: "Process Refund",   icon: <CreditCard className="h-3 w-3" />,color: "#c084fc",           action: () => handleRefundSale(sale) },
@@ -946,7 +947,7 @@ export default function SalesPage() {
                             const actionMap: Record<string, () => void> = {
                               "View Details":      () => handleViewDetails(sale),
                               "Print Invoice":     () => handlePrintInvoice(sale),
-                              "Edit (Correction)": () => { setSelectedSaleForEdit(sale); setShowEditModal(true); setShowActions(null); },
+                              "Edit (Correction)": () => { openEditModal(sale); setShowActions(null); },
                               "Return Items":      () => handleReturnSale(sale),
                               "Return More Items": () => handleReturnSale(sale),
                               "Process Refund":    () => handleRefundSale(sale),
@@ -1063,21 +1064,21 @@ export default function SalesPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs mb-1 block" style={{ color: th.modalLabel }}>Payment Method</label>
-                  <select value={editPaymentMethod} onChange={(e) => setEditPaymentMethod(e.target.value)}
+                  <label htmlFor="edit-payment-method" className="text-xs mb-1 block" style={{ color: th.modalLabel }}>Payment Method</label>
+                  <select id="edit-payment-method" value={editPaymentMethod} onChange={(e) => setEditPaymentMethod(e.target.value)}
                     className="w-full rounded px-3 py-2" style={modalInputStyle}>
                     {["CASH","CARD","BANK_TRANSFER","CREDIT"].map((m) => <option key={m} value={m} style={{ background: th.optionBg }}>{m}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs mb-1 block" style={{ color: th.modalLabel }}>Amount Paid</label>
-                  <input type="number" value={editAmountPaid} onChange={(e) => setEditAmountPaid(Number(e.target.value))}
+                  <label htmlFor="edit-amount-paid" className="text-xs mb-1 block" style={{ color: th.modalLabel }}>Amount Paid</label>
+                  <input id="edit-amount-paid" type="number" value={editAmountPaid} onChange={(e) => setEditAmountPaid(Number(e.target.value))}
                     className="w-full rounded px-3 py-2" style={modalInputStyle} />
                 </div>
               </div>
               <div>
-                <label className="text-xs mb-1 block" style={{ color: th.modalLabel }}>Correction Reason</label>
-                <textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} rows={2}
+                <label htmlFor="edit-correction-reason" className="text-xs mb-1 block" style={{ color: th.modalLabel }}>Correction Reason</label>
+                <textarea id="edit-correction-reason" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} rows={2}
                   className="w-full rounded px-3 py-2" style={modalInputStyle} />
               </div>
             </div>
@@ -1140,8 +1141,8 @@ export default function SalesPage() {
               </div>
 
               <div className="mb-6">
-                <label className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Return Reason</label>
-                <textarea value={returnReason} onChange={(e) => setReturnReason(e.target.value)}
+                <label htmlFor="return-reason" className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Return Reason</label>
+                <textarea id="return-reason" value={returnReason} onChange={(e) => setReturnReason(e.target.value)}
                   placeholder="Enter reason for return..." rows={3}
                   className="w-full px-4 py-3 rounded-lg focus:ring-2 focus:ring-yellow-500 resize-none"
                   style={modalInputStyle} />
@@ -1296,7 +1297,7 @@ export default function SalesPage() {
                     </thead>
                     <tbody>
                       {selectedSaleDetails.items?.map((item: any, i: number) => (
-                        <tr key={i} style={{ borderTop: `1px solid ${th.modalSectionBorder}` }}>
+                        <tr key={item._id || `${item.sku}-${i}`} style={{ borderTop: `1px solid ${th.modalSectionBorder}` }}>
                           <td className="px-4 py-3">
                             <p className="font-medium" style={{ color: th.modalTitle }}>{item.name}</p>
                             {item.isLabor && <span className="text-xs text-yellow-400 bg-yellow-500/10 px-2 py-0.5 rounded">Labor</span>}
@@ -1371,7 +1372,7 @@ export default function SalesPage() {
                   <h3 className="text-lg font-semibold mb-4" style={{ color: th.modalTitle }}>Return History</h3>
                   <div className="space-y-4">
                     {selectedSaleDetails.returns.map((ret: any, i: number) => (
-                      <div key={i} className="rounded-lg p-4" style={{ background: th.modalSectionBg, border: `1px solid ${th.modalSectionBorder}` }}>
+                      <div key={ret.returnNumber} className="rounded-lg p-4" style={{ background: th.modalSectionBg, border: `1px solid ${th.modalSectionBorder}` }}>
                         <div className="flex justify-between items-start mb-3">
                           <div>
                             <h4 className="font-medium" style={{ color: th.modalTitle }}>Return #{ret.returnNumber}</h4>

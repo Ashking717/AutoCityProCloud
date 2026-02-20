@@ -2,6 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+html, body {
+  background-color: #000000;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+@supports (-webkit-touch-callout: none) {
+  html, body {
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+  }
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

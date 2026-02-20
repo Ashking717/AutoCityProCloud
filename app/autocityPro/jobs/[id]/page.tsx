@@ -383,8 +383,8 @@ export default function JobDetailPage() {
                   <Package className="h-5 w-5 text-[#E84545]" />Items ({job.items.length})
                 </h2>
                 <div className="space-y-3">
-                  {job.items.map((item, index) => (
-                    <div key={index} className="rounded-lg p-3 md:p-4" style={{ background: th.itemBg, border: `1px solid ${th.itemBorder}` }}>
+                  {job.items.map((item) => (
+                    <div key={`${item.sku}-${item.name}`} className="rounded-lg p-3 md:p-4" style={{ background: th.itemBg, border: `1px solid ${th.itemBorder}` }}>
                       <div className="flex-1">
                         <h3 className="font-semibold text-sm md:text-base flex items-center gap-2" style={{ color: th.itemTitle }}>
                           {item.isLabor && <Wrench className="h-4 w-4 text-[#E84545]" />}

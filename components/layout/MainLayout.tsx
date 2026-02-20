@@ -56,7 +56,7 @@ export default function MainLayout({
       </div>
 
       {/* Global Styles */}
-      <style jsx global>{`
+      <style>{`
         html, body {
           height: 100%;
           background-color: ${isDark ? '#000000' : '#ffffff'};

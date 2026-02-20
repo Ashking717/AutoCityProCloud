@@ -26,6 +26,9 @@ export default function ProductCard({ product, onEdit, onDelete, formatYearRange
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') router.push(`/autocityPro/products/${product._id}`); }}
       className="p-4 transition-all active:opacity-80 cursor-pointer"
       style={{ background: th.cardBg }}
       onMouseEnter={e => (e.currentTarget.style.background = th.cardHover)}

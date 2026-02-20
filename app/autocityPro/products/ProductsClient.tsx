@@ -44,7 +44,7 @@ export default function ProductsClient({
   const [isPending, startTransition] = useTransition();
   const isDark = useTimeBasedTheme();
 
-  const [user]            = useState(initialUser);
+  const user = initialUser;
   const [products, setProducts]         = useState(initialProducts);
   const [stats, setStats]               = useState(initialStats);
   const [pagination, setPagination]     = useState(initialPagination);
@@ -69,7 +69,7 @@ export default function ProductsClient({
 
   const [isMobile,         setIsMobile]         = useState(false);
   const [showMobileMenu,   setShowMobileMenu]   = useState(false);
-  const [showDynamicIsland,setShowDynamicIsland]= useState(false);
+  const [showDynamicIsland,setShowDynamicIsland]= useState(true);
   const [isLoadingMore,    setIsLoadingMore]    = useState(false);
 
   const [showQuickAddCategory, setShowQuickAddCategory] = useState(false);
@@ -159,11 +159,10 @@ export default function ProductsClient({
 
   // ── Deferred features ───────────────────────────────────────────────────────
   useEffect(() => {
-    const timer = setTimeout(() => setShowDynamicIsland(true), 1000);
     const checkIfMobile = () => setIsMobile(window.innerWidth < 768);
     checkIfMobile();
     window.addEventListener("resize", checkIfMobile);
-    return () => { clearTimeout(timer); window.removeEventListener("resize", checkIfMobile); };
+    return () => window.removeEventListener("resize", checkIfMobile);
   }, []);
 
   const handleDeleteClick = (product: any) => {
@@ -842,8 +841,9 @@ export default function ProductsClient({
             </div>
             <div className="p-4 md:p-6 space-y-4">
               <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: th.filterLabel }}>Category Name *</label>
+                <label htmlFor="quick-add-category-name" className="block text-xs font-medium mb-1" style={{ color: th.filterLabel }}>Category Name *</label>
                 <input
+                  id="quick-add-category-name"
                   type="text" value={newCategoryName}
                   onChange={e => setNewCategoryName(e.target.value)}
                   onKeyDown={e => e.key==="Enter" && handleQuickAddCategory()}

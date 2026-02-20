@@ -223,6 +223,7 @@ interface CartItem {
 }
 
 interface Payment {
+  id: string;
   method: "cash" | "card" | "bank_transfer" | "cheque";
   amount: number;
   reference?: string;
@@ -243,12 +244,14 @@ export default function NewSalePage() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [isMobile, setIsMobile] = useState(false);
   const [showDynamicIsland, setShowDynamicIsland] = useState(true);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  type SalesOverlay = 'mobileMenu' | 'addCustomer' | 'addLabor' | 'mobileFilters' | 'keyboardHints' | 'jobsModal' | null;
+  const [activeOverlay, setActiveOverlay] = useState<SalesOverlay>(null);
+  const showMobileMenu = activeOverlay === 'mobileMenu';
   const [searchTerm, setSearchTerm] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [payments, setPayments] = useState<Payment[]>([
-    { method: "card", amount: 0 },
+    { id: 'init-0', method: "card", amount: 0 },
   ]);
   const [overallDiscount, setOverallDiscount] = useState(0);
   const [overallDiscountType, setOverallDiscountType] = useState<
@@ -259,7 +262,7 @@ export default function NewSalePage() {
   const [showInvoice, setShowInvoice] = useState(false);
   const [invoiceData, setInvoiceData] = useState<any>(null);
 
-  const [showAddCustomer, setShowAddCustomer] = useState(false);
+  const showAddCustomer = activeOverlay === 'addCustomer';
   const [newCustomer, setNewCustomer] = useState({
     name: "",
     phone: "",
@@ -273,7 +276,7 @@ export default function NewSalePage() {
     vehicleVIN: "",
   });
 
-  const [showAddLabor, setShowAddLabor] = useState(false);
+  const showAddLabor = activeOverlay === 'addLabor';
   const [laborCharge, setLaborCharge] = useState({
     description: "",
     hours: 1,
@@ -285,12 +288,12 @@ export default function NewSalePage() {
   const [filterMake, setFilterMake] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [showDesktopFilters, setShowDesktopFilters] = useState(false);
-  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const showMobileFilters = activeOverlay === 'mobileFilters';
   const [categories, setCategories] = useState<any[]>([]);
-  const [showKeyboardHints, setShowKeyboardHints] = useState(false);
+  const showKeyboardHints = activeOverlay === 'keyboardHints';
 
   const [completedJobs, setCompletedJobs] = useState<any[]>([]);
-  const [showJobsModal, setShowJobsModal] = useState(false);
+  const showJobsModal = activeOverlay === 'jobsModal';
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
 
@@ -350,11 +353,7 @@ export default function NewSalePage() {
         target.tagName === "SELECT"
       ) {
         if (e.key === "Escape") {
-          if (showAddCustomer) setShowAddCustomer(false);
-          if (showAddLabor) setShowAddLabor(false);
-          if (showMobileMenu) setShowMobileMenu(false);
-          if (showMobileFilters) setShowMobileFilters(false);
-          if (showJobsModal) setShowJobsModal(false);
+          if (activeOverlay) setActiveOverlay(null);
           return;
         }
         return;
@@ -370,13 +369,13 @@ export default function NewSalePage() {
           (document.querySelector('input[placeholder*="Search"]') as HTMLInputElement)?.focus();
           break;
         case "c":
-          setShowAddCustomer(!showAddCustomer);
+          setActiveOverlay(prev => prev === 'addCustomer' ? null : 'addCustomer');
           break;
         case "l":
-          setShowAddLabor(!showAddLabor);
+          setActiveOverlay(prev => prev === 'addLabor' ? null : 'addLabor');
           break;
         case "j":
-          if (completedJobs.length > 0) setShowJobsModal(!showJobsModal);
+          if (completedJobs.length > 0) setActiveOverlay(prev => prev === 'jobsModal' ? null : 'jobsModal');
           break;
         case "p":
           (document.querySelector('input[placeholder="Amount"]') as HTMLInputElement)?.focus();
@@ -385,14 +384,10 @@ export default function NewSalePage() {
           if (cart.length > 0 && selectedCustomer && !loading) handleSubmit();
           break;
         case "h":
-          setShowKeyboardHints(!showKeyboardHints);
+          setActiveOverlay(prev => prev === 'keyboardHints' ? null : 'keyboardHints');
           break;
         case "escape":
-          if (showAddCustomer) setShowAddCustomer(false);
-          else if (showAddLabor) setShowAddLabor(false);
-          else if (showMobileMenu) setShowMobileMenu(false);
-          else if (showMobileFilters) setShowMobileFilters(false);
-          else if (showJobsModal) setShowJobsModal(false);
+          if (activeOverlay) setActiveOverlay(null);
           else if (searchTerm) setSearchTerm("");
           break;
         case "arrowdown":
@@ -415,8 +410,7 @@ export default function NewSalePage() {
     return () => window.removeEventListener("keydown", handleKeyPress);
   }, [
     cart, selectedCustomer, loading, searchTerm, filteredProducts,
-    frequentProducts, showAddCustomer, showAddLabor, showMobileMenu,
-    showMobileFilters, showKeyboardHints, showJobsModal, completedJobs,
+    frequentProducts, activeOverlay, completedJobs,
   ]);
 
   const fetchUser = async () => {
@@ -507,7 +501,7 @@ export default function NewSalePage() {
       };
     });
     setCart(jobItems);
-    setShowJobsModal(false);
+    setActiveOverlay(null);
     toast.success(`Loaded job ${job.jobNumber} into cart`);
   };
 
@@ -545,7 +539,7 @@ export default function NewSalePage() {
         toast.success("Customer added!");
         setCustomers([...customers, data.customer]);
         setSelectedCustomer(data.customer);
-        setShowAddCustomer(false);
+        setActiveOverlay(null);
         setNewCustomer({ name: "", phone: "", email: "", address: "", vehicleRegistrationNumber: "", vehicleMake: "", vehicleModel: "", vehicleYear: "", vehicleColor: "", vehicleVIN: "" });
       } else {
         toast.error((await res.json()).error || "Failed to add customer");
@@ -572,7 +566,7 @@ export default function NewSalePage() {
       total: amount * (1 + laborCharge.taxRate / 100),
       profit: amount,
     }]);
-    setShowAddLabor(false);
+    setActiveOverlay(null);
     setLaborCharge({ description: "", hours: 1, rate: 0, taxRate: 0 });
     toast.success("Labor charge added!");
   };
@@ -755,7 +749,7 @@ export default function NewSalePage() {
         setShowInvoice(true);
         setCart([]);
         setSelectedCustomer(null);
-        setPayments([{ method: "cash", amount: 0 }]);
+        setPayments([{ id: `payment-${Date.now()}`, method: "cash", amount: 0 }]);
         setOverallDiscount(0);
         setActiveJobId(null);
         fetchProducts();
@@ -866,7 +860,7 @@ export default function NewSalePage() {
                 </div>
               </div>
               <button
-                onClick={() => setShowMobileMenu(true)}
+                onClick={() => setActiveOverlay('mobileMenu')}
                 className="p-2 rounded-xl active:scale-95 transition-all"
                 style={{ background: th.mobileBtnBg, color: th.mobileBtnText }}
               >
@@ -965,6 +959,7 @@ export default function NewSalePage() {
                       {frequentProducts.map((product, index) => (
                         <div
                           key={product._id}
+                          role="button"
                           data-product-item={index}
                           tabIndex={0}
                           onClick={() => addToCart(product)}
@@ -1030,7 +1025,7 @@ export default function NewSalePage() {
 
                     {/* Filter toggle */}
                     <button
-                      onClick={() => isMobile ? setShowMobileFilters(true) : setShowDesktopFilters(!showDesktopFilters)}
+                      onClick={() => isMobile ? setActiveOverlay('mobileFilters') : setShowDesktopFilters(!showDesktopFilters)}
                       className="flex items-center space-x-2 px-4 py-3 rounded-lg transition-colors"
                       style={{
                         background: (isMobile ? showMobileFilters : showDesktopFilters) || activeFilterCount > 0
@@ -1050,7 +1045,7 @@ export default function NewSalePage() {
                     {/* Load Jobs */}
                     {completedJobs.length > 0 && (
                       <button
-                        onClick={() => setShowJobsModal(true)}
+                        onClick={() => setActiveOverlay('jobsModal')}
                         className="flex items-center space-x-2 px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 whitespace-nowrap transition-all shadow-lg relative"
                       >
                         <Briefcase className="h-5 w-5" />
@@ -1063,7 +1058,7 @@ export default function NewSalePage() {
 
                     {/* Add Labor */}
                     <button
-                      onClick={() => setShowAddLabor(true)}
+                      onClick={() => setActiveOverlay('addLabor')}
                       className="flex items-center space-x-2 px-4 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-lg hover:from-[#cc3c3c] hover:to-[#E84545] whitespace-nowrap transition-all shadow-lg hover:shadow-[#E84545]/30"
                     >
                       <Wrench className="h-5 w-5" />
@@ -1174,6 +1169,7 @@ export default function NewSalePage() {
                           filteredProducts.map((product, index) => (
                             <div
                               key={product._id}
+                              role="button"
                               data-search-item={index}
                               tabIndex={0}
                               onClick={() => addToCart(product)}
@@ -1244,7 +1240,7 @@ export default function NewSalePage() {
                       </div>
                     ) : (
                       cart.map((item, index) => (
-                        <div key={index} className="rounded-lg p-4 group" style={{ background: th.cartItemBg, border: `1px solid ${th.cartItemBorder}` }}>
+                        <div key={item.productId || `${item.sku}-${index}`} className="rounded-lg p-4 group" style={{ background: th.cartItemBg, border: `1px solid ${th.cartItemBorder}` }}>
                           <div className="flex justify-between items-start mb-2">
                             <div>
                               <h3 className="font-semibold flex items-center" style={{ color: th.cartItemName }}>
@@ -1347,7 +1343,7 @@ export default function NewSalePage() {
                     )}
                   </div>
                   <button
-                    onClick={() => setShowAddCustomer(true)}
+                    onClick={() => setActiveOverlay('addCustomer')}
                     className="w-full flex items-center justify-center space-x-2 px-3 py-3 border-2 border-dashed border-[#E84545]/50 text-[#E84545] rounded-lg hover:border-[#E84545] hover:bg-[#E84545]/10 transition-colors"
                   >
                     <Plus className="h-4 w-4" />
@@ -1392,7 +1388,7 @@ export default function NewSalePage() {
                 <div className="rounded-lg shadow-lg p-6" style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}>
                   <h2 className="text-lg font-bold mb-4" style={{ color: th.cardTitle }}>Payment</h2>
                   {payments.map((payment, index) => (
-                    <div key={index} className="mb-4 p-3 rounded-lg" style={{ background: th.customerCardBg, border: `1px solid ${th.customerCardBorder}` }}>
+                    <div key={payment.id} className="mb-4 p-3 rounded-lg" style={{ background: th.customerCardBg, border: `1px solid ${th.customerCardBorder}` }}>
                       <select
                         value={payment.method}
                         onChange={(e) => updatePayment(index, "method", e.target.value)}
@@ -1426,7 +1422,7 @@ export default function NewSalePage() {
                     </div>
                   ))}
                   <button
-                    onClick={() => setPayments([...payments, { method: "cash", amount: 0 }])}
+                    onClick={() => setPayments([...payments, { id: `payment-${Date.now()}`, method: "cash", amount: 0 }])}
                     className="w-full flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-colors hover:text-[#E84545]"
                     style={{ border: `1px dashed ${th.cardBorder}`, color: th.cardSubtext }}
                     onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#E84545")}
@@ -1496,7 +1492,7 @@ export default function NewSalePage() {
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-lg font-bold" style={{ color: th.mobileMenuTitle }}>Quick Actions</h2>
                   <button
-                    onClick={() => setShowMobileMenu(false)}
+                    onClick={() => setActiveOverlay(null)}
                     className="p-2 rounded-xl active:scale-95 transition-all"
                     style={{ background: th.mobileMenuCloseBg, color: th.mobileMenuCloseText }}
                   >
@@ -1506,7 +1502,7 @@ export default function NewSalePage() {
                 <div className="space-y-3">
                   {completedJobs.length > 0 && (
                     <button
-                      onClick={() => { setShowJobsModal(true); setShowMobileMenu(false); }}
+                      onClick={() => setActiveOverlay('jobsModal')}
                       className="w-full p-4 rounded-2xl font-semibold transition-all flex items-center justify-between active:scale-[0.98] bg-blue-500/10 border border-blue-500/30 text-blue-300 hover:bg-blue-500/20"
                     >
                       <span>Load Completed Job</span>
@@ -1517,9 +1513,9 @@ export default function NewSalePage() {
                     </button>
                   )}
                   {[
-                    { label: "Add Labor Charge",  icon: <Wrench className="h-5 w-5" />,       action: () => { setShowAddLabor(true);    setShowMobileMenu(false); } },
-                    { label: "Add New Customer",  icon: <User className="h-5 w-5" />,          action: () => { setShowAddCustomer(true); setShowMobileMenu(false); } },
-                    { label: "View Cart Summary", icon: <ShoppingCart className="h-5 w-5" />,  action: () => { if (selectedCustomer) toast.success(`Customer: ${selectedCustomer.name}`); setShowMobileMenu(false); } },
+                    { label: "Add Labor Charge",  icon: <Wrench className="h-5 w-5" />,       action: () => setActiveOverlay('addLabor') },
+                    { label: "Add New Customer",  icon: <User className="h-5 w-5" />,          action: () => setActiveOverlay('addCustomer') },
+                    { label: "View Cart Summary", icon: <ShoppingCart className="h-5 w-5" />,  action: () => { if (selectedCustomer) toast.success(`Customer: ${selectedCustomer.name}`); setActiveOverlay(null); } },
                   ].map(({ label, icon, action }) => (
                     <button
                       key={label}
@@ -1549,7 +1545,7 @@ export default function NewSalePage() {
                   </h2>
                   <p className="text-sm mt-1" style={{ color: th.cardSubtext }}>Select a job to load into the cart</p>
                 </div>
-                <button onClick={() => setShowJobsModal(false)} style={{ color: th.modalClose }}><X className="h-6 w-6" /></button>
+                <button onClick={() => setActiveOverlay(null)} style={{ color: th.modalClose }}><X className="h-6 w-6" /></button>
               </div>
               <div className="p-6 overflow-y-auto max-h-[60vh]">
                 {loadingJobs ? (
@@ -1568,6 +1564,9 @@ export default function NewSalePage() {
                     {completedJobs.map((job) => (
                       <div
                         key={job._id}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') loadJobIntoCart(job); }}
                         onClick={() => loadJobIntoCart(job)}
                         className="rounded-lg p-4 cursor-pointer transition-all group"
                         style={{ background: th.jobItemBg, border: `1px solid ${th.jobItemBorder}` }}
@@ -1615,7 +1614,7 @@ export default function NewSalePage() {
             <div className="rounded-lg shadow-2xl max-w-2xl w-full my-8" style={{ background: th.modalBg, border: `1px solid ${th.modalBorder}` }}>
               <div className="flex justify-between items-center px-6 py-4 border-b" style={{ background: th.modalHeaderBg, borderColor: th.modalSectionBorder }}>
                 <h2 className="text-xl font-bold" style={{ color: th.modalTitle }}>Quick Add Customer</h2>
-                <button onClick={() => setShowAddCustomer(false)} style={{ color: th.modalClose }}><X className="h-6 w-6" /></button>
+                <button onClick={() => setActiveOverlay(null)} style={{ color: th.modalClose }}><X className="h-6 w-6" /></button>
               </div>
               <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
                 <div className="grid grid-cols-2 gap-4">
@@ -1634,8 +1633,8 @@ export default function NewSalePage() {
                     </div>
                   ))}
                   <div className="col-span-2">
-                    <label className="block text-sm font-medium mb-1" style={{ color: th.modalSectionLabel }}>Address</label>
-                    <textarea value={newCustomer.address} onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
+                    <label htmlFor="new-customer-address" className="block text-sm font-medium mb-1" style={{ color: th.modalSectionLabel }}>Address</label>
+                    <textarea id="new-customer-address" value={newCustomer.address} onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
                       rows={2} placeholder="Customer address"
                       className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
                       style={inputStyle} />
@@ -1649,8 +1648,8 @@ export default function NewSalePage() {
                   </h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="col-span-2">
-                      <label className="block text-sm font-medium mb-1" style={{ color: th.modalSectionLabel }}>Registration Number</label>
-                      <input type="text" value={newCustomer.vehicleRegistrationNumber}
+                      <label htmlFor="new-customer-reg" className="block text-sm font-medium mb-1" style={{ color: th.modalSectionLabel }}>Registration Number</label>
+                      <input id="new-customer-reg" type="text" value={newCustomer.vehicleRegistrationNumber}
                         onChange={(e) => setNewCustomer({ ...newCustomer, vehicleRegistrationNumber: e.target.value.toUpperCase() })}
                         placeholder="ABC-1234" className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent uppercase"
                         style={inputStyle} />
@@ -1689,8 +1688,8 @@ export default function NewSalePage() {
                       </div>
                     ))}
                     <div className="col-span-2">
-                      <label className="block text-sm font-medium mb-1" style={{ color: th.modalSectionLabel }}>VIN Number</label>
-                      <input type="text" value={newCustomer.vehicleVIN}
+                      <label htmlFor="new-customer-vin" className="block text-sm font-medium mb-1" style={{ color: th.modalSectionLabel }}>VIN Number</label>
+                      <input id="new-customer-vin" type="text" value={newCustomer.vehicleVIN}
                         onChange={(e) => setNewCustomer({ ...newCustomer, vehicleVIN: e.target.value.toUpperCase() })}
                         placeholder="Vehicle Identification Number"
                         className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent uppercase"
@@ -1700,7 +1699,7 @@ export default function NewSalePage() {
                 </div>
 
                 <div className="flex justify-end space-x-3 pt-6" style={{ borderTop: `1px solid ${th.modalSectionBorder}` }}>
-                  <button onClick={() => setShowAddCustomer(false)}
+                  <button onClick={() => setActiveOverlay(null)}
                     className="px-4 py-2 rounded-lg transition-colors"
                     style={{ border: `1px solid ${th.modalCancelBorder}`, color: th.modalCancelText, background: th.modalCancelBg }}>
                     Cancel
@@ -1723,12 +1722,12 @@ export default function NewSalePage() {
                 <h2 className="text-xl font-bold flex items-center" style={{ color: th.modalTitle }}>
                   <Wrench className="h-5 w-5 mr-2 text-[#E84545]" />Add Labor Charge
                 </h2>
-                <button onClick={() => setShowAddLabor(false)} style={{ color: th.modalClose }}><X className="h-6 w-6" /></button>
+                <button onClick={() => setActiveOverlay(null)} style={{ color: th.modalClose }}><X className="h-6 w-6" /></button>
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: th.modalTitle }}>Description *</label>
-                  <input type="text" value={laborCharge.description}
+                  <label htmlFor="labor-desc" className="block text-sm font-medium mb-1" style={{ color: th.modalTitle }}>Description *</label>
+                  <input id="labor-desc" type="text" value={laborCharge.description}
                     onChange={(e) => setLaborCharge({ ...laborCharge, description: e.target.value })}
                     placeholder="e.g., Engine repair, Oil change"
                     className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
@@ -1749,8 +1748,8 @@ export default function NewSalePage() {
                   ))}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: th.modalTitle }}>Tax Rate (%)</label>
-                  <input type="number" value={laborCharge.taxRate} min="0"
+                  <label htmlFor="labor-tax" className="block text-sm font-medium mb-1" style={{ color: th.modalTitle }}>Tax Rate (%)</label>
+                  <input id="labor-tax" type="number" value={laborCharge.taxRate} min="0"
                     onChange={(e) => setLaborCharge({ ...laborCharge, taxRate: parseFloat(e.target.value) || 0 })}
                     className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
                     style={inputStyle} />
@@ -1767,7 +1766,7 @@ export default function NewSalePage() {
                   </p>
                 </div>
                 <div className="flex justify-end space-x-3 pt-4">
-                  <button onClick={() => setShowAddLabor(false)}
+                  <button onClick={() => setActiveOverlay(null)}
                     className="px-4 py-2 rounded-lg transition-colors"
                     style={{ border: `1px solid ${th.modalCancelBorder}`, color: th.modalCancelText, background: th.modalCancelBg }}>
                     Cancel
@@ -1794,7 +1793,7 @@ export default function NewSalePage() {
                   <h2 className="text-lg font-bold" style={{ color: th.mobileMenuTitle }}>Filters</h2>
                   {activeFilterCount > 0 && <p className="text-xs mt-1" style={{ color: th.cardSubtext }}>{activeFilterCount} filter{activeFilterCount !== 1 ? "s" : ""} active</p>}
                 </div>
-                <button onClick={() => setShowMobileFilters(false)}
+                <button onClick={() => setActiveOverlay(null)}
                   className="p-2 rounded-xl active:scale-95 transition-all"
                   style={{ background: th.mobileMenuCloseBg, color: th.mobileMenuCloseText }}>
                   <X className="h-5 w-5" />
@@ -1816,12 +1815,12 @@ export default function NewSalePage() {
                   </div>
                 ))}
                 <div className="flex gap-3 pt-4" style={{ borderTop: `1px solid ${th.mobileFilterBorder}` }}>
-                  <button onClick={() => { clearFilters(); setShowMobileFilters(false); }}
+                  <button onClick={() => { clearFilters(); setActiveOverlay(null); }}
                     className="flex-1 px-4 py-3 rounded-xl transition-colors active:scale-95"
                     style={{ background: th.mobileClearBg, border: `1px solid ${th.mobileClearBorder}`, color: th.mobileClearText }}>
                     Clear All
                   </button>
-                  <button onClick={() => setShowMobileFilters(false)}
+                  <button onClick={() => setActiveOverlay(null)}
                     className="flex-1 px-4 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] rounded-xl text-white font-semibold active:scale-95 transition-all">
                     Apply Filters
                   </button>
@@ -1844,7 +1843,7 @@ export default function NewSalePage() {
         {/* Keyboard Hints Toggle - Desktop Only */}
         {!showKeyboardHints && !isMobile && (
           <button
-            onClick={() => setShowKeyboardHints(true)}
+            onClick={() => setActiveOverlay('keyboardHints')}
             className="hidden md:flex fixed bottom-6 right-6 z-40 items-center gap-2 rounded-xl px-4 py-3 shadow-2xl transition-all group animate-in slide-in-from-bottom duration-300"
             style={{ background: th.kbdPanelBg, border: `1px solid ${th.kbdPanelBorder}` }}
             title="Show keyboard shortcuts (Press H)"
@@ -1865,7 +1864,7 @@ export default function NewSalePage() {
               <h3 className="text-xs font-semibold flex items-center" style={{ color: th.kbdTitle }}>
                 <span className="mr-2">⌨️</span>Keyboard Shortcuts
               </h3>
-              <button onClick={() => setShowKeyboardHints(false)} style={{ color: th.kbdLabel }}><X className="h-3 w-3" /></button>
+              <button onClick={() => setActiveOverlay(null)} style={{ color: th.kbdLabel }}><X className="h-3 w-3" /></button>
             </div>
             <div className="space-y-1.5 text-xs">
               {[

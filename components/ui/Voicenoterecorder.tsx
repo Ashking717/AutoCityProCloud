@@ -46,7 +46,7 @@ export default function VoiceNoteRecorder({
   const [audioDurations, setAudioDurations] = useState<Record<number, number>>({});
   const [audioProgress, setAudioProgress]   = useState<Record<number, number>>({});
   const [micError, setMicError]           = useState<string | null>(null);
-  const [bars, setBars]                   = useState<number[]>(Array(16).fill(4));
+  const [bars, setBars]                   = useState<number[]>(() => Array(16).fill(4));
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef   = useRef<Blob[]>([]);
@@ -322,7 +322,7 @@ export default function VoiceNoteRecorder({
           <div className="flex items-end gap-0.5 h-8">
             {bars.map((h, i) => (
               <div
-                key={i}
+                key={`bar-${i}`}
                 className="w-1 bg-red-400 rounded-full transition-all duration-75"
                 style={{ height: `${h}px` }}
               />
@@ -339,7 +339,7 @@ export default function VoiceNoteRecorder({
         <div className="space-y-2">
           {voiceNotes.map((entry, index) => (
             <div
-              key={`${entry.url}-${index}`}
+              key={entry.url}
               className="flex items-center gap-3 p-3 bg-[#111111] border border-white/5 rounded-lg group hover:border-white/10 transition-all"
             >
               {/* Play / Pause */}

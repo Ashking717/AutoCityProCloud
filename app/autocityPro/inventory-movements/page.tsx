@@ -292,8 +292,8 @@ export default function InventoryMovementsPage() {
                 {[
                   { icon: <RefreshCw className="h-4 w-4" />, label: 'Refresh', action: fetchMovements },
                   { icon: <Download className="h-4 w-4" />, label: 'Export', action: () => toast.success('Export coming soon!') }
-                ].map((btn, i) => (
-                  <button key={i} onClick={btn.action}
+                ].map((btn) => (
+                  <button key={btn.label} onClick={btn.action}
                     className="flex items-center gap-2 px-4 py-2 rounded-xl transition-all"
                     style={{ background: th.headerBtnBg, color: th.headerBtnText, border: `1px solid ${th.headerBtnBorder}` }}
                     onMouseEnter={e => (e.currentTarget.style.background = th.headerBtnHover)}
@@ -339,8 +339,8 @@ export default function InventoryMovementsPage() {
               { icon: <TrendingUp className="h-5 w-5" style={{ color: th.statValueGreen }} />, label: "Stock In Value", value: `QAR ${totalIn.toLocaleString()}`, color: th.statValueGreen, bg: isDark ? "rgba(34,197,94,0.10)" : "rgba(34,197,94,0.08)" },
               { icon: <TrendingDown className="h-5 w-5" style={{ color: th.statValueRed }} />, label: "Stock Out Value", value: `QAR ${totalOut.toLocaleString()}`, color: th.statValueRed, bg: isDark ? "rgba(239,68,68,0.10)" : "rgba(239,68,68,0.08)" },
               { icon: <FileText className="h-5 w-5" style={{ color: isDark ? "#60a5fa" : "#2563eb" }} />, label: "Net Movement", value: `QAR ${(totalIn - totalOut).toLocaleString()}`, color: totalIn - totalOut >= 0 ? th.statValueGreen : th.statValueRed, bg: isDark ? "rgba(59,130,246,0.10)" : "rgba(59,130,246,0.08)" },
-            ].map((stat, i) => (
-              <div key={i} className="rounded-2xl p-4 transition-colors duration-500"
+            ].map((stat) => (
+              <div key={stat.label} className="rounded-2xl p-4 transition-colors duration-500"
                 style={{ background: th.statCardBg, border: `1px solid ${th.statCardBorder}` }}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="p-2 rounded-xl" style={{ background: stat.bg }}>{stat.icon}</div>

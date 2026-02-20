@@ -166,7 +166,7 @@ function LiveWaveform({ isRecording }: { isRecording: boolean }) {
   return (
     <div className="flex items-center justify-between w-full h-8 gap-[2px]">
       {heights.map((h, i) => (
-        <div key={i} className="rounded-full flex-1 bg-red-400 transition-all duration-75"
+        <div key={`bar-${i}`} className="rounded-full flex-1 bg-red-400 transition-all duration-75"
           style={{ height: `${Math.max(12, h * 100)}%` }} />
       ))}
     </div>
@@ -198,15 +198,15 @@ function MessageBubble({
           let t: ReturnType<typeof setTimeout> | null = null;
           const clear = () => { if (t) clearTimeout(t); el.removeEventListener("touchend", clear); el.removeEventListener("touchmove", clear); };
           t = setTimeout(() => onLongPress(msg), 500);
-          el.addEventListener("touchend", clear, { once: true });
-          el.addEventListener("touchmove", clear, { once: true });
+          el.addEventListener("touchend", clear, { once: true, passive: true });
+          el.addEventListener("touchmove", clear, { once: true, passive: true });
         }}
         className={`relative ${msg.type === "voice" ? "max-w-[92%] md:max-w-sm px-3 py-3" : "max-w-[85%] md:max-w-md px-3 md:px-4 py-2"} rounded-2xl bubble-pop ${isMe ? "bg-[#005C4B] text-white rounded-br-md bubble-tail-sent" : "text-white rounded-bl-md bubble-tail-received"} ${msg._optimistic ? "opacity-80" : ""} ${msg._failed ? "ring-1 ring-red-500" : ""}`}
         style={isMe ? {} : { background: receivedBg, border: receivedBorder, color: isDark ? '#ffffff' : '#111827' }}
       >
         {msg.type === "image" ? (
           <div className="space-y-2">
-            <img src={msg.imageUrl} alt="Shared image" className="rounded-lg max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity active:opacity-75"
+            <img role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onImageView(msg.imageUrl!, msg.content); }} src={msg.imageUrl} alt="Shared image" className="rounded-lg max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity active:opacity-75"
               onClick={() => onImageView(msg.imageUrl!, msg.content)} />
             {msg.content && msg.content !== "Image" && <p className="text-sm">{msg.content}</p>}
           </div>
@@ -232,7 +232,7 @@ function MessageBubble({
                   {waveform.map((height, i) => {
                     const played = (i / (waveform.length - 1)) * 100 <= (audioProgress[msg._id] ?? 0);
                     return (
-                      <div key={i} className={`rounded-full flex-1 transition-colors duration-100 ${played ? "bg-white" : "bg-white/35"}`}
+                      <div key={`waveform-${i}`} className={`rounded-full flex-1 transition-colors duration-100 ${played ? "bg-white" : "bg-white/35"}`}
                         style={{ height: `${Math.max(12, height * 100)}%` }} />
                     );
                   })}
@@ -375,8 +375,9 @@ export default function MessagesPage() {
   const [showTyping, setShowTyping] = useState(false);
   const [newMessageIds, setNewMessageIds] = useState<Set<string>>(new Set());
   const [holdState, setHoldState] = useState<"idle" | "holding" | "locked">("idle");
-  const [slideUp, setSlideUp] = useState(0);
-  const [slideLeft, setSlideLeft] = useState(0);
+  const [slide, setSlide] = useState({ up: 0, left: 0 });
+  const slideUp = slide.up;
+  const slideLeft = slide.left;
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -521,10 +522,11 @@ export default function MessagesPage() {
   useEffect(() => { fetchUser(); fetchConversations(); fetchUsers(); sendActivityPing(); const id = setInterval(sendActivityPing, 60_000); return () => clearInterval(id); }, [fetchUser, fetchConversations, fetchUsers, sendActivityPing]);
   useEffect(() => {
     if (!selectedUser) { const id = setInterval(fetchConversations, 30_000); return () => clearInterval(id); }
-    const run = () => { fetchMessages(selectedUser._id, true); fetchRecipientStatus(selectedUser._id); };
-    run(); fetchConversations();
-    const msgId = setInterval(run, 30_000), convId = setInterval(fetchConversations, 60_000);
-    const onVisibility = () => { if (!document.hidden) run(); };
+    const refresh = () => { fetchMessages(selectedUser._id, true); fetchRecipientStatus(selectedUser._id); };
+    const init = () => { refresh(); fetchConversations(); };
+    init();
+    const msgId = setInterval(refresh, 30_000), convId = setInterval(fetchConversations, 60_000);
+    const onVisibility = () => { if (!document.hidden) refresh(); };
     document.addEventListener("visibilitychange", onVisibility);
     return () => { clearInterval(msgId); clearInterval(convId); document.removeEventListener("visibilitychange", onVisibility); };
   }, [selectedUser, fetchMessages, fetchConversations, fetchRecipientStatus]);
@@ -645,7 +647,7 @@ export default function MessagesPage() {
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
     const holdTimer = setTimeout(() => {
       recordTimerRef.current = null;
-      applyHoldState("holding"); setSlideUp(0); setSlideLeft(0);
+      applyHoldState("holding"); setSlide({ up: 0, left: 0 });
       vrRef.current.startRecording().then(() => { playRecordStartSound(); if ("vibrate" in navigator) navigator.vibrate(15); }).catch(() => { toast.error("Microphone access denied"); applyHoldState("idle"); });
     }, 300);
     recordTimerRef.current = holdTimer;
@@ -656,8 +658,8 @@ export default function MessagesPage() {
       if (pointerIdRef.current === null || e.pointerId !== pointerIdRef.current) return;
       if (holdStateRef.current !== "holding") return;
       const dy = recordOriginRef.current.y - e.clientY, dx = recordOriginRef.current.x - e.clientX;
-      setSlideUp(Math.max(0, dy)); setSlideLeft(Math.max(0, dx));
-      if (Math.max(0, dy) > LOCK_THRESHOLD) { applyHoldState("locked"); setSlideUp(0); setSlideLeft(0); if ("vibrate" in navigator) navigator.vibrate([10, 40, 10]); }
+      setSlide({ up: Math.max(0, dy), left: Math.max(0, dx) });
+      if (Math.max(0, dy) > LOCK_THRESHOLD) { applyHoldState("locked"); setSlide({ up: 0, left: 0 }); if ("vibrate" in navigator) navigator.vibrate([10, 40, 10]); }
     };
     const handleDocumentPointerUp = (e: PointerEvent) => {
       if (pointerIdRef.current === null || e.pointerId !== pointerIdRef.current) return;
@@ -667,13 +669,13 @@ export default function MessagesPage() {
       const dx = recordOriginRef.current.x - e.clientX;
       if (dx > CANCEL_THRESHOLD) vrRef.current.cancelRecording();
       else { autoSendRef.current = true; vrRef.current.stopRecording(); }
-      applyHoldState("idle"); setSlideUp(0); setSlideLeft(0);
+      applyHoldState("idle"); setSlide({ up: 0, left: 0 });
     };
     const handleDocumentPointerCancel = (e: PointerEvent) => {
       if (pointerIdRef.current === null || e.pointerId !== pointerIdRef.current) return;
       if (recordTimerRef.current) { clearTimeout(recordTimerRef.current); recordTimerRef.current = null; }
       pointerIdRef.current = null;
-      if (holdStateRef.current !== "idle") { vrRef.current.cancelRecording(); applyHoldState("idle"); setSlideUp(0); setSlideLeft(0); }
+      if (holdStateRef.current !== "idle") { vrRef.current.cancelRecording(); applyHoldState("idle"); setSlide({ up: 0, left: 0 }); }
     };
     document.addEventListener("pointermove", handleDocumentPointerMove);
     document.addEventListener("pointerup", handleDocumentPointerUp);
@@ -687,7 +689,7 @@ export default function MessagesPage() {
   }, [applyHoldState]);
 
   const handleEmergencyCancel = useCallback(() => {
-    if (holdStateRef.current !== "idle") { vrRef.current.cancelRecording(); applyHoldState("idle"); setSlideUp(0); setSlideLeft(0); if ("vibrate" in navigator) navigator.vibrate(50); toast.success("Recording canceled"); }
+    if (holdStateRef.current !== "idle") { vrRef.current.cancelRecording(); applyHoldState("idle"); setSlide({ up: 0, left: 0 }); if ("vibrate" in navigator) navigator.vibrate(50); toast.success("Recording canceled"); }
   }, [applyHoldState]);
   const handleLockedCancel = useCallback(() => { vrRef.current.cancelRecording(); applyHoldState("idle"); }, [applyHoldState]);
   const handleLockedSend = useCallback(() => { autoSendRef.current = true; vrRef.current.stopRecording(); applyHoldState("idle"); }, [applyHoldState]);
@@ -1037,9 +1039,12 @@ export default function MessagesPage() {
 
       {/* ── Message Options Modal ─────────────────────────────────────────── */}
       {selectedMessage && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-end md:items-center justify-center p-4 animate-in fade-in duration-200"
+        <div role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedMessage(null); }} className="fixed inset-0 z-50 bg-black/50 flex items-end md:items-center justify-center p-4 animate-in fade-in duration-200"
           onClick={() => setSelectedMessage(null)}>
           <div
+            role="dialog"
+            tabIndex={0}
+            onKeyDown={e => e.stopPropagation()}
             className="rounded-2xl w-full md:w-96 overflow-hidden animate-in slide-in-from-bottom duration-300 transition-colors"
             style={{ background: th.modalBg, border: `1px solid ${th.modalBorder}`, marginBottom: "env(safe-area-inset-bottom, 0px)" }}
             onClick={e => e.stopPropagation()}
@@ -1083,7 +1088,7 @@ export default function MessagesPage() {
 
       {/* ── Image Viewer ──────────────────────────────────────────────────── */}
       {viewingImage && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col animate-in fade-in duration-200"
+        <div role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setViewingImage(null); }} className="fixed inset-0 z-50 bg-black flex flex-col animate-in fade-in duration-200"
           onClick={e => { if (e.target === e.currentTarget) setViewingImage(null); }}>
           <div className="flex items-center justify-between p-3 md:p-4 bg-gradient-to-b from-black/80 to-transparent backdrop-blur-sm z-10">
             <button onClick={() => setViewingImage(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors active:scale-95 touch-manipulation">
@@ -1093,8 +1098,8 @@ export default function MessagesPage() {
               <Download className="h-6 w-6 text-white" />
             </button>
           </div>
-          <div className="flex-1 flex items-center justify-center p-4 overflow-hidden touch-none" onClick={() => setViewingImage(null)}>
-            <img src={viewingImage.url} alt="Full size" className="max-w-full max-h-full object-contain select-none"
+          <div role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setViewingImage(null); }} className="flex-1 flex items-center justify-center p-4 overflow-hidden touch-none" onClick={() => setViewingImage(null)}>
+            <img role="button" tabIndex={0} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); setImageZoom(z => z === 1 ? 2 : 1); } }} src={viewingImage.url} alt="Full size" className="max-w-full max-h-full object-contain select-none"
               style={{ transform: `scale(${imageZoom})`, transition: "transform 0.2s ease-out" }}
               onClick={e => e.stopPropagation()}
               onDoubleClick={e => { e.stopPropagation(); setImageZoom(z => z === 1 ? 2 : 1); }}
@@ -1108,7 +1113,7 @@ export default function MessagesPage() {
         </div>
       )}
 
-      <style jsx>{`
+      <style>{`
         .messages-container-height { height: calc(100dvh); height: calc(var(--vvh, 100dvh) - 2rem); }
         @media (min-width: 768px) { .messages-container-height { height: 100dvh; height: var(--vvh, 100dvh); } }
 

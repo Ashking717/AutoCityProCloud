@@ -259,9 +259,11 @@ export default function ClosingsPage() {
   const downloadClosingPDF = async (closingId: string) => {
     try {
       toast.loading("Generating PDF...", { id: "pdf-generate" });
-      const { default: jsPDF } = await import("jspdf");
-      await import("jspdf-autotable");
-      const res = await fetch(`/api/closings/${closingId}/pdf`, { credentials: "include" });
+      const [, , res] = await Promise.all([
+        import("jspdf"),
+        import("jspdf-autotable"),
+        fetch(`/api/closings/${closingId}/pdf`, { credentials: "include" }),
+      ]);
       if (!res.ok) throw new Error("Failed to fetch closing data");
       const { data } = await res.json();
       const { generateClosingPDF } = await import("@/lib/utils/closingPdfGenerator");
@@ -371,7 +373,7 @@ export default function ClosingsPage() {
                   { icon:TrendingUp,  iconBg:'bg-emerald-500/10', iconText:'text-emerald-400', accent:'from-emerald-500/5', label:'Total Net Profit', value:summary.totalProfit.toLocaleString('en-QA',{minimumFractionDigits:0,maximumFractionDigits:0}), meta:'QAR', valueClass:summary.totalProfit>=0?'text-emerald-400':'text-red-400' },
                   { icon:BarChart3,  iconBg:'bg-purple-500/10', iconText:'text-purple-400', accent:'from-purple-500/5', label:'Avg Net Profit',   value:summary.avgProfit.toLocaleString('en-QA',{minimumFractionDigits:0,maximumFractionDigits:0}), meta:'QAR per period', valueClass:summary.avgProfit>=0?'text-purple-400':'text-red-400' },
                 ].map((s, i) => (
-                  <div key={i} className="group relative overflow-hidden rounded-2xl transition-all duration-300"
+                  <div key={s.label} className="group relative overflow-hidden rounded-2xl transition-all duration-300"
                     style={{ background: th.statCardBg, border: `1px solid ${th.statCardBorder}` }}
                     onMouseEnter={e => (e.currentTarget.style.borderColor = th.statCardHoverBorder)}
                     onMouseLeave={e => (e.currentTarget.style.borderColor = th.statCardBorder)}>
@@ -401,16 +403,16 @@ export default function ClosingsPage() {
                 style={{ background: th.filterPanelBg, border: `1px solid ${th.filterPanelBorder}` }}>
                 <div className="grid grid-cols-12 gap-4">
                   <div className="col-span-4">
-                    <label className="block text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: th.filterLabelText }}>Search Closings</label>
+                    <label htmlFor="closings-search" className="block text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: th.filterLabelText }}>Search Closings</label>
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: th.filterInputPH }} />
-                      <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search by date, type, status..."
+                      <input id="closings-search" type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search by date, type, status..."
                         className="w-full pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-red-500/20 transition-all"
                         style={{ background: th.filterInputBg, border: `1px solid ${th.filterInputBorder}`, color: th.filterInputText }} />
                     </div>
                   </div>
                   <div className="col-span-3">
-                    <label className="block text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: th.filterLabelText }}>Period Type</label>
+                    <span className="block text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: th.filterLabelText }}>Period Type</span>
                     <div className="flex gap-2">
                       {["all","day","month"].map(t => (
                         <button key={t} onClick={() => setFilterType(t)} className={filterBtnCls(filterType===t)} style={filterBtnStyle(filterType===t)}>
@@ -420,7 +422,7 @@ export default function ClosingsPage() {
                     </div>
                   </div>
                   <div className="col-span-3">
-                    <label className="block text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: th.filterLabelText }}>Status</label>
+                    <span className="block text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: th.filterLabelText }}>Status</span>
                     <div className="flex gap-2">
                       {["all","closed","locked"].map(s => (
                         <button key={s} onClick={() => setFilterStatus(s)} className={filterBtnCls(filterStatus===s)} style={filterBtnStyle(filterStatus===s)}>
@@ -740,7 +742,7 @@ export default function ClosingsPage() {
                   </div>
                 </>
               ) : user && (
-                <ClosingPreview closingType={newClosing.closingType} closingDate={newClosing.closingDate} outletId={user.outletId} />
+                <ClosingPreview key={`${newClosing.closingType}-${newClosing.closingDate}-${user.outletId}`} closingType={newClosing.closingType} closingDate={newClosing.closingDate} outletId={user.outletId} />
               )}
             </div>
             <div className="px-6 py-4 flex justify-between gap-3 transition-colors duration-500"

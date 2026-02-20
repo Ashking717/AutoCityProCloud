@@ -53,6 +53,36 @@ interface BalanceSheetData {
   };
 }
 
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('en-QA', {
+    style: 'currency',
+    currency: 'QAR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+};
+
+const formatCompactCurrency = (amount: number) => {
+  if (amount >= 1000000) return `QR${(amount / 1000000).toFixed(1)}M`;
+  if (amount >= 10000) return `QR${(amount / 1000).toFixed(1)}K`;
+  return formatCurrency(amount);
+};
+
+function AccountItems({ items, isMobile }: { items: { [key: string]: number }; isMobile: boolean }) {
+  return (
+    <>
+      {Object.entries(items).map(([name, value]) => (
+        <div key={name} className="flex justify-between items-center py-2 border-b border-white/5/50 last:border-0">
+          <span className="text-white/80 text-xs md:text-sm truncate pr-2">{name}</span>
+          <span className={`font-medium text-xs md:text-sm flex-shrink-0 ${value < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+            {isMobile ? formatCompactCurrency(value) : formatCurrency(value)}
+          </span>
+        </div>
+      ))}
+    </>
+  );
+}
+
 export default function BalanceSheetPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
@@ -324,32 +354,6 @@ export default function BalanceSheetPage() {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-QA', {
-      style: 'currency',
-      currency: 'QAR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  };
-
-  const formatCompactCurrency = (amount: number) => {
-    if (amount >= 1000000) return `QR${(amount / 1000000).toFixed(1)}M`;
-    if (amount >= 10000) return `QR${(amount / 1000).toFixed(1)}K`;
-    return formatCurrency(amount);
-  };
-
-  const renderAccountItems = (items: { [key: string]: number }) => {
-    return Object.entries(items).map(([name, value]) => (
-      <div key={name} className="flex justify-between items-center py-2 border-b border-white/5/50 last:border-0">
-        <span className="text-white/80 text-xs md:text-sm truncate pr-2">{name}</span>
-        <span className={`font-medium text-xs md:text-sm flex-shrink-0 ${value < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-          {isMobile ? formatCompactCurrency(value) : formatCurrency(value)}
-        </span>
-      </div>
-    ));
-  };
-
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     window.location.href = "/autocityPro/login";
@@ -482,10 +486,11 @@ export default function BalanceSheetPage() {
           <div className="bg-[#0A0A0A] rounded-xl shadow-lg border border-white/5 p-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-1">
-                <label className="block text-sm font-medium text-white/80 mb-2">
+                <label htmlFor="bs-as-of-date" className="block text-sm font-medium text-white/80 mb-2">
                   As of Date
                 </label>
                 <input
+                  id="bs-as-of-date"
                   type="date"
                   value={asOfDate}
                   onChange={(e) => setAsOfDate(e.target.value)}
@@ -651,7 +656,7 @@ export default function BalanceSheetPage() {
                     </div>
                     {Object.keys(reportData.assets.currentAssets.items).length > 0 ? (
                       <div className="space-y-1">
-                        {renderAccountItems(reportData.assets.currentAssets.items)}
+                        <AccountItems items={reportData.assets.currentAssets.items} isMobile={isMobile} />
                       </div>
                     ) : (
                       <div className="text-center py-4 text-white/40 text-sm">
@@ -670,7 +675,7 @@ export default function BalanceSheetPage() {
                     </div>
                     {Object.keys(reportData.assets.fixedAssets.items).length > 0 ? (
                       <div className="space-y-1">
-                        {renderAccountItems(reportData.assets.fixedAssets.items)}
+                        <AccountItems items={reportData.assets.fixedAssets.items} isMobile={isMobile} />
                       </div>
                     ) : (
                       <div className="text-center py-4 text-white/40 text-sm">
@@ -716,7 +721,7 @@ export default function BalanceSheetPage() {
                     </div>
                     {Object.keys(reportData.liabilities.currentLiabilities.items).length > 0 ? (
                       <div className="space-y-1">
-                        {renderAccountItems(reportData.liabilities.currentLiabilities.items)}
+                        <AccountItems items={reportData.liabilities.currentLiabilities.items} isMobile={isMobile} />
                       </div>
                     ) : (
                       <div className="text-center py-4 text-white/40 text-sm">
@@ -735,7 +740,7 @@ export default function BalanceSheetPage() {
                     </div>
                     {Object.keys(reportData.liabilities.longTermLiabilities.items).length > 0 ? (
                       <div className="space-y-1">
-                        {renderAccountItems(reportData.liabilities.longTermLiabilities.items)}
+                        <AccountItems items={reportData.liabilities.longTermLiabilities.items} isMobile={isMobile} />
                       </div>
                     ) : (
                       <div className="text-center py-4 text-white/40 text-sm">
@@ -764,7 +769,7 @@ export default function BalanceSheetPage() {
                     </div>
                     {Object.keys(reportData.equity.items).length > 0 ? (
                       <div className="space-y-1">
-                        {renderAccountItems(reportData.equity.items)}
+                        <AccountItems items={reportData.equity.items} isMobile={isMobile} />
                       </div>
                     ) : (
                       <div className="text-center py-4 text-white/40 text-sm">

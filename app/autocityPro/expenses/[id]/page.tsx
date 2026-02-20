@@ -352,8 +352,8 @@ export default function ExpenseDetailPage() {
               { icon: DollarSign, label: "Amount Paid", value: formatCompactCurrency(expense.amountPaid), sub: null, color: '#4ade80' },
               { icon: TrendingDown, label: "Balance Due", value: formatCompactCurrency(expense.balanceDue), sub: null, color: '#E84545' },
               { icon: Tag, label: "Category", value: getCategoryLabel(expense.category), sub: null, color: th.statValueSecondary },
-            ].map((stat, i) => (
-              <div key={i} className="rounded-2xl p-4 active:scale-[0.98] transition-all border"
+            ].map((stat) => (
+              <div key={stat.label} className="rounded-2xl p-4 active:scale-[0.98] transition-all border"
                 style={{ background: th.cardBg, borderColor: th.cardBorder }}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = th.cardBorderHover)}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = th.cardBorder)}>
@@ -395,8 +395,8 @@ export default function ExpenseDetailPage() {
               <div className="md:hidden rounded-2xl p-4 border transition-colors duration-500" style={{ background: th.cardBg, borderColor: th.cardBorder }}>
                 <h2 className="text-lg font-semibold mb-4" style={{ color: th.cardTitle }}>Expense Items</h2>
                 <div className="space-y-3">
-                  {expense.items.map((item, i) => (
-                    <div key={i} className="rounded-xl p-4 active:scale-[0.98] transition-all border"
+                  {expense.items.map((item) => (
+                    <div key={`${item.accountCode}-${item.description}`} className="rounded-xl p-4 active:scale-[0.98] transition-all border"
                       style={{ background: th.itemBg, borderColor: th.itemBorder }}>
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex-1 min-w-0">
@@ -417,8 +417,8 @@ export default function ExpenseDetailPage() {
                   <Receipt className="w-5 h-5 text-[#E84545]" /><span>Expense Items</span>
                 </h2>
                 <div className="space-y-3">
-                  {expense.items.map((item, i) => (
-                    <div key={i} className="rounded-xl p-4 border transition-colors"
+                  {expense.items.map((item) => (
+                    <div key={`${item.accountCode}-${item.description}`} className="rounded-xl p-4 border transition-colors"
                       style={{ background: th.itemBg, borderColor: th.itemBorder }}
                       onMouseEnter={e => (e.currentTarget.style.borderColor = th.cardBorderHover)}
                       onMouseLeave={e => (e.currentTarget.style.borderColor = th.itemBorder)}>
@@ -458,8 +458,8 @@ export default function ExpenseDetailPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {ledgerEntries.map((entry, i) => (
-                          <tr key={i} style={{ borderBottom: `1px solid ${th.tableRowBorder}` }}>
+                        {ledgerEntries.map((entry) => (
+                          <tr key={`${entry.accountNumber}-${entry.debit}-${entry.credit}`} style={{ borderBottom: `1px solid ${th.tableRowBorder}` }}>
                             <td className="py-3 px-3">
                               <p className="text-sm font-medium" style={{ color: th.textPrimary }}>{entry.accountNumber}</p>
                               <p className="text-xs" style={{ color: th.textSecondary }}>{entry.accountName}</p>

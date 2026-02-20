@@ -154,10 +154,6 @@ export default function VouchersPage() {
 
   // Reset and reload when filters change
   useEffect(() => {
-    setPage(1);
-    setVouchers([]);
-    setHasMore(true);
-    setLoading(true);
     fetchVouchers(1);
   }, [filterType, filterStatus]);
 
@@ -193,7 +189,7 @@ export default function VouchersPage() {
   
   const fetchVouchers = async (pageNum: number) => {
     try {
-      if (pageNum === 1) setLoading(true); else setLoadingMore(true);
+      if (pageNum === 1) { setPage(1); setVouchers([]); setHasMore(true); setLoading(true); } else { setLoadingMore(true); }
 
       let url = `/api/vouchers?page=${pageNum}&limit=20`;
       if (filterType !== 'all') url += `&voucherType=${filterType}`;
@@ -231,9 +227,6 @@ export default function VouchersPage() {
   };
 
   const handleRefresh = () => {
-    setPage(1);
-    setVouchers([]);
-    setHasMore(true);
     fetchVouchers(1);
     toast.success('Vouchers refreshed');
   };
@@ -539,6 +532,9 @@ export default function VouchersPage() {
                 <div className="space-y-3">
                   {sortedVouchers.map(voucher => (
                     <div key={voucher._id}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') router.push(`/autocityPro/vouchers/${voucher._id}`); }}
                       onClick={() => router.push(`/autocityPro/vouchers/${voucher._id}`)}
                       className="rounded-xl p-4 cursor-pointer transition-all active:scale-[0.98]"
                       style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}

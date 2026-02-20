@@ -345,7 +345,7 @@ export default function ExpensesPage() {
               { icon: TrendingDown, label: "Outstanding", value: formatCompactCurrency(summary.outstanding), valueColor: '#E84545' },
               { icon: AlertTriangle, label: "Pending", value: summary.pending, valueColor: '#E84545' },
             ].map((stat, i) => (
-              <div key={i} className="rounded-2xl p-4 active:scale-[0.98] transition-all border"
+              <div key={stat.label} className="rounded-2xl p-4 active:scale-[0.98] transition-all border"
                 style={{ background: th.cardBg, borderColor: th.cardBorder }}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = th.cardBorderHover)}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = th.cardBorder)}>

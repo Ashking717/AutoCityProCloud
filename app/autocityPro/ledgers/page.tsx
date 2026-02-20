@@ -209,12 +209,15 @@ setLedgerSummary({
     return map[type] || (isDark ? "bg-gray-500/20 text-gray-300" : "bg-gray-100 text-gray-600");
   };
 
-  const fmt = (n: number) => new Intl.NumberFormat("en-US", { minimumFractionDigits: 0 }).format(n);
-  const fmtDrCr = (n: number, type: string) => {
-    const normalDebit = ["asset", "expense"].includes(type);
-    const isDr = normalDebit ? n >= 0 : n < 0;
-    return `${fmt(Math.abs(n))} ${isDr ? "Dr" : "Cr"}`;
-  };
+const fmt = (n: any) =>
+  new Intl.NumberFormat("en-US").format(Number(n) || 0);
+  const fmtDrCr = (n: any, type: string) => {
+  const val = Number(n) || 0;
+  const normalDebit = ["asset", "expense"].includes(type);
+  const isDr = normalDebit ? val >= 0 : val < 0;
+  return `${fmt(Math.abs(val))} ${isDr ? "Dr" : "Cr"}`;
+};
+
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });

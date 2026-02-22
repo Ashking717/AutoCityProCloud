@@ -1,10 +1,11 @@
-// File: app/autocityPro/purchases/new/page.tsx - WITH TIME-BASED LIGHT/DARK THEME
+// File: app/autocityPro/purchases/new/page.tsx - WITH TIME-BASED LIGHT/DARK THEME + OCR SCANNER
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import AddProductModal from "@/components/products/AddProductModal";
+import OCRPurchaseModal from "@/components/purchases/OCRPurchaseModal";
 import {
   Search,
   Plus,
@@ -22,6 +23,7 @@ import {
   Calculator,
   Sun,
   Moon,
+  ScanLine,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -124,6 +126,7 @@ export default function NewPurchasePage() {
   const [showQuickAddCategory, setShowQuickAddCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [nextSKU, setNextSKU] = useState<string>("10001");
+  const [showOCR, setShowOCR] = useState(false);
 
   const [newSupplier, setNewSupplier] = useState({
     name: "", phone: "", email: "", address: "",
@@ -132,9 +135,7 @@ export default function NewPurchasePage() {
 
   // ── Theme tokens ──────────────────────────────────────────────────────────
   const th = {
-    // Page
     pageBg:           isDark ? '#050505'                                                    : '#f3f4f6',
-    // Desktop header
     desktopHeaderBg:  isDark ? 'linear-gradient(135deg,#932222,#411010,#a20c0c)'           : 'linear-gradient(135deg,#fef2f2,#fee2e2,#fecaca)',
     desktopHeaderBorder: isDark ? 'rgba(255,255,255,0.05)'                                 : 'rgba(0,0,0,0.08)',
     headerTitle:      isDark ? '#ffffff'                                                    : '#7f1d1d',
@@ -143,50 +144,39 @@ export default function NewPurchasePage() {
     headerStatBorder: isDark ? 'rgba(255,255,255,0.10)'                                    : 'rgba(127,29,29,0.20)',
     headerStatLabel:  isDark ? 'rgba(255,255,255,0.60)'                                    : '#991b1b',
     headerStatValue:  isDark ? '#ffffff'                                                    : '#7f1d1d',
-    // Mobile header
     mobileHeaderBg:   isDark ? 'linear-gradient(135deg,#0A0A0A,#050505,#0A0A0A)'          : 'linear-gradient(135deg,#ffffff,#f9fafb,#ffffff)',
     mobileHeaderBorder: isDark ? 'rgba(255,255,255,0.05)'                                  : 'rgba(0,0,0,0.08)',
     mobileHeaderTitle: isDark ? '#ffffff'                                                   : '#111827',
     mobileHeaderSub:  isDark ? 'rgba(255,255,255,0.60)'                                    : '#6b7280',
     mobileBtnBg:      isDark ? 'rgba(255,255,255,0.05)'                                    : 'rgba(0,0,0,0.05)',
     mobileBtnText:    isDark ? 'rgba(255,255,255,0.80)'                                    : '#374151',
-    // Cards / panels
     cardBg:           isDark ? 'linear-gradient(135deg,#0A0A0A,#050505)'                   : 'linear-gradient(135deg,#ffffff,#f9fafb)',
     cardBorder:       isDark ? 'rgba(255,255,255,0.10)'                                    : 'rgba(0,0,0,0.08)',
     cardBorderHover:  isDark ? 'rgba(232,69,69,0.30)'                                      : 'rgba(232,69,69,0.25)',
-    // Inner item (search result, cart item)
     itemBg:           isDark ? 'rgba(255,255,255,0.05)'                                    : 'rgba(0,0,0,0.04)',
     itemBorder:       isDark ? 'rgba(255,255,255,0.10)'                                    : 'rgba(0,0,0,0.08)',
-    // Text
     textPrimary:      isDark ? '#ffffff'                                                    : '#111827',
     textSecondary:    isDark ? '#9ca3af'                                                    : '#6b7280',
     textMuted:        isDark ? '#6b7280'                                                    : '#9ca3af',
-    // Inputs
     inputBg:          isDark ? 'rgba(255,255,255,0.05)'                                    : '#ffffff',
     inputBorder:      isDark ? 'rgba(255,255,255,0.10)'                                    : 'rgba(0,0,0,0.12)',
     inputText:        isDark ? '#ffffff'                                                    : '#111827',
     inputPH:          isDark ? '#6b7280'                                                    : '#9ca3af',
-    // Dividers
     divider:          isDark ? 'rgba(255,255,255,0.05)'                                    : 'rgba(0,0,0,0.06)',
     dividerStrong:    isDark ? 'rgba(255,255,255,0.10)'                                    : 'rgba(0,0,0,0.10)',
-    // Modals
     modalOverlay:     isDark ? 'rgba(0,0,0,0.80)'                                          : 'rgba(0,0,0,0.50)',
     modalBg:          isDark ? 'linear-gradient(180deg,#0A0A0A,#050505)'                   : 'linear-gradient(180deg,#ffffff,#f9fafb)',
     modalBorder:      isDark ? 'rgba(255,255,255,0.10)'                                    : 'rgba(0,0,0,0.08)',
     modalTitle:       isDark ? '#ffffff'                                                    : '#111827',
     modalCloseBg:     isDark ? 'rgba(255,255,255,0.05)'                                    : 'rgba(0,0,0,0.05)',
     modalCloseText:   isDark ? '#9ca3af'                                                    : '#6b7280',
-    // Summary section
     summaryRowBorder: isDark ? 'rgba(255,255,255,0.05)'                                    : 'rgba(0,0,0,0.06)',
     summaryTopBorder: isDark ? 'rgba(255,255,255,0.10)'                                    : 'rgba(0,0,0,0.10)',
-    // Percentage buttons
     pctBtnBg:         isDark ? 'rgba(255,255,255,0.05)'                                    : 'rgba(0,0,0,0.05)',
     pctBtnBorder:     isDark ? 'rgba(255,255,255,0.10)'                                    : 'rgba(0,0,0,0.10)',
     pctBtnText:       isDark ? '#ffffff'                                                    : '#374151',
-    // Empty state
     emptyIcon:        isDark ? '#4b5563'                                                    : '#d1d5db',
     emptyText:        isDark ? '#9ca3af'                                                    : '#6b7280',
-    // Mobile cart bottom bar
     cartBottomBg:     isDark ? 'rgba(10,10,10,0.50)'                                       : 'rgba(255,255,255,0.80)',
     cartBottomBorder: isDark ? 'rgba(255,255,255,0.10)'                                    : 'rgba(0,0,0,0.08)',
   };
@@ -310,6 +300,75 @@ export default function NewPurchasePage() {
     } catch { toast.error("Failed to add product"); }
   };
 
+  // ─── OCR Confirm Handler ──────────────────────────────────────────────────
+  const handleOCRConfirm = (
+    parsedItems: Array<{
+      name: string;
+      sku: string;
+      quantity: number;
+      unitPrice: number;
+      unit: string;
+      taxRate: number;
+    }>,
+    supplierName?: string,
+    _invoiceNote?: string
+  ) => {
+    const newCartItems: CartItem[] = parsedItems.map((parsed) => {
+      const lower = parsed.name.toLowerCase();
+      const skuLower = (parsed.sku || "").toLowerCase();
+
+      const matched = products.find((p) => {
+        if (skuLower && p.sku?.toLowerCase() === skuLower) return true;
+        if (lower && p.name?.toLowerCase().includes(lower)) return true;
+        return false;
+      });
+
+      const productId = matched?._id || `ocr-${Date.now()}-${Math.random()}`;
+      const price = parsed.unitPrice || matched?.costPrice || 0;
+      const qty = parsed.quantity;
+      const taxRate = parsed.taxRate || 0;
+      const taxAmount = (price * qty * taxRate) / 100;
+
+      return {
+        productId,
+        productName: matched?.name || parsed.name,
+        sku: matched?.sku || parsed.sku || "OCR",
+        unit: parsed.unit || matched?.unit || "pcs",
+        quantity: qty,
+        unitPrice: price,
+        taxRate,
+        taxAmount,
+        total: price * qty + taxAmount,
+      };
+    });
+
+    setCart((prev) => {
+      const merged = [...prev];
+      for (const incoming of newCartItems) {
+        const existIdx = merged.findIndex((c) => c.productId === incoming.productId);
+        if (existIdx >= 0) {
+          const ex = merged[existIdx];
+          const newQty = ex.quantity + incoming.quantity;
+          const taxAmt = (ex.unitPrice * newQty * ex.taxRate) / 100;
+          merged[existIdx] = { ...ex, quantity: newQty, taxAmount: taxAmt, total: ex.unitPrice * newQty + taxAmt };
+        } else {
+          merged.push(incoming);
+        }
+      }
+      return merged;
+    });
+
+    if (supplierName && !selectedSupplier) {
+      const matchedSupplier = suppliers.find(
+        (s) => s.name?.toLowerCase().includes(supplierName.toLowerCase())
+      );
+      if (matchedSupplier) {
+        setSelectedSupplier(matchedSupplier);
+        toast.success(`Supplier auto-matched: ${matchedSupplier.name}`);
+      }
+    }
+  };
+
   const addToCart = (product: any) => {
     const existing = cart.find(i => i.productId === product._id);
     if (existing) {
@@ -349,7 +408,6 @@ export default function NewPurchasePage() {
     if (amountPaid > 0 && amountPaid < total) return paymentMethod === "credit" ? "cash" : paymentMethod;
     return paymentMethod;
   };
-
 
   const handleSubmit = async () => {
     if (cart.length === 0) { toast.error("Cart is empty"); return; }
@@ -393,12 +451,11 @@ export default function NewPurchasePage() {
   const handleLogout = async () => { await fetch("/api/auth/logout", { method: "POST", credentials: "include" }); window.location.href = "/autocityPro/login"; };
   const formatCurrency = (n: number) => new Intl.NumberFormat("en-QA", { style: "currency", currency: "QAR", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 
-
   return (
     <MainLayout user={user} onLogout={handleLogout}>
       <div className="min-h-screen transition-colors duration-500" style={{ background: th.pageBg }}>
 
-        {/* Mobile Header */}
+        {/* ── Mobile Header ─────────────────────────────────────────────────── */}
         <div className="md:hidden fixed top-16 left-0 right-0 z-40 backdrop-blur-xl border-b transition-colors duration-500"
           style={{ background: th.mobileHeaderBg, borderColor: th.mobileHeaderBorder }}>
           <div className="px-4 py-3">
@@ -416,17 +473,26 @@ export default function NewPurchasePage() {
                   <p className="text-xs" style={{ color: th.mobileHeaderSub }}>{cart.length} items • {products.length} products</p>
                 </div>
               </div>
-              <button onClick={() => setShowCart(true)} className="relative p-2 rounded-lg bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white shadow-lg active:scale-95 transition-all">
-                <ShoppingCart className="h-5 w-5" />
-                {cart.length > 0 && (
-                  <span className="absolute -top-1 -right-1 h-5 w-5 bg-green-500 rounded-full text-xs font-bold flex items-center justify-center">{cart.length}</span>
-                )}
-              </button>
+              <div className="flex items-center gap-2">
+                {/* OCR scan button */}
+                <button onClick={() => setShowOCR(true)}
+                  className="p-2 rounded-xl active:scale-95 transition-all"
+                  style={{ background: "rgba(232,69,69,0.10)", color: "#E84545" }}
+                  title="Scan Invoice">
+                  <ScanLine className="h-5 w-5" />
+                </button>
+                <button onClick={() => setShowCart(true)} className="relative p-2 rounded-lg bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white shadow-lg active:scale-95 transition-all">
+                  <ShoppingCart className="h-5 w-5" />
+                  {cart.length > 0 && (
+                    <span className="absolute -top-1 -right-1 h-5 w-5 bg-green-500 rounded-full text-xs font-bold flex items-center justify-center">{cart.length}</span>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Desktop Header */}
+        {/* ── Desktop Header ────────────────────────────────────────────────── */}
         <div className="hidden md:block py-11 border-b shadow-xl transition-colors duration-500"
           style={{ background: th.desktopHeaderBg, borderColor: th.desktopHeaderBorder }}>
           <div className="px-8">
@@ -440,6 +506,20 @@ export default function NewPurchasePage() {
                 <p className="mt-2" style={{ color: th.headerSub }}>Create a new purchase order • {products.length} products available</p>
               </div>
               <div className="flex items-center gap-4">
+                {/* OCR Scan Invoice button */}
+                <button
+                  onClick={() => setShowOCR(true)}
+                  className="flex items-center gap-2 px-5 py-3 rounded-xl font-semibold text-sm transition-all active:scale-95 shadow-lg hover:opacity-90"
+                  style={{
+                    background: "linear-gradient(135deg,rgba(232,69,69,0.18),rgba(232,69,69,0.08))",
+                    border: "1px solid rgba(232,69,69,0.40)",
+                    color: "#E84545",
+                    backdropFilter: "blur(8px)",
+                  }}
+                >
+                  <ScanLine className="h-4 w-4" />
+                  Scan Invoice
+                </button>
                 {[
                   { label: 'Cart Items', value: cart.length, valueClass: '' },
                   { label: 'Total Amount', value: formatCurrency(totals.total), valueClass: 'text-[#E84545]' },
@@ -455,7 +535,7 @@ export default function NewPurchasePage() {
           </div>
         </div>
 
-        {/* Main Content */}
+        {/* ── Main Content ──────────────────────────────────────────────────── */}
         <div className="px-4 md:px-6 pt-[100px] md:pt-6 pb-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
 
@@ -470,10 +550,21 @@ export default function NewPurchasePage() {
                     Search Products
                     {productsLoading && <span className="ml-3 text-xs animate-pulse" style={{ color: th.textSecondary }}>Loading...</span>}
                   </h2>
-                  <button onClick={async () => { await fetchNextSKU(); setShowAddProduct(true); }}
-                    className="flex items-center gap-2 px-3 py-2 bg-[#E84545]/10 border border-[#E84545]/30 text-[#E84545] rounded-lg hover:bg-[#E84545]/20 transition-all text-sm font-medium">
-                    <Plus className="h-4 w-4" /><span className="hidden sm:inline">Add Product</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowOCR(true)}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 border"
+                      style={{ background: "rgba(232,69,69,0.07)", borderColor: "rgba(232,69,69,0.25)", color: "#E84545" }}
+                      title="Scan invoice to auto-fill cart"
+                    >
+                      <ScanLine className="h-4 w-4" />
+                      <span className="hidden sm:inline">Scan</span>
+                    </button>
+                    <button onClick={async () => { await fetchNextSKU(); setShowAddProduct(true); }}
+                      className="flex items-center gap-2 px-3 py-2 bg-[#E84545]/10 border border-[#E84545]/30 text-[#E84545] rounded-lg hover:bg-[#E84545]/20 transition-all text-sm font-medium">
+                      <Plus className="h-4 w-4" /><span className="hidden sm:inline">Add Product</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="relative mb-4">
@@ -501,7 +592,9 @@ export default function NewPurchasePage() {
                     ) : (
                       <>
                         {filteredProducts.map(product => (
-                          <div key={product._id} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') addToCart(product); }} onClick={() => addToCart(product)}
+                          <div key={product._id} role="button" tabIndex={0}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') addToCart(product); }}
+                            onClick={() => addToCart(product)}
                             className="p-4 rounded-xl cursor-pointer transition-all active:scale-[0.98] border"
                             style={{ background: th.itemBg, borderColor: th.itemBorder }}
                             onMouseEnter={e => (e.currentTarget.style.borderColor = th.cardBorderHover)}
@@ -537,7 +630,7 @@ export default function NewPurchasePage() {
                   <div className="text-center py-8">
                     <Search className="h-12 w-12 mx-auto mb-3" style={{ color: th.emptyIcon }} />
                     <p style={{ color: th.textSecondary }}>Start typing to search {products.length} products</p>
-                    <p className="text-xs mt-1" style={{ color: th.textMuted }}>Enter at least 2 characters</p>
+                    <p className="text-xs mt-1" style={{ color: th.textMuted }}>Enter at least 2 characters · or scan an invoice above</p>
                   </div>
                 )}
               </div>
@@ -552,7 +645,7 @@ export default function NewPurchasePage() {
                     <div className="text-center py-8">
                       <ShoppingCart className="h-12 w-12 mx-auto mb-3" style={{ color: th.emptyIcon }} />
                       <p style={{ color: th.textSecondary }}>Your cart is empty</p>
-                      <p className="text-sm mt-2" style={{ color: th.textMuted }}>Search and add products above</p>
+                      <p className="text-sm mt-2" style={{ color: th.textMuted }}>Search and add products above, or scan an invoice</p>
                     </div>
                   ) : (
                     cart.map((item, index) => (
@@ -634,7 +727,8 @@ export default function NewPurchasePage() {
                 <div className="space-y-3">
                   <div>
                     <label htmlFor="purchase-payment-method" className="text-sm mb-2 block" style={{ color: th.textSecondary }}>Payment Method</label>
-                    <select id="purchase-payment-method" value={paymentMethod} onChange={e => { const m = e.target.value as any; setPaymentMethod(m); if (m === "credit" && amountPaid > 0) toast('Tip: Leave "Amount Paid" as 0 for full credit', { icon: "💡", duration: 4000 }); }}
+                    <select id="purchase-payment-method" value={paymentMethod}
+                      onChange={e => { const m = e.target.value as any; setPaymentMethod(m); if (m === "credit" && amountPaid > 0) toast('Tip: Leave "Amount Paid" as 0 for full credit', { icon: "💡", duration: 4000 }); }}
                       className={`w-full px-4 py-3 rounded-xl ${inputClass}`} style={inputStyle}>
                       <option value="cash">Cash</option><option value="card">Card</option>
                       <option value="bank_transfer">Bank Transfer</option><option value="credit">Credit</option>
@@ -704,11 +798,27 @@ export default function NewPurchasePage() {
           </div>
         </div>
 
-        {/* Add Product Modal */}
+        <OCRPurchaseModal
+  show={showOCR}
+  onClose={() => setShowOCR(false)}
+  isDark={isDark}
+  onConfirm={handleOCRConfirm}
+  products={products}
+  suppliers={suppliers}
+  nextSKU={nextSKU}
+  onSupplierCreated={(newSup) => {
+    setSuppliers((prev) => [...prev, newSup]);
+    setSelectedSupplier(newSup);
+  }}
+  onProductCreated={(newProd) => {
+    setProducts((prev) => [...prev, newProd]);
+  }}
+/>
+        {/* ── Add Product Modal ─────────────────────────────────────────────── */}
         <AddProductModal show={showAddProduct} onClose={() => setShowAddProduct(false)} onAdd={handleAddProduct}
           categories={categories} nextSKU={nextSKU} onQuickAddCategory={() => setShowQuickAddCategory(true)} />
 
-        {/* Quick Add Category Modal */}
+        {/* ── Quick Add Category Modal ──────────────────────────────────────── */}
         {showQuickAddCategory && (
           <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-[70] p-4" style={{ background: th.modalOverlay }}>
             <div className="rounded-2xl shadow-2xl max-w-md w-full border" style={{ background: th.modalBg, borderColor: th.modalBorder }}>
@@ -741,7 +851,7 @@ export default function NewPurchasePage() {
           </div>
         )}
 
-        {/* Mobile Cart Modal */}
+        {/* ── Mobile Cart Modal ─────────────────────────────────────────────── */}
         {isMobile && showCart && (
           <div className="fixed inset-0 backdrop-blur-md z-[60] animate-in fade-in duration-200" style={{ background: th.modalOverlay }}>
             <div className="absolute inset-x-0 bottom-0 top-16 rounded-t-3xl border-t shadow-2xl flex flex-col transition-colors duration-500"
@@ -758,7 +868,7 @@ export default function NewPurchasePage() {
                   <div className="flex flex-col items-center justify-center h-full">
                     <ShoppingCart className="h-16 w-16 mb-4" style={{ color: th.emptyIcon }} />
                     <p className="text-lg font-medium" style={{ color: th.textSecondary }}>Cart is empty</p>
-                    <p className="text-sm mt-2" style={{ color: th.textMuted }}>Add products to get started</p>
+                    <p className="text-sm mt-2" style={{ color: th.textMuted }}>Add products or scan an invoice</p>
                   </div>
                 ) : (
                   cart.map((item, index) => (
@@ -853,10 +963,10 @@ export default function NewPurchasePage() {
           </div>
         )}
 
-        {/* Mobile Payment Modal */}
+        {/* ── Mobile Payment Modal ──────────────────────────────────────────── */}
         {isMobile && showPayment && (
           <div className="fixed inset-0 backdrop-blur-md z-[60] animate-in fade-in duration-200" style={{ background: th.modalOverlay }}>
-            <div className="absolute bottom-0 left-0 right-0 rounded-t-3xl border-t p-6 animate-in slide-in-from-bottom  shadow-2xl max-h-[90vh] overflow-y-auto transition-colors duration-500"
+            <div className="absolute bottom-0 left-0 right-0 rounded-t-3xl border-t p-6 animate-in slide-in-from-bottom shadow-2xl max-h-[90vh] overflow-y-auto transition-colors duration-500"
               style={{ background: th.modalBg, borderColor: th.modalBorder }}>
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-lg font-bold" style={{ color: th.modalTitle }}>Complete Purchase</h2>
@@ -864,10 +974,10 @@ export default function NewPurchasePage() {
                   style={{ background: th.modalCloseBg, color: th.modalCloseText }}><X className="h-5 w-5" /></button>
               </div>
               <div className="space-y-4">
-                {/* Supplier */}
                 <div>
                   <label htmlFor="mobile-purchase-supplier" className="block text-sm font-medium mb-2" style={{ color: th.textSecondary }}>Supplier *</label>
-                  <select id="mobile-purchase-supplier" value={selectedSupplier?._id || ""} onChange={e => setSelectedSupplier(suppliers.find(s => s._id === e.target.value))}
+                  <select id="mobile-purchase-supplier" value={selectedSupplier?._id || ""}
+                    onChange={e => setSelectedSupplier(suppliers.find(s => s._id === e.target.value))}
                     className={`w-full px-4 py-3 rounded-xl ${inputClass}`} style={inputStyle}>
                     <option value="">Select Supplier</option>
                     {suppliers.map(s => <option key={s._id} value={s._id}>{s.name} - {s.phone}</option>)}
@@ -883,16 +993,15 @@ export default function NewPurchasePage() {
                     <Plus className="h-4 w-4" /><span className="text-sm font-medium">Add New Supplier</span>
                   </button>
                 </div>
-                {/* Payment Method */}
                 <div>
                   <label htmlFor="mobile-payment-method" className="block text-sm font-medium mb-2" style={{ color: th.textSecondary }}>Payment Method</label>
-                  <select id="mobile-payment-method" value={paymentMethod} onChange={e => { const m = e.target.value as any; setPaymentMethod(m); if (m === "credit" && amountPaid > 0) toast('Tip: Leave "Amount Paid" as 0 for full credit', { icon: "💡", duration: 4000 }); }}
+                  <select id="mobile-payment-method" value={paymentMethod}
+                    onChange={e => { const m = e.target.value as any; setPaymentMethod(m); if (m === "credit" && amountPaid > 0) toast('Tip: Leave "Amount Paid" as 0 for full credit', { icon: "💡", duration: 4000 }); }}
                     className={`w-full px-4 py-3 rounded-xl ${inputClass}`} style={inputStyle}>
                     <option value="cash">Cash</option><option value="card">Card</option>
                     <option value="bank_transfer">Bank Transfer</option><option value="credit">Credit</option>
                   </select>
                 </div>
-                {/* Amount Paid */}
                 <div>
                   <label className="block text-sm font-medium mb-2" style={{ color: th.textSecondary }}>
                     Amount Paid Now{paymentMethod === "credit" && <span className="text-orange-400 text-xs ml-2">(Leave 0 for full credit)</span>}
@@ -903,7 +1012,6 @@ export default function NewPurchasePage() {
                     className={`w-full px-4 py-3 rounded-xl ${inputClass}`} style={inputStyle} />
                   {totals.total > 0 && <PctButtons th={th} total={totals.total} setAmountPaid={setAmountPaid} />}
                 </div>
-                {/* Summary */}
                 <div className="rounded-xl p-4 border" style={{ background: th.itemBg, borderColor: th.itemBorder }}>
                   <h3 className="font-semibold mb-3" style={{ color: th.textPrimary }}>Order Summary</h3>
                   <div className="mb-3"><PaymentWarning total={totals.total} paymentMethod={paymentMethod} amountPaid={amountPaid} formatCurrency={formatCurrency} /></div>
@@ -932,7 +1040,6 @@ export default function NewPurchasePage() {
                     </div>
                   </div>
                 </div>
-                {/* Action Buttons */}
                 <div className="grid grid-cols-2 gap-3 pt-4">
                   <button onClick={() => setShowPayment(false)}
                     className="px-4 py-3 rounded-xl font-medium active:scale-95 transition-all border"
@@ -950,7 +1057,7 @@ export default function NewPurchasePage() {
           </div>
         )}
 
-        {/* Add Supplier Modal */}
+        {/* ── Add Supplier Modal ────────────────────────────────────────────── */}
         {showAddSupplier && (
           <div className="fixed inset-0 backdrop-blur-md flex items-center justify-center z-[70] p-4 overflow-y-auto" style={{ background: th.modalOverlay }}>
             <div className="rounded-2xl shadow-2xl max-w-2xl w-full my-8 border transition-colors duration-500" style={{ background: th.modalBg, borderColor: th.modalBorder }}>

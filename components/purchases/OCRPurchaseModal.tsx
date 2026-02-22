@@ -1,7 +1,7 @@
 // components/purchases/OCRPurchaseModal.tsx
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import {
   X, Upload, Camera, ScanLine, CheckCircle, AlertCircle, AlertTriangle,
   Trash2, RotateCcw, ChevronRight, ChevronDown, ChevronUp, Loader2,
@@ -77,11 +77,10 @@ interface OCRPurchaseModalProps {
 type Step = "upload" | "parsing" | "supplier" | "products" | "confirm";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-/** Strip Arabic/non-ASCII from a name — client-side safety net */
 function toEnglishName(raw: string): string {
   if (!raw) return raw;
-  let n = raw.replace(/\([^)]*[\u0600-\u06FF][^)]*\)/g, ""); // remove "(arabic)" blocks
-  n = n.replace(/[^\x00-\x7F]+/g, "");                          // strip remaining non-ASCII
+  let n = raw.replace(/\([^)]*[\u0600-\u06FF][^)]*\)/g, "");
+  n = n.replace(/[^\x00-\x7F]+/g, "");
   return n.trim().replace(/\s{2,}/g, " ");
 }
 
@@ -95,7 +94,6 @@ function confidenceBadge(c: "high" | "medium" | "low") {
 
 function findMatchingProduct(item: OCRParsedItem, products: any[]): any | null {
   if (!products.length) return null;
-  // item.partNumber = part number from invoice
   const partNeedle = (item.partNumber || "").toLowerCase().trim();
   const namNeedle  = (item.name || "").toLowerCase().trim();
   if (partNeedle) {
@@ -123,7 +121,7 @@ function defaultNewProductForm(item: OCRParsedItem): NewProductForm {
     costPrice: item.unitPrice || 0,
     sellingPrice: item.unitPrice ? Math.round(item.unitPrice * 1.3 * 100) / 100 : 0,
     taxRate: item.taxRate || 0,
-    currentStock: 0,   // always start at 0 — stock is added via the purchase, not pre-set
+    currentStock: 0,
     minStock: 0, maxStock: 1000,
     isVehicle: false, carMake: "", carModel: "",
     variant: "", customVariant: "", yearFrom: "", yearTo: "",
@@ -157,36 +155,34 @@ export default function OCRPurchaseModal({
   onSupplierCreated, onProductCreated,
 }: OCRPurchaseModalProps) {
   const [step, setStep]               = useState<Step>("upload");
-  // Multi-image state
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const [isDragging, setIsDragging]   = useState(false);
   const [parseError, setParseError]   = useState<string | null>(null);
   const [parsingProgress, setParsingProgress] = useState<string>("");
-  // Result state
   const [result, setResult]           = useState<OCRParsedResult | null>(null);
   const [showAllPreviews, setShowAllPreviews] = useState(false);
-  // Supplier step
   const [supplierMode, setSupplierMode]   = useState<"select"|"create">("select");
   const [selectedSupplier, setSelectedSupplier] = useState<any|null>(null);
   const [newSupplier, setNewSupplier]     = useState({ name:"", phone:"", email:"", contactPerson:"" });
   const [supplierSaving, setSupplierSaving] = useState(false);
-  // Product step
   const [enrichedItems, setEnrichedItems] = useState<EnrichedItem[]>([]);
   const [currentNextSKU, setCurrentNextSKU] = useState(nextSKU);
-  // Categories — fetched internally so modal is self-contained
   const [categories, setCategories] = useState<any[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
-  // Inline quick-add category state
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [savingCategory, setSavingCategory] = useState(false);
 
+  // ─── Product search modal state ───────────────────────────────────────────
+  const [productSearchIdx, setProductSearchIdx] = useState<number | null>(null);
+  const [productSearchTerm, setProductSearchTerm] = useState("");
+
   const fileInputRef   = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setCurrentNextSKU(nextSKU); }, [nextSKU]);
 
-  // Fetch categories whenever modal opens
   const fetchCategories = async () => {
     setCategoriesLoading(true);
     try {
@@ -201,7 +197,6 @@ export default function OCRPurchaseModal({
 
   useEffect(() => { if (show) fetchCategories(); }, [show]);
 
-  // Inline quick-add category handler
   const handleAddCategory = async () => {
     if (!newCategoryName.trim()) { toast.error("Category name is required"); return; }
     setSavingCategory(true);
@@ -215,7 +210,6 @@ export default function OCRPurchaseModal({
       const data = await res.json();
       const created = data.category;
       setCategories((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
-      // Auto-select it in whichever new-product form is open
       setEnrichedItems((prev) => prev.map((item) =>
         item.newProductExpanded
           ? { ...item, newProductForm: { ...item.newProductForm, categoryId: String(created._id) } }
@@ -235,9 +229,52 @@ export default function OCRPurchaseModal({
         setSelectedSupplier(null); setSupplierMode("select");
         setNewSupplier({ name:"", phone:"", email:"", contactPerson:"" });
         setShowAllPreviews(false);
+        setProductSearchIdx(null); setProductSearchTerm("");
       }, 300);
     }
   }, [show]);
+
+  // ─── Product search helpers ───────────────────────────────────────────────
+  const filteredSearchProducts = useMemo(() => {
+    if (!productSearchTerm || productSearchTerm.length < 2) return [];
+    const l = productSearchTerm.toLowerCase();
+    return products.filter(p =>
+      p.name?.toLowerCase().includes(l) ||
+      p.sku?.toLowerCase().includes(l) ||
+      p.barcode?.toLowerCase().includes(l) ||
+      p.carMake?.toLowerCase().includes(l) ||
+      p.carModel?.toLowerCase().includes(l) ||
+      p.partNumber?.toLowerCase().includes(l)
+    ).slice(0, 50);
+  }, [products, productSearchTerm]);
+
+  const openProductSearch = (idx: number) => {
+    setProductSearchIdx(idx);
+    setProductSearchTerm("");
+    // focus search input after modal opens
+    setTimeout(() => searchInputRef.current?.focus(), 100);
+  };
+
+  const closeProductSearch = () => {
+    setProductSearchIdx(null);
+    setProductSearchTerm("");
+  };
+
+  const linkProductFromSearch = (idx: number, product: any) => {
+    updateItem(idx, {
+      matchedProduct: product,
+      resolvedName: product.name,
+      resolvedPartNumber: product.partNumber || "",
+      resolvedUnit: product.unit || "pcs",
+      resolvedUnitPrice: product.costPrice || 0,
+      resolvedTaxRate: product.taxRate || 0,
+      linkStatus: "manual",
+      manualLookupInput: product.sku,
+      savedProduct: null,
+    });
+    toast.success(`Linked: ${product.name}`);
+    closeProductSearch();
+  };
 
   // ─── Theme ────────────────────────────────────────────────────────────────
   const th = {
@@ -251,6 +288,7 @@ export default function OCRPurchaseModal({
     inputBorder:  isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.12)",
     itemBg:       isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
     itemBorder:   isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+    itemBorderHover: isDark ? "rgba(232,69,69,0.40)" : "rgba(232,69,69,0.30)",
     divider:      isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
     closeBg:      isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
     dropzoneBg:   isDark ? "rgba(232,69,69,0.04)"  : "rgba(232,69,69,0.03)",
@@ -264,6 +302,8 @@ export default function OCRPurchaseModal({
     manualBorder: isDark ? "rgba(59,130,246,0.25)" : "rgba(59,130,246,0.20)",
     vehicleBg:    isDark ? "rgba(232,69,69,0.05)"  : "rgba(232,69,69,0.03)",
     vehicleBorder:isDark ? "rgba(232,69,69,0.20)"  : "rgba(232,69,69,0.15)",
+    searchModalBg:isDark ? "linear-gradient(180deg,#111111 0%,#090909 100%)" : "linear-gradient(180deg,#ffffff 0%,#f8f9fa 100%)",
+    searchModalBorder: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.10)",
   };
 
   const iS  = { background: th.inputBg, border: `1px solid ${th.inputBorder}`, color: th.textPrimary };
@@ -329,7 +369,6 @@ export default function OCRPurchaseModal({
       const parsed: OCRParsedResult = data.result;
       setResult(parsed);
 
-      // Auto-match supplier
       if (parsed.supplierName) {
         const auto = suppliers.find((s) =>
           s.name?.toLowerCase().includes(parsed.supplierName!.toLowerCase()) ||
@@ -364,6 +403,37 @@ export default function OCRPurchaseModal({
     finally { setSupplierSaving(false); }
   };
 
+  // ─── SKU lookup ───────────────────────────────────────────────────────────
+  const handleSkuLookup = async (idx: number, input: string) => {
+    if (!input.trim()) return;
+    updateItem(idx, { lookingUp:true });
+    try {
+      const lower = input.toLowerCase().trim();
+      const found = products.find((p) => p.sku?.toLowerCase() === lower);
+      if (found) {
+        updateItem(idx, { matchedProduct:found, resolvedName:found.name,
+          resolvedPartNumber:found.partNumber||"", resolvedUnit:found.unit||"pcs",
+          resolvedUnitPrice:found.costPrice||0, resolvedTaxRate:found.taxRate||0,
+          linkStatus:"manual", lookingUp:false });
+        toast.success(`Linked: ${found.name}`); return;
+      }
+      const res = await fetch(`/api/products?search=${encodeURIComponent(input)}&limit=20`, { credentials:"include" });
+      if (res.ok) {
+        const data = await res.json();
+        const sf = (data.products||[]).find((p:any) => p.sku?.toLowerCase() === lower);
+        if (sf) {
+          updateItem(idx, { matchedProduct:sf, resolvedName:sf.name,
+            resolvedPartNumber:sf.partNumber||"", resolvedUnit:sf.unit||"pcs",
+            resolvedUnitPrice:sf.costPrice||0, resolvedTaxRate:sf.taxRate||0,
+            linkStatus:"manual", lookingUp:false });
+          toast.success(`Linked: ${sf.name}`); return;
+        }
+      }
+      toast.error("No product found with that SKU");
+      updateItem(idx, { lookingUp:false });
+    } catch { updateItem(idx, { lookingUp:false }); toast.error("Lookup failed"); }
+  };
+
   // ─── Item helpers ─────────────────────────────────────────────────────────
   const updateItem = (idx: number, patch: Partial<EnrichedItem>) =>
     setEnrichedItems((prev) => { const n=[...prev]; n[idx]={...n[idx],...patch}; return n; });
@@ -388,39 +458,6 @@ export default function OCRPurchaseModal({
       linkStatus:"new", manualLookupInput:"", savedProduct:null });
   };
 
-  /** Link an unmatched item to an existing product by SKU code only */
-  const handleSkuLookup = async (idx: number, input: string) => {
-    if (!input.trim()) return;
-    updateItem(idx, { lookingUp:true });
-    try {
-      const lower = input.toLowerCase().trim();
-      // Search loaded products by SKU only
-      const found = products.find((p) => p.sku?.toLowerCase() === lower);
-      if (found) {
-        updateItem(idx, { matchedProduct:found, resolvedName:found.name,
-          resolvedPartNumber:found.partNumber||"", resolvedUnit:found.unit||"pcs",
-          resolvedUnitPrice:found.costPrice||0, resolvedTaxRate:found.taxRate||0,
-          linkStatus:"manual", lookingUp:false });
-        toast.success(`Linked: ${found.name}`); return;
-      }
-      // Server fallback — exact SKU match
-      const res = await fetch(`/api/products?search=${encodeURIComponent(input)}&limit=20`, { credentials:"include" });
-      if (res.ok) {
-        const data = await res.json();
-        const sf = (data.products||[]).find((p:any) => p.sku?.toLowerCase() === lower);
-        if (sf) {
-          updateItem(idx, { matchedProduct:sf, resolvedName:sf.name,
-            resolvedPartNumber:sf.partNumber||"", resolvedUnit:sf.unit||"pcs",
-            resolvedUnitPrice:sf.costPrice||0, resolvedTaxRate:sf.taxRate||0,
-            linkStatus:"manual", lookingUp:false });
-          toast.success(`Linked: ${sf.name}`); return;
-        }
-      }
-      toast.error("No product found with that SKU");
-      updateItem(idx, { lookingUp:false });
-    } catch { updateItem(idx, { lookingUp:false }); toast.error("Lookup failed"); }
-  };
-
   const handleSaveNewProduct = async (idx: number) => {
     const item = enrichedItems[idx];
     const f = item.newProductForm;
@@ -430,7 +467,6 @@ export default function OCRPurchaseModal({
     if (f.isVehicle && f.yearFrom && f.yearTo && parseInt(f.yearFrom) > parseInt(f.yearTo)) { toast.error("Year From must be ≤ Year To"); return; }
     updateItem(idx, { saving:true });
     try {
-      // Build payload — omit keys that are empty so the API doesn't see undefined values
       const payload: any = {
         name:        f.name,
         description: f.description || "",
@@ -439,11 +475,10 @@ export default function OCRPurchaseModal({
         costPrice:   Number(f.costPrice)  || 0,
         sellingPrice:Number(f.sellingPrice)|| 0,
         taxRate:     Number(f.taxRate)    || 0,
-        currentStock: 0,   // always 0 — stock added when purchase is submitted
+        currentStock: 0,
         minStock:    Number(f.minStock)   || 0,
         maxStock:    Number(f.maxStock)   || 1000,
       };
-      // Only include optional string fields when they have a value
       if (f.categoryId) payload.categoryId = f.categoryId;
       if (f.barcode)    payload.barcode    = f.barcode;
       if (f.partNumber) payload.partNumber = f.partNumber;
@@ -467,7 +502,6 @@ export default function OCRPurchaseModal({
         resolvedUnit:created.unit||f.unit,
         resolvedUnitPrice:created.costPrice||f.costPrice,
         resolvedTaxRate:created.taxRate||f.taxRate,
-        // store the real inventory SKU so the purchase confirm can reference it
         manualLookupInput: created.sku,
         linkStatus:"manual", newProductExpanded:false, saving:false });
       toast.success(`"${created.name}" created — SKU: ${created.sku}`);
@@ -480,7 +514,6 @@ export default function OCRPurchaseModal({
     onConfirm(
       valid.map((i) => ({
         name: i.resolvedName,
-        // Pass real inventory SKU for matched/saved products; fall back to part number for unlinked new items
         sku: i.matchedProduct?.sku || i.savedProduct?.sku || i.resolvedPartNumber || "",
         quantity: i.resolvedQuantity,
         unitPrice: i.resolvedUnitPrice,
@@ -507,7 +540,6 @@ export default function OCRPurchaseModal({
   // ─── UPLOAD ──────────────────────────────────────────────────────────────
   const renderUpload = () => (
     <div className="p-6 space-y-4">
-      {/* Dropzone */}
       <div
         onDragOver={(e)=>{e.preventDefault();setIsDragging(true);}}
         onDragLeave={()=>setIsDragging(false)}
@@ -541,13 +573,11 @@ export default function OCRPurchaseModal({
         )}
       </div>
 
-      {/* Hidden inputs */}
       <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden"
         onChange={(e)=>{ const files=Array.from(e.target.files||[]); addImages(files); e.target.value=""; }}/>
       <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden"
         onChange={(e)=>{ const files=Array.from(e.target.files||[]); addImages(files); e.target.value=""; }}/>
 
-      {/* Add buttons */}
       <div className="grid grid-cols-2 gap-3">
         <button
           onClick={(e)=>{e.stopPropagation();cameraInputRef.current?.click();}}
@@ -565,7 +595,6 @@ export default function OCRPurchaseModal({
         </button>
       </div>
 
-      {/* Image preview grid */}
       {uploadedImages.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
@@ -576,8 +605,6 @@ export default function OCRPurchaseModal({
               <Trash2 className="h-3 w-3"/>Clear all
             </button>
           </div>
-
-          {/* Grid — show up to 3 then a "+N more" tile */}
           <div className="grid grid-cols-3 gap-2">
             {(showAllPreviews ? uploadedImages : uploadedImages.slice(0,3)).map((img, idx) => (
               <div key={idx} className="relative rounded-xl overflow-hidden border group" style={{borderColor:th.itemBorder,aspectRatio:"4/3"}}>
@@ -594,7 +621,6 @@ export default function OCRPurchaseModal({
                 </div>
               </div>
             ))}
-            {/* "+N more" tile */}
             {!showAllPreviews && uploadedImages.length > 3 && (
               <button
                 onClick={()=>setShowAllPreviews(true)}
@@ -611,7 +637,6 @@ export default function OCRPurchaseModal({
         </div>
       )}
 
-      {/* Error */}
       {parseError && (
         <div className="flex items-start gap-3 p-4 rounded-xl border" style={{background:"rgba(239,68,68,0.08)",borderColor:"rgba(239,68,68,0.25)"}}>
           <AlertCircle className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0"/>
@@ -619,7 +644,6 @@ export default function OCRPurchaseModal({
         </div>
       )}
 
-      {/* Tips */}
       <div className="p-4 rounded-xl border" style={{background:th.itemBg,borderColor:th.itemBorder}}>
         <p className="text-xs font-semibold mb-2 flex items-center gap-1.5" style={{color:th.textSecondary}}>
           <Zap className="h-3.5 w-3.5 text-[#E84545]"/>Tips for best results
@@ -638,7 +662,6 @@ export default function OCRPurchaseModal({
         </ul>
       </div>
 
-      {/* Parse button */}
       <button
         onClick={handleParse}
         disabled={uploadedImages.length===0}
@@ -707,7 +730,6 @@ export default function OCRPurchaseModal({
           </div>
         </div>
       )}
-      {/* Merged info banner */}
       {uploadedImages.length > 1 && result && (
         <div className="p-3 rounded-xl border flex items-center gap-2" style={{background:"rgba(59,130,246,0.06)",borderColor:"rgba(59,130,246,0.20)"}}>
           <Image className="h-4 w-4 text-blue-400 flex-shrink-0"/>
@@ -764,7 +786,7 @@ export default function OCRPurchaseModal({
     </div>
   );
 
-  // ─── NEW PRODUCT FORM (full AddProductModal feature set) ──────────────────
+  // ─── NEW PRODUCT FORM ─────────────────────────────────────────────────────
   const renderNewProductForm = (idx: number) => {
     const f   = enrichedItems[idx].newProductForm;
     const upd = (p: Partial<NewProductForm>) => updateNPF(idx, p);
@@ -834,7 +856,6 @@ export default function OCRPurchaseModal({
             <select value={f.unit} onChange={(e)=>upd({unit:e.target.value})} style={iS} className={iC}>
               {UNITS.map((u)=><option key={u} value={u}>{u}</option>)}</select></div>
         </div>
-        {/* Vehicle toggle */}
         <div className="flex items-center gap-2.5 p-3 rounded-xl border" style={{background:th.vehicleBg,borderColor:th.vehicleBorder}}>
           <input type="checkbox" id={`veh-${idx}`} checked={f.isVehicle} onChange={(e)=>upd({isVehicle:e.target.checked})} className="h-4 w-4 accent-[#E84545]"/>
           <label htmlFor={`veh-${idx}`} className="text-xs font-medium flex items-center gap-1.5 cursor-pointer" style={{color:th.textPrimary}}>
@@ -903,6 +924,163 @@ export default function OCRPurchaseModal({
           style={{background:"linear-gradient(135deg,#E84545,#cc3c3c)",color:"#fff"}}>
           {enrichedItems[idx].saving?<><Loader2 className="h-4 w-4 animate-spin"/>Saving…</>:<><CheckCircle className="h-4 w-4"/>Save to Inventory & Use</>}
         </button>
+      </div>
+    );
+  };
+
+  // ─── PRODUCT SEARCH MODAL ─────────────────────────────────────────────────
+  const renderProductSearchModal = () => {
+    if (productSearchIdx === null) return null;
+    const item = enrichedItems[productSearchIdx];
+
+    return (
+      <div
+        className="fixed inset-0 z-[80] flex items-center justify-center p-4 backdrop-blur-sm"
+        style={{ background: "rgba(0,0,0,0.75)" }}
+        onClick={(e) => { if (e.target === e.currentTarget) closeProductSearch(); }}
+      >
+        <div
+          className="w-full max-w-lg rounded-2xl border shadow-2xl flex flex-col overflow-hidden"
+          style={{
+            background: th.searchModalBg,
+            borderColor: th.searchModalBorder,
+            maxHeight: "80vh",
+          }}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-4 border-b flex-shrink-0" style={{ borderColor: th.divider }}>
+            <div>
+              <h3 className="font-bold text-base flex items-center gap-2" style={{ color: th.textPrimary }}>
+                <Search className="h-4 w-4 text-[#E84545]" />
+                Link to Inventory Product
+              </h3>
+              <p className="text-xs mt-0.5 truncate max-w-xs" style={{ color: th.textSecondary }}>
+                For: <span className="font-medium" style={{ color: th.textPrimary }}>{item.resolvedName || item.name || "(unnamed)"}</span>
+              </p>
+            </div>
+            <button
+              onClick={closeProductSearch}
+              className="p-2 rounded-xl transition-all active:scale-95 flex-shrink-0"
+              style={{ background: th.closeBg, color: th.textSecondary }}
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          {/* Search input */}
+          <div className="px-5 py-3 border-b flex-shrink-0" style={{ borderColor: th.divider }}>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: th.textMuted }} />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={productSearchTerm}
+                onChange={(e) => setProductSearchTerm(e.target.value)}
+                placeholder="Search by name, SKU, part number, make, model…"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#E84545]/40 focus:border-[#E84545]/50"
+                style={iS}
+              />
+              {productSearchTerm && (
+                <button
+                  onClick={() => setProductSearchTerm("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                  style={{ color: th.textMuted }}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+            {productSearchTerm.length === 1 && (
+              <p className="text-xs mt-1.5" style={{ color: th.textMuted }}>Type 1 more character…</p>
+            )}
+          </div>
+
+          {/* Results */}
+          <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2">
+            {productSearchTerm.length < 2 ? (
+              <div className="text-center py-10">
+                <Search className="h-10 w-10 mx-auto mb-3" style={{ color: isDark ? "#374151" : "#d1d5db" }} />
+                <p className="text-sm font-medium" style={{ color: th.textSecondary }}>Search your inventory</p>
+                <p className="text-xs mt-1" style={{ color: th.textMuted }}>
+                  Type at least 2 characters · {products.length} products available
+                </p>
+              </div>
+            ) : filteredSearchProducts.length === 0 ? (
+              <div className="text-center py-10">
+                <Search className="h-10 w-10 mx-auto mb-3" style={{ color: isDark ? "#374151" : "#d1d5db" }} />
+                <p className="text-sm font-medium" style={{ color: th.textSecondary }}>No products found</p>
+                <p className="text-xs mt-1" style={{ color: th.textMuted }}>for "{productSearchTerm}"</p>
+              </div>
+            ) : (
+              <>
+                {filteredSearchProducts.map((product) => (
+                  <div
+                    key={product._id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => linkProductFromSearch(productSearchIdx, product)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") linkProductFromSearch(productSearchIdx, product); }}
+                    className="p-3.5 rounded-xl cursor-pointer transition-all active:scale-[0.98] border"
+                    style={{ background: th.itemBg, borderColor: th.itemBorder }}
+                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = th.itemBorderHover)}
+                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = th.itemBorder)}
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-sm truncate" style={{ color: th.textPrimary }}>
+                          {product.name}
+                        </h4>
+                        <p className="text-xs mt-0.5" style={{ color: th.textSecondary }}>
+                          SKU: {product.sku}
+                          {product.partNumber && <span className="ml-2">· Part #: {product.partNumber}</span>}
+                        </p>
+                      </div>
+                      <Link className="h-4 w-4 text-[#E84545] flex-shrink-0 mt-0.5" />
+                    </div>
+                    {(product.carMake || product.carModel) && (
+                      <p className="text-xs truncate mb-1" style={{ color: th.textSecondary }}>
+                        {product.carMake} {product.carModel}
+                        {product.yearFrom && ` · ${product.yearFrom}–${product.yearTo || "present"}`}
+                      </p>
+                    )}
+                    {product.color && (
+                      <p className="text-[11px]" style={{ color: th.textSecondary }}>Color: {product.color}</p>
+                    )}
+                    <div className="flex items-center justify-between pt-2 mt-1.5 border-t" style={{ borderColor: th.divider }}>
+                      <span className="text-[#E84545] font-bold text-sm">
+                        {product.costPrice?.toFixed(2) || "0.00"}
+                      </span>
+                      <span className="text-xs" style={{ color: th.textMuted }}>
+                        Stock: {product.currentStock}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                {filteredSearchProducts.length >= 50 && (
+                  <p className="text-center text-xs py-2" style={{ color: th.textMuted }}>
+                    Showing first 50 results — refine your search
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="px-5 py-3 border-t flex-shrink-0" style={{ borderColor: th.divider }}>
+            <p className="text-xs text-center" style={{ color: th.textMuted }}>
+              Can't find it?{" "}
+              <button
+                onClick={() => {
+                  closeProductSearch();
+                  updateItem(productSearchIdx, { newProductExpanded: true });
+                }}
+                className="text-[#E84545] font-medium underline underline-offset-2"
+              >
+                Create a new product instead
+              </button>
+            </p>
+          </div>
+        </div>
       </div>
     );
   };
@@ -988,10 +1166,31 @@ export default function OCRPurchaseModal({
                   </div>
                 </div>
               )}
+
+              {/* ── Unlinked item actions ── */}
               {!isLinked && (
                 <div className="px-3 pb-3 space-y-2">
-                  <div className="p-2.5 rounded-lg border" style={{background:isDark?"rgba(59,130,246,0.06)":"rgba(59,130,246,0.03)",borderColor:"rgba(59,130,246,0.20)"}}>
-                    <p className="text-[10px] font-semibold mb-1.5 flex items-center gap-1" style={{color:"#60a5fa"}}><Link className="h-3 w-3"/>Link by SKU Code</p>
+
+                  {/* Search Products button — opens the search modal */}
+                  <button
+                    onClick={() => openProductSearch(idx)}
+                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 border"
+                    style={{
+                      background: isDark ? "rgba(59,130,246,0.08)" : "rgba(59,130,246,0.05)",
+                      borderColor: "rgba(59,130,246,0.25)",
+                      color: "#60a5fa",
+                    }}
+                  >
+                    <span className="flex items-center gap-2">
+                      <Search className="h-4 w-4" />
+                      Search &amp; Link Inventory Product
+                    </span>
+                    <ChevronRight className="h-4 w-4 opacity-60" />
+                  </button>
+
+                  {/* Link by SKU code */}
+                  <div className="p-2.5 rounded-lg border" style={{background:isDark?"rgba(59,130,246,0.04)":"rgba(59,130,246,0.02)",borderColor:"rgba(59,130,246,0.15)"}}>
+                    <p className="text-[10px] font-semibold mb-1.5 flex items-center gap-1" style={{color:"#60a5fa"}}><Link className="h-3 w-3"/>Or link by SKU code</p>
                     <div className="flex gap-2">
                       <input value={item.manualLookupInput} onChange={(e)=>updateItem(idx,{manualLookupInput:e.target.value})}
                         onKeyDown={(e)=>{if(e.key==="Enter")handleSkuLookup(idx,item.manualLookupInput);}}
@@ -1004,6 +1203,8 @@ export default function OCRPurchaseModal({
                       </button>
                     </div>
                   </div>
+
+                  {/* Create new product toggle */}
                   <button onClick={()=>updateItem(idx,{newProductExpanded:!item.newProductExpanded})}
                     className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all active:scale-95"
                     style={{background:"rgba(232,69,69,0.10)",border:"1px solid rgba(232,69,69,0.25)",color:"#E84545"}}>
@@ -1149,6 +1350,9 @@ export default function OCRPurchaseModal({
           </div>
         </div>
       </div>
+
+      {/* Product search modal — rendered outside the main modal so it sits above it */}
+      {renderProductSearchModal()}
     </>
   );
 }

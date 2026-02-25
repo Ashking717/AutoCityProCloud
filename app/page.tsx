@@ -3,7 +3,20 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Wrench, Shield, ArrowRight, Phone, Mail, MapPin, ChevronDown, Clock, Disc3, Sparkles, PaintBucket, Sun, Repeat, Sofa, Settings, Globe, Moon, Play, Pause, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Wrench, Shield, ArrowRight, Phone, Mail, MapPin, ChevronDown, Clock, Disc3, Sparkles, PaintBucket, Sun, Repeat, Sofa, Settings, Globe, Moon, Play, Pause, X, Activity, Cpu, Database, Package } from 'lucide-react';
+
+// ─── Time-based theme hook ────────────────────────────────────────────────────
+function useTimeBasedTheme() {
+  const [isDark, setIsDark] = useState(true);
+  useEffect(() => {
+    const check = () => { const h = new Date().getHours(); setIsDark(h < 6 || h >= 18); };
+    check();
+    const id = setInterval(check, 60_000);
+    return () => clearInterval(id);
+  }, []);
+  return isDark;
+}
 
 // Types
 type MediaType = 'video' | 'image';
@@ -33,7 +46,7 @@ interface Content {
     intro: string;
     cta1: string;
     cta2: string;
-    stats: Array<{ value: string; label: string }>;
+    stats: Array<{ value: string; label: string; icon: any }>;
   };
   showcase: {
     label: string;
@@ -90,7 +103,7 @@ interface Content {
   };
 }
 
-// Content translations
+// Content translations (Restored to Original)
 const content: Record<'en' | 'ar', Content> = {
   en: {
     nav: {
@@ -111,9 +124,9 @@ const content: Record<'en' | 'ar', Content> = {
       cta1: 'Browse Services',
       cta2: 'Contact Us',
       stats: [
-        { value: '3', label: 'Doha Branches' },
-        { value: '8+', label: 'Services' },
-        { value: '10K+', label: 'Products' },
+        { value: '3', label: 'Doha Branches', icon: MapPin },
+        { value: '8+', label: 'Services', icon: Wrench },
+        { value: '10K+', label: 'Products', icon: Package },
       ],
     },
     showcase: {
@@ -279,9 +292,9 @@ const content: Record<'en' | 'ar', Content> = {
       cta1: 'تصفح الخدمات',
       cta2: 'اتصل بنا',
       stats: [
-        { value: '٣', label: 'فروع في الدوحة' },
-        { value: '+٨', label: 'خدمات' },
-        { value: '+١٠K', label: 'منتج' },
+        { value: '٣', label: 'فروع في الدوحة', icon: MapPin },
+        { value: '+٨', label: 'خدمات', icon: Wrench },
+        { value: '+١٠K', label: 'منتج', icon: Package },
       ],
     },
     showcase: {
@@ -439,233 +452,192 @@ const phoneNumbers = [
 ];
 
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
 
   :root {
-    --scrollbar-track: #f1f5f9;
-    --noise-opacity: 0.015;
-    --glass-bg: rgba(255, 255, 255, 0.6);
-    --glass-border: rgba(255, 255, 255, 0.4);
-    --glass-dark-bg: rgba(15, 15, 15, 0.4);
-    --glass-dark-border: rgba(255, 255, 255, 0.08);
-    --brand-red: #E84545;
+    /* Light Mode Tech Theme */
+    --bg-base: #f8f9fa;
+    --bg-panel: #ffffff;
+    --bg-panel-alpha: rgba(255, 255, 255, 0.9);
+    --panel-border: rgba(0,0,0,0.08);
+    --accent-primary: #ff2a2a;
+    --text-primary: #111827;
+    --text-muted: #6b7280;
+    --text-dark: #9ca3af;
+    --input-bg: #f3f4f6;
+    --grid-color: rgba(0,0,0,0.03);
+    --shadow-color: rgba(0,0,0,0.05);
+    --error-bg: rgba(255,42,42,0.08);
+    --error-border: rgba(255,42,42,0.2);
   }
 
   .theme-dark {
-    --scrollbar-track: #0A0A0A;
-    --glass-bg: var(--glass-dark-bg);
-    --glass-border: var(--glass-dark-border);
+    /* Dark Mode Tech Theme */
+    --bg-base: #050505;
+    --bg-panel: #0d0d10;
+    --bg-panel-alpha: rgba(13, 13, 16, 0.9);
+    --panel-border: rgba(255, 255, 255, 0.05);
+    --accent-primary: #ff2a2a;
+    --text-primary: #ffffff;
+    --text-muted: #8a8a93;
+    --text-dark: #4a4a52;
+    --input-bg: #050505;
+    --grid-color: rgba(255,255,255,0.02);
+    --shadow-color: rgba(0,0,0,0.8);
+    --error-bg: rgba(255,42,42,0.1);
+    --error-border: rgba(255,42,42,0.2);
   }
 
-  .theme-light {
-    --scrollbar-track: #f1f5f9;
-    --glass-bg: rgba(255, 255, 255, 0.8);
-    --glass-border: rgba(0, 0, 0, 0.05);
+  * { -webkit-tap-highlight-color: transparent; }
+
+  .ltr { direction: ltr; font-family: 'Space Grotesk', sans-serif; }
+  .rtl { direction: rtl; font-family: 'Cairo', sans-serif; }
+
+  /* Dashboard Bento Panels */
+  .dash-panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 24px;
+    position: relative;
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.02), 0 10px 30px -10px var(--shadow-color);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .dash-panel::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--panel-border), transparent);
+    z-index: 1;
+  }
+  .dash-panel:hover {
+    border-color: rgba(232, 69, 69, 0.3);
+    box-shadow: inset 0 1px 0 0 rgba(232, 69, 69, 0.2), 0 0 30px -5px rgba(232, 69, 69, 0.1);
   }
 
-  .ltr {
-    direction: ltr;
-    font-family: 'Plus Jakarta Sans', sans-serif;
+  .input-tech {
+    background: var(--input-bg);
+    border: 1px solid var(--panel-border);
+    color: var(--text-primary);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .input-tech:focus {
+    border-color: var(--accent-primary);
+    background: rgba(255,42,42,0.02);
+    box-shadow: 0 0 15px rgba(255,42,42,0.15), inset 0 0 10px rgba(255,42,42,0.05);
+  }
+  .input-tech::placeholder { color: var(--text-muted); opacity: 0.6; }
+
+  .btn-system {
+    border-radius: 99px;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+  }
+  .btn-system:hover {
+    border-color: var(--accent-primary);
+    background: rgba(232, 69, 69, 0.05);
+    box-shadow: 0 0 15px rgba(232, 69, 69, 0.2), inset 0 0 10px rgba(232, 69, 69, 0.1);
+    color: var(--accent-primary);
+  }
+  
+  .btn-primary {
+    background: linear-gradient(135deg, rgba(255,42,42,0.1), rgba(255,94,0,0.1));
+    border: 1px solid var(--accent-primary);
+    color: var(--accent-primary);
+    box-shadow: 0 0 20px rgba(255,42,42,0.15), inset 0 0 10px rgba(255,42,42,0.1);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--accent-primary);
+    color: #fff;
+    box-shadow: 0 0 30px rgba(255,42,42,0.4);
+    transform: translateY(-1px);
+  }
+  .btn-primary:active:not(:disabled) {
+    transform: scale(0.98);
   }
 
-  .rtl {
-    direction: rtl;
-    font-family: 'Cairo', sans-serif;
+  .metric-dot {
+    display: inline-block; width: 6px; height: 6px;
+    background-color: var(--accent-primary); border-radius: 50%;
+    box-shadow: 0 0 8px var(--accent-primary);
+    animation: pulse-glow 2s infinite;
+  }
+  @keyframes pulse-glow {
+    0% { box-shadow: 0 0 0 0 rgba(255,42,42, 0.4); }
+    70% { box-shadow: 0 0 0 6px rgba(255,42,42, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255,42,42, 0); }
+  }
+  
+  .text-glow-accent {
+    color: var(--accent-primary);
+    text-shadow: 0 0 15px rgba(255,42,42,0.5);
   }
 
-  html {
-    scroll-behavior: smooth;
-  }
-
-  ::-webkit-scrollbar {
-    width: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    background: var(--scrollbar-track);
-  }
-  ::-webkit-scrollbar-thumb {
-    background: var(--brand-red);
-    border-radius: 10px;
-  }
-
-  @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(40px); }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(15px); }
     to { opacity: 1; transform: translateY(0); }
   }
-
-  @keyframes scaleIn {
-    from { opacity: 0; transform: scale(0.95); }
-    to { opacity: 1; transform: scale(1); }
-  }
-
-  @keyframes float {
-    0% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
-    100% { transform: translateY(0px); }
-  }
-
-  .animate-fade-in-up {
-    animation: fadeInUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  .animate-fade-up {
+    animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     opacity: 0;
   }
-
-  .animate-scale-in {
-    animation: scaleIn 1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-    opacity: 0;
-  }
-
   .delay-100 { animation-delay: 0.1s; }
   .delay-200 { animation-delay: 0.2s; }
   .delay-300 { animation-delay: 0.3s; }
-  .delay-400 { animation-delay: 0.4s; }
-
-  .hover-lift {
-    transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
-  }
-  .hover-lift:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 15px 30px -10px rgba(0,0,0,0.1);
-  }
-  .theme-dark .hover-lift:hover {
-    box-shadow: 0 15px 30px -10px rgba(232, 69, 69, 0.15);
-  }
-
-  .glass {
-    background: var(--glass-bg);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid var(--glass-border);
-  }
-
-  .btn-primary {
-    background: linear-gradient(135deg, #E84545 0%, #D83434 100%);
-    box-shadow: 0 4px 15px rgba(232, 69, 69, 0.3);
-    transition: all 0.3s ease;
-  }
-  .btn-primary:hover {
-    box-shadow: 0 8px 25px rgba(232, 69, 69, 0.5);
-    transform: translateY(-2px);
-  }
-
-  .line-accent {
-    position: relative;
-    padding-bottom: 0.5rem;
-  }
-  .line-accent::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 60px;
-    height: 4px;
-    background: linear-gradient(90deg, #E84545, transparent);
-    border-radius: 4px;
-  }
-  .rtl .line-accent::after {
-    left: auto;
-    right: 0;
-    background: linear-gradient(-90deg, #E84545, transparent);
-  }
-  .line-accent-center::after {
-    left: 50%;
-    transform: translateX(-50%);
-    background: #E84545;
-  }
-  .rtl .line-accent-center::after {
-    left: 50%;
-    right: auto;
-    transform: translateX(-50%);
-  }
-
-  .media-overlay {
-    position: relative;
-    overflow: hidden;
-    border-radius: 1.25rem;
-    cursor: pointer;
-  }
-  .media-overlay::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0,0,0,0.2) 50%, transparent 100%);
-    opacity: 0.8;
-    transition: opacity 0.4s ease;
-  }
-  .media-overlay:hover::after {
-    opacity: 1;
-  }
-  .play-button {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) scale(0.9);
-    width: 70px;
-    height: 70px;
-    background: rgba(232, 69, 69, 0.95);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
-    box-shadow: 0 0 20px rgba(232, 69, 69, 0.5);
-    z-index: 20;
-  }
-  .media-overlay:hover .play-button {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-  .media-overlay img, .media-overlay video {
-    transition: transform 0.6s ease;
-  }
-  .media-overlay:hover img, .media-overlay:hover video {
-    transform: scale(1.05);
-  }
 `;
 
 export default function HomePage() {
+  const router = useRouter();
+  const isDark = useTimeBasedTheme();
   const [lang, setLang] = useState<'en' | 'ar'>('en');
-  const [isDark, setIsDark] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<{ src: string; type: MediaType; title: string } | null>(null);
-  const videoRefs = useRef<{ [key: string]: HTMLVideoElement | null }>({});
+  
   const t = content[lang];
   const isRTL = lang === 'ar';
 
   useEffect(() => {
     setMounted(true);
-    const checkTime = () => {
-      const hour = new Date().getHours();
-      setIsDark(hour < 6 || hour >= 18);
-    };
-    checkTime();
-    const interval = setInterval(checkTime, 60000);
-    return () => clearInterval(interval);
   }, []);
 
   if (!mounted) return null;
 
   return (
-    <div suppressHydrationWarning className={`min-h-screen ${isDark ? 'theme-dark bg-[#0a0a0a] text-white' : 'theme-light bg-gray-50 text-gray-900'} overflow-x-hidden ${isRTL ? 'rtl' : 'ltr'} transition-colors duration-500`}>
+    <div suppressHydrationWarning className={`min-h-screen text-[var(--text-primary)] bg-[var(--bg-base)] overflow-x-hidden transition-colors duration-700 ${isRTL ? 'rtl' : 'ltr'} ${isDark ? 'theme-dark' : 'theme-light'}`}>
       <style suppressHydrationWarning dangerouslySetInnerHTML={{ __html: styles }} />
 
-      {/* Subtle Noise Overlay */}
-      <div className="fixed inset-0 pointer-events-none opacity-[0.015] z-50 mix-blend-overlay" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")` }} />
+      {/* Grid Overlay for Tech Vibe */}
+      <div className="fixed inset-0 pointer-events-none z-0" 
+           style={{ 
+             backgroundImage: `linear-gradient(var(--grid-color) 1px, transparent 1px), linear-gradient(90deg, var(--grid-color) 1px, transparent 1px)`, 
+             backgroundSize: '40px 40px',
+             maskImage: 'radial-gradient(ellipse at center, black 20%, transparent 80%)',
+             WebkitMaskImage: 'radial-gradient(ellipse at center, black 20%, transparent 80%)'
+           }} 
+      />
+      {isDark && (
+        <div className="fixed inset-0 pointer-events-none z-0"
+             style={{ backgroundImage: 'radial-gradient(circle at 50% 50%, rgba(255, 42, 42, 0.03), transparent 60%)' }} />
+      )}
 
       {/* Media Modal */}
       {selectedMedia && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md transition-all" onClick={() => setSelectedMedia(null)}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm transition-all" onClick={() => setSelectedMedia(null)}>
           <button
             onClick={() => setSelectedMedia(null)}
-            className="absolute top-6 right-6 p-3 rounded-full bg-white/10 hover:bg-[#E84545] transition-colors"
+            className="absolute top-6 right-6 w-12 h-12 rounded-full flex items-center justify-center bg-[var(--input-bg)] border border-[var(--panel-border)] text-[var(--text-primary)] hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)] transition-all"
           >
-            <X className="w-6 h-6 text-white" />
+            <X className="w-5 h-5" />
           </button>
-          <div className="relative max-w-6xl w-full max-h-[90vh] animate-scale-in" onClick={(e) => e.stopPropagation()}>
-            <div className="text-center mb-6">
-              <h3 className="text-2xl lg:text-3xl font-bold text-white tracking-tight">{selectedMedia.title}</h3>
+          <div className="relative max-w-6xl w-full dash-panel p-2 animate-fade-up" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-6 px-4 py-3 border-b border-[var(--panel-border)] mb-2">
+               <div className="flex gap-2">
+                 <div className="w-2.5 h-2.5 rounded-full bg-[#ff453a] shadow-[0_0_5px_#ff453a]"></div>
+                 <div className="w-2.5 h-2.5 rounded-full bg-[#ffd60a]"></div>
+                 <div className="w-2.5 h-2.5 rounded-full bg-[#32d74b]"></div>
+               </div>
+               <span className="text-xs font-mono text-[var(--text-muted)] uppercase tracking-widest">{selectedMedia.title}</span>
             </div>
-            <div className="rounded-2xl overflow-hidden shadow-2xl shadow-[#E84545]/20 border border-white/10">
+            <div className="rounded-xl overflow-hidden bg-[var(--input-bg)] relative">
                 {selectedMedia.type === 'video' ? (
                 <video src={selectedMedia.src} controls autoPlay className="w-full h-auto" />
                 ) : (
@@ -676,54 +648,50 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Navigation */}
-      <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 glass transition-all duration-300">
+      {/* Navigation Matrix */}
+      <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md border-b border-[var(--panel-border)] transition-colors duration-700" style={{ backgroundColor: 'var(--bg-panel-alpha)' }}>
         <nav className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
-            <Link href="/" className="relative h-12 w-48 transition-transform hover:scale-105">
+            <Link href="/" className="relative h-10 w-40 opacity-90 hover:opacity-100 transition-opacity">
               <Image
                 src="/login.png"
                 alt="Auto City Qatar"
                 fill
-                sizes="192px"
-                className="object-contain object-left"
+                sizes="160px"
+                className="object-contain"
                 priority
               />
             </Link>
 
-            <ul className="hidden lg:flex items-center gap-10">
+            <ul className="hidden lg:flex items-center gap-8 bg-[var(--input-bg)] px-8 py-3 rounded-full border border-[var(--panel-border)]">
               {['services', 'showcase', 'about', 'branches', 'contact'].map((key) => (
                 <li key={key}>
                   <a
                     href={`#${key}`}
-                    className={`text-sm font-semibold tracking-wide ${isDark ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'} transition-colors relative group`}
+                    className="text-xs uppercase tracking-widest text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-colors font-semibold"
                   >
                     {t.nav[key as keyof typeof t.nav]}
-                    <span className="absolute -bottom-2 left-0 w-0 h-0.5 bg-[#E84545] group-hover:w-full transition-all duration-300 ease-out" />
                   </a>
                 </li>
               ))}
             </ul>
 
             <div className="flex items-center gap-4">
-              <button 
-                onClick={() => setIsDark(!isDark)}
-                className="hidden md:flex items-center justify-center w-10 h-10 rounded-full border border-gray-500/20 hover:bg-gray-500/10 transition-colors"
-              >
-                {isDark ? <Moon className="w-4 h-4 text-[#E84545]" /> : <Sun className="w-4 h-4 text-[#E84545]" />}
-              </button>
+              <div className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-full border border-[var(--panel-border)] text-[var(--text-muted)] transition-all duration-500 shadow-sm mr-2">
+                {isDark ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
+              </div>
 
               <button
                 onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-full border ${isDark ? 'border-white/10 hover:border-[#E84545]/50 bg-white/5' : 'border-gray-200 hover:border-[#E84545]/50 bg-white'} transition-all`}
+                className="btn-system px-4 py-2 text-xs flex items-center gap-2 border-[var(--panel-border)] text-[var(--text-primary)]"
               >
-                <Globe className="w-4 h-4 text-[#E84545]" />
-                <span className="text-sm font-bold">{lang === 'en' ? 'العربية' : 'EN'}</span>
+                <Globe className="w-3.5 h-3.5" />
+                <span>{lang === 'en' ? 'العربية' : 'EN'}</span>
               </button>
 
               <Link
                 href="/autocityPro/login"
-                className="hidden md:block px-7 py-2.5 btn-primary text-white text-sm font-bold rounded-full tracking-wide"
+                className="hidden md:flex btn-system btn-primary px-6 py-2 text-xs font-bold"
               >
                 {t.nav.Login}
               </Link>
@@ -732,109 +700,163 @@ export default function HomePage() {
         </nav>
       </header>
 
-      {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center pt-28 pb-20 overflow-hidden">
-        {/* Premium Background Elements */}
-        <div className="absolute inset-0 z-0">
-          <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] rounded-full bg-[#E84545]/20 blur-[120px]" />
-          <div className="absolute bottom-[-10%] left-[-5%] w-[600px] h-[600px] rounded-full bg-[#E84545]/10 blur-[120px]" />
-          <div className={`absolute inset-0 ${isDark ? 'opacity-[0.03]' : 'opacity-[0.05]'}`}
-               style={{ backgroundImage: `linear-gradient(${isDark ? 'rgba(255,255,255,1)' : 'rgba(0,0,0,1)'} 1px, transparent 1px), linear-gradient(90deg, ${isDark ? 'rgba(255,255,255,1)' : 'rgba(0,0,0,1)'} 1px, transparent 1px)`, backgroundSize: '60px 60px' }} />
-        </div>
-
-        <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-8 w-full">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <div className="max-w-2xl">
-              <div className={`animate-fade-in-up inline-flex items-center gap-3 px-5 py-2.5 rounded-full border border-[#E84545]/30 ${isDark ? 'bg-[#E84545]/10' : 'bg-[#E84545]/5'} backdrop-blur-md mb-8`}>
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#E84545] opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#E84545]"></span>
-                </span>
-                <span className={`text-sm font-semibold tracking-wide ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{t.hero.badge}</span>
+      {/* Core Initialization (Hero) */}
+      <section className="relative min-h-screen flex items-center pt-32 pb-20 z-10">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 w-full">
+          <div className="grid lg:grid-cols-12 gap-12 items-center">
+            
+            {/* Left Content */}
+            <div className="lg:col-span-7">
+              <div className="animate-fade-up inline-flex items-center gap-3 px-4 py-1.5 rounded-full border border-[var(--panel-border)] bg-[var(--input-bg)] mb-8">
+                <span className="metric-dot"></span>
+                <span className="text-xs font-mono uppercase tracking-widest text-[var(--text-primary)]">{t.hero.badge}</span>
               </div>
 
-              <h1 className="animate-fade-in-up delay-100 mb-6">
-                <span className={`block text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight mb-2 ${isDark ? 'bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400' : 'text-gray-900'}`}>
+              <h1 className="animate-fade-up delay-100 mb-6 text-glow">
+                <span className="block text-5xl md:text-7xl font-bold tracking-tighter mb-1 text-[var(--text-primary)]">
                   {t.hero.title1}
                 </span>
-                <span className="block text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-[#E84545] to-[#ff6b6b]">
+                <span className="block text-5xl md:text-7xl font-bold tracking-tighter text-glow-accent">
                   {t.hero.title2}
                 </span>
               </h1>
 
-              <p className={`animate-fade-in-up delay-200 text-xl md:text-2xl font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-6`}>
+              <p className="animate-fade-up delay-200 text-lg md:text-xl font-medium text-[var(--text-muted)] mb-6 max-w-2xl">
                 {t.hero.subtitle}
               </p>
 
-              <p className={`animate-fade-in-up delay-300 text-base md:text-lg ${isDark ? 'text-gray-400' : 'text-gray-600'} mb-10 leading-relaxed`}>
+              <p className="animate-fade-up delay-300 text-sm md:text-base text-[var(--text-dark)] mb-10 leading-relaxed max-w-xl font-mono">
                 {t.hero.description}
               </p>
 
-              <div className="animate-fade-in-up delay-400 flex flex-wrap gap-5">
-                <a href="#services" className="group flex items-center gap-2 px-8 py-4 btn-primary text-white font-bold rounded-full">
+              <div className="animate-fade-up delay-300 flex flex-wrap gap-4">
+                <a href="#services" className="btn-system btn-primary px-8 py-4 flex items-center gap-3 font-bold">
                   {t.hero.cta1}
-                  <ArrowRight className={`w-5 h-5 group-hover:translate-x-1 transition-transform ${isRTL ? 'rotate-180 group-hover:-translate-x-1' : ''}`} />
+                  <ArrowRight className={`w-4 h-4 ${isRTL ? 'rotate-180' : ''}`} />
                 </a>
-                <a href="#contact" className={`flex items-center gap-2 px-8 py-4 border-2 ${isDark ? 'border-white/20 text-white hover:border-white hover:bg-white/5' : 'border-gray-900 text-gray-900 hover:bg-gray-50'} font-bold rounded-full transition-all`}>
+                <a href="#contact" className="btn-system px-8 py-4 font-bold border border-[var(--panel-border)] bg-[var(--bg-panel)] text-[var(--text-primary)]">
                   {t.hero.cta2}
                 </a>
               </div>
+            </div>
 
-              {/* Elevated Stats */}
-              <div className="animate-fade-in-up delay-400 mt-16 grid grid-cols-3 gap-4 lg:gap-8">
-                {t.hero.stats.map((stat) => (
-                  <div key={stat.label} className="glass rounded-2xl p-4 text-center border-t border-white/10 shadow-lg">
-                    <div className="text-3xl md:text-4xl font-extrabold text-[#E84545] mb-1">{stat.value}</div>
-                    <div className={`text-xs md:text-sm font-semibold uppercase tracking-wider ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{stat.label}</div>
-                  </div>
-                ))}
+            {/* Right Dashboard Element */}
+            <div className="lg:col-span-5 animate-fade-up delay-200">
+              <div className="dash-panel p-6 flex flex-col gap-4">
+                <div className="flex justify-between items-center border-b border-[var(--panel-border)] pb-4">
+                   <span className="text-xs font-mono text-[var(--text-muted)] uppercase tracking-widest">{t.about.label}</span>
+                </div>
+                
+                <div className="grid grid-cols-1 gap-4 mt-2">
+                  {t.hero.stats.map((stat) => {
+                    const Icon = stat.icon;
+                    return (
+                      <div key={stat.label} className="flex items-center justify-between p-4 rounded-xl bg-[var(--input-bg)] border border-[var(--panel-border)] group hover:border-[var(--accent-primary)] transition-colors">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-lg bg-[var(--bg-panel)] flex items-center justify-center text-[var(--text-muted)] group-hover:text-[var(--accent-primary)] transition-colors border border-[var(--panel-border)]">
+                            <Icon className="w-5 h-5" />
+                          </div>
+                          <div className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wide">{stat.label}</div>
+                        </div>
+                        <div className="text-2xl font-bold font-mono text-glow-accent">{stat.value}</div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
-            <div className="animate-scale-in delay-200 relative hidden lg:block" style={{ animation: 'float 6s ease-in-out infinite' }}>
-              <div className="relative w-full aspect-square max-w-[500px] mx-auto flex items-center justify-center">
-                <div className="absolute inset-0 bg-gradient-to-tr from-[#E84545]/20 to-transparent rounded-[40px] rotate-6 blur-md" />
-                <div className="glass rounded-[40px] w-full h-full p-12 relative z-10 border border-white/20 shadow-2xl flex items-center justify-center">
-                  <Image
-                    src="/logo.png"
-                    alt="Auto City Qatar"
-                    width={400}
-                    height={200}
-                    className="object-contain filter drop-shadow-2xl"
-                  />
+          </div>
+        </div>
+      </section>
+
+      {/* Diagnostics / Showcase */}
+      <section id="showcase" className="relative py-24 border-y border-[var(--panel-border)] bg-[var(--bg-panel)] z-10 transition-colors duration-700">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <header className="mb-16 flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-[var(--panel-border)] pb-8">
+            <div>
+              <span className="text-[var(--accent-primary)] text-xs font-mono tracking-widest uppercase mb-2 flex items-center gap-2">
+                <Activity className="w-3 h-3" /> {t.showcase.label}
+              </span>
+              <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-[var(--text-primary)]">
+                {t.showcase.title}
+              </h2>
+            </div>
+            <p className="text-[var(--text-muted)] font-mono text-sm max-w-md">
+              {t.showcase.description}
+            </p>
+          </header>
+
+          <div className="grid lg:grid-cols-3 gap-6">
+            {/* Primary Feed */}
+            <div className="lg:col-span-2 dash-panel group cursor-pointer" onClick={() => setSelectedMedia({ src: t.showcase.items[0].media, type: t.showcase.items[0].type, title: t.showcase.items[0].title })}>
+              <div className="p-4 border-b border-[var(--panel-border)] flex justify-between items-center">
+                <span className="text-xs font-mono text-[var(--text-muted)]">{t.showcase.items[0].title}</span>
+                <Play className="w-4 h-4 text-[var(--accent-primary)] opacity-50 group-hover:opacity-100 transition-opacity" />
+              </div>
+              <div className="relative h-[400px] bg-[var(--input-bg)]">
+                {t.showcase.items[0].type === 'video' ? (
+                  <video src={t.showcase.items[0].media} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" autoPlay loop muted playsInline />
+                ) : (
+                  <Image src={t.showcase.items[0].media} alt={t.showcase.items[0].title} width={800} height={400} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                )}
+                <div className="absolute bottom-0 left-0 right-0 p-8" style={{ background: 'linear-gradient(to top, var(--bg-panel) 0%, transparent 100%)' }}>
+                  <h3 className="text-2xl font-bold text-[var(--text-primary)] mb-2">{t.showcase.items[0].title}</h3>
+                  <p className="text-[var(--text-dark)] text-sm font-mono">{t.showcase.items[0].description}</p>
                 </div>
               </div>
+            </div>
+
+            {/* Secondary Feeds Grid */}
+            <div className="grid grid-rows-2 gap-6">
+               {t.showcase.items.slice(1, 3).map((item) => (
+                  <div key={item.title} className="dash-panel group cursor-pointer" onClick={() => setSelectedMedia({ src: item.media, type: item.type, title: item.title })}>
+                    <div className="p-3 border-b border-[var(--panel-border)] flex justify-between items-center">
+                      <span className="text-[10px] font-mono text-[var(--text-muted)]">{item.title}</span>
+                    </div>
+                    <div className="relative h-[155px] bg-[var(--input-bg)]">
+                      {item.type === 'video' ? (
+                        <video src={item.media} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" autoPlay loop muted playsInline />
+                      ) : (
+                        <Image src={item.media} alt={item.title} width={400} height={200} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
+                      )}
+                      <div className="absolute bottom-0 left-0 right-0 p-4" style={{ background: 'linear-gradient(to top, var(--bg-panel) 0%, transparent 100%)' }}>
+                        <h4 className="text-sm font-bold text-[var(--text-primary)] truncate">{item.title}</h4>
+                      </div>
+                    </div>
+                  </div>
+               ))}
             </div>
           </div>
         </div>
       </section>
 
-      {/* Services Section */}
-      <section id="services" className="relative py-24 lg:py-32">
+      {/* Modules (Services) */}
+      <section id="services" className="relative py-24 z-10">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <header className="text-center mb-20">
-            <span className="text-[#E84545] text-sm font-bold tracking-[0.2em] uppercase mb-3 block">{t.services.label}</span>
-            <h2 className="text-4xl md:text-5xl font-extrabold mb-6 relative inline-block line-accent line-accent-center">
+          <header className="mb-16 text-center">
+            <span className="text-[var(--accent-primary)] text-xs font-mono tracking-widest uppercase mb-4 block">
+             {t.services.label}
+            </span>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-[var(--text-primary)] mb-4">
               {t.services.title}
             </h2>
-            <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-lg max-w-2xl mx-auto mt-6`}>
+            <p className="text-[var(--text-muted)] text-sm max-w-2xl mx-auto">
               {t.services.description}
             </p>
           </header>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
             {t.services.items.map((service, i) => {
               const Icon = serviceIcons[i];
               return (
-                <article
-                  key={service.title}
-                  className={`group relative p-8 glass rounded-3xl border border-transparent ${isDark ? 'hover:border-[#E84545]/40 hover:bg-white/[0.02]' : 'hover:border-[#E84545]/40 hover:bg-white'} hover-lift overflow-hidden`}
-                >
-                  <div className={`w-14 h-14 rounded-2xl ${isDark ? 'bg-[#E84545]/10' : 'bg-[#E84545]/5'} flex items-center justify-center mb-6 group-hover:bg-[#E84545] transition-colors duration-500`}>
-                    <Icon className="w-7 h-7 text-[#E84545] group-hover:text-white transition-colors duration-500" />
+                <article key={service.title} className="dash-panel p-6 flex flex-col group">
+                  <div className="flex items-center justify-between mb-8">
+                    <Icon className="w-6 h-6 text-[var(--text-dark)] group-hover:text-[var(--accent-primary)] transition-colors" />
+                    <span className="text-[10px] font-mono text-[var(--text-dark)]">0{i+1}</span>
                   </div>
-                  <h3 className="text-xl font-bold mb-3">{service.title}</h3>
-                  <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm leading-relaxed`}>{service.description}</p>
+                  <h3 className="text-lg font-bold text-[var(--text-primary)] mb-2">{service.title}</h3>
+                  <p className="text-xs text-[var(--text-muted)] leading-relaxed font-mono mt-auto">{service.description}</p>
                 </article>
               );
             })}
@@ -842,229 +864,61 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Showcase Section */}
-      <section id="showcase" className={`relative py-24 lg:py-32 ${isDark ? 'bg-[#0f0f0f]' : 'bg-gray-100'} border-y ${isDark ? 'border-white/5' : 'border-gray-200'}`}>
+      {/* Network Nodes (Branches) & Contact */}
+      <section id="branches" className="relative py-24 border-t border-[var(--panel-border)] bg-[var(--bg-panel)] z-10 transition-colors duration-700">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <header className="text-center mb-16">
-            <span className="text-[#E84545] text-sm font-bold tracking-[0.2em] uppercase mb-3 block">{t.showcase.label}</span>
-            <h2 className="text-4xl md:text-5xl font-extrabold mb-6 relative inline-block line-accent line-accent-center">
-              {t.showcase.title}
-            </h2>
-          </header>
-
-          <div className="mb-8">
-            <div
-              className="media-overlay rounded-[2rem]"
-              onClick={() => setSelectedMedia({ src: t.showcase.items[0].media, type: t.showcase.items[0].type, title: t.showcase.items[0].title })}
-            >
-              {t.showcase.items[0].type === 'video' ? (
-                <video src={t.showcase.items[0].media} className="w-full h-[600px] object-cover" autoPlay loop muted playsInline />
-              ) : (
-                <Image src={t.showcase.items[0].media} alt={t.showcase.items[0].title} width={1200} height={600} className="w-full h-[600px] object-cover" />
-              )}
-              <div className="absolute inset-0 flex flex-col justify-end p-8 lg:p-12 z-10">
-                <div className="max-w-3xl">
-                  <h3 className="text-3xl lg:text-5xl font-extrabold text-white mb-4 tracking-tight">{t.showcase.items[0].title}</h3>
-                  <p className="text-gray-200 text-lg md:text-xl font-medium">{t.showcase.items[0].description}</p>
-                </div>
-              </div>
-              {t.showcase.items[0].type === 'video' && (
-                <div className="play-button">
-                  <Play className="w-8 h-8 text-white ml-1" />
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {t.showcase.items.slice(1).map((item) => (
-              <div
-                key={item.title}
-                className="media-overlay rounded-2xl group"
-                onClick={() => setSelectedMedia({ src: item.media, type: item.type, title: item.title })}
-              >
-                {item.type === 'video' ? (
-                  <video src={item.media} className="w-full h-72 object-cover" autoPlay loop muted playsInline />
-                ) : (
-                  <Image src={item.media} alt={item.title} width={400} height={300} className="w-full h-72 object-cover" />
-                )}
-                <div className="absolute inset-0 flex flex-col justify-end p-6 z-10">
-                  <h4 className="text-white font-bold text-xl mb-1">{item.title}</h4>
-                  <p className="text-gray-300 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-y-2 group-hover:translate-y-0">
-                    {item.description}
-                  </p>
-                </div>
-                {item.type === 'video' && (
-                  <div className="play-button !w-14 !h-14">
-                    <Play className="w-6 h-6 text-white ml-1" />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* About Section */}
-      <section id="about" className="relative py-24 lg:py-32">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
+          <div className="grid lg:grid-cols-2 gap-16">
+            
+            {/* Architecture Details */}
             <div>
-              <span className="text-[#E84545] text-sm font-bold tracking-[0.2em] uppercase mb-3 block">{t.about.label}</span>
-              <h2 className="text-4xl md:text-5xl font-extrabold mb-8 relative line-accent">
-                {t.about.title}
+              <span className="text-[var(--accent-primary)] text-xs font-mono tracking-widest uppercase mb-4 block">
+                {t.branches.label}
+              </span>
+              <h2 className="text-3xl font-bold tracking-tight text-[var(--text-primary)] mb-8">
+                {t.branches.title}
               </h2>
-              <p className={`${isDark ? 'text-gray-300' : 'text-gray-700'} text-lg mb-6 leading-relaxed`}>
-                {t.about.description1}
-              </p>
-              <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-lg mb-10 leading-relaxed`}>
-                {t.about.description2}
-              </p>
-              <ul className="grid grid-cols-2 gap-y-4 gap-x-6">
-                {t.about.features.map((item) => (
-                  <li key={item} className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-[#E84545] shadow-[0_0_8px_#E84545]" />
-                    <span className={`${isDark ? 'text-gray-300' : 'text-gray-700'} font-medium`}>{item}</span>
-                  </li>
+              
+              <div className="space-y-4">
+                {t.branches.items.map((branch, i) => (
+                  <div key={branch.name} className="dash-panel p-5 flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-3 mb-1">
+                        <MapPin className="w-4 h-4 text-[var(--accent-primary)] opacity-80" />
+                        <h3 className="font-bold text-[var(--text-primary)] font-mono text-sm uppercase">{branch.name}</h3>
+                      </div>
+                      <p className="text-xs text-[var(--text-muted)] pl-7">{branch.desc}</p>
+                    </div>
+                  </div>
                 ))}
-              </ul>
-            </div>
-
-            <div className="relative p-4">
-              <div className="absolute inset-0 bg-gradient-to-tr from-[#E84545] to-transparent opacity-20 rounded-[3rem] blur-2xl" />
-              <div className="glass rounded-[3rem] p-12 lg:p-20 relative z-10 border border-white/10">
-                <div className="text-center">
-                  <Image
-                    src="/login.png"
-                    alt="Auto City Qatar"
-                    width={400}
-                    height={200}
-                    className="mx-auto mb-10 filter drop-shadow-xl"
-                  />
-                  <div className="space-y-3">
-                    <p className="text-2xl font-extrabold tracking-wide">{lang === 'en' ? 'Auto City Qatar' : 'اوتو سيتي قطر'}</p>
-                    <p className={`text-lg font-medium tracking-wider uppercase ${isDark ? 'text-[#E84545]' : 'text-[#D83434]'}`}>
-                      {lang === 'en' ? 'Premium Auto Upgrades' : 'ترقيات سيارات متميزة'}
-                    </p>
-                  </div>
-                </div>
               </div>
             </div>
-          </div>
-        </div>
-      </section>
 
-      {/* Branches Section */}
-      <section id="branches" className={`relative py-24 lg:py-32 ${isDark ? 'bg-[#0f0f0f]' : 'bg-gray-100'} border-y ${isDark ? 'border-white/5' : 'border-gray-200'}`}>
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <header className="text-center mb-16">
-            <span className="text-[#E84545] text-sm font-bold tracking-[0.2em] uppercase mb-3 block">{t.branches.label}</span>
-            <h2 className="text-4xl md:text-5xl font-extrabold mb-6 relative inline-block line-accent line-accent-center">
-              {t.branches.title}
-            </h2>
-          </header>
+            {/* Secure Gateway / Contact */}
+            <div id="contact" className="dash-panel p-8">
+              <div className="border-b border-[var(--panel-border)] pb-6 mb-6 text-center">
+                 <Shield className="w-8 h-8 text-[var(--accent-primary)] mx-auto mb-4 opacity-80" />
+                 <h3 className="text-xl font-bold tracking-widest uppercase text-[var(--text-primary)]">{t.contact.title}</h3>
+                 <p className="text-xs text-[var(--text-muted)] font-mono mt-2">{t.contact.description}</p>
+              </div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {t.branches.items.map((branch) => (
-              <article
-                key={branch.name}
-                className="group p-8 glass rounded-3xl text-center hover-lift border border-transparent hover:border-[#E84545]/40"
-              >
-                <div className={`w-16 h-16 rounded-2xl ${isDark ? 'bg-[#E84545]/10' : 'bg-[#E84545]/5'} flex items-center justify-center mx-auto mb-6 group-hover:bg-[#E84545] transition-colors duration-300`}>
-                  <MapPin className="w-8 h-8 text-[#E84545] group-hover:text-white transition-colors duration-300" />
-                </div>
-                <h3 className="text-2xl font-bold mb-2">{branch.name}</h3>
-                <p className={`font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2`}>{branch.area}</p>
-                <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{branch.desc}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Contact Section */}
-      <section id="contact" className="relative py-24 lg:py-32">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <header className="text-center mb-16">
-            <span className="text-[#E84545] text-sm font-bold tracking-[0.2em] uppercase mb-3 block">{t.contact.label}</span>
-            <h2 className="text-4xl md:text-5xl font-extrabold mb-6 relative inline-block line-accent line-accent-center">
-              {t.contact.title}
-            </h2>
-          </header>
-
-          <div className="grid lg:grid-cols-2 gap-8 max-w-5xl mx-auto">
-            <div className="space-y-8">
-              <div className="glass rounded-3xl p-8 lg:p-10 border border-white/10">
-                <div className="flex items-center gap-4 mb-8">
-                  <div className={`w-14 h-14 rounded-2xl ${isDark ? 'bg-[#E84545]/10' : 'bg-[#E84545]/5'} flex items-center justify-center`}>
-                    <Phone className="w-7 h-7 text-[#E84545]" />
+              <div className="space-y-6">
+                <div className="bg-[var(--input-bg)] p-4 rounded-xl border border-[var(--panel-border)]">
+                  <div className="text-[10px] font-mono text-[var(--text-muted)] mb-3 uppercase tracking-widest">{t.contact.callUs}</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {phoneNumbers.map((phone) => (
+                      <a key={phone} href={`tel:${phone.replace(/\s/g, '')}`} className="btn-system text-xs py-2 text-center border border-[var(--panel-border)] bg-[var(--bg-panel)] hover:border-[var(--accent-primary)]" dir="ltr">
+                        {phone}
+                      </a>
+                    ))}
                   </div>
+                </div>
+
+                <div className="bg-[var(--input-bg)] p-4 rounded-xl border border-[var(--panel-border)] flex justify-between items-center">
                   <div>
-                    <h3 className="text-2xl font-bold">{t.contact.callUs}</h3>
-                    <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'} font-medium`}>{t.contact.callUsDesc}</p>
+                     <div className="text-[10px] font-mono text-[var(--text-muted)] mb-1 uppercase tracking-widest">{t.contact.emailUs}</div>
+                     <a href="mailto:info@autocityqatar.com" className="text-sm font-semibold text-[var(--text-primary)] hover:text-[var(--accent-primary)] transition-colors">info@autocityqatar.com</a>
                   </div>
-                </div>
-                <address className="space-y-4 not-italic">
-                  {phoneNumbers.map((phone) => (
-                    <a key={phone} href={`tel:${phone.replace(/\s/g, '')}`} className={`flex items-center justify-between p-5 ${isDark ? 'bg-white/5 hover:bg-[#E84545]/10 border border-white/5' : 'bg-gray-100 hover:bg-gray-200 border border-gray-200'} rounded-2xl transition-all group`} dir="ltr">
-                      <span className="text-xl font-bold tracking-wider">{phone}</span>
-                      <ArrowRight className={`w-6 h-6 text-[#E84545] group-hover:translate-x-2 transition-transform`} />
-                    </a>
-                  ))}
-                </address>
-              </div>
-
-              <div className="glass rounded-3xl p-8 lg:p-10 border border-white/10 flex flex-col sm:flex-row items-start sm:items-center gap-5">
-                <div className={`w-14 h-14 rounded-2xl ${isDark ? 'bg-[#E84545]/10' : 'bg-[#E84545]/5'} flex items-center justify-center shrink-0`}>
-                  <Mail className="w-7 h-7 text-[#E84545]" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold mb-1">{t.contact.emailUs}</h3>
-                  <a href="mailto:info@autocityqatar.com" className={`text-lg font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'} hover:text-[#E84545] transition-colors break-all`}>
-                    info@autocityqatar.com
-                  </a>
-                </div>
-              </div>
-            </div>
-
-            {/* Timings Card */}
-            <div className="glass rounded-3xl p-8 lg:p-10 border border-white/10 h-full">
-              <div className="flex items-center gap-4 mb-8">
-                <div className={`w-14 h-14 rounded-2xl ${isDark ? 'bg-[#E84545]/10' : 'bg-[#E84545]/5'} flex items-center justify-center`}>
-                  <Clock className="w-7 h-7 text-[#E84545]" />
-                </div>
-                <h3 className="text-2xl font-bold">{t.contact.businessHours}</h3>
-              </div>
-
-              <div className="space-y-8">
-                {/* Regular Timings */}
-                <div>
-                  <h4 className="text-sm font-bold tracking-widest uppercase text-[#E84545] mb-4">{t.contact.regularHours}</h4>
-                  <dl className="space-y-3">
-                    <div className={`flex flex-col xl:flex-row xl:justify-between py-3 border-b ${isDark ? 'border-white/5' : 'border-gray-200'}`}>
-                      <dt className={`font-semibold mb-1 xl:mb-0 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t.contact.daysSatThu}</dt>
-                      <dd className="font-bold xl:text-right" dir="ltr">{t.contact.regularSatThuTime}</dd>
-                    </div>
-                    <div className="flex flex-col xl:flex-row xl:justify-between py-3">
-                      <dt className={`font-semibold mb-1 xl:mb-0 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t.contact.daysFriday}</dt>
-                      <dd className="font-bold xl:text-right" dir="ltr">{t.contact.regularFridayTime}</dd>
-                    </div>
-                  </dl>
-                </div>
-
-                {/* Ramadan Timings */}
-                <div>
-                  <h4 className="text-sm font-bold tracking-widest uppercase text-[#E84545] mb-4">{t.contact.ramadanHours}</h4>
-                  <dl className="space-y-3">
-                    <div className={`flex flex-col xl:flex-row xl:justify-between py-3 border-b ${isDark ? 'border-white/5' : 'border-gray-200'}`}>
-                      <dt className={`font-semibold mb-1 xl:mb-0 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t.contact.daysSatThu}</dt>
-                      <dd className="font-bold xl:text-right leading-relaxed" dir="ltr">{t.contact.ramadanSatThuTime}</dd>
-                    </div>
-                    <div className="flex flex-col xl:flex-row xl:justify-between py-3">
-                      <dt className={`font-semibold mb-1 xl:mb-0 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t.contact.daysFriday}</dt>
-                      <dd className="font-bold xl:text-right leading-relaxed" dir="ltr">{t.contact.ramadanFridayTime}</dd>
-                    </div>
-                  </dl>
+                  <Mail className="w-5 h-5 text-[var(--text-dark)]" />
                 </div>
               </div>
             </div>
@@ -1073,43 +927,21 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className={`relative pt-20 pb-10 border-t ${isDark ? 'border-white/10 bg-[#050505]' : 'border-gray-200 bg-white'}`}>
+      {/* Terminal Footer */}
+      <footer className="relative border-t border-[var(--panel-border)] bg-[var(--bg-base)] z-10 pb-8 transition-colors duration-700">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="grid md:grid-cols-4 gap-12 mb-16">
-            <div className="md:col-span-2">
-              <Image src="/login.png" alt="Auto City Qatar" width={200} height={100} className="mb-6" />
-              <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} max-w-md leading-relaxed mb-6 font-medium`}>
-                {t.footer.description}
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6 pt-8 font-mono text-xs">
+            <div className="flex items-center gap-4">
+              <Image src="/login.png" onClick={() => router.push('/autocityPro/login')} alt="Auto City Qatar" width={100} height={40} className="opacity-50 grayscale cursor-pointer hover:opacity-80 transition-opacity" />
+              <p className="text-[var(--text-muted)] border-l border-[var(--panel-border)] pl-4 py-1">
+                {t.footer.rights}
               </p>
             </div>
             
-            <nav>
-              <h4 className="text-lg font-bold mb-6">{t.footer.services}</h4>
-              <ul className={`space-y-4 ${isDark ? 'text-gray-400' : 'text-gray-600'} font-medium`}>
-                {t.services.items.slice(0, 4).map((service) => (
-                  <li key={service.title}><a href="#services" className="hover:text-[#E84545] transition-colors">{service.title}</a></li>
-                ))}
-              </ul>
-            </nav>
-
-            <address className="not-italic">
-              <h4 className="text-lg font-bold mb-6">{t.footer.contact}</h4>
-              <ul className={`space-y-4 ${isDark ? 'text-gray-400' : 'text-gray-600'} font-medium`}>
-                {phoneNumbers.map((phone) => (
-                  <li key={phone} dir="ltr"><a href={`tel:${phone.replace(/\s/g, '')}`} className="hover:text-[#E84545] transition-colors">{phone}</a></li>
-                ))}
-              </ul>
-            </address>
-          </div>
-
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6 pt-8 border-t border-white/10 font-medium">
-            <p className={`${isDark ? 'text-gray-500' : 'text-gray-500'} text-sm`}>
-              © {new Date().getFullYear()} Auto City Qatar. {t.footer.rights}
-            </p>
-            <Link href="/autocityPro/login" className={`${isDark ? 'text-gray-500' : 'text-gray-500'} hover:text-[#E84545] transition-colors text-sm font-bold`}>
-              {t.nav.Login}
-            </Link>
+            <div className="flex gap-6 text-[var(--text-muted)]">
+               <a href="#services" className="hover:text-[var(--text-primary)] transition-colors">{t.footer.services}</a>
+               <a href="#branches" className="hover:text-[var(--text-primary)] transition-colors">{t.footer.ourBranches}</a>
+            </div>
           </div>
         </div>
       </footer>

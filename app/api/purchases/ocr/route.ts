@@ -1,36 +1,46 @@
-// app/api/purchases/ocr/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { verifyToken } from "@/lib/auth/jwt";
 import Anthropic from "@anthropic-ai/sdk";
+import { connectDB } from "@/lib/db/mongodb";
+import SupplierItemMemory, { normaliseKey } from "@/lib/models/Supplieritemmemory";
+import Product from "@/lib/models/ProductEnhanced";
+import mongoose from "mongoose";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export interface OCRParsedItem {
-  name: string;        // English only
-  partNumber?: string; // part/item code from invoice line
+  name: string;
+  partNumber?: string;
   quantity: number;
   unitPrice: number;
   unit: string;
   taxRate: number;
   total: number;
   confidence: "high" | "medium" | "low";
+  /** Populated server-side when a memory match is found */
+  memoryMatch?: {
+    productId:   string;
+    productName: string;
+    productSku:  string;
+    confirmCount: number;
+  };
 }
 
 export interface OCRParsedResult {
-  supplierName?: string;
+  supplierName?:  string;
   supplierPhone?: string;
   supplierEmail?: string;
   invoiceNumber?: string;
-  invoiceDate?: string;
-  items: OCRParsedItem[];
-  subtotal?: number;
-  taxTotal?: number;
-  grandTotal?: number;
-  currency?: string;
-  notes?: string;
-  confidence: "high" | "medium" | "low";
-  warnings: string[];
+  invoiceDate?:   string;
+  items:          OCRParsedItem[];
+  subtotal?:      number;
+  taxTotal?:      number;
+  grandTotal?:    number;
+  currency?:      string;
+  notes?:         string;
+  confidence:     "high" | "medium" | "low";
+  warnings:       string[];
 }
 
 // ─── Prompt ───────────────────────────────────────────────────────────────────
@@ -62,51 +72,44 @@ OTHER RULES:
 
 JSON SCHEMA:
 {
-  "supplierName": string | null,
+  "supplierName":  string | null,
   "supplierPhone": string | null,
   "supplierEmail": string | null,
   "invoiceNumber": string | null,
-  "invoiceDate": string | null,
+  "invoiceDate":   string | null,
   "items": [
     {
-      "name": string,              // ENGLISH ONLY — no Arabic, no parenthetical translations
+      "name":       string,
       "partNumber": string | null,
-      "quantity": number,
-      "unitPrice": number,
-      "unit": string,
-      "taxRate": number,
-      "total": number,
+      "quantity":   number,
+      "unitPrice":  number,
+      "unit":       string,
+      "taxRate":    number,
+      "total":      number,
       "confidence": "high" | "medium" | "low"
     }
   ],
-  "subtotal": number | null,
-  "taxTotal": number | null,
+  "subtotal":   number | null,
+  "taxTotal":   number | null,
   "grandTotal": number | null,
-  "currency": string | null,
-  "notes": string | null,
+  "currency":   string | null,
+  "notes":      string | null,
   "confidence": "high" | "medium" | "low",
-  "warnings": string[]
+  "warnings":   string[]
 }`;
 
-// ─── Strip non-ASCII / Arabic characters from a product name ─────────────────
-// If the model still includes Arabic despite the prompt, clean it server-side.
+// ─── Normalise helpers ────────────────────────────────────────────────────────
 function toEnglishName(raw: string): string {
   if (!raw) return raw;
-  // Remove anything in parentheses that contains non-ASCII (Arabic, etc.)
-  let name = raw.replace(/\([^)]*[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF][^)]*\)/g, "");
-  // Strip remaining non-ASCII characters entirely
-  name = name.replace(/[^\x00-\x7F]+/g, "");
-  // Collapse extra whitespace
-  return name.trim().replace(/\s{2,}/g, " ");
+  let n = raw.replace(/\([^)]*[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF][^)]*\)/g, "");
+  n = n.replace(/[^\x00-\x7F]+/g, "");
+  return n.trim().replace(/\s{2,}/g, " ");
 }
 
-// ─── Dedup items within a single result (partNumber-first key) ────────────────
 function dedupItems(items: OCRParsedItem[]): OCRParsedItem[] {
   const seen = new Set<string>();
-  const out:  OCRParsedItem[] = [];
+  const out: OCRParsedItem[] = [];
   for (const item of items) {
-    // Primary key: partNumber alone (most reliable identifier on an invoice)
-    // Fall back to name when no partNumber
     const key = item.partNumber
       ? item.partNumber.toLowerCase().replace(/\s/g, "")
       : `name:${item.name.toLowerCase().trim()}`;
@@ -115,8 +118,10 @@ function dedupItems(items: OCRParsedItem[]): OCRParsedItem[] {
   return out;
 }
 
-// ─── Parse a single image ────────────────────────────────────────────────────
+// ─── Parse a single image ─────────────────────────────────────────────────────
 async function parseSingleImage(
+
+  
   base64Data: string,
   mediaType: "image/jpeg" | "image/png" | "image/webp" | "image/gif"
 ): Promise<OCRParsedResult> {
@@ -135,34 +140,32 @@ async function parseSingleImage(
       ],
     }],
   });
-
+  
   const rawText = response.content[0].type === "text" ? response.content[0].text : "";
   const cleaned = rawText
     .replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
   return JSON.parse(cleaned) as OCRParsedResult;
 }
-
-// ─── Sanitize + clean a single result ────────────────────────────────────────
+ 
+// ─── Sanitize a single result ─────────────────────────────────────────────────
 function sanitize(parsed: OCRParsedResult): OCRParsedResult {
-  // Clean items
   let items = (parsed.items || []).map((item): OCRParsedItem => ({
     ...item,
     name:       toEnglishName((item.name || "").trim()),
     partNumber: item.partNumber?.trim() || undefined,
-    quantity:   Math.max(0.001, Number(item.quantity)  || 1),
-    unitPrice:  Math.max(0,     Number(item.unitPrice) || 0),
+    quantity:   Math.max(0.001, Number(item.quantity) || 1),
+    unitPrice:  Math.max(0, Number(item.unitPrice) || 0),
     taxRate:    Math.min(100, Math.max(0, Number(item.taxRate) || 0)),
     total:      Math.max(0, Number(item.total) || 0),
     unit:       item.unit || "pcs",
     confidence: item.confidence || "medium",
   }));
 
-  // Deduplicate within this single result
   items = dedupItems(items);
 
-  if (parsed.subtotal   != null) parsed.subtotal   = Number(parsed.subtotal)   || 0;
-  if (parsed.taxTotal   != null) parsed.taxTotal   = Number(parsed.taxTotal)   || 0;
-  if (parsed.grandTotal != null) parsed.grandTotal = Number(parsed.grandTotal) || 0;
+  if (parsed.subtotal  != null) parsed.subtotal  = Number(parsed.subtotal)  || 0;
+  if (parsed.taxTotal  != null) parsed.taxTotal  = Number(parsed.taxTotal)  || 0;
+  if (parsed.grandTotal!= null) parsed.grandTotal= Number(parsed.grandTotal)|| 0;
   parsed.warnings = parsed.warnings || [];
 
   return { ...parsed, items };
@@ -172,13 +175,11 @@ function sanitize(parsed: OCRParsedResult): OCRParsedResult {
 function mergeResults(results: OCRParsedResult[]): OCRParsedResult {
   if (results.length === 1) return results[0];
 
-  // Cross-page dedup: collect all items then dedup again
   const allItems: OCRParsedItem[] = [];
   for (const r of results) allItems.push(...r.items);
   const items = dedupItems(allItems);
 
-  const pick = <T,>(arr: (T | undefined | null)[]) => arr.find(Boolean) ?? undefined;
-
+  const pick = <T>(arr: (T | undefined | null)[]) => arr.find(Boolean) ?? undefined;
   const rank: Record<string, number> = { high: 2, medium: 1, low: 0 };
   const worstConf = results.reduce(
     (worst, r) => rank[r.confidence] < rank[worst] ? r.confidence : worst,
@@ -191,31 +192,107 @@ function mergeResults(results: OCRParsedResult[]): OCRParsedResult {
   results.forEach((r, i) => r.warnings.forEach((w) => warnings.push(`Page ${i + 1}: ${w}`)));
 
   return {
-    supplierName:  pick(results.map((r) => r.supplierName)),
-    supplierPhone: pick(results.map((r) => r.supplierPhone)),
-    supplierEmail: pick(results.map((r) => r.supplierEmail)),
-    invoiceNumber: pick(results.map((r) => r.invoiceNumber)),
-    invoiceDate:   pick(results.map((r) => r.invoiceDate)),
-    currency:      pick(results.map((r) => r.currency)),
+    supplierName:  pick(results.map(r => r.supplierName)),
+    supplierPhone: pick(results.map(r => r.supplierPhone)),
+    supplierEmail: pick(results.map(r => r.supplierEmail)),
+    invoiceNumber: pick(results.map(r => r.invoiceNumber)),
+    invoiceDate:   pick(results.map(r => r.invoiceDate)),
+    currency:      pick(results.map(r => r.currency)),
     items,
-    subtotal:    results[results.length - 1].subtotal   ?? undefined,
-    taxTotal:    results[results.length - 1].taxTotal   ?? undefined,
-    grandTotal:  results[results.length - 1].grandTotal ?? undefined,
-    confidence:  worstConf,
+    subtotal:   results[results.length - 1].subtotal  ?? undefined,
+    taxTotal:   results[results.length - 1].taxTotal  ?? undefined,
+    grandTotal: results[results.length - 1].grandTotal?? undefined,
+    confidence: worstConf,
     warnings,
   };
+}
+
+// ─── Pre-resolve items against supplier memory ────────────────────────────────
+/**
+ * Given a supplierId and OCR-parsed items, look up SupplierItemMemory for
+ * every item. Where a match is found, attach .memoryMatch so the frontend
+ * can auto-link without user input.
+ *
+ * Also validates that the linked productId still exists and is active.
+ */
+async function resolveItemsAgainstMemory(
+  items:      OCRParsedItem[],
+  supplierId: mongoose.Types.ObjectId,
+  outletId:   mongoose.Types.ObjectId
+): Promise<{ items: OCRParsedItem[]; memoryHits: number }> {
+  // 1. Bulk-fetch the entire supplier memory for this outlet in one query
+  console.log("Fetching supplier memory...", outletId.toString(), supplierId.toString());
+  const memoryEntries = await SupplierItemMemory.find({ outletId, supplierId }).lean();
+
+  if (!memoryEntries.length) return { items, memoryHits: 0 };
+
+  // 2. Build fast lookup maps: normalisedName → entry, normalisedPN → entry
+  const byName = new Map<string, typeof memoryEntries[0]>();
+  const byPN   = new Map<string, typeof memoryEntries[0]>();
+
+  for (const entry of memoryEntries) {
+    if (entry.supplierItemName)   byName.set(entry.supplierItemName, entry);
+    if (entry.supplierPartNumber) byPN.set(entry.supplierPartNumber, entry);
+  }
+
+  // 3. Collect all productIds that might be referenced so we can validate in one query
+  const allProductIds = new Set(memoryEntries.map(e => String(e.productId)));
+  const activeProducts = await Product.find({
+    _id:      { $in: [...allProductIds].map(id => new mongoose.Types.ObjectId(id)) },
+    outletId,
+    isActive: true,
+  }).select('_id').lean();
+  const activeSet = new Set(activeProducts.map(p => String(p._id)));
+
+  // 4. Walk items and attach memoryMatch
+  let memoryHits = 0;
+  const resolved = items.map(item => {
+    const normName = normaliseKey(item.name || '');
+    const normPN   = normaliseKey(item.partNumber || '');
+
+    // Part number is the stronger signal — check it first
+    const match = (normPN && byPN.get(normPN)) || (normName && byName.get(normName));
+
+    if (!match) return item;
+
+    // Validate the product is still active in inventory
+    if (!activeSet.has(String(match.productId))) return item;
+
+    memoryHits++;
+    return {
+      ...item,
+      memoryMatch: {
+        productId:    String(match.productId),
+        productName:  match.productName,
+        productSku:   match.productSku,
+        confirmCount: match.confirmCount,
+      },
+    };
+  });
+
+  return { items: resolved, memoryHits };
 }
 
 // ─── Route handler ────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
   try {
+    await connectDB();
+    console.log("parsing image.....");
+
     const token = cookies().get("auth-token")?.value;
     if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    verifyToken(token);
+    const user = verifyToken(token);
 
-    const formData   = await request.formData();
-    const single     = formData.get("image")       as File | null;
+    const outletId = new mongoose.Types.ObjectId(
+      typeof user.outletId === "string" ? user.outletId : String(user.outletId)
+    );
+
+    const formData = await request.formData();
+    const single     = formData.get("image")    as File | null;
     const multiFiles = formData.getAll("images[]") as File[];
+    // Optional: client can pass the resolved supplierId so we can pre-resolve
+    const supplierIdStr = formData.get("supplierId") as string | null;
+
     const files: File[] = multiFiles.length > 0 ? multiFiles : single ? [single] : [];
 
     if (files.length === 0)
@@ -231,15 +308,18 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: `"${file.name}" is unsupported type` }, { status: 400 });
     }
 
-    // Parse all images in parallel
+    // ── Parse all images in parallel ─────────────────────────────────────────
     let rawResults: OCRParsedResult[];
     try {
-      rawResults = await Promise.all(files.map(async (file) => {
-        const buf = await file.arrayBuffer();
-        const b64 = Buffer.from(buf).toString("base64");
-        const mt  = file.type as "image/jpeg" | "image/png" | "image/webp" | "image/gif";
-        return parseSingleImage(b64, mt);
-      }));
+      console.log("images parsed......");
+      rawResults = await Promise.all(
+        files.map(async (file) => {
+          const buf = await file.arrayBuffer();
+          const b64 = Buffer.from(buf).toString("base64");
+          const mt  = file.type as "image/jpeg" | "image/png" | "image/webp" | "image/gif";
+          return parseSingleImage(b64, mt);
+        })
+      );
     } catch {
       return NextResponse.json(
         { error: "Failed to parse AI response. Try a clearer image." },
@@ -253,7 +333,28 @@ export async function POST(request: NextRequest) {
     if (merged.items.length === 0)
       merged.warnings.push("No line items detected. Please review manually.");
 
-    return NextResponse.json({ success: true, result: merged, imageCount: files.length });
+    // ── Memory pre-resolution ─────────────────────────────────────────────────
+    let memoryHits = 0;
+
+    if (supplierIdStr && mongoose.Types.ObjectId.isValid(supplierIdStr)) {
+      const supplierId = new mongoose.Types.ObjectId(supplierIdStr);
+      const resolved   = await resolveItemsAgainstMemory(merged.items, supplierId, outletId);
+      merged.items     = resolved.items;
+      memoryHits       = resolved.memoryHits;
+
+      if (memoryHits > 0) {
+        merged.warnings.unshift(
+          `🧠 ${memoryHits} item${memoryHits > 1 ? "s" : ""} auto-matched from supplier memory`
+        );
+      }
+    }
+
+    return NextResponse.json({
+      success:    true,
+      result:     merged,
+      imageCount: files.length,
+      memoryHits,
+    });
   } catch (error: any) {
     console.error("OCR API error:", error);
     return NextResponse.json({ error: error.message || "OCR processing failed" }, { status: 500 });

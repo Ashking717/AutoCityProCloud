@@ -557,7 +557,7 @@ if (loading && !dashboardData) {
                 <div className="relative">
                   <Gauge className="h-8 w-8 text-[#E84545]" />
                   {/* Fake speedometer needle revving */}
-                  <div className="absolute top-[50%] left-[50%] w-[2px] h-[12px] bg-white origin-bottom -translate-x-1/2 -translate-y-full rounded-t-full" style={{ animation: 'rev-needle 3s ease-in-out infinite' }} />
+                  <div className="absolute top-[20%] left-[50%] w-[2px] h-[12px] bg-white origin-bottom -translate-x-1/2 -translate-y-full rounded-t-full" style={{ animation: 'rev-needle 3s ease-in-out infinite' }} />
                 </div>
                 Dashboard
               </h1>

@@ -278,13 +278,12 @@ export default function ProductsClient({
     } catch { toast.dismiss(); toast.error("Failed to export PDF"); }
   };
 
-  // ── CSV Export — fetch ALL products, optional SKU range ──────────────────
+  // ── CSV Export — fetch ALL products, sort by SKU ascending ───────────────
   const downloadProductsCSV = async (skuFrom?: string, skuTo?: string) => {
     setIsExportingCSV(true);
     try {
       toast.loading("Preparing CSV export...");
 
-      // Fetch all products — same as PDF
       const params = new URLSearchParams({ export: "true" });
       if (searchTerm)     params.append("search",     searchTerm);
       if (filterCategory) params.append("categoryId", filterCategory);
@@ -317,21 +316,12 @@ export default function ProductsClient({
         return;
       }
 
-      // ── Sort same as PDF: vehicles first (grouped by make/model), others last
-      const PRIORITY_MAKES = ["toyota","nissan","lexus","ford"];
+      // ── Sort by SKU ascending (numeric where possible, lexicographic fallback)
       filtered.sort((a: any, b: any) => {
-        const hasMakeA = !!a.carMake, hasMakeB = !!b.carMake;
-        if (hasMakeA && !hasMakeB) return -1;
-        if (!hasMakeA && hasMakeB) return 1;
-        if (!hasMakeA && !hasMakeB) return (a.name||"").localeCompare(b.name||"");
-        const ma = a.carMake.toLowerCase(), mb = b.carMake.toLowerCase();
-        const ia = PRIORITY_MAKES.indexOf(ma), ib = PRIORITY_MAKES.indexOf(mb);
-        if (ia !== -1 && ib !== -1) return ia - ib;
-        if (ia !== -1) return -1; if (ib !== -1) return 1;
-        if (ma !== mb) return ma.localeCompare(mb);
-        const moa = (a.carModel||"").toLowerCase(), mob = (b.carModel||"").toLowerCase();
-        if (moa !== mob) return moa.localeCompare(mob);
-        return (a.name||"").toLowerCase().localeCompare((b.name||"").toLowerCase());
+        const na = parseInt(String(a.sku), 10);
+        const nb = parseInt(String(b.sku), 10);
+        if (!isNaN(na) && !isNaN(nb)) return na - nb;
+        return String(a.sku || "").localeCompare(String(b.sku || ""));
       });
 
       const fyr = (f?: string|number, t?: string|number) => {
@@ -715,7 +705,7 @@ export default function ProductsClient({
                 <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: th.modalTitle }}>
                   <FileDown className="h-5 w-5 text-[#E84545]" /> Export CSV
                 </h2>
-                <p className="text-xs mt-0.5" style={{ color: th.modalText }}>All products · sorted by make / model</p>
+                <p className="text-xs mt-0.5" style={{ color: th.modalText }}>All products · sorted by SKU ascending</p>
               </div>
               <button onClick={() => { setShowCSVModal(false); setCsvSkuFrom(""); setCsvSkuTo(""); }}
                 className="p-2 rounded-xl active:scale-95 transition-all"
@@ -773,7 +763,7 @@ export default function ProductsClient({
                 </p>
                 <p style={{ color: th.cellMuted }}>
                   <span style={{ color: th.cellSecondary }} className="font-medium">Sorted:</span>{" "}
-                  Toyota → Nissan → Lexus → Ford → other makes → general products
+                  SKU ascending (10001 → 10002 → 10003 …)
                 </p>
               </div>
 

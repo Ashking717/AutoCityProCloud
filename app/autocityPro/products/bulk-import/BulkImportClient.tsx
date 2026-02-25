@@ -251,6 +251,7 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
   };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const stockInputRef = useRef<HTMLInputElement>(null);
   const [importMode, setImportMode] = useState<ImportMode | null>(null);
   const [step, setStep] = useState<"select" | "upload" | "map" | "preview" | "importing" | "done">("select");
   const [isDragging, setIsDragging] = useState(false);
@@ -264,11 +265,74 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
   const [importProgress, setImportProgress] = useState({ done: 0, total: 0, success: 0, failed: 0, skipped: 0 });
   const [isImporting, setIsImporting] = useState(false);
   const abortRef = useRef(false);
+  const triggerImportRef = useRef(false);
   const categoryCache = useRef<Record<string, string>>({});
+
+  // ── Stock Prompt State (one-by-one mode) ───────────────────────────────────
+  const [stockPromptIndex, setStockPromptIndex] = useState(0);
+  const [stockPromptValue, setStockPromptValue] = useState("");
 
   // Navigation guard — active once user has loaded data (past select screen)
   const isInProgress = step !== "select" && step !== "done";
   useNavigationGuard(isInProgress);
+
+  // Rows valid for stock prompting (no hard errors)
+  const validStockRows = rows.filter(r => r.errors.length === 0);
+
+  // Auto-focus the stock input whenever the prompt card advances
+  useEffect(() => {
+    if (importMode === "stock" && step === "preview") {
+      const t = setTimeout(() => stockInputRef.current?.focus(), 60);
+      return () => clearTimeout(t);
+    }
+  }, [importMode, step, stockPromptIndex]);
+
+  // Trigger import after last stock prompt is confirmed
+  useEffect(() => {
+    if (triggerImportRef.current && step === "preview") {
+      triggerImportRef.current = false;
+      startImport();
+    }
+  }, [stockPromptIndex]);
+
+  // Current card in one-by-one prompt
+  const currentPromptRow = validStockRows[stockPromptIndex] ?? null;
+
+  const confirmStockPrompt = () => {
+    if (!currentPromptRow) return;
+    const num = parseFloat(stockPromptValue);
+    setRows(prev => prev.map(r =>
+      r._rowIndex === currentPromptRow._rowIndex
+        ? { ...r, currentStock: isNaN(num) ? 0 : Math.max(0, num) }
+        : r
+    ));
+    setStockPromptValue("");
+    if (stockPromptIndex < validStockRows.length - 1) {
+      setStockPromptIndex(i => i + 1);
+    } else {
+      // Last item — signal ready to import via ref, startImport triggered below
+      triggerImportRef.current = true;
+      setStockPromptIndex(i => i + 1); // move past last to show completion state
+    }
+  };
+
+  const skipStockPrompt = () => {
+    setStockPromptValue("");
+    if (stockPromptIndex < validStockRows.length - 1) {
+      setStockPromptIndex(i => i + 1);
+    } else {
+      triggerImportRef.current = true;
+      setStockPromptIndex(i => i + 1);
+    }
+  };
+
+  const goBackStockPrompt = () => {
+    if (stockPromptIndex > 0) {
+      setStockPromptValue(String(validStockRows[stockPromptIndex - 1]?.currentStock ?? ""));
+      setStockPromptIndex(i => i - 1);
+    }
+  };
+
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
@@ -340,6 +404,8 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
     setRows(parsed);
     setFilterStatus("all");
     setExpandedRows(new Set());
+    setStockPromptIndex(0);
+    setStockPromptValue("");
     setStep("preview");
   }, [rawRows, columnMap, categories, enableWarnings]);
 
@@ -773,58 +839,150 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                 ))}
               </div>
 
-              {/* Stock edit mode — inline editable table */}
-              {importMode === "stock" && (
-                <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${th.containerBorder}` }}>
-                  <div className="px-4 py-3 flex items-center gap-2" style={{ background: 'rgba(59,130,246,0.06)', borderBottom: `1px solid rgba(59,130,246,0.15)` }}>
-                    <List size={14} style={{ color: '#3b82f6' }} />
-                    <p className="text-sm font-semibold" style={{ color: '#3b82f6' }}>Stock Edit Mode — Review & Adjust Stock Per Row</p>
-                    <p className="text-xs ml-auto" style={{ color: th.mutedText }}>Edit the Current Stock column before importing</p>
+              {/* Stock edit mode — one-by-one prompt card */}
+              {importMode === "stock" && currentPromptRow && (
+                <div className="space-y-3">
+                  {/* Progress bar */}
+                  <div className="flex items-center justify-between text-xs mb-1" style={{ color: th.mutedText }}>
+                    <span style={{ color: '#3b82f6', fontWeight: 600 }}>Stock Entry</span>
+                    <span>{stockPromptIndex + 1} of {validStockRows.length}</span>
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr style={{ borderBottom: `1px solid ${th.rowBorder}`, background: th.mapRowBg }}>
-                          <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: th.faintText }}>SKU</th>
-                          <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: th.faintText }}>Name</th>
-                          <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: th.faintText }}>Car / Variant</th>
-                          <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider" style={{ color: '#3b82f6' }}>Current Stock ✏️</th>
-                          <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider" style={{ color: th.faintText }}>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredRows.map(row => (
-                          <tr key={row._rowIndex} style={{ borderBottom: `1px solid ${th.rowBorder}` }}
-                            className="transition-colors hover:bg-white/[0.02]">
-                            <td className="px-4 py-2.5">
-                              {row.sku ? (
-                                <span className="text-xs px-2 py-0.5 rounded font-mono" style={{ background: th.pillBg, color: th.faintText }}>{row.sku}</span>
-                              ) : <span style={{ color: th.faintText }}>—</span>}
-                            </td>
-                            <td className="px-4 py-2.5" style={{ color: th.primaryText }}>{row.name}</td>
-                            <td className="px-4 py-2.5 text-xs" style={{ color: th.mutedText }}>
-                              {[row.carMake, row.carModel, row.variant].filter(Boolean).join(" ") || "—"}
-                            </td>
-                            <td className="px-4 py-2.5 text-right">
-                              <input type="number" min="0" value={row.currentStock ?? ""}
-                                onChange={e => updateRowStock(row._rowIndex, e.target.value)}
-                                className="w-24 px-2 py-1 rounded-lg text-sm text-right focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                style={{ background: th.inputBg, border: `1px solid rgba(59,130,246,0.30)`, color: th.inputText }} />
-                            </td>
-                            <td className="px-4 py-2.5 text-center">
-                              {row.errors.length > 0 ? (
-                                <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(248,113,113,0.12)', color: '#f87171' }}>
-                                  {row.errors.length} error{row.errors.length !== 1 ? "s" : ""}
-                                </span>
-                              ) : (
-                                <CheckCircle2 size={14} style={{ color: '#4ade80', margin: '0 auto' }} />
-                              )}
-                            </td>
-                          </tr>
+                  <div className="h-1.5 rounded-full overflow-hidden" style={{ background: th.pillBg }}>
+                    <div className="h-full rounded-full transition-all duration-300"
+                      style={{ background: 'linear-gradient(90deg,#3b82f6,#60a5fa)', width: `${((stockPromptIndex) / validStockRows.length) * 100}%` }} />
+                  </div>
+
+                  {/* Previous item confirmation strip */}
+                  {stockPromptIndex > 0 && (() => {
+                    const prevRow = validStockRows[stockPromptIndex - 1];
+                    return (
+                      <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm"
+                        style={{ background: 'rgba(74,222,128,0.06)', border: '1px solid rgba(74,222,128,0.15)' }}>
+                        <CheckCircle2 size={14} style={{ color: '#4ade80', flexShrink: 0 }} />
+                        <span className="flex-1 truncate" style={{ color: th.mutedText }}>{prevRow.name}</span>
+                        <span className="font-bold tabular-nums" style={{ color: '#4ade80' }}>
+                          {prevRow.currentStock ?? 0} {prevRow.unit || "pcs"}
+                        </span>
+                        <button onClick={goBackStockPrompt} className="text-xs px-2 py-0.5 rounded-lg transition-colors"
+                          style={{ color: th.faintText, border: `1px solid ${th.pillBorder}` }}>undo</button>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Main prompt card */}
+                  <div className="rounded-2xl p-6" style={{ background: isDark ? 'rgba(59,130,246,0.06)' : 'rgba(59,130,246,0.04)', border: '2px solid rgba(59,130,246,0.25)' }}>
+                    {/* Product identity */}
+                    <div className="mb-5">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2.5 rounded-xl shrink-0" style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.20)' }}>
+                          <Package size={18} style={{ color: '#3b82f6' }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-base font-bold leading-snug" style={{ color: th.primaryText }}>{currentPromptRow.name}</p>
+                          {(currentPromptRow.carMake || currentPromptRow.carModel) && (
+                            <p className="text-sm mt-0.5" style={{ color: '#60a5fa' }}>
+                              {[currentPromptRow.carMake, currentPromptRow.carModel, currentPromptRow.variant].filter(Boolean).join(" ")}
+                              {currentPromptRow.yearFrom ? ` · ${currentPromptRow.yearFrom}–${currentPromptRow.yearTo ?? "now"}` : ""}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                            {currentPromptRow.sku && (
+                              <span className="text-xs px-2 py-0.5 rounded font-mono" style={{ background: th.pillBg, color: th.faintText }}>
+                                {currentPromptRow.sku}
+                              </span>
+                            )}
+                            {currentPromptRow.color && (
+                              <span className="text-xs px-2 py-0.5 rounded" style={{ background: th.pillBg, color: th.faintText }}>
+                                {currentPromptRow.color}
+                              </span>
+                            )}
+                            {currentPromptRow.categoryName && (
+                              <span className="text-xs px-2 py-0.5 rounded" style={{ background: th.pillBg, color: th.faintText }}>
+                                {currentPromptRow.categoryName}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Stock input */}
+                    <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#3b82f6' }}>
+                      How many units in stock?
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        ref={stockInputRef}
+                        type="number"
+                        min="0"
+                        placeholder={String(currentPromptRow.currentStock ?? "0")}
+                        value={stockPromptValue}
+                        onChange={e => setStockPromptValue(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === "Enter") { e.preventDefault(); confirmStockPrompt(); }
+                          if (e.key === "Escape") { e.preventDefault(); skipStockPrompt(); }
+                        }}
+                        className="flex-1 px-4 py-3 rounded-xl text-2xl font-bold text-center focus:outline-none focus:ring-2 transition-all"
+                        style={{
+                          background: th.inputBg,
+                          border: '2px solid rgba(59,130,246,0.40)',
+                          color: th.inputText,
+                          // @ts-ignore
+                          '--tw-ring-color': '#3b82f6',
+                        }}
+                      />
+                      <span className="text-sm" style={{ color: th.mutedText }}>{currentPromptRow.unit || "pcs"}</span>
+                    </div>
+                    <p className="text-xs mt-2" style={{ color: th.faintText }}>
+                      CSV value: <strong style={{ color: th.mutedText }}>{currentPromptRow.currentStock ?? "—"}</strong>
+                      &nbsp;· Press <kbd className="px-1 py-0.5 rounded text-xs" style={{ background: th.pillBg, border: `1px solid ${th.pillBorder}` }}>Enter</kbd> to confirm,
+                      &nbsp;<kbd className="px-1 py-0.5 rounded text-xs" style={{ background: th.pillBg, border: `1px solid ${th.pillBorder}` }}>Esc</kbd> to keep CSV value
+                    </p>
+
+                    {/* Action buttons */}
+                    <div className="flex items-center gap-2 mt-4">
+                      {stockPromptIndex > 0 && (
+                        <button onClick={goBackStockPrompt}
+                          className="px-3 py-2 rounded-xl text-sm transition-colors active:scale-95"
+                          style={{ border: `1px solid ${th.inputBorder}`, color: th.mutedText, background: 'transparent' }}>
+                          ← Back
+                        </button>
+                      )}
+                      <button onClick={skipStockPrompt}
+                        className="px-4 py-2.5 rounded-xl text-sm transition-colors active:scale-95 ml-auto"
+                        style={{ border: `1px solid rgba(59,130,246,0.25)`, color: '#60a5fa', background: 'rgba(59,130,246,0.06)' }}>
+                        Keep CSV value →
+                      </button>
+                      <button onClick={confirmStockPrompt}
+                        className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95"
+                        style={{ background: 'linear-gradient(135deg,#3b82f6,#2563eb)', color: '#ffffff' }}>
+                        {stockPromptIndex < validStockRows.length - 1 ? "Confirm & Next →" : "Confirm & Import ✓"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Upcoming preview strip */}
+                  {stockPromptIndex < validStockRows.length - 1 && (
+                    <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${th.containerBorder}` }}>
+                      <div className="px-4 py-2 text-xs font-semibold" style={{ background: th.mapRowBg, borderBottom: `1px solid ${th.mapRowBorder}`, color: th.faintText }}>
+                        Up next
+                      </div>
+                      <div className="divide-y max-h-40 overflow-y-auto" style={{ borderColor: th.rowBorder }}>
+                        {validStockRows.slice(stockPromptIndex + 1, stockPromptIndex + 5).map(r => (
+                          <div key={r._rowIndex} className="flex items-center gap-3 px-4 py-2">
+                            <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: th.faintText }} />
+                            <p className="flex-1 text-xs truncate" style={{ color: th.mutedText }}>{r.name}</p>
+                            <p className="text-xs" style={{ color: th.faintText }}>{[r.carMake, r.carModel].filter(Boolean).join(" ")}</p>
+                          </div>
                         ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        {validStockRows.length - stockPromptIndex - 1 > 4 && (
+                          <div className="px-4 py-2 text-xs text-center" style={{ color: th.faintText }}>
+                            +{validStockRows.length - stockPromptIndex - 5} more
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -852,20 +1010,22 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                 </>
               )}
 
-              {/* Filter tabs — only show warnings tab in fast mode */}
-              <div className="flex gap-2 flex-wrap">
-                {(["all", "errors", ...(enableWarnings ? ["warnings"] : []), "clean"] as ("all" | "errors" | "warnings" | "clean")[]).map(f => (
-                  <button key={f} onClick={() => setFilterStatus(f)}
-                    className="px-4 py-2 rounded-xl text-sm font-medium transition-all capitalize active:scale-95"
-                    style={{
-                      background: filterStatus === f ? '#E84545' : th.pillBg,
-                      color: filterStatus === f ? '#ffffff' : th.mutedText,
-                      border: `1px solid ${filterStatus === f ? '#E84545' : th.pillBorder}`,
-                    }}>
-                    {f}{f !== "all" && ` (${f === "errors" ? stats.withErrors : f === "warnings" ? stats.withWarnings : stats.clean})`}
-                  </button>
-                ))}
-              </div>
+              {/* Filter tabs — only in fast mode */}
+              {importMode === "fast" && (
+                <div className="flex gap-2 flex-wrap">
+                  {(["all", "errors", "warnings", "clean"] as ("all" | "errors" | "warnings" | "clean")[]).map(f => (
+                    <button key={f} onClick={() => setFilterStatus(f)}
+                      className="px-4 py-2 rounded-xl text-sm font-medium transition-all capitalize active:scale-95"
+                      style={{
+                        background: filterStatus === f ? '#E84545' : th.pillBg,
+                        color: filterStatus === f ? '#ffffff' : th.mutedText,
+                        border: `1px solid ${filterStatus === f ? '#E84545' : th.pillBorder}`,
+                      }}>
+                      {f}{f !== "all" && ` (${f === "errors" ? stats.withErrors : f === "warnings" ? stats.withWarnings : stats.clean})`}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* Row list — only shown in fast mode (stock mode uses table above) */}
               {importMode === "fast" && (
@@ -941,24 +1101,39 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                 </div>
               )}
 
-              {/* Actions */}
-              <div className="flex items-center justify-between gap-3 pt-2">
-                <p className="text-xs" style={{ color: th.faintText }}>
-                  {stats.withErrors > 0 && <span style={{ color: '#f87171' }}>{stats.withErrors} row{stats.withErrors !== 1 ? "s" : ""} will be skipped · </span>}
-                  {stats.valid} product{stats.valid !== 1 ? "s" : ""} ready to import
-                </p>
-                <div className="flex items-center gap-2">
+              {/* Actions — fast mode footer */}
+              {importMode === "fast" && (
+                <div className="flex items-center justify-between gap-3 pt-2">
+                  <p className="text-xs" style={{ color: th.faintText }}>
+                    {stats.withErrors > 0 && <span style={{ color: '#f87171' }}>{stats.withErrors} row{stats.withErrors !== 1 ? "s" : ""} will be skipped · </span>}
+                    {stats.valid} product{stats.valid !== 1 ? "s" : ""} ready to import
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setStep("map")} className="px-4 py-2 rounded-xl text-sm transition-colors active:scale-95"
+                      style={{ border: `1px solid ${th.inputBorder}`, color: th.mutedText, background: 'transparent' }}>
+                      ← Back
+                    </button>
+                    <button onClick={startImport} disabled={stats.valid === 0}
+                      className="px-5 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95 disabled:opacity-40"
+                      style={{ background: '#E84545', color: '#ffffff' }}>
+                      Import {stats.valid} Product{stats.valid !== 1 ? "s" : ""}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Actions — stock mode: just a back button (import triggered by prompt) */}
+              {importMode === "stock" && !currentPromptRow && stats.withErrors > 0 && (
+                <div className="flex items-center justify-between gap-3 pt-2">
+                  <p className="text-xs" style={{ color: '#f87171' }}>
+                    {stats.withErrors} row{stats.withErrors !== 1 ? "s" : ""} have errors and will be skipped
+                  </p>
                   <button onClick={() => setStep("map")} className="px-4 py-2 rounded-xl text-sm transition-colors active:scale-95"
                     style={{ border: `1px solid ${th.inputBorder}`, color: th.mutedText, background: 'transparent' }}>
-                    ← Back
-                  </button>
-                  <button onClick={startImport} disabled={stats.valid === 0}
-                    className="px-5 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95 disabled:opacity-40"
-                    style={{ background: '#E84545', color: '#ffffff' }}>
-                    Import {stats.valid} Product{stats.valid !== 1 ? "s" : ""}
+                    ← Back to mapping
                   </button>
                 </div>
-              </div>
+              )}
             </>
           )}
 

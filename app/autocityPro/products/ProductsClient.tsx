@@ -292,8 +292,8 @@ export default function ProductsClient({
 
   const downloadProductsCSV = () => {
     if (!products.length) { toast.error("No products to export"); return; }
-    const headers = ["SKU","Name","Category","Barcode","Selling Price","Current Stock","Car Make","Car Model","Variant","Year From","Year To","Part Number","Color"];
-    const rows = products.map(p => [p.sku||"",p.name||"",p.category?.name||"",p.barcode||"",p.sellingPrice||0,p.currentStock||0,p.carMake||"",p.carModel||"",p.variant||"",p.yearFrom||"",p.yearTo||"",p.partNumber||"",p.color||""]);
+    const headers = ["SKU","Name","Category","Barcode","Cost Price","Selling Price","Current Stock","Car Make","Car Model","Variant","Year From","Year To","Part Number","Color"];
+    const rows = products.map(p => [p.sku||"",p.name||"",p.category?.name||"",p.barcode||"",p.costPrice||"",p.sellingPrice||0,p.currentStock||0,p.carMake||"",p.carModel||"",p.variant||"",p.yearFrom||"",p.yearTo||"",p.partNumber||"",p.color||""]);
     const csv = [headers.join(","), ...rows.map(r => r.map(c => { const s=String(c); return (s.includes(",")||s.includes("\n")||s.includes('"')) ? `"${s.replace(/"/g,'""')}"` : s; }).join(","))].join("\n");
     const link = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8;"})), download:`products_${new Date().toISOString().split("T")[0]}.csv` });
     document.body.appendChild(link); link.click(); document.body.removeChild(link);

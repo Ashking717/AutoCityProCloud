@@ -3,6 +3,8 @@
 import { ReactNode, useEffect, useState } from 'react';
 import Sidebar from './Sidebar';
 import { useActivityTracker } from '@/hooks/useActivityTracker';
+import { AIWorkerProvider } from '@/components/ai-worker/AIWorkerProvider';
+import { AIWorkerWidget }   from '@/components/ai-worker/AIWorkerWidget';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -39,7 +41,7 @@ export default function MainLayout({
   const isDark = useTimeBasedTheme();
 
   return (
-    <>
+    <AIWorkerProvider>
       {/* Root Layout */}
       <div
         className={`flex min-h-[100dvh] ${
@@ -54,6 +56,9 @@ export default function MainLayout({
           {children}
         </main>
       </div>
+
+      {/* AI Worker — floats across all protected pages */}
+      <AIWorkerWidget />
 
       {/* Global Styles */}
       <style>{`
@@ -79,6 +84,6 @@ export default function MainLayout({
           -webkit-overflow-scrolling: touch;
         }
       `}</style>
-    </>
+    </AIWorkerProvider>
   );
 }

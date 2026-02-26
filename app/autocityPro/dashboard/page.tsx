@@ -35,6 +35,7 @@ import {
   Moon,
   CarFront,
   Gauge,
+  Car,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -310,6 +311,7 @@ export default function DashboardPage() {
   const th = {
     pageBg:          isDark ? '#050505'                              : '#f3f4f6',
     // Page/section header
+    speedoNeddle:    isDark ? 'white'                                : 'black',
     headerBgFrom:    isDark ? '#932222'                              : '#fef2f2',
     headerBgVia:     isDark ? '#411010'                              : '#fee2e2',
     headerBgTo:      isDark ? '#a20c0c'                              : '#fecaca',
@@ -557,7 +559,7 @@ if (loading && !dashboardData) {
                 <div className="relative">
                   <Gauge className="h-8 w-8 text-[#E84545]" />
                   {/* Fake speedometer needle revving */}
-                  <div className="absolute top-[20%] left-[50%] w-[2px] h-[12px] bg-white origin-bottom -translate-x-1/2 -translate-y-full rounded-t-full" style={{ animation: 'rev-needle 3s ease-in-out infinite' }} />
+                  <div className="absolute top-[20%] left-[50%] w-[2px] h-[12px]  origin-bottom -translate-x-1/2 -translate-y-full rounded-t-full" style={{ animation: 'rev-needle 3s ease-in-out infinite', background: isDark ? 'white' : 'black' }} />
                 </div>
                 Dashboard
               </h1>
@@ -584,7 +586,7 @@ if (loading && !dashboardData) {
                 
                 {/* Moving Car */}
                 <div className="absolute bottom-2 left-0" style={{ animation: 'drive 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite' }}>
-                  <CarFront className="h-8 w-8 text-[#E84545] drop-shadow-[0_0_8px_rgba(232,69,69,0.8)]" />
+                  <Car className="h-8 w-8 text-[#E84545] drop-shadow-[0_0_8px_rgba(232,69,69,0.8)]" />
                   {/* Tail lights blur */}
                   <div className="absolute top-1/2 -left-4 w-6 h-2 bg-red-500/50 blur-sm rounded-full" />
                 </div>

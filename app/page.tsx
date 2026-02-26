@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Wrench, Shield, ArrowRight, Phone, Mail, MapPin, ChevronDown, Clock, Disc3, Sparkles, PaintBucket, Sun, Repeat, Sofa, Settings, Globe, Moon, Play, Pause, X, Activity, Cpu, Database, Package } from 'lucide-react';
+import LoadingScreen from './LoadingScreen';
 
 // ─── Time-based theme hook ────────────────────────────────────────────────────
 function useTimeBasedTheme() {
@@ -591,7 +592,7 @@ export default function HomePage() {
   const [lang, setLang] = useState<'en' | 'ar'>('en');
   const [mounted, setMounted] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<{ src: string; type: MediaType; title: string } | null>(null);
-  
+  const [isLoading, setIsLoading] = useState(true);
   const t = content[lang];
   const isRTL = lang === 'ar';
 
@@ -600,6 +601,9 @@ export default function HomePage() {
   }, []);
 
   if (!mounted) return null;
+  if (isLoading) {
+    return <LoadingScreen onComplete={() => setIsLoading(false)} />;
+  }
 
   return (
     <div suppressHydrationWarning className={`min-h-screen text-[var(--text-primary)] bg-[var(--bg-base)] overflow-x-hidden transition-colors duration-700 ${isRTL ? 'rtl' : 'ltr'} ${isDark ? 'theme-dark' : 'theme-light'}`}>

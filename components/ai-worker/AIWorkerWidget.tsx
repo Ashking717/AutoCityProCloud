@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -35,13 +36,15 @@ function renderMessage(text: string) {
 }
 
 const QUICK_ACTIONS = [
-  { icon: ShoppingCart, label: 'New Sale',        prompt: 'I need to record a sale',                                    ocr: false },
-  { icon: Truck,        label: 'New Purchase',    prompt: 'I need to record a purchase from a supplier',               ocr: false },
-  { icon: ScanLine,     label: 'Scan Invoice',    prompt: '',                                                           ocr: true  },
-  { icon: Receipt,      label: 'New Expense',     prompt: 'I need to record an expense',                               ocr: false },
-  { icon: Package,      label: 'Add Product',     prompt: 'I want to add a new product to inventory',                  ocr: false },
-  { icon: BarChart3,    label: "Today's Summary", prompt: "Show me today's summary of sales, purchases and expenses",   ocr: false },
+  { icon: ShoppingCart, label: 'New Sale',        prompt: 'I need to record a sale',                                   ocr: false },
+  { icon: Truck,        label: 'New Purchase',    prompt: 'I need to record a purchase from a supplier',              ocr: false },
+  { icon: ScanLine,     label: 'Scan Invoice',    prompt: '',                                                          ocr: true  },
+  { icon: Receipt,      label: 'New Expense',     prompt: 'I need to record an expense',                              ocr: false },
+  { icon: Package,      label: 'Add Product',     prompt: 'I want to add a new product to inventory',                 ocr: false },
+  { icon: BarChart3,    label: "Today's Summary", prompt: "Show me today's summary of sales, purchases and expenses",  ocr: false },
 ];
+
+const MOBILE_NAV_HEIGHT = 72;
 
 export function AIWorkerWidget({
   products          = [],
@@ -158,7 +161,6 @@ export function AIWorkerWidget({
     if (!isOpen && micActive) voice.stop();
   }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Lock body scroll on mobile when open
   useEffect(() => {
     if (!isMobile) return;
     document.body.style.overflow = isOpen ? 'hidden' : '';
@@ -188,23 +190,21 @@ export function AIWorkerWidget({
   const hasConversation = messages.length > 1;
   const sendDisabled    = isLoading || !input.trim();
 
-  // ── Shared panel content ───────────────────────────────────────────────────
   const PanelContent = (
     <div className="flex flex-col h-full">
+
+      {/* Drag pill — mobile only */}
+      {isMobile && (
+        <div className="flex justify-center pt-2.5 pb-1 flex-shrink-0">
+          <div className="w-10 h-1 rounded-full" style={{ background: th.pillBg }} />
+        </div>
+      )}
 
       {/* Header */}
       <div
         className="flex items-center justify-between px-4 py-3 flex-shrink-0"
         style={{ borderBottom: `1px solid ${th.headerBorder}` }}
       >
-        {/* Drag pill — mobile only */}
-        {isMobile && (
-          <div
-            className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full"
-            style={{ background: th.pillBg }}
-          />
-        )}
-
         <div className="flex items-center gap-2.5">
           <div
             className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -272,7 +272,13 @@ export function AIWorkerWidget({
           <span className="text-xs" style={{ color: th.clearBarText }}>Clear conversation?</span>
           <div className="flex gap-3">
             <button onClick={() => setShowClear(false)} className="text-xs" style={{ color: th.clearBarText }}>Cancel</button>
-            <button onClick={() => { clearHistory(); setShowClear(false); }} className="text-xs font-semibold" style={{ color: '#E84545' }}>Clear</button>
+            <button
+              onClick={() => { clearHistory(); setShowClear(false); }}
+              className="text-xs font-semibold"
+              style={{ color: '#E84545' }}
+            >
+              Clear
+            </button>
           </div>
         </div>
       )}
@@ -317,7 +323,11 @@ export function AIWorkerWidget({
               style={{ background: th.aiBubbleBg, border: `1px solid ${th.aiBubbleBorder}`, borderRadius: '18px 18px 18px 4px' }}
             >
               {[0, 1, 2].map(n => (
-                <span key={n} className="ai-dot w-1.5 h-1.5 rounded-full" style={{ background: th.dotBg, animationDelay: `${n * 160}ms` }} />
+                <span
+                  key={n}
+                  className="ai-dot w-1.5 h-1.5 rounded-full"
+                  style={{ background: th.dotBg, animationDelay: `${n * 160}ms` }}
+                />
               ))}
             </div>
           </div>
@@ -325,14 +335,20 @@ export function AIWorkerWidget({
         <div ref={bottomRef} />
       </div>
 
-      {/* Quick actions */}
+      {/* Quick actions — horizontal scroll on mobile, wrap on desktop */}
       {messages.length <= 1 && !isLoading && (
-        <div className="px-4 pb-3 flex flex-wrap gap-1.5">
+        <div
+          className="px-4 pb-3 flex gap-1.5 ai-chip-scroll"
+          style={{
+            overflowX:  isMobile ? 'auto' : 'unset',
+            flexWrap:   isMobile ? 'nowrap' : 'wrap',
+          }}
+        >
           {QUICK_ACTIONS.map(({ icon: Icon, label, prompt, ocr }) => (
             <button
               key={label}
               onClick={() => ocr ? openOcrModal() : sendMessage(prompt)}
-              className="flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1.5 rounded-lg border transition-all active:scale-95"
+              className="flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1.5 rounded-lg border transition-all active:scale-95 flex-shrink-0"
               style={{
                 background: ocr ? th.chipScanBg  : th.chipBg,
                 border:     `1px solid ${ocr ? th.chipScanBorder : th.chipBorder}`,
@@ -428,8 +444,8 @@ export function AIWorkerWidget({
       <div
         className="px-3 py-3 flex gap-2 flex-shrink-0"
         style={{
-          borderTop:          `1px solid ${th.inputBarBorder}`,
-          paddingBottom:      isMobile ? 'max(12px, env(safe-area-inset-bottom))' : '12px',
+          borderTop:    `1px solid ${th.inputBarBorder}`,
+          paddingBottom: isMobile ? 'max(12px, env(safe-area-inset-bottom))' : '12px',
         }}
       >
         <input
@@ -447,9 +463,20 @@ export function AIWorkerWidget({
           }
           disabled={isLoading || voice.isLive}
           className="flex-1 text-sm rounded-xl px-3.5 py-2.5 outline-none transition-all disabled:opacity-50"
-          style={{ background: th.inputBg, border: `1px solid ${th.inputBorder}`, color: th.inputText, fontSize: isMobile ? '16px' : '14px' }}
-          onFocus={e => { e.currentTarget.style.borderColor = th.inputFocusBorder; e.currentTarget.style.boxShadow = `0 0 0 3px ${th.inputFocusRing}`; }}
-          onBlur={e  => { e.currentTarget.style.borderColor = th.inputBorder;      e.currentTarget.style.boxShadow = 'none'; }}
+          style={{
+            background: th.inputBg,
+            border:     `1px solid ${th.inputBorder}`,
+            color:      th.inputText,
+            fontSize:   isMobile ? '16px' : '14px',
+          }}
+          onFocus={e => {
+            e.currentTarget.style.borderColor = th.inputFocusBorder;
+            e.currentTarget.style.boxShadow   = `0 0 0 3px ${th.inputFocusRing}`;
+          }}
+          onBlur={e => {
+            e.currentTarget.style.borderColor = th.inputBorder;
+            e.currentTarget.style.boxShadow   = 'none';
+          }}
         />
 
         {voice.mode !== 'unavailable' && (
@@ -494,6 +521,7 @@ export function AIWorkerWidget({
         .ai-widget-scroll::-webkit-scrollbar       { width: 4px; }
         .ai-widget-scroll::-webkit-scrollbar-track { background: ${th.scrollTrack}; border-radius: 2px; }
         .ai-widget-scroll::-webkit-scrollbar-thumb { background: ${th.scrollThumb}; border-radius: 2px; }
+        .ai-chip-scroll::-webkit-scrollbar         { display: none; }
         @keyframes ai-fab-ping {
           0%   { transform: scale(1);   opacity: 0.4; }
           100% { transform: scale(1.6); opacity: 0;   }
@@ -521,7 +549,7 @@ export function AIWorkerWidget({
         }
       `}</style>
 
-      {/* ── FAB — desktop only (mobile FAB lives in DraggableFloat) ──────────── */}
+      {/* ── Desktop FAB ───────────────────────────────────────────────────────── */}
       {!isMobile && (
         <button
           onClick={toggleOpen}
@@ -550,7 +578,7 @@ export function AIWorkerWidget({
         </button>
       )}
 
-      {/* ── Mobile FAB (used inside DraggableFloat in MainLayout) ────────────── */}
+      {/* ── Mobile FAB (rendered inside DraggableFloat in MainLayout) ─────────── */}
       {isMobile && (
         <button
           onClick={toggleOpen}
@@ -595,7 +623,7 @@ export function AIWorkerWidget({
         </div>
       )}
 
-      {/* ── Mobile bottom sheet ───────────────────────────────────────────────── */}
+      {/* ── Mobile bottom sheet (sits above the bottom nav bar) ──────────────── */}
       {isMobile && isOpen && (
         <>
           {/* Backdrop */}
@@ -605,11 +633,13 @@ export function AIWorkerWidget({
             onClick={toggleOpen}
           />
 
-          {/* Sheet */}
+          {/* Sheet — stops exactly above the bottom nav */}
           <div
-            className="fixed left-0 right-0 bottom-0 z-[9999] flex flex-col rounded-t-3xl overflow-hidden "
+            className="fixed left-0 right-0 z-[9999] flex flex-col rounded-t-3xl overflow-hidden"
             style={{
-              height:     '88dvh',
+              bottom:     MOBILE_NAV_HEIGHT,
+              maxHeight:  `calc(100dvh - ${MOBILE_NAV_HEIGHT + 80}px)`,
+              height:     `calc(72dvh - ${MOBILE_NAV_HEIGHT}px)`,
               background: th.panelBg,
               border:     `1px solid ${th.panelBorder}`,
               boxShadow:  `0 -16px 48px ${th.panelShadow}`,

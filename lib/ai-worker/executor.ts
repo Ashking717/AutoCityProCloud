@@ -1,5 +1,5 @@
 /**
- * AI Worker Executor — v5 (API-delegating)
+ * AI Worker Executor — v6
  *
  * Every write operation delegates to the existing internal API routes so
  * there is zero duplication of GL, stock, numbering, or activity-log logic.
@@ -20,8 +20,8 @@ export type ToolResult = { success: boolean; data?: unknown; message: string };
 export interface ExecutorContext {
   userId:   string;
   outletId: string;
-  token:    string;   // raw auth-token cookie — forwarded to every internal call
-  baseUrl:  string;   // e.g. http://localhost:3000
+  token:    string;
+  baseUrl:  string;
 }
 
 // ─── Internal fetch helper ─────────────────────────────────────────────────────
@@ -112,30 +112,106 @@ export async function executeTool(
       return { success: true, data: accounts, message: `Found ${accounts.length} expense account(s)` };
     }
 
-    // ── GET CATEGORIES ────────────────────────────────────────────────────────
+    // ── GET CATEGORIES ─────────────────────────────────────────────────────────
+    // When a query is provided, do a server-side regex match so the AI receives
+    // only the matching category — it can never pick the wrong one from a list.
     case 'get_categories': {
-      const categories = await Category.find({
-        outletId, isActive: true,
-      }).select('_id name code').sort({ name: 1 }).lean();
+      const filter: any = { outletId, isActive: true };
 
-      return { success: true, data: categories, message: `Found ${categories.length} categor(ies)` };
+      if (input.query?.trim()) {
+        // Escape regex special chars then match anywhere in the name
+        const escaped = input.query.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        filter.name   = { $regex: escaped, $options: 'i' };
+      }
+
+      const categories = await Category.find(filter)
+        .select('_id name code')
+        .sort({ name: 1 })
+        .lean();
+
+      if (input.query?.trim() && !categories.length)
+        return {
+          success: false,
+          message: `No category found matching "${input.query}". Please fetch all categories (call without query) and pick the closest match.`,
+        };
+
+      return {
+        success:  true,
+        data:     categories,
+        message:  input.query?.trim()
+          ? `Found ${categories.length} categor(ies) matching "${input.query}"`
+          : `Found ${categories.length} categor(ies)`,
+      };
+    }
+
+    // ── CREATE CUSTOMER → POST /api/customers ──────────────────────────────────
+    case 'create_customer': {
+      const res = await api(baseUrl, token, '/api/customers', {
+        method: 'POST',
+        body: JSON.stringify({
+          name:    input.name,
+          phone:   input.phone   ?? '',
+          email:   input.email   ?? '',
+          address: input.address ?? '',
+        }),
+      });
+
+      if (!res.ok)
+        return { success: false, message: res.data?.error ?? `Failed to create customer (${res.status})` };
+
+      const customer = res.data.customer ?? res.data;
+      return {
+        success: true,
+        data: { id: customer._id, name: customer.name, phone: customer.phone },
+        message: `✅ Customer created! **${customer.name}**${customer.phone ? ` | Phone: ${customer.phone}` : ''} — now proceeding with sale.`,
+      };
+    }
+
+    // ── CREATE SUPPLIER → POST /api/suppliers ──────────────────────────────────
+    case 'create_supplier': {
+      const res = await api(baseUrl, token, '/api/suppliers', {
+        method: 'POST',
+        body: JSON.stringify({
+          name:    input.name,
+          phone:   input.phone   ?? '',
+          email:   input.email   ?? '',
+          address: input.address ?? '',
+        }),
+      });
+
+      if (!res.ok)
+        return { success: false, message: res.data?.error ?? `Failed to create supplier (${res.status})` };
+
+      const supplier = res.data.supplier ?? res.data;
+      return {
+        success: true,
+        data: { id: supplier._id, name: supplier.name, phone: supplier.phone },
+        message: `✅ Supplier created! **${supplier.name}**${supplier.phone ? ` | Phone: ${supplier.phone}` : ''} — now proceeding with purchase.`,
+      };
     }
 
     // ── CREATE PRODUCT → POST /api/products ───────────────────────────────────
     case 'create_product': {
-      // Get the auto-generated next SKU
       const skuRes = await api(baseUrl, token, '/api/products/next-sku');
       if (!skuRes.ok)
         return { success: false, message: 'Could not generate product SKU. Please try again.' };
 
       const nextSKU: string = skuRes.data.nextSKU ?? '10001';
 
+      // Auto-detect isVehicle: true if ANY vehicle field is present — safety net
+      // so vehicle data is never silently dropped even if the AI forgets isVehicle=true
+      const hasVehicleFields = !!(
+        input.carMake  || input.carModel || input.variant ||
+        input.yearFrom || input.yearTo   || input.color
+      );
+      const isVehicle = input.isVehicle === true || hasVehicleFields;
+
       const res = await api(baseUrl, token, '/api/products', {
         method: 'POST',
         body: JSON.stringify({
           name:         input.name,
           categoryId:   input.categoryId,
-          sku:          nextSKU,          // route handles uniqueness collisions itself
+          sku:          nextSKU,
           costPrice:    Number(input.costPrice),
           sellingPrice: Number(input.sellingPrice),
           currentStock: Number(input.openingStock ?? 0),
@@ -144,14 +220,16 @@ export async function executeTool(
           maxStock:     1000,
           description:  input.description ?? '',
           partNumber:   input.partNumber  ?? '',
-          isVehicle:    input.isVehicle   === true,
-          carMake:      input.carMake     ?? '',
-          carModel:     input.carModel    ?? '',
-          variant:      input.variant     ?? '',
-          yearFrom:     input.yearFrom    ?? null,
-          yearTo:       input.yearTo      ?? null,
-          color:        input.color       ?? '',
-          taxRate:      0,
+          // ── Vehicle fields ──────────────────────────────────────────────
+          isVehicle,
+          carMake:      input.carMake  ?? '',
+          carModel:     input.carModel ?? '',
+          variant:      input.variant  ?? '',
+          yearFrom:     input.yearFrom ? Number(input.yearFrom) : null,
+          yearTo:       input.yearTo   ? Number(input.yearTo)   : null,
+          color:        input.color    ?? '',
+          // ───────────────────────────────────────────────────────────────
+          taxRate: 0,
         }),
       });
 
@@ -161,18 +239,30 @@ export async function executeTool(
       const product  = res.data.product ?? res.data;
       const finalSKU = product.sku ?? nextSKU;
       const qty      = Number(input.openingStock ?? 0);
+
       const stockLine = qty > 0
         ? ` | Opening Stock: **${qty} ${input.unit || 'pcs'}** @ QAR ${Number(input.costPrice).toFixed(2)}`
         : '';
 
+      const vehicleLine = isVehicle
+        ? ` | ${[
+            input.carMake,
+            input.carModel,
+            input.variant,
+            input.yearFrom && input.yearTo
+              ? `${input.yearFrom}–${input.yearTo}`
+              : (input.yearFrom ?? input.yearTo ?? null),
+          ].filter(Boolean).join(' ')}`
+        : '';
+
       return {
         success: true,
-        data: { id: product._id, sku: finalSKU, name: input.name },
-        message: `✅ Product created! **${input.name}** | SKU: **${finalSKU}** | Category: ${input.categoryName} | Cost: QAR ${Number(input.costPrice).toFixed(2)} | Selling: QAR ${Number(input.sellingPrice).toFixed(2)}${stockLine}`,
+        data: { id: product._id, sku: finalSKU, name: input.name, isVehicle },
+        message: `✅ Product created! **${input.name}** | SKU: **${finalSKU}** | Category: ${input.categoryName} | Cost: QAR ${Number(input.costPrice).toFixed(2)} | Selling: QAR ${Number(input.sellingPrice).toFixed(2)}${vehicleLine}${stockLine}`,
       };
     }
 
-    // ── CREATE SALE → POST /api/sales ─────────────────────────────────────────
+    // ── CREATE SALE → POST /api/sales ──────────────────────────────────────────
     case 'create_sale': {
       const grandTotal = input.items.reduce(
         (sum: number, item: any) =>
@@ -217,7 +307,7 @@ export async function executeTool(
       };
     }
 
-    // ── CREATE PURCHASE → POST /api/purchases ─────────────────────────────────
+    // ── CREATE PURCHASE → POST /api/purchases ──────────────────────────────────
     case 'create_purchase': {
       const subtotal   = input.items.reduce(
         (sum: number, item: any) => sum + Number(item.unitPrice) * Number(item.quantity),
@@ -260,19 +350,16 @@ export async function executeTool(
       };
     }
 
-    // ── CREATE EXPENSE → POST /api/expenses ───────────────────────────────────
-    // The expense route requires paymentAccountId for non-CREDIT methods.
-    // We resolve the default cash/bank system account automatically.
+    // ── CREATE EXPENSE → POST /api/expenses ────────────────────────────────────
     case 'create_expense': {
       const subtotal   = input.items.reduce((s: number, i: any) => s + Number(i.amount), 0);
       const amountPaid = Number(input.amountPaid ?? subtotal);
       const method     = (input.paymentMethod ?? 'CASH') as string;
 
-      // Resolve paymentAccountId from system accounts
       let paymentAccountId: string | undefined = input.paymentAccountId;
 
       if (!paymentAccountId && method !== 'CREDIT') {
-        const isBank  = method === 'BANK_TRANSFER' || method === 'CARD';
+        const isBank   = method === 'BANK_TRANSFER' || method === 'CARD';
         const subTypes = isBank
           ? ['bank', 'BANK', 'bank_account', 'BANK_ACCOUNT']
           : ['cash', 'CASH'];

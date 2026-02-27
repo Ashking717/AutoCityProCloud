@@ -49,46 +49,59 @@ export async function POST(request: Request) {
     const user = await requireAuth();
     const body = await request.json();
 
-    const outletId = user.role === UserRole.SUPERADMIN && body.outletId 
-      ? body.outletId 
+    const outletId = user.role === UserRole.SUPERADMIN && body.outletId
+      ? body.outletId
       : user.outletId;
 
     if (!outletId) {
-      return NextResponse.json(
-        { error: 'Outlet ID is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Outlet ID is required' }, { status: 400 });
     }
 
-    if (!body.name || !body.code) {
-      return NextResponse.json(
-        { error: 'Name and code are required' },
-        { status: 400 }
-      );
+    if (!body.name) {
+      return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     }
 
     await connectDB();
 
-    // Check if code exists
-    const existing = await Customer.findOne({
-      outletId,
-      code: body.code.toUpperCase(),
-    });
+    // ── Generate a unique code server-side ───────────────────────────────
+    const generateCode = async (): Promise<string> => {
+      const base = body.name.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 10);
+      const suffix = Date.now().toString().slice(-4);
+      const candidate = `${base}${suffix}`;
+      const clash = await Customer.exists({ outletId, code: candidate });
+      if (clash) {
+        // Rare collision — retry with fresh timestamp
+        await new Promise(r => setTimeout(r, 1));
+        return generateCode();
+      }
+      return candidate;
+    };
 
-    if (existing) {
-      return NextResponse.json(
-        { error: 'Customer code already exists' },
-        { status: 409 }
-      );
+    const code = body.code
+      ? body.code.toUpperCase()          // allow explicit override (e.g. admin forms)
+      : await generateCode();
+
+    // Check explicit code collision only if caller supplied one
+    if (body.code) {
+      const existing = await Customer.exists({ outletId, code });
+      if (existing) {
+        return NextResponse.json({ error: 'Customer code already exists' }, { status: 409 });
+      }
     }
 
     const customer = await Customer.create({
       outletId,
       name: body.name,
-      code: body.code.toUpperCase(),
+      code,
       email: body.email,
       phone: body.phone,
       address: body.address || {},
+      vehicleRegistrationNumber: body.vehicleRegistrationNumber,
+      vehicleMake: body.vehicleMake,
+      vehicleModel: body.vehicleModel,
+      vehicleYear: body.vehicleYear,
+      vehicleColor: body.vehicleColor,
+      vehicleVIN: body.vehicleVIN,
       gstNumber: body.gstNumber,
       creditLimit: body.creditLimit || 0,
       currentBalance: 0,
@@ -98,9 +111,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ customer }, { status: 201 });
   } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || 'An error occurred' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error.message || 'An error occurred' }, { status: 500 });
   }
 }

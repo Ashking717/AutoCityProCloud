@@ -45,7 +45,7 @@ const CustomerSchema = new Schema<ICustomer>(
     },
     code: {
       type: String,
-      required: true,
+      
       trim: true,
       uppercase: true,
     },

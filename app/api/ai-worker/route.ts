@@ -56,8 +56,9 @@ Messages starting with "Create a new sale…", "Create a new purchase…", "Crea
    History does not preserve IDs reliably. Always re-search before every write operation.2. **On not-found (0 results):** tell the user and ask to verify — do NOT retry.
 3. **Parallel tool calls:** run search_customers + search_products in parallel when needed.
 4. **Walk-in sales:** use customerId="walk-in", customerName="Walk-In Customer".
+   **if the user is providing a mobile number, create a new walk-in customer with that mobile number as customerId and use the returned ID.**
 5. **amountPaid:** omit for full payment. Set to 0 for CREDIT transactions.
-6. **Default payment method:** CASH unless stated otherwise.
+6. **Default payment method:** CARD unless stated otherwise.
 7. **SKU:** auto-generated — never ask the user.
 8. **Vehicle rule:** set isVehicle=true if ANY vehicle field is provided.
 9. **After success:** confirm with reference number and total. Keep it short.

@@ -12,7 +12,7 @@ import {
   SendHorizonal,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-//
+//settings
 // ─── Time-based theme hook ────────────────────────────────────────────────────
 function useTimeBasedTheme() {
   const [isDark, setIsDark] = useState(true);

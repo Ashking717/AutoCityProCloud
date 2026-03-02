@@ -39,7 +39,7 @@ Key terms:
 | Purchase     | വാങ്ങൽ                | مشتريات / شراء          |
 | Expense      | ചെലവ്                 | مصروفات / مصاريف        |
 | Product      | ഉൽപ്പന്നം / സാധനം     | منتج / بضاعة            |
-| Summary      | ഇന്നത്തെ സംഗ്രഹം       | ملخص اليോം              |
+| Summary      | ഇന്നത്തെ സംഗ്രഹം       | ملخص اليوم              |
 | Stock        | സ്റ്റോക്ക്             | مخزون                   |
 | Customer     | ഉപഭോക്താവ്             | عميل / زبون             |
 | Supplier     | വിതരണക്കാരൻ           | مورد                    |
@@ -158,14 +158,24 @@ export async function POST(request: NextRequest) {
       model?:   string;
     };
 
+    // ✅ Sanitize incoming history — strip tool/tool_calls messages.
+    // These can bleed in from Telegram sessions and cause a 400 from OpenAI
+    // because tool messages must always follow a paired tool_calls message.
+    const sanitizedMessages = clientMessages.filter(
+      (m) =>
+        (m.role === 'user' || m.role === 'assistant') &&
+        typeof m.content === 'string' &&
+        (m.content as string).trim() !== '',
+    );
+
     // Validate model — fall back to default if unknown/missing
     const model = clientModel && ALLOWED_MODELS.has(clientModel) ? clientModel : DEFAULT_MODEL;
 
     console.log(`[AI Worker] Using model: ${model}`);
 
     // Expand shorthand in the last user message
-    const processedMessages = clientMessages.map((msg, idx) => {
-      const isLastUser = idx === clientMessages.length - 1 && msg.role === 'user';
+    const processedMessages = sanitizedMessages.map((msg, idx) => {
+      const isLastUser = idx === sanitizedMessages.length - 1 && msg.role === 'user';
       if (!isLastUser) return msg;
       const content = typeof msg.content === 'string' ? msg.content : null;
       if (!content) return msg;
@@ -187,7 +197,6 @@ export async function POST(request: NextRequest) {
         messages:    currentMessages,
         tools:       aiWorkerTools,
         tool_choice: 'auto',
-        // Parallel tool calls are enabled by default in the API — no extra config needed
       });
 
       const choice  = response.choices[0];
@@ -229,9 +238,17 @@ export async function POST(request: NextRequest) {
       // Model produced a final text response
       const text = message.content ?? 'Done.';
 
-      // Return updated conversation history (without the system prompt)
+      // Return updated conversation history (without the system prompt).
+      // Only include user + assistant text turns so callers (e.g. Telegram)
+      // never receive tool/tool_calls messages that cannot be safely replayed.
       const updatedMessages = currentMessages
         .slice(1)
+        .filter(
+          (m) =>
+            (m.role === 'user' || m.role === 'assistant') &&
+            typeof m.content === 'string' &&
+            (m.content as string).trim() !== '',
+        )
         .concat({ role: 'assistant', content: text });
 
       return NextResponse.json({ message: text, updatedMessages });
@@ -241,7 +258,15 @@ export async function POST(request: NextRequest) {
     const timeoutMsg = 'This request required too many steps to complete. Please try rephrasing or breaking it into smaller tasks.';
     return NextResponse.json({
       message:         timeoutMsg,
-      updatedMessages: currentMessages.slice(1).concat({ role: 'assistant', content: timeoutMsg }),
+      updatedMessages: currentMessages
+        .slice(1)
+        .filter(
+          (m) =>
+            (m.role === 'user' || m.role === 'assistant') &&
+            typeof m.content === 'string' &&
+            (m.content as string).trim() !== '',
+        )
+        .concat({ role: 'assistant', content: timeoutMsg }),
     });
 
   } catch (err: any) {

@@ -135,27 +135,28 @@ export const aiWorkerTools: OpenAI.Chat.ChatCompletionTool[] = [
 
   // ── WRITE OPERATIONS: ENTITIES ─────────────────────────────────────────────
 
-  {
-    type: 'function',
-    function: {
-      name: 'create_customer',
-      description:
-        'Create a new customer record. ' +
-        'Only call after search_customers returned 0 results AND user confirmed they want a new record. ' +
-        'Use the returned id immediately in create_sale.',
-      parameters: {
-        type: 'object',
-        properties: {
-          name:    { type: 'string', description: 'Full name' },
-          phone:   { type: 'string', description: 'Phone number' },
-          email:   { type: 'string', description: 'Email (optional)' },
-          address: { type: 'string', description: 'Address (optional)' },
-        },
-        required: ['name'],
+{
+  type: 'function',
+  function: {
+    name: 'create_customer',
+    description:
+      'Create a new customer record. ' +
+      'Only call after search_customers returned 0 results AND user confirmed they want a new record. ' +
+      'name is the ONLY required field — create immediately if user provided only a name. ' +
+      'Do NOT ask for phone/email if the user did not provide them. ' +
+      'Use the returned id immediately in create_sale.',
+    parameters: {
+      type: 'object',
+      properties: {
+        name:    { type: 'string', description: 'Full name — the only required field' },
+        phone:   { type: 'string', description: 'Phone number (optional — only include if user provided)' },
+        email:   { type: 'string', description: 'Email (optional — only include if user provided)' },
+        address: { type: 'string', description: 'Address (optional — only include if user provided)' },
       },
+      required: ['name'],
     },
   },
-
+},
   {
     type: 'function',
     function: {
@@ -361,4 +362,138 @@ export const aiWorkerTools: OpenAI.Chat.ChatCompletionTool[] = [
       },
     },
   },
+  // ── VOUCHER TOOLS ──────────────────────────────────────────────────────────
+
+{
+  type: 'function',
+  function: {
+    name: 'search_accounts',
+    description:
+      'Search GL accounts. ' +
+      'Returns accountId, code, name, type, subType. ' +
+      'Use accountId (not _id) when building create_voucher entries. ' +
+      'Pass accountGroup="Cash & Bank" to get cash and bank accounts for vouchers. ' +
+      'The result message lists account names — pick the correct one for each entry.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query:        { type: 'string', description: 'Account name substring (optional)' },
+        accountGroup: { type: 'string', description: 'e.g. "Cash & Bank" to filter cash/bank accounts' },
+      },
+      required: [],
+    },
+  },
+},
+
+{
+  type: 'function',
+  function: {
+    name: 'create_voucher',
+    description:
+      'Create an accounting voucher. Supports contra, payment, receipt, and journal types. ' +
+      'CONTRA: transfer between cash and bank accounts. ' +
+      '  - Withdrawal from bank → Cash DEBIT, Bank CREDIT. ' +
+      '  - Deposit to bank     → Bank DEBIT, Cash CREDIT. ' +
+      'PAYMENT: money going out (pay supplier, pay expense from bank/cash). ' +
+      'RECEIPT: money coming in (receive from customer into bank/cash). ' +
+      'JOURNAL: general adjusting entries between any accounts. ' +
+      'REQUIRED prep: call search_accounts first to get valid accountId values. ' +
+      'Entries must balance: sum(debit) must equal sum(credit).',
+    parameters: {
+      type: 'object',
+      properties: {
+        voucherType: {
+          type: 'string',
+          enum: ['contra', 'payment', 'receipt', 'journal'],
+          description: 'Type of voucher',
+        },
+        date:            { type: 'string', description: 'ISO date string, defaults to today' },
+        narration:       { type: 'string', description: 'Overall voucher description' },
+        referenceNumber: { type: 'string', description: 'Optional reference number' },
+        status: {
+          type: 'string',
+          enum: ['draft', 'posted'],
+          description: 'Post immediately (posted) or save as draft. Default: posted.',
+        },
+        entries: {
+          type: 'array',
+          minItems: 2,
+          description: 'Must balance: total debits = total credits',
+          items: {
+            type: 'object',
+            properties: {
+              accountId:   { type: 'string', description: 'MongoDB _id from search_accounts' },
+              accountName: { type: 'string', description: 'Account display name' },
+              debit:       { type: 'number', description: 'Debit amount (0 if credit entry)' },
+              credit:      { type: 'number', description: 'Credit amount (0 if debit entry)' },
+              narration:   { type: 'string', description: 'Line-level description (optional)' },
+            },
+            required: ['accountId', 'accountName', 'debit', 'credit'],
+          },
+        },
+      },
+      required: ['voucherType', 'narration', 'entries'],
+    },
+  },
+},
+
+   // ── DAY/MONTH CLOSING TOOLS ────────────────────────────────────────────────
+
+{
+  type: 'function',
+  function: {
+    name: 'preview_closing',
+    description:
+      'Fetch a closing preview before actually closing the period. ' +
+      'ALWAYS call this before create_closing. ' +
+      'Returns revenue, purchases, expenses, COGS, profit, cash/bank balances. ' +
+      'Present the preview to the user and ask for confirmation before proceeding.',
+    parameters: {
+      type: 'object',
+      properties: {
+        closingType: {
+          type: 'string',
+          enum: ['day', 'month'],
+          description: 'Type of closing period',
+        },
+        closingDate: {
+          type: 'string',
+          description: 'ISO date string (YYYY-MM-DD). Defaults to today.',
+        },
+      },
+      required: ['closingType'],
+    },
+  },
+},
+
+{
+  type: 'function',
+  function: {
+    name: 'create_closing',
+    description:
+      'Close a financial period (day or month). ' +
+      'REQUIRED prep: call preview_closing first and present summary to user. ' +
+      'Only call this after the user explicitly confirms they want to proceed.',
+    parameters: {
+      type: 'object',
+      properties: {
+        closingType: {
+          type: 'string',
+          enum: ['day', 'month'],
+        },
+        closingDate: {
+          type: 'string',
+          description: 'ISO date string (YYYY-MM-DD). Defaults to today.',
+        },
+        notes: {
+          type: 'string',
+          description: 'Optional notes for the closing record.',
+        },
+      },
+      required: ['closingType'],
+    },
+  },
+},
 ];
+
+

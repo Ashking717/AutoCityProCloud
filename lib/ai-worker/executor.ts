@@ -215,29 +215,27 @@ export async function executeTool(
       };
     }
 
-    // ── CREATE CUSTOMER ────────────────────────────────────────────────────────
-    case 'create_customer': {
-      const res = await api(baseUrl, token, '/api/customers', {
-        method: 'POST',
-        body: JSON.stringify({
-          name:    input.name,
-          phone:   input.phone   ?? '',
-          email:   input.email   ?? '',
-          address: input.address ?? '',
-        }),
-      });
+case 'create_customer': {
+  const res = await api(baseUrl, token, '/api/customers', {
+    method: 'POST',
+    body: JSON.stringify({
+      name:    input.name,
+      phone:   input.phone   ?? '',
+      email:   input.email   ?? '',
+      address: input.address ?? '',
+    }),
+  });
 
-      if (!res.ok)
-        return { success: false, message: res.data?.error ?? `create_customer failed (HTTP ${res.status})` };
+  if (!res.ok)
+    return { success: false, message: res.data?.error ?? `create_customer failed (HTTP ${res.status})` };
 
-      const c = res.data.customer ?? res.data;
-      return {
-        success: true,
-        data: { id: c._id, name: c.name, phone: c.phone },
-        message: `✅ Customer created: **${c.name}**${c.phone ? ` | ${c.phone}` : ''} — proceeding with sale.`,
-      };
-    }
-
+  const c = res.data.customer ?? res.data;
+  return {
+    success: true,
+    data: { id: c._id, name: c.name, phone: c.phone },
+    message: `✅ Customer created: **${c.name}**${c.phone ? ` | ${c.phone}` : ''} — proceeding with sale.`,
+  };
+}
     // ── CREATE SUPPLIER ────────────────────────────────────────────────────────
     case 'create_supplier': {
       const res = await api(baseUrl, token, '/api/suppliers', {
@@ -332,31 +330,35 @@ case 'create_sale': {
   if (!input.items?.length)
     return { success: false, message: 'create_sale: items array is empty.' };
 
-  const isWalkIn = input.customerId === 'walk-in';
+  const isWalkIn   = input.customerId === 'walk-in';
+  const subtotal   = input.items.reduce((sum: number, item: any) => sum + Number(item.unitPrice) * Number(item.quantity), 0);
+  const discount   = Number(input.discount ?? 0);
+  const grandTotal = Number((subtotal - discount).toFixed(2));
 
-  const subtotal     = input.items.reduce((sum: number, item: any) => sum + Number(item.unitPrice) * Number(item.quantity), 0);
-  const discount     = Number(input.discount ?? 0);   // ← top-level only
-  const grandTotal   = subtotal - discount;
-  const amountPaid   = input.amountPaid != null ? Number(input.amountPaid) : grandTotal;
+  // API defaults amountPaid to 0 when omitted — must explicitly send grandTotal for full payment
+  // Only override when user explicitly specified a partial/zero amount
+  const amountPaid = input.amountPaid != null
+    ? Number(input.amountPaid)
+    : grandTotal;  // full payment default
 
   const res = await api(baseUrl, token, '/api/sales', {
     method: 'POST',
     body: JSON.stringify({
-      customerId:    isWalkIn ? undefined : input.customerId,
-      customerName:  input.customerName,
-      paymentMethod: input.paymentMethod ?? 'CASH',
-      discount,                                        // ← send as order-level field
-      amountPaid,
-      notes:         input.notes ?? '',
+      customerId:           isWalkIn ? undefined : input.customerId,
+      customerName:         input.customerName,
+      paymentMethod:        input.paymentMethod ?? 'CASH',
+      overallDiscountAmount: discount,   // ← correct field name the API expects
+      amountPaid,                        // ← always send explicitly
+      notes:                input.notes ?? '',
       items: input.items.map((item: any) => ({
-        productId: item.productId,
-        quantity:  Number(item.quantity),
-        unitPrice: Number(item.unitPrice),
-        discount:  0,                                  // ← always 0 at item level
+        productId:    item.productId,
+        quantity:     Number(item.quantity),
+        unitPrice:    Number(item.unitPrice),
+        discount:     0,
         discountType: 'fixed',
-        unit:      item.unit,
-        name:      item.name,
-        sku:       item.sku,
+        unit:         item.unit,
+        name:         item.name,
+        sku:          item.sku,
       })),
     }),
   });
@@ -366,61 +368,82 @@ case 'create_sale': {
 
   const sale       = res.data.sale ?? res.data;
   const invoice    = sale.invoiceNumber ?? '—';
-  const total      = Number(sale.grandTotal ?? grandTotal);
-  const balanceDue = Number(sale.balanceDue ?? 0);
+  const total      = Number(sale.grandTotal  ?? grandTotal);
+  const paid       = Number(sale.amountPaid  ?? amountPaid);
+  const balanceDue = Number(sale.balanceDue  ?? 0);
 
   return {
     success: true,
     data: { id: sale._id, invoiceNumber: invoice, grandTotal: total, balanceDue },
-    message: `✅ Sale created! Invoice: **${invoice}**${discount > 0 ? ` | Subtotal: QAR ${subtotal.toFixed(2)} | Discount: QAR ${discount.toFixed(2)}` : ''} | Total: QAR ${total.toFixed(2)} | Paid: QAR ${amountPaid.toFixed(2)}${balanceDue > 0 ? ` | Balance Due: QAR ${balanceDue.toFixed(2)}` : ''}`,
+    message: [
+      `✅ Sale created! Invoice: **${invoice}**`,
+      discount > 0 ? `Subtotal: QAR ${subtotal.toFixed(2)} | Discount: -QAR ${discount.toFixed(2)}` : '',
+      `Total: QAR ${total.toFixed(2)} | Paid: QAR ${paid.toFixed(2)}`,
+      balanceDue > 0 ? `⚠️ Balance Due: QAR ${balanceDue.toFixed(2)}` : '✓ Fully paid',
+    ].filter(Boolean).join(' | '),
+  };
+}    // ── CREATE PURCHASE ────────────────────────────────────────────────────────
+case 'create_purchase': {
+  if (!input.items?.length)
+    return { success: false, message: 'create_purchase: items array is empty.' };
+
+  const subtotal   = input.items.reduce(
+    (sum: number, item: any) => sum + Number(item.unitPrice) * Number(item.quantity), 0
+  );
+  const taxTotal   = input.items.reduce(
+    (sum: number, item: any) => sum + (Number(item.unitPrice) * Number(item.quantity) * Number(item.taxRate ?? 0)) / 100, 0
+  );
+  const grandTotal = Number((subtotal + taxTotal).toFixed(2));
+
+  // Always send explicitly — API defaults to 0 when omitted
+  const amountPaid = input.amountPaid != null ? Number(input.amountPaid) : grandTotal;
+  const balanceDue = Number((grandTotal - amountPaid).toFixed(2));
+
+  const res = await api(baseUrl, token, '/api/purchases', {
+    method: 'POST',
+    body: JSON.stringify({
+      supplierId:    input.supplierId,
+      supplierName:  input.supplierName,
+      paymentMethod: input.paymentMethod ?? 'CASH',
+      amountPaid,                          // ← always explicit
+      notes:         input.notes ?? '',
+      items: input.items.map((item: any) => ({
+        productId: item.productId,
+        name:      item.name,
+        sku:       item.sku,
+        quantity:  Number(item.quantity),
+        unitPrice: Number(item.unitPrice),
+        unit:      item.unit,
+        taxRate:   Number(item.taxRate ?? 0),
+      })),
+    }),
+  });
+
+  if (!res.ok)
+    return { success: false, message: res.data?.error ?? `create_purchase failed (HTTP ${res.status})` };
+
+  const purchase    = res.data.purchase ?? res.data;
+  const purchaseNum = purchase.purchaseNumber ?? '—';
+  const total       = Number(purchase.grandTotal  ?? grandTotal);
+  const actualPaid  = Number(purchase.amountPaid  ?? amountPaid);
+  const actualDue   = Number(purchase.balanceDue  ?? balanceDue);
+
+  const paymentLine = actualDue <= 0
+    ? `✓ Fully paid: QAR ${actualPaid.toFixed(2)}`
+    : actualPaid <= 0
+      ? `📋 Fully on credit — QAR ${total.toFixed(2)} due later`
+      : `Paid: QAR ${actualPaid.toFixed(2)} | ⚠️ On credit: QAR ${actualDue.toFixed(2)}`;
+
+  return {
+    success: true,
+    data: { id: purchase._id, purchaseNumber: purchaseNum, grandTotal: total, balanceDue: actualDue },
+    message: [
+      `✅ Purchase recorded! Ref: **${purchaseNum}**`,
+      `Supplier: ${input.supplierName} | Total: QAR ${total.toFixed(2)}`,
+      paymentLine,
+    ].join(' | '),
   };
 }
-    // ── CREATE PURCHASE ────────────────────────────────────────────────────────
-    case 'create_purchase': {
-      if (!input.items?.length)
-        return { success: false, message: 'create_purchase: items array is empty. Provide at least one line item.' };
-
-      const subtotal   = input.items.reduce(
-        (sum: number, item: any) => sum + Number(item.unitPrice) * Number(item.quantity),
-        0
-      );
-      const amountPaid = input.amountPaid != null ? Number(input.amountPaid) : subtotal;
-
-      const res = await api(baseUrl, token, '/api/purchases', {
-        method: 'POST',
-        body: JSON.stringify({
-          supplierId:    input.supplierId,
-          supplierName:  input.supplierName,
-          paymentMethod: input.paymentMethod ?? 'CASH',
-          amountPaid,
-          notes:         input.notes ?? '',
-          items: input.items.map((item: any) => ({
-            productId: item.productId,
-            name:      item.name,
-            sku:       item.sku,
-            quantity:  Number(item.quantity),
-            unitPrice: Number(item.unitPrice),
-            unit:      item.unit,
-            taxRate:   Number(item.taxRate ?? 0),
-          })),
-        }),
-      });
-
-      if (!res.ok)
-        return { success: false, message: res.data?.error ?? `create_purchase failed (HTTP ${res.status})` };
-
-      const purchase    = res.data.purchase ?? res.data;
-      const purchaseNum = purchase.purchaseNumber ?? '—';
-      const total       = Number(purchase.grandTotal ?? subtotal);
-      const balanceDue  = Number(purchase.balanceDue ?? 0);
-
-      return {
-        success: true,
-        data: { id: purchase._id, purchaseNumber: purchaseNum, grandTotal: total, balanceDue },
-        message: `✅ Purchase recorded! Ref: **${purchaseNum}** | Total: QAR ${total.toFixed(2)} | Paid: QAR ${amountPaid.toFixed(2)}${balanceDue > 0 ? ` | Balance Due: QAR ${balanceDue.toFixed(2)}` : ''}`,
-      };
-    }
-
     // ── CREATE EXPENSE ─────────────────────────────────────────────────────────
     case 'create_expense': {
       if (!input.items?.length)
@@ -487,80 +510,408 @@ case 'create_sale': {
     }
 
     // ── GET SUMMARY ────────────────────────────────────────────────────────────
-    case 'get_summary': {
-      const now = new Date();
-      let from: Date;
+// ── GET SUMMARY ────────────────────────────────────────────────────────────
+case 'get_summary': {
+  const now = new Date();
+  let from: Date;
 
-      if (input.period === 'today') {
-        from = utcStartOfDay(now);
-      } else if (input.period === 'this_week') {
-        const start = new Date(now);
-        start.setUTCDate(now.getUTCDate() - now.getUTCDay()); // Sunday
-        from = utcStartOfDay(start);
-      } else {
-        from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  if (input.period === 'today') {
+    from = utcStartOfDay(now);
+  } else if (input.period === 'this_week') {
+    const start = new Date(now);
+    start.setUTCDate(now.getUTCDate() - now.getUTCDay());
+    from = utcStartOfDay(start);
+  } else {
+    from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  }
+  const to = utcEndOfDay(now);
+
+  // ── Import models needed for ledger-driven summary ──────────────────────
+  const LedgerEntry = (await import('@/lib/models/LedgerEntry')).default;
+  const Sale        = (await import('@/lib/models/Sale')).default;
+
+  // ── Ledger helper: sum debit-credit for accounts matching subTypes ───────
+  async function ledgerNet(
+    subTypes: string[],
+    accountType: string | null,
+    start: Date,
+    end: Date,
+    mode: 'credit_minus_debit' | 'debit_minus_credit' | 'credits_only' | 'debits_only' = 'credit_minus_debit'
+  ): Promise<number> {
+    const accountFilter: any = { outletId, isActive: true, subType: { $in: subTypes } };
+    if (accountType) accountFilter.type = accountType;
+
+    const accs = await Account.find(accountFilter).select('_id').lean();
+    if (!accs.length) return 0;
+
+    const entries = await LedgerEntry.find({
+      outletId,
+      accountId: { $in: accs.map((a: any) => a._id) },
+      date: { $gte: start, $lte: end },
+    }).lean() as any[];
+
+    if (mode === 'credit_minus_debit')
+      return entries.reduce((s, e) => s + (e.credit || 0) - (e.debit || 0), 0);
+    if (mode === 'debit_minus_credit')
+      return entries.reduce((s, e) => s + (e.debit || 0) - (e.credit || 0), 0);
+    if (mode === 'credits_only')
+      return entries.reduce((s, e) => s + (e.credit || 0), 0);
+    return entries.reduce((s, e) => s + (e.debit || 0), 0);
+  }
+
+  // ── Ledger helper: running balance up to a date ───────────────────────────
+  async function ledgerBalance(subTypes: string[], upto: Date): Promise<number> {
+    const accs = await Account.find({
+      outletId, isActive: true, subType: { $in: subTypes },
+    }).select('_id').lean();
+    if (!accs.length) return 0;
+
+    const entries = await LedgerEntry.find({
+      outletId,
+      accountId: { $in: accs.map((a: any) => a._id) },
+      date: { $lte: upto },
+    }).lean() as any[];
+
+    return entries.reduce((s, e) => s + (e.debit || 0) - (e.credit || 0), 0);
+  }
+
+  const doSales     = input.type === 'sales'     || input.type === 'all';
+  const doPurchases = input.type === 'purchases'  || input.type === 'all';
+  const doExpenses  = input.type === 'expenses'   || input.type === 'all';
+
+  const periodLabel = input.period.replace(/_/g, ' ');
+  const lines: string[] = [`📊 **${periodLabel} summary:**`];
+  const result: Record<string, any> = {};
+
+  // ── REVENUE (credit to sales/service revenue accounts, net of debits) ────
+  if (doSales) {
+    const revenue = await ledgerNet(
+      ['sales_revenue', 'SALES_REVENUE', 'service_revenue', 'SERVICE_REVENUE'],
+      'revenue',
+      from, to,
+      'credit_minus_debit'
+    );
+
+    // Fallback: count from Sale documents if ledger has no revenue entries
+    const salesDocs = await (Sale as any).find({
+      outletId,
+      status: 'COMPLETED',
+      saleDate: { $gte: from, $lte: to },
+    }).select('invoiceNumber customerName grandTotal amountPaid balanceDue').lean() as any[];
+
+    const total    = revenue > 0 ? revenue : salesDocs.reduce((s: number, x: any) => s + (x.grandTotal || 0), 0);
+    const count    = salesDocs.length;
+    const credited = salesDocs.reduce((s: number, x: any) => s + (x.amountPaid || 0), 0);
+    const balance  = salesDocs.reduce((s: number, x: any) => s + (x.balanceDue || 0), 0);
+
+    result.sales = { total, count, credited, balance };
+    lines.push(`\n**Sales Revenue:** QAR ${total.toFixed(2)} (${count} invoice${count !== 1 ? 's' : ''})`);
+    if (credited < total) lines.push(`  Collected: QAR ${credited.toFixed(2)} | Outstanding: QAR ${balance.toFixed(2)}`);
+
+    // Show last 3 invoices
+    salesDocs.slice(0, 3).forEach((s: any) =>
+      lines.push(`  • ${s.invoiceNumber} — ${s.customerName} — QAR ${Number(s.grandTotal).toFixed(2)}`)
+    );
+  }
+
+  // ── PURCHASES (credits to cash/bank with referenceType=PURCHASE) ──────────
+  if (doPurchases) {
+    const cashBankAccs = await Account.find({
+      outletId, isActive: true,
+      subType: { $in: ['cash', 'CASH', 'bank', 'BANK', 'bank_account', 'BANK_ACCOUNT'] },
+    }).select('_id').lean() as any[];
+
+    const purchaseEntries = await LedgerEntry.find({
+      outletId,
+      accountId: { $in: cashBankAccs.map((a: any) => a._id) },
+      referenceType: 'PURCHASE',
+      date: { $gte: from, $lte: to },
+      credit: { $gt: 0 },
+    }).lean() as any[];
+
+    const total = purchaseEntries.reduce((s, e: any) => s + (e.credit || 0), 0);
+    const count = new Set(purchaseEntries.map((e: any) => e.referenceId?.toString()).filter(Boolean)).size;
+
+    result.purchases = { total, count };
+    lines.push(`\n**Purchases (paid):** QAR ${total.toFixed(2)} (${count || purchaseEntries.length} transaction${count !== 1 ? 's' : ''})`);
+  }
+
+  // ── EXPENSES (credits to cash/bank with "Expense payment" narration) ──────
+  if (doExpenses) {
+    const cashBankAccs = await Account.find({
+      outletId, isActive: true,
+      subType: { $in: ['cash', 'CASH', 'bank', 'BANK', 'bank_account', 'BANK_ACCOUNT'] },
+    }).select('_id').lean() as any[];
+
+    const expenseEntries = await LedgerEntry.find({
+      outletId,
+      accountId: { $in: cashBankAccs.map((a: any) => a._id) },
+      narration: { $regex: /expense payment/i },
+      date: { $gte: from, $lte: to },
+      credit: { $gt: 0 },
+    }).lean() as any[];
+
+    const total = expenseEntries.reduce((s, e: any) => s + (e.credit || 0), 0);
+    const count = new Set(
+      expenseEntries.map((e: any) => e.referenceId?.toString() || e.voucherId?.toString()).filter(Boolean)
+    ).size;
+
+    result.expenses = { total, count };
+    lines.push(`\n**Expenses (paid):** QAR ${total.toFixed(2)} (${count || expenseEntries.length} entr${count !== 1 ? 'ies' : 'y'})`);
+  }
+
+  // ── CASH & BANK BALANCES ──────────────────────────────────────────────────
+  if (input.type === 'all') {
+    const [cashBalance, bankBalance] = await Promise.all([
+      ledgerBalance(['cash', 'CASH'], to),
+      ledgerBalance(['bank', 'BANK', 'bank_account', 'BANK_ACCOUNT'], to),
+    ]);
+
+    result.cashBalance = cashBalance;
+    result.bankBalance = bankBalance;
+    lines.push(`\n**Cash in Hand:** QAR ${cashBalance.toFixed(2)}`);
+    lines.push(`**Bank Balance:** QAR ${bankBalance.toFixed(2)}`);
+  }
+
+  // ── NET PROFIT ────────────────────────────────────────────────────────────
+  if (result.sales != null && result.purchases != null && result.expenses != null) {
+    const cogs = await ledgerNet(['cogs', 'COGS'], 'expense', from, to, 'debits_only');
+    const net  = result.sales.total - cogs - result.purchases.total - result.expenses.total;
+    result.net = net;
+    result.cogs = cogs;
+    if (cogs > 0) lines.push(`\n**COGS:** QAR ${cogs.toFixed(2)}`);
+    lines.push(`\n**Net Profit** (Revenue − COGS − Purchases − Expenses): **QAR ${net.toFixed(2)}**`);
+  }
+
+  return { success: true, data: result, message: lines.join('\n') };
+}
+    // ── SEARCH ACCOUNTS ────────────────────────────────────────────────────────
+// ── SEARCH ACCOUNTS ────────────────────────────────────────────────────────
+case 'search_accounts': {
+  const filter: any = { outletId, isActive: true };
+
+  const isCashBankRequest =
+    input.accountGroup && /cash|bank/i.test(input.accountGroup);
+
+  if (isCashBankRequest) {
+    // Match by subType (how the seed stores it) OR by name as fallback
+    filter.$or = [
+      { subType: { $in: ['cash', 'CASH', 'bank', 'BANK', 'bank_account', 'BANK_ACCOUNT'] } },
+      { name: { $regex: 'cash|bank', $options: 'i' } },
+    ];
+  } else if (input.query?.trim()) {
+    filter.name = { $regex: input.query.trim(), $options: 'i' };
+  }
+
+  const accounts = await Account.find(filter)
+    .select('_id code name type subType isSystem')
+    .sort({ name: 1 })
+    .limit(20)
+    .lean();
+
+  if (!accounts.length)
+    return {
+      success: false,
+      message: `search_accounts: No cash/bank accounts found. Ensure system accounts are seeded for this outlet.`,
+    };
+
+  // Return with consistent field names so the AI can use `accountId` in entries
+  const normalized = (accounts as any[]).map(a => ({
+    accountId:   a._id.toString(),
+    code:        a.code,
+    name:        a.name,
+    type:        a.type,
+    subType:     a.subType,
+  }));
+
+  return {
+    success: true,
+    data: normalized,
+    message: `Found ${normalized.length} account(s): ${normalized.map(a => `${a.name} (${a.subType})`).join(', ')}`,
+  };
+}
+
+// ── CREATE VOUCHER ─────────────────────────────────────────────────────────
+// ── CREATE VOUCHER ─────────────────────────────────────────────────────────
+case 'create_voucher': {
+  if (!input.entries?.length || input.entries.length < 2)
+    return { success: false, message: 'create_voucher: At least 2 entries are required.' };
+
+  const totalDebit  = input.entries.reduce((s: number, e: any) => s + Number(e.debit  ?? 0), 0);
+  const totalCredit = input.entries.reduce((s: number, e: any) => s + Number(e.credit ?? 0), 0);
+
+  if (Math.abs(totalDebit - totalCredit) > 0.01)
+    return {
+      success: false,
+      message: `create_voucher: Unbalanced — DR QAR ${totalDebit.toFixed(2)} ≠ CR QAR ${totalCredit.toFixed(2)}.`,
+    };
+
+  // ── Contra-specific sanity check ──────────────────────────────────────────
+  if (input.voucherType === 'contra') {
+    // Fetch the subTypes of all accounts used in this voucher
+    const accountIds = input.entries.map((e: any) => e.accountId).filter(Boolean);
+    const accs = await Account.find({ _id: { $in: accountIds }, outletId })
+      .select('_id name subType')
+      .lean() as any[];
+
+    const accMap = new Map(accs.map(a => [a._id.toString(), a]));
+
+    for (const entry of input.entries) {
+      const acc = accMap.get(entry.accountId?.toString());
+      if (!acc) continue;
+
+      const isCash = /cash/i.test(acc.subType ?? '') || /cash/i.test(acc.name ?? '');
+      const isBank = /bank/i.test(acc.subType ?? '') || /bank/i.test(acc.name ?? '');
+      const isWithdrawal = /withdraw|withdrawal/i.test(input.narration ?? '');
+      const isDeposit    = /deposit/i.test(input.narration ?? '');
+
+      if (isWithdrawal) {
+        // Cash must be DEBIT, Bank must be CREDIT
+        if (isCash && Number(entry.credit) > 0)
+          return {
+            success: false,
+            message: `create_voucher: Withdrawal error — Cash account "${acc.name}" must be DEBIT (money going TO cash), not credit. Swap the debit/credit values and retry.`,
+          };
+        if (isBank && Number(entry.debit) > 0)
+          return {
+            success: false,
+            message: `create_voucher: Withdrawal error — Bank account "${acc.name}" must be CREDIT (money leaving bank), not debit. Swap the debit/credit values and retry.`,
+          };
       }
 
-      const to = utcEndOfDay(now);
-      const qs = `startDate=${from.toISOString()}&endDate=${to.toISOString()}`;
-
-      const doSales     = input.type === 'sales'     || input.type === 'all';
-      const doPurchases = input.type === 'purchases'  || input.type === 'all';
-      const doExpenses  = input.type === 'expenses'   || input.type === 'all';
-
-      const [sRes, pRes, eRes] = await Promise.all([
-        doSales     ? api(baseUrl, token, `/api/reports/sales?${qs}`)     : null,
-        doPurchases ? api(baseUrl, token, `/api/reports/purchases?${qs}`) : null,
-        doExpenses  ? api(baseUrl, token, `/api/reports/daybook?${qs}`)   : null,
-      ]);
-
-      const result: Record<string, any> = {};
-      const periodLabel = input.period.replace(/_/g, ' ');
-      const lines: string[] = [`📊 **${periodLabel} summary:**`];
-
-      if (sRes?.ok) {
-        const d = sRes.data;
-        const count = d.totalCount ?? d.sales?.length    ?? 0;
-        const total = d.totalRevenue ?? d.grandTotal     ?? 0;
-        result.sales = { count, total, recent: (d.sales ?? []).slice(0, 3) };
-        lines.push(`\n**Sales:** QAR ${Number(total).toFixed(2)} (${count} invoice${count !== 1 ? 's' : ''})`);
-        result.sales.recent.forEach((s: any) =>
-          lines.push(`  • ${s.invoiceNumber} — ${s.customerName} — QAR ${Number(s.grandTotal).toFixed(2)}`));
-      } else if (doSales) {
-        lines.push('\n**Sales:** unavailable');
+      if (isDeposit) {
+        // Bank must be DEBIT, Cash must be CREDIT
+        if (isBank && Number(entry.credit) > 0)
+          return {
+            success: false,
+            message: `create_voucher: Deposit error — Bank account "${acc.name}" must be DEBIT (money going TO bank), not credit. Swap the debit/credit values and retry.`,
+          };
+        if (isCash && Number(entry.debit) > 0)
+          return {
+            success: false,
+            message: `create_voucher: Deposit error — Cash account "${acc.name}" must be CREDIT (money leaving cash), not debit. Swap the debit/credit values and retry.`,
+          };
       }
-
-      if (pRes?.ok) {
-        const d = pRes.data;
-        const count = d.totalCount ?? d.purchases?.length ?? 0;
-        const total = d.totalAmount ?? d.grandTotal        ?? 0;
-        result.purchases = { count, total, recent: (d.purchases ?? []).slice(0, 3) };
-        lines.push(`\n**Purchases:** QAR ${Number(total).toFixed(2)} (${count} order${count !== 1 ? 's' : ''})`);
-        result.purchases.recent.forEach((p: any) =>
-          lines.push(`  • ${p.purchaseNumber} — ${p.supplierName} — QAR ${Number(p.grandTotal).toFixed(2)}`));
-      } else if (doPurchases) {
-        lines.push('\n**Purchases:** unavailable');
-      }
-
-      if (eRes?.ok) {
-        const d = eRes.data;
-        const count = d.totalCount ?? d.expenses?.length ?? 0;
-        const total = d.totalExpenses ?? d.grandTotal     ?? 0;
-        result.expenses = { count, total };
-        lines.push(`\n**Expenses:** QAR ${Number(total).toFixed(2)} (${count} entr${count !== 1 ? 'ies' : 'y'})`);
-      } else if (doExpenses) {
-        lines.push('\n**Expenses:** unavailable');
-      }
-
-      // Net profit when all three reports are present
-      if (result.sales != null && result.purchases != null && result.expenses != null) {
-        const net = (result.sales.total ?? 0) - (result.purchases.total ?? 0) - (result.expenses.total ?? 0);
-        lines.push(`\n**Net (Sales − Purchases − Expenses):** QAR ${net.toFixed(2)}`);
-        result.net = net;
-      }
-
-      return { success: true, data: result, message: lines.join('\n') };
     }
+  }
+
+  const res = await api(baseUrl, token, '/api/vouchers', {
+    method: 'POST',
+    body: JSON.stringify({
+      voucherType:     input.voucherType,
+      date:            input.date ?? new Date().toISOString().split('T')[0],
+      narration:       input.narration,
+      referenceNumber: input.referenceNumber ?? '',
+      status:          input.status ?? 'posted',
+      entries: input.entries.map((e: any) => ({
+        accountId: e.accountId,
+        debit:     Number(e.debit  ?? 0),
+        credit:    Number(e.credit ?? 0),
+        narration: e.narration ?? input.narration,
+      })),
+    }),
+  });
+
+  if (!res.ok)
+    return { success: false, message: res.data?.error ?? `create_voucher failed (HTTP ${res.status})` };
+
+  const voucher = res.data.voucher ?? res.data;
+  const ref     = voucher.voucherNumber ?? voucher._id ?? '—';
+  const type    = input.voucherType.charAt(0).toUpperCase() + input.voucherType.slice(1);
+
+  const entrySummary = input.entries
+    .map((e: any) =>
+      Number(e.debit)  > 0 ? `  • ${e.accountName} — DR QAR ${Number(e.debit).toFixed(2)}`  :
+      Number(e.credit) > 0 ? `  • ${e.accountName} — CR QAR ${Number(e.credit).toFixed(2)}` : null
+    )
+    .filter(Boolean)
+    .join('\n');
+
+  return {
+    success: true,
+    data: { id: voucher._id, voucherNumber: ref, voucherType: input.voucherType },
+    message: `✅ ${type} Voucher created! Ref: **${ref}**\n${entrySummary}`,
+  };
+}
+// ── PREVIEW CLOSING ────────────────────────────────────────────────────────
+case 'preview_closing': {
+  const date = input.closingDate ?? new Date().toISOString().split('T')[0];
+  const res  = await api(baseUrl, token,
+    `/api/closings/preview?type=${input.closingType}&date=${date}`
+  );
+
+  if (!res.ok)
+    return { success: false, message: res.data?.error ?? `preview_closing failed (HTTP ${res.status})` };
+
+  const d = res.data;
+  const fmt = (n: number) => `QAR ${Number(n ?? 0).toFixed(2)}`;
+
+  const lines = [
+    `📋 **Closing Preview — ${input.closingType === 'day' ? 'Daily' : 'Monthly'} (${date})**`,
+    `Period: ${new Date(d.periodStart).toLocaleDateString()} → ${new Date(d.periodEnd).toLocaleDateString()}`,
+    ``,
+    `**Revenue:**       ${fmt(d.totalRevenue)}`,
+    `**COGS:**          ${fmt(d.totalCOGS)}`,
+    `**Purchases:**     ${fmt(d.totalPurchases)}`,
+    `**Expenses:**      ${fmt(d.totalExpenses)}`,
+    `**Gross Profit:**  ${fmt(d.grossProfit)}`,
+    `**Net Profit:**    ${fmt(d.netProfit)}  (${d.netProfitMargin?.toFixed(1) ?? 0}%)`,
+    ``,
+    `**Cash Opening:**  ${fmt(d.openingCash)}  →  Closing: ${fmt(d.projectedClosingCash)}`,
+    `**Bank Opening:**  ${fmt(d.openingBank)}  →  Closing: ${fmt(d.projectedClosingBank)}`,
+    `**Total Balance:** ${fmt(d.totalOpeningBalance)} → ${fmt(d.totalClosingBalance)}`,
+    ``,
+    `Sales: ${d.salesCount} | Purchases: ${d.paidPurchasesCount} paid / ${d.unpaidPurchasesCount} unpaid | Expenses: ${d.paidExpensesCount}`,
+    d.unpaidPurchasesTotal > 0
+      ? `⚠️ Unpaid purchases: ${fmt(d.unpaidPurchasesTotal)} (not deducted from profit)`
+      : '',
+    d.isFirstClosing ? `ℹ️ First closing — all historical data included.` : '',
+  ].filter(l => l !== '');
+
+  return {
+    success: true,
+    data: { ...d, closingType: input.closingType, closingDate: date },
+    message: lines.join('\n'),
+  };
+}
+
+// ── CREATE CLOSING ─────────────────────────────────────────────────────────
+case 'create_closing': {
+  const date = input.closingDate ?? new Date().toISOString().split('T')[0];
+
+  const res = await api(baseUrl, token, '/api/closings', {
+    method: 'POST',
+    body: JSON.stringify({
+      closingType: input.closingType,
+      closingDate: date,
+      notes:       input.notes ?? '',
+    }),
+  });
+
+  if (!res.ok)
+    return { success: false, message: res.data?.error ?? `create_closing failed (HTTP ${res.status})` };
+
+  const d = res.data;
+  const fmt = (n: number) => `QAR ${Number(n ?? 0).toFixed(2)}`;
+  const c   = d.closing;
+  const pb  = d.profitBreakdown;
+
+  return {
+    success: true,
+    data: { id: c._id, closingType: c.closingType, closingDate: c.closingDate },
+    message: [
+      `✅ **${input.closingType === 'day' ? 'Day' : 'Month'} Closed Successfully!**`,
+      ``,
+      `**Revenue:**    ${fmt(pb.revenue)}`,
+      `**COGS:**       ${fmt(pb.cogs)}`,
+      `**Purchases:**  ${fmt(pb.purchases)}`,
+      `**Expenses:**   ${fmt(pb.expenses)}`,
+      `**Net Profit:** ${fmt(pb.netProfit)}`,
+      ``,
+      `Ledger entries: ${d.ledgerStats.entries} | Balanced: ${d.ledgerStats.balanced ? '✓' : '✗'}`,
+    ].join('\n'),
+  };
+}
 
     default:
       return {

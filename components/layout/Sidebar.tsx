@@ -1064,23 +1064,23 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
   const activeOverlayRef = useRef(activeOverlay);
   useEffect(() => { activeOverlayRef.current = activeOverlay; }, [activeOverlay]);
 
-  const fetchUnreadCount = useCallback(async () => {
-    try {
-      const res = await fetch("/api/messages", { credentials: "include" });
-      if (!res.ok) return;
-      const data = await res.json();
-      const total: number = data.conversations?.reduce(
-        (sum: number, conv: any) => sum + (conv.unreadCount ?? 0), 0
-      ) ?? 0;
-      setUnreadCount(total);
-    } catch { /* silently ignore */ }
-  }, []);
+  // const fetchUnreadCount = useCallback(async () => {
+  //   try {
+  //     const res = await fetch("/api/messages", { credentials: "include" });
+  //     if (!res.ok) return;
+  //     const data = await res.json();
+  //     const total: number = data.conversations?.reduce(
+  //       (sum: number, conv: any) => sum + (conv.unreadCount ?? 0), 0
+  //     ) ?? 0;
+  //     setUnreadCount(total);
+  //   } catch { /* silently ignore */ }
+  // }, []);
 
-  useEffect(() => {
-    fetchUnreadCount();
-    const id = setInterval(fetchUnreadCount, 60_000);
-    return () => clearInterval(id);
-  }, [fetchUnreadCount]);
+  // useEffect(() => {
+  //   fetchUnreadCount();
+  //   const id = setInterval(fetchUnreadCount, 60_000);
+  //   return () => clearInterval(id);
+  // }, [fetchUnreadCount]);
 
   const userRole = user?.role as string | undefined;
 

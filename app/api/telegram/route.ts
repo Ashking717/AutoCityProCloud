@@ -1,13 +1,15 @@
 // app/api/telegram/route.ts
 //
-// Reads bot token + auth token from DB (BotConfig) instead of .env
-// No env vars needed except OPENAI_API_KEY and JWT_SECRET (already set)
+// Reads bot token + auth token from DB (BotConfig)
+// Supports TEXT + VOICE messages
 
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB }                 from '@/lib/db/mongodb';
 import BotConfig, { IBotConfig }     from '@/lib/models/BotConfig';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────
 
 type IntentCategory =
   | 'sale' | 'purchase' | 'expense'
@@ -25,17 +27,24 @@ interface IntentResult {
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
-// ─── In-process session store (per chat_id) ───────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// In-memory session store
+// ─────────────────────────────────────────────────────────────
+
 const sessionStore = new Map<string, ChatMessage[]>();
 
 function getHistory(chatId: string): ChatMessage[] {
   return sessionStore.get(chatId) ?? [];
 }
+
 function saveHistory(chatId: string, history: ChatMessage[]) {
   sessionStore.set(chatId, history.slice(-20));
 }
 
-// ─── Model-tier policy ────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// Model routing
+// ─────────────────────────────────────────────────────────────
+
 const INTENT_MODEL: Record<IntentCategory, ModelKey> = {
   sale:     'gpt-4o-mini',
   purchase: 'gpt-4o-mini',
@@ -47,7 +56,10 @@ const INTENT_MODEL: Record<IntentCategory, ModelKey> = {
   unknown:  'gpt-4o',
 };
 
-// ─── Intent classifier ────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// Intent classifier
+// ─────────────────────────────────────────────────────────────
+
 const CLASSIFIER_SYSTEM = `
 You are an intent classifier for an automotive parts ERP (AutoCity).
 Classify the user message into ONE category:
@@ -59,15 +71,15 @@ Supports English, Malayalam, and Arabic.
 async function classifyIntent(text: string): Promise<IntentResult> {
   try {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method:  'POST',
+      method: 'POST',
       headers: {
         'Content-Type':  'application/json',
         'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
         model:       'gpt-4o-mini',
-        max_tokens:  60,
         temperature: 0,
+        max_tokens:  60,
         messages: [
           { role: 'system', content: CLASSIFIER_SYSTEM },
           { role: 'user',   content: text },
@@ -90,7 +102,10 @@ async function classifyIntent(text: string): Promise<IntentResult> {
   }
 }
 
-// ─── AI Worker caller ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// AI Worker Caller
+// ─────────────────────────────────────────────────────────────
+
 async function callAIWorker(
   userText:  string,
   history:   ChatMessage[],
@@ -111,11 +126,14 @@ async function callAIWorker(
 
   if (!res.ok) throw new Error(`AI Worker ${res.status}: ${await res.text()}`);
 
-  const data: { message: string; updatedMessages: ChatMessage[] } = await res.json();
+  const data = await res.json();
   return { reply: data.message, updatedHistory: data.updatedMessages };
 }
 
-// ─── Telegram sender ──────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// Telegram Helpers
+// ─────────────────────────────────────────────────────────────
+
 async function sendTelegram(botToken: string, chatId: number | string, text: string) {
   await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
     method:  'POST',
@@ -128,74 +146,134 @@ async function sendTelegram(botToken: string, chatId: number | string, text: str
   });
 }
 
-// ─── Load active bot config from DB ──────────────────────────────────────────
+async function sendChatAction(
+  botToken: string,
+  chatId: number | string,
+  action: 'typing'
+) {
+  await fetch(`https://api.telegram.org/bot${botToken}/sendChatAction`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: chatId, action }),
+  });
+}
+
+async function transcribeTelegramVoice(
+  fileId: string,
+  botToken: string
+): Promise<string> {
+  try {
+    // Get file path
+    const fileRes = await fetch(
+      `https://api.telegram.org/bot${botToken}/getFile?file_id=${fileId}`
+    );
+    const fileData = await fileRes.json();
+    const filePath = fileData.result?.file_path;
+    if (!filePath) return '';
+
+    // Download voice file
+    const audioRes = await fetch(
+      `https://api.telegram.org/file/bot${botToken}/${filePath}`
+    );
+    const audioBuffer = await audioRes.arrayBuffer();
+
+    // Send to OpenAI
+    const formData = new FormData();
+    formData.append(
+      'file',
+      new Blob([audioBuffer], { type: 'audio/ogg' }),
+      'voice.ogg'
+    );
+    formData.append('model', 'gpt-4o-mini-transcribe');
+
+    const openaiRes = await fetch(
+      'https://api.openai.com/v1/audio/transcriptions',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        },
+        body: formData,
+      }
+    );
+
+    if (!openaiRes.ok) return '';
+
+    const result = await openaiRes.json();
+    return result.text ?? '';
+  } catch (err) {
+    console.error('[TelegramVoice] error:', err);
+    return '';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// DB Config Loader
+// ─────────────────────────────────────────────────────────────
+
 async function getBotConfig(): Promise<IBotConfig | null> {
   await connectDB();
   return BotConfig.findOne({ platform: 'telegram', isActive: true });
 }
 
-// ─── Bot commands ─────────────────────────────────────────────────────────────
-function handleCommand(cmd: string, sessionId: string): string {
-  switch (cmd.split('@')[0]) {
-    case '/start':
-    case '/help':
-      return (
-        '👋 *AutoCity ERP Bot*\n\n' +
-        'Type naturally in English, Malayalam, or Arabic.\n\n' +
-        '*Examples:*\n' +
-        '_"Sold 3 Michelin tyres to Ahmed for 150 each"_\n' +
-        '_"Received 10 brake pads from Toyota, unit cost 45"_\n' +
-        '_"Paid 200 for electricity"_\n' +
-        '_"What\'s today\'s total sales?"_'
-      );
-    case '/clear':
-      sessionStore.delete(sessionId);
-      return '🗑 Conversation cleared.';
-    default:
-      return 'Unknown command. Type /help for options.';
-  }
-}
+// ─────────────────────────────────────────────────────────────
+// POST Webhook
+// ─────────────────────────────────────────────────────────────
 
-// ─── Webhook POST ─────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
     const body        = await req.json();
     const telegramMsg = body?.message;
-    if (!telegramMsg?.text) return NextResponse.json({ ok: true });
+    if (!telegramMsg) return NextResponse.json({ ok: true });
 
     const chatId    = telegramMsg.chat.id as number;
     const sessionId = String(chatId);
-    const userText  = telegramMsg.text.trim();
 
-    // Load bot config from DB
     const config = await getBotConfig();
     if (!config) {
-      console.error('[TelegramRouter] No active bot config found in DB');
+      console.error('[TelegramRouter] No active bot config');
       return NextResponse.json({ ok: false }, { status: 500 });
     }
 
-    // Handle commands
-    if (userText.startsWith('/')) {
-      await sendTelegram(config.botToken, chatId, handleCommand(userText, sessionId));
-      return NextResponse.json({ ok: true });
+    let userText: string | null = null;
+
+    // TEXT
+    if (telegramMsg.text) {
+      userText = telegramMsg.text.trim();
     }
 
+    // VOICE
+    if (telegramMsg.voice) {
+      await sendChatAction(config.botToken, chatId, 'typing');
+      userText = await transcribeTelegramVoice(
+        telegramMsg.voice.file_id,
+        config.botToken
+      );
+    }
+
+    if (!userText) return NextResponse.json({ ok: true });
+
     const host     = req.headers.get('host') ?? 'localhost:3000';
-    const protocol = host.startsWith('localhost') || host.startsWith('127.') ? 'http' : 'https';
+    const protocol = host.startsWith('localhost') ? 'http' : 'https';
     const baseUrl  = `${protocol}://${host}`;
 
-    // Classify → resolve model
     const intent = await classifyIntent(userText);
-    console.log(`[TelegramRouter] chat=${chatId} intent=${intent.category} model=${intent.model}`);
+    console.log(`[Telegram] chat=${chatId} intent=${intent.category}`);
 
-    // Load history → call AI Worker → save history
     const history = getHistory(sessionId);
+
     const { reply, updatedHistory } = await callAIWorker(
-      userText, history, intent.model, baseUrl, config.authToken
+      userText,
+      history,
+      intent.model,
+      baseUrl,
+      config.authToken
     );
+
     saveHistory(sessionId, updatedHistory);
 
     await sendTelegram(config.botToken, chatId, reply);
+
     return NextResponse.json({ ok: true });
 
   } catch (err: any) {
@@ -204,7 +282,10 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ─── Register webhook GET /api/telegram?register=1 ───────────────────────────
+// ─────────────────────────────────────────────────────────────
+// GET Webhook Registration
+// ─────────────────────────────────────────────────────────────
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
 
@@ -213,16 +294,24 @@ export async function GET(req: NextRequest) {
   }
 
   const config = await getBotConfig();
-  if (!config) return NextResponse.json({ error: 'No active bot config in DB' }, { status: 404 });
+  if (!config) {
+    return NextResponse.json({ error: 'No active bot config' }, { status: 404 });
+  }
 
   const appUrl     = process.env.NEXT_PUBLIC_APP_URL;
   const webhookUrl = `${appUrl}/api/telegram`;
 
-  const res  = await fetch(`https://api.telegram.org/bot${config.botToken}/setWebhook`, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ url: webhookUrl, allowed_updates: ['message'] }),
-  });
+  const res = await fetch(
+    `https://api.telegram.org/bot${config.botToken}/setWebhook`,
+    {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: webhookUrl,
+        allowed_updates: ['message'],
+      }),
+    }
+  );
 
   const data = await res.json();
   return NextResponse.json(data);

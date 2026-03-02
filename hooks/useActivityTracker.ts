@@ -38,10 +38,10 @@ export function useActivityTracker(enabled: boolean = true) {
     // Send initial heartbeat
     sendHeartbeat();
 
-    // Send heartbeat every 2 minutes
+    // Send heartbeat every 30 seconds
     intervalRef.current = setInterval(() => {
       sendHeartbeat();
-    }, 2 * 60 * 1000);
+    }, 30 * 60 * 1000);
 
     // Send heartbeat before page unload
     const handleBeforeUnload = () => {

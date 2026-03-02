@@ -7,7 +7,9 @@ import { useActivityTracker } from '@/hooks/useActivityTracker';
 import {
   Settings as SettingsIcon, Users, Building2, Plus, Trash2, X, Shield,
   Mail, Phone, MapPin, MoreVertical, RefreshCw, Search, UserPlus, Store,
-  Clock, Wifi, WifiOff, Sun, Moon,
+  Clock, Wifi, WifiOff, Sun, Moon, Bot, Eye, EyeOff, CheckCircle2,
+  AlertCircle, Copy, ExternalLink, Zap, ToggleLeft, ToggleRight,
+  SendHorizonal,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -15,10 +17,7 @@ import toast from 'react-hot-toast';
 function useTimeBasedTheme() {
   const [isDark, setIsDark] = useState(true);
   useEffect(() => {
-    const check = () => {
-      const hour = new Date().getHours();
-      setIsDark(hour < 6 || hour >= 18);
-    };
+    const check = () => { const h = new Date().getHours(); setIsDark(h < 6 || h >= 18); };
     check();
     const id = setInterval(check, 60_000);
     return () => clearInterval(id);
@@ -31,22 +30,41 @@ interface OnlineUser {
   username: string; role: string; outletId?: { name: string; code: string }; lastActiveAt: string;
 }
 
+interface BotConfig {
+  _id: string;
+  name: string;
+  platform: 'telegram';
+  outletId: string;
+  isActive: boolean;
+  createdAt: string;
+  // botToken is never returned by the API — shown masked only
+}
+
 export default function SettingsPage() {
   const isDark = useTimeBasedTheme();
 
-  const [user, setUser] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState('users');
-  const [users, setUsers] = useState<any[]>([]);
-  const [outlets, setOutlets] = useState<any[]>([]);
-  const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showUserModal, setShowUserModal] = useState(false);
+  const [user, setUser]                     = useState<any>(null);
+  const [activeTab, setActiveTab]           = useState('users');
+  const [users, setUsers]                   = useState<any[]>([]);
+  const [outlets, setOutlets]               = useState<any[]>([]);
+  const [onlineUsers, setOnlineUsers]       = useState<OnlineUser[]>([]);
+  const [botConfigs, setBotConfigs]         = useState<BotConfig[]>([]);
+  const [loading, setLoading]               = useState(true);
+  const [botLoading, setBotLoading]         = useState(false);
+  const [showUserModal, setShowUserModal]   = useState(false);
   const [showOutletModal, setShowOutletModal] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const [showBotModal, setShowBotModal]     = useState(false);
+  const [isMobile, setIsMobile]             = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterRole, setFilterRole] = useState<string>('all');
+  const [searchTerm, setSearchTerm]         = useState('');
+  const [filterRole, setFilterRole]         = useState<string>('all');
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
+
+  // Bot form state
+  const [botForm, setBotForm]               = useState({ name: '', botToken: '' });
+  const [showBotToken, setShowBotToken]     = useState(false);
+  const [botSaving, setBotSaving]           = useState(false);
+  const [webhookRegistering, setWebhookRegistering] = useState<string | null>(null);
 
   useActivityTracker(true);
 
@@ -63,7 +81,6 @@ export default function SettingsPage() {
   // ── Theme tokens ──────────────────────────────────────────────────────────
   const th = {
     pageBg:             isDark ? '#050505'                                            : '#f3f4f6',
-    // Desktop header
     headerBgFrom:       isDark ? '#932222'                                            : '#fef2f2',
     headerBgVia:        isDark ? '#411010'                                            : '#fee2e2',
     headerBgTo:         isDark ? '#a20c0c'                                            : '#fecaca',
@@ -75,7 +92,6 @@ export default function SettingsPage() {
     badgeBg:            isDark ? 'rgba(0,0,0,0.30)'                                  : 'rgba(255,255,255,0.60)',
     badgeBorder:        isDark ? 'rgba(255,255,255,0.15)'                             : 'rgba(127,29,29,0.20)',
     badgeText:          isDark ? 'rgba(255,255,255,0.70)'                             : '#7f1d1d',
-    // Mobile header
     mobileHdrBg:        isDark ? 'linear-gradient(135deg,#0A0A0A,#050505,#0A0A0A)'   : 'linear-gradient(135deg,#ffffff,#f9fafb,#ffffff)',
     mobileHdrBorder:    isDark ? 'rgba(255,255,255,0.05)'                             : 'rgba(0,0,0,0.08)',
     mobileHdrTitle:     isDark ? '#ffffff'                                            : '#111827',
@@ -86,12 +102,10 @@ export default function SettingsPage() {
     mobileSearchBorder: isDark ? 'rgba(255,255,255,0.20)'                             : 'rgba(0,0,0,0.12)',
     mobileSearchText:   isDark ? '#ffffff'                                            : '#111827',
     mobileSearchPH:     isDark ? 'rgba(255,255,255,0.70)'                             : '#9ca3af',
-    // Tabs (desktop)
     tabActive:          '#E84545',
     tabActiveText:      '#ffffff',
     tabInactiveText:    isDark ? '#94a3b8'                                            : '#6b7280',
     tabHoverText:       isDark ? '#ffffff'                                            : '#111827',
-    // Filter panel
     filterBg:           isDark ? '#000000'                                            : '#ffffff',
     filterBorder:       isDark ? '#1f2937'                                            : 'rgba(0,0,0,0.08)',
     filterInputBg:      isDark ? '#000000'                                            : '#f9fafb',
@@ -100,7 +114,6 @@ export default function SettingsPage() {
     filterInputPH:      isDark ? '#64748b'                                            : '#9ca3af',
     filterBtnText:      isDark ? '#ffffff'                                            : '#374151',
     filterBtnHover:     isDark ? '#111827'                                            : 'rgba(0,0,0,0.04)',
-    // User table / cards
     tableBg:            isDark ? '#000000'                                            : '#ffffff',
     tableBorder:        isDark ? '#1f2937'                                            : 'rgba(0,0,0,0.08)',
     tableHeadBg:        isDark ? '#0A0A0A'                                            : '#f9fafb',
@@ -111,14 +124,12 @@ export default function SettingsPage() {
     tableCellSecondary: isDark ? '#94a3b8'                                            : '#6b7280',
     tableAvatarBg:      isDark ? 'rgba(232,69,69,0.20)'                               : 'rgba(232,69,69,0.10)',
     tableAvatarBorder:  isDark ? 'rgba(232,69,69,0.30)'                               : 'rgba(232,69,69,0.20)',
-    // Mobile cards
     mobileCardBgFrom:   isDark ? '#0A0A0A'                                            : '#ffffff',
     mobileCardBgTo:     isDark ? '#000000'                                            : '#f9fafb',
     mobileCardBorder:   isDark ? '#1f2937'                                            : 'rgba(0,0,0,0.08)',
     mobileCardHover:    isDark ? '#E84545'                                            : 'rgba(232,69,69,0.40)',
     mobileCardDivider:  isDark ? '#1f2937'                                            : 'rgba(0,0,0,0.06)',
     mobileCardLabel:    isDark ? '#64748b'                                            : '#9ca3af',
-    // Outlet cards
     outletCardBgFrom:   isDark ? '#000000'                                            : '#ffffff',
     outletCardBgTo:     isDark ? '#111827'                                            : '#f9fafb',
     outletCardBorder:   isDark ? '#1f2937'                                            : 'rgba(0,0,0,0.08)',
@@ -129,7 +140,6 @@ export default function SettingsPage() {
     outletCardDivider:  isDark ? '#1f2937'                                            : 'rgba(0,0,0,0.06)',
     outletIconBg:       isDark ? 'rgba(232,69,69,0.20)'                               : 'rgba(232,69,69,0.10)',
     outletIconBorder:   isDark ? 'rgba(232,69,69,0.30)'                               : 'rgba(232,69,69,0.20)',
-    // Modal
     modalBg:            isDark ? '#000000'                                            : '#ffffff',
     modalBorder:        isDark ? '#1f2937'                                            : 'rgba(0,0,0,0.10)',
     modalHdrBorder:     isDark ? '#1f2937'                                            : 'rgba(0,0,0,0.08)',
@@ -141,7 +151,6 @@ export default function SettingsPage() {
     modalFtrBorder:     isDark ? '#1f2937'                                            : 'rgba(0,0,0,0.06)',
     modalCancelBorder:  isDark ? '#374151'                                            : 'rgba(0,0,0,0.12)',
     modalCancelText:    isDark ? '#d1d5db'                                            : '#374151',
-    // Mobile action menu
     menuBg:             isDark ? 'linear-gradient(180deg,#000000,#0A0A0A)'            : 'linear-gradient(180deg,#ffffff,#f9fafb)',
     menuBorder:         isDark ? '#1f2937'                                            : 'rgba(0,0,0,0.08)',
     menuTitle:          isDark ? '#ffffff'                                            : '#111827',
@@ -153,6 +162,18 @@ export default function SettingsPage() {
     emptyIcon:          isDark ? '#374151'                                            : '#d1d5db',
     emptyText:          isDark ? '#94a3b8'                                            : '#6b7280',
     loadingText:        isDark ? '#94a3b8'                                            : '#6b7280',
+    // Bot-specific tokens
+    botCardBg:          isDark ? '#000000'                                            : '#ffffff',
+    botCardBorder:      isDark ? '#1f2937'                                            : 'rgba(0,0,0,0.08)',
+    botCardHover:       isDark ? '#E84545'                                            : 'rgba(232,69,69,0.40)',
+    botCardTitle:       isDark ? '#ffffff'                                            : '#111827',
+    botCardSub:         isDark ? '#6b7280'                                            : '#9ca3af',
+    botIconBg:          isDark ? 'rgba(232,69,69,0.15)'                               : 'rgba(232,69,69,0.08)',
+    botIconBorder:      isDark ? 'rgba(232,69,69,0.30)'                               : 'rgba(232,69,69,0.20)',
+    botBannerBg:        isDark ? 'rgba(232,69,69,0.06)'                               : 'rgba(232,69,69,0.04)',
+    botBannerBorder:    isDark ? 'rgba(232,69,69,0.18)'                               : 'rgba(232,69,69,0.15)',
+    botBannerText:      isDark ? '#fca5a5'                                            : '#b91c1c',
+    inputHintText:      isDark ? '#64748b'                                            : '#9ca3af',
   };
 
   useEffect(() => {
@@ -162,6 +183,13 @@ export default function SettingsPage() {
     const interval = setInterval(fetchOnlineUsers, 30000);
     return () => { window.removeEventListener('resize', check); clearInterval(interval); };
   }, []);
+
+  // Fetch bot configs when tab is opened
+  useEffect(() => {
+    if (activeTab === 'bots' && user?.role === 'ADMIN' || user?.role === 'SUPERADMIN') {
+      fetchBotConfigs();
+    }
+  }, [activeTab, user]);
 
   const fetchUser = async () => {
     try {
@@ -195,6 +223,15 @@ export default function SettingsPage() {
     } catch {}
   };
 
+  const fetchBotConfigs = async () => {
+    setBotLoading(true);
+    try {
+      const res = await fetch('/api/bot-config', { credentials: 'include' });
+      if (res.ok) setBotConfigs((await res.json()).configs || []);
+    } catch { toast.error('Failed to fetch bot configs'); }
+    finally { setBotLoading(false); }
+  };
+
   const handleCreateUser = async () => {
     if (!newUser.firstName || !newUser.email || !newUser.username || !newUser.password) { toast.error('Please fill all required fields'); return; }
     if (newUser.role !== 'SUPERADMIN' && !newUser.outletId) { toast.error('Please select an outlet'); return; }
@@ -220,6 +257,69 @@ export default function SettingsPage() {
     } catch { toast.error('Failed to create outlet'); }
   };
 
+  const handleCreateBot = async () => {
+    if (!botForm.name || !botForm.botToken) { toast.error('Bot name and token are required'); return; }
+    setBotSaving(true);
+    try {
+      const res = await fetch('/api/bot-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(botForm),
+      });
+      if (res.ok) {
+        toast.success('Bot connected!');
+        setShowBotModal(false);
+        setBotForm({ name: '', botToken: '' });
+        setShowBotToken(false);
+        await fetchBotConfigs();
+      } else {
+        toast.error((await res.json()).error || 'Failed to connect bot');
+      }
+    } catch { toast.error('Failed to connect bot'); }
+    finally { setBotSaving(false); }
+  };
+
+  const handleToggleBot = async (id: string, isActive: boolean) => {
+    try {
+      const res = await fetch('/api/bot-config', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id, isActive }),
+      });
+      if (res.ok) {
+        toast.success(isActive ? 'Bot enabled' : 'Bot disabled');
+        fetchBotConfigs();
+      } else { toast.error('Failed to update bot'); }
+    } catch { toast.error('Failed to update bot'); }
+  };
+
+  const handleDeleteBot = async (id: string) => {
+    if (!confirm('Remove this bot? It will stop responding immediately.')) return;
+    try {
+      const res = await fetch('/api/bot-config', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id }),
+      });
+      if (res.ok) { toast.success('Bot removed'); fetchBotConfigs(); }
+      else { toast.error('Failed to remove bot'); }
+    } catch { toast.error('Failed to remove bot'); }
+  };
+
+  const handleRegisterWebhook = async (botId: string) => {
+    setWebhookRegistering(botId);
+    try {
+      const res = await fetch('/api/telegram?register=1', { credentials: 'include' });
+      const data = await res.json();
+      if (data.ok) toast.success('Webhook registered! Bot is live.');
+      else toast.error(data.description || 'Webhook registration failed');
+    } catch { toast.error('Failed to register webhook'); }
+    finally { setWebhookRegistering(null); }
+  };
+
   const handleDeleteUser = async (userId: string) => {
     if (!confirm('Are you sure you want to delete this user?')) return;
     try {
@@ -229,15 +329,15 @@ export default function SettingsPage() {
     } catch { toast.error('Failed to delete user'); }
   };
 
-  const isUserOnline     = (id: string) => onlineUsers.some(u => u._id === id);
+  const isUserOnline      = (id: string) => onlineUsers.some(u => u._id === id);
   const getUserLastActive = (id: string) => { const u = onlineUsers.find(u => u._id === id); return u ? new Date(u.lastActiveAt) : null; };
 
   const getRelativeTime = (date: Date) => {
     const diff = Math.floor((Date.now() - date.getTime()) / 60000);
-    if (diff < 1)   return 'Just now';
-    if (diff < 60)  return `${diff} min${diff > 1 ? 's' : ''} ago`;
+    if (diff < 1)  return 'Just now';
+    if (diff < 60) return `${diff} min${diff > 1 ? 's' : ''} ago`;
     const h = Math.floor(diff / 60);
-    if (h < 24)     return `${h} hour${h > 1 ? 's' : ''} ago`;
+    if (h < 24)    return `${h} hour${h > 1 ? 's' : ''} ago`;
     const d = Math.floor(h / 24);
     return `${d} day${d > 1 ? 's' : ''} ago`;
   };
@@ -260,6 +360,7 @@ export default function SettingsPage() {
     ({ SUPERADMIN:'Full system access across all outlets', ADMIN:'Can manage users and operations in assigned outlet', MANAGER:'Can manage inventory and operations in assigned outlet', CASHIER:'Can process sales and transactions', ACCOUNTANT:'Can manage accounting and view financial reports', VIEWER:'View-only access to reports and data' }[role] || '');
 
   const canCreateOutlet = user?.role === 'SUPERADMIN';
+  const canManageBots   = user?.role === 'SUPERADMIN' || user?.role === 'ADMIN';
   const canCreateUser   = user?.role === 'SUPERADMIN' || user?.role === 'ADMIN';
 
   const handleLogout = async () => { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); window.location.href = '/autocityPro/login'; };
@@ -271,14 +372,21 @@ export default function SettingsPage() {
 
   const onlineCount = users.filter(u => isUserOnline(u._id)).length;
 
-  const modalInputCls = "w-full px-4 py-3 rounded-lg focus:border-[#E84545] focus:ring-2 focus:ring-red-900/30 transition-all";
+  const modalInputCls = "w-full px-4 py-3 rounded-lg focus:border-[#E84545] focus:ring-2 focus:ring-red-900/30 transition-all outline-none";
   const modalInputStyle = { background: th.modalInputBg, border: `1px solid ${th.modalInputBorder}`, color: th.modalInputText };
+
+  // ── Tab list ───────────────────────────────────────────────────────────────
+  const tabs = [
+    'users',
+    ...(canCreateOutlet ? ['outlets'] : []),
+    ...(canManageBots   ? ['bots']    : []),
+  ];
 
   return (
     <MainLayout user={user} onLogout={handleLogout}>
       <div className="min-h-screen transition-colors duration-500" style={{ background: th.pageBg }}>
 
-        {/* ── Mobile Header ─────────────────────────────────────────────── */}
+        {/* ── Mobile Header ──────────────────────────────────────────────── */}
         <div className="md:hidden fixed top-16 left-0 right-0 z-40 backdrop-blur-xl transition-colors duration-500"
           style={{ background: th.mobileHdrBg, borderBottom: `1px solid ${th.mobileHdrBorder}` }}>
           <div className="px-4 py-3">
@@ -292,12 +400,9 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <p className="text-xs" style={{ color: th.mobileHdrSub }}>
-                  {activeTab === 'users' ? (
-                    <>{filteredUsers.length} users <span className="mx-1">•</span>
-                      <span className="inline-flex items-center">
-                        <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full mr-1 animate-pulse" />{onlineCount} online
-                      </span></>
-                  ) : `${outlets.length} outlets`}
+                  {activeTab === 'users'   && <>{filteredUsers.length} users · <span className="inline-flex items-center"><span className="w-1.5 h-1.5 bg-emerald-400 rounded-full mr-1 animate-pulse" />{onlineCount} online</span></>}
+                  {activeTab === 'outlets' && `${outlets.length} outlets`}
+                  {activeTab === 'bots'    && `${botConfigs.length} bot${botConfigs.length !== 1 ? 's' : ''} connected`}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -309,7 +414,7 @@ export default function SettingsPage() {
                       <Wifi className="h-4 w-4" />
                     </button>
                     {canCreateUser && (
-                      <button onClick={() => setShowUserModal(true)} className="p-2 rounded-xl active:scale-95 transition-all"
+                      <button onClick={() => setShowUserModal(true)} className="p-2 rounded-xl active:scale-95"
                         style={{ background: th.mobileBtnBg, color: th.mobileBtnText }}>
                         <UserPlus className="h-4 w-4" />
                       </button>
@@ -317,12 +422,18 @@ export default function SettingsPage() {
                   </>
                 )}
                 {activeTab === 'outlets' && canCreateOutlet && (
-                  <button onClick={() => setShowOutletModal(true)} className="p-2 rounded-xl active:scale-95 transition-all"
+                  <button onClick={() => setShowOutletModal(true)} className="p-2 rounded-xl active:scale-95"
                     style={{ background: th.mobileBtnBg, color: th.mobileBtnText }}>
                     <Store className="h-4 w-4" />
                   </button>
                 )}
-                <button onClick={() => setShowMobileMenu(true)} className="p-2 rounded-xl active:scale-95 transition-all"
+                {activeTab === 'bots' && canManageBots && (
+                  <button onClick={() => setShowBotModal(true)} className="p-2 rounded-xl active:scale-95"
+                    style={{ background: th.mobileBtnBg, color: th.mobileBtnText }}>
+                    <Plus className="h-4 w-4" />
+                  </button>
+                )}
+                <button onClick={() => setShowMobileMenu(true)} className="p-2 rounded-xl active:scale-95"
                   style={{ background: th.mobileBtnBg, color: th.mobileBtnText }}>
                   <MoreVertical className="h-4 w-4" />
                 </button>
@@ -330,33 +441,30 @@ export default function SettingsPage() {
             </div>
 
             {/* Mobile Tabs */}
-            <div className="flex space-x-2">
-              <button onClick={() => setActiveTab('users')}
-                className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'users' ? 'bg-[#E84545] text-white' : ''}`}
-                style={activeTab !== 'users' ? { background: th.mobileBtnBg, color: th.mobileBtnText } : {}}>
-                <Users className="h-4 w-4 inline mr-2" />Users
-              </button>
-              {canCreateOutlet && (
-                <button onClick={() => setActiveTab('outlets')}
-                  className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'outlets' ? 'bg-[#E84545] text-white' : ''}`}
-                  style={activeTab !== 'outlets' ? { background: th.mobileBtnBg, color: th.mobileBtnText } : {}}>
-                  <Building2 className="h-4 w-4 inline mr-2" />Outlets
+            <div className="flex space-x-2 overflow-x-auto pb-0.5">
+              {tabs.map(tab => (
+                <button key={tab} onClick={() => setActiveTab(tab)}
+                  className={`flex-shrink-0 px-3 py-2 rounded-lg text-sm font-medium transition-all capitalize flex items-center gap-1.5 ${activeTab === tab ? 'bg-[#E84545] text-white' : ''}`}
+                  style={activeTab !== tab ? { background: th.mobileBtnBg, color: th.mobileBtnText } : {}}>
+                  {tab === 'users'   && <><Users   className="h-4 w-4" />Users</>}
+                  {tab === 'outlets' && <><Building2 className="h-4 w-4" />Outlets</>}
+                  {tab === 'bots'    && <><Bot     className="h-4 w-4" />Bots</>}
                 </button>
-              )}
+              ))}
             </div>
 
             {activeTab === 'users' && (
               <div className="mt-3 relative">
                 <Search className="absolute left-3 top-2.5 h-4 w-4" style={{ color: th.mobileSearchPH }} />
                 <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search users..."
-                  className="w-full pl-10 pr-4 py-2 rounded-xl text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent transition-colors duration-500"
+                  className="w-full pl-10 pr-4 py-2 rounded-xl text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent outline-none"
                   style={{ background: th.mobileSearchBg, border: `1px solid ${th.mobileSearchBorder}`, color: th.mobileSearchText }} />
               </div>
             )}
           </div>
         </div>
 
-        {/* ── Desktop Header ────────────────────────────────────────────── */}
+        {/* ── Desktop Header ─────────────────────────────────────────────── */}
         <div className="hidden md:block py-12 border-b shadow-lg transition-colors duration-500"
           style={{ background: `linear-gradient(135deg,${th.headerBgFrom},${th.headerBgVia},${th.headerBgTo})`, borderColor: th.headerBorder }}>
           <div className="px-8">
@@ -374,7 +482,7 @@ export default function SettingsPage() {
                     </div>
                   </div>
                   <p className="mt-1" style={{ color: th.headerSub }}>
-                    Manage users and outlets
+                    Manage users, outlets and integrations
                     {activeTab === 'users' && onlineCount > 0 && (
                       <span className="ml-3 inline-flex items-center">
                         <span className="w-2 h-2 bg-emerald-400 rounded-full mr-2 animate-pulse" />
@@ -388,21 +496,23 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="px-4 md:px-8 pt-[180px] md:pt-6 pb-6">
+        <div className="px-4 md:px-8 pt-[200px] md:pt-6 pb-6">
 
           {/* Desktop Tabs + Actions */}
           <div className="hidden md:flex items-center justify-between mb-6">
             <div className="flex space-x-8">
-              {['users', ...(canCreateOutlet ? ['outlets'] : [])].map(tab => (
+              {tabs.map(tab => (
                 <button key={tab} onClick={() => setActiveTab(tab)}
-                  className="py-4 px-1 border-b-2 font-medium text-sm capitalize transition-colors"
+                  className="py-4 px-1 border-b-2 font-medium text-sm capitalize transition-colors flex items-center gap-2"
                   style={{
                     borderColor: activeTab === tab ? th.tabActive : 'transparent',
                     color: activeTab === tab ? th.headerTitle : th.tabInactiveText,
                   }}
                   onMouseEnter={e => activeTab !== tab && (e.currentTarget.style.color = th.tabHoverText)}
                   onMouseLeave={e => activeTab !== tab && (e.currentTarget.style.color = th.tabInactiveText)}>
-                  {tab === 'users' ? <><Users className="h-5 w-5 inline mr-2" />Users</> : <><Building2 className="h-5 w-5 inline mr-2" />Outlets</>}
+                  {tab === 'users'   && <><Users     className="h-4 w-4" />Users</>}
+                  {tab === 'outlets' && <><Building2 className="h-4 w-4" />Outlets</>}
+                  {tab === 'bots'    && <><Bot       className="h-4 w-4" />Telegram Bots</>}
                 </button>
               ))}
             </div>
@@ -419,10 +529,16 @@ export default function SettingsPage() {
                   <Store className="h-4 w-4 group-hover:scale-110 transition-transform" /><span>Add Outlet</span>
                 </button>
               )}
+              {activeTab === 'bots' && canManageBots && (
+                <button onClick={() => setShowBotModal(true)}
+                  className="flex items-center space-x-2 px-4 py-2.5 bg-[#E84545] text-white rounded-lg hover:bg-[#cc3c3c] transition-all group">
+                  <Plus className="h-4 w-4 group-hover:scale-110 transition-transform" /><span>Connect Bot</span>
+                </button>
+              )}
             </div>
           </div>
 
-          {/* ── Users Tab ─────────────────────────────────────────────── */}
+          {/* ── Users Tab ──────────────────────────────────────────────── */}
           {activeTab === 'users' && (
             <div>
               {/* Desktop Filter Panel */}
@@ -432,12 +548,12 @@ export default function SettingsPage() {
                   <div className="relative">
                     <Search className="absolute left-2 top-2.5 h-4 w-4" style={{ color: th.filterInputPH }} />
                     <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search users..."
-                      className="w-full pl-8 pr-3 py-2 text-sm rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent transition-colors duration-500"
+                      className="w-full pl-8 pr-3 py-2 text-sm rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent outline-none"
                       style={{ background: th.filterInputBg, border: `1px solid ${th.filterInputBorder}`, color: th.filterInputText }} />
                   </div>
                   <div className="relative">
                     <select value={filterRole} onChange={e => setFilterRole(e.target.value)}
-                      className="w-full px-3 py-2 text-sm rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent appearance-none transition-colors duration-500"
+                      className="w-full px-3 py-2 text-sm rounded-lg focus:ring-2 focus:ring-[#E84545] appearance-none outline-none"
                       style={{ background: th.filterInputBg, border: `1px solid ${th.filterInputBorder}`, color: th.filterInputText }}>
                       <option value="all">All Roles</option>
                       {user?.role === 'SUPERADMIN' && <option value="SUPERADMIN">Super Admin</option>}
@@ -467,12 +583,9 @@ export default function SettingsPage() {
               {/* Mobile Users List */}
               <div className="md:hidden">
                 {loading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <RefreshCw className="h-12 w-12 animate-spin text-[#E84545]" />
-                  </div>
+                  <div className="flex items-center justify-center py-12"><RefreshCw className="h-12 w-12 animate-spin text-[#E84545]" /></div>
                 ) : filteredUsers.length === 0 ? (
-                  <div className="rounded-2xl p-8 text-center transition-colors duration-500"
-                    style={{ background: th.mobileCardBgFrom, border: `1px solid ${th.mobileCardBorder}` }}>
+                  <div className="rounded-2xl p-8 text-center" style={{ background: th.mobileCardBgFrom, border: `1px solid ${th.mobileCardBorder}` }}>
                     <Users className="h-12 w-12 mx-auto mb-4" style={{ color: th.emptyIcon }} />
                     <p className="text-lg font-medium" style={{ color: th.emptyText }}>No users found</p>
                   </div>
@@ -508,9 +621,8 @@ export default function SettingsPage() {
                                 )}
                               </div>
                             </div>
-                            <button onClick={() => handleDeleteUser(u._id)}
-                              className="p-1.5 rounded-lg transition-colors text-gray-400 hover:text-red-400 hover:bg-red-900/20"
-                              disabled={!canCreateUser || u._id === user?._id}
+                            <button onClick={() => handleDeleteUser(u._id)} disabled={!canCreateUser || u._id === user?._id}
+                              className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-900/20 transition-colors disabled:opacity-30"
                               style={{ background: th.mobileBtnBg }}>
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -533,7 +645,7 @@ export default function SettingsPage() {
               </div>
 
               {/* Desktop Users Table */}
-              <div className="hidden md:block rounded-2xl shadow-xl overflow-hidden transition-colors duration-500"
+              <div className="hidden md:block rounded-2xl shadow-xl overflow-hidden"
                 style={{ background: th.tableBg, border: `1px solid ${th.tableBorder}` }}>
                 <table className="min-w-full">
                   <thead style={{ background: th.tableHeadBg }}>
@@ -622,10 +734,9 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* ── Outlets Tab ───────────────────────────────────────────── */}
+          {/* ── Outlets Tab ────────────────────────────────────────────── */}
           {activeTab === 'outlets' && canCreateOutlet && (
             <div>
-              {/* Mobile */}
               <div className="md:hidden grid grid-cols-1 gap-3">
                 {outlets.map(outlet => (
                   <div key={outlet._id} className="rounded-xl p-4 transition-all"
@@ -651,7 +762,6 @@ export default function SettingsPage() {
                   </div>
                 ))}
               </div>
-              {/* Desktop */}
               <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {outlets.map(outlet => (
                   <div key={outlet._id} className="rounded-xl shadow-xl p-6 transition-all group"
@@ -669,13 +779,137 @@ export default function SettingsPage() {
                     <h3 className="text-lg font-bold mb-2" style={{ color: th.outletCardTitle }}>{outlet.name}</h3>
                     <p className="text-sm mb-4" style={{ color: th.outletCardSub }}>Code: {outlet.code}</p>
                     <div className="space-y-3 text-sm pt-3" style={{ borderTop: `1px solid ${th.outletCardDivider}` }}>
-                      {outlet.phone && <div className="flex items-center gap-2 transition-colors" style={{ color: th.outletCardBody }}><Phone className="h-4 w-4 flex-shrink-0" /><span className="truncate">{outlet.phone}</span></div>}
-                      {outlet.email && <div className="flex items-center gap-2 transition-colors" style={{ color: th.outletCardBody }}><Mail className="h-4 w-4 flex-shrink-0" /><span className="truncate">{outlet.email}</span></div>}
-                      {outlet.address?.city && <div className="flex items-center gap-2 transition-colors" style={{ color: th.outletCardBody }}><MapPin className="h-4 w-4 flex-shrink-0" /><span>{outlet.address.city}, {outlet.address.country}</span></div>}
+                      {outlet.phone && <div className="flex items-center gap-2" style={{ color: th.outletCardBody }}><Phone className="h-4 w-4 flex-shrink-0" /><span className="truncate">{outlet.phone}</span></div>}
+                      {outlet.email && <div className="flex items-center gap-2" style={{ color: th.outletCardBody }}><Mail className="h-4 w-4 flex-shrink-0" /><span className="truncate">{outlet.email}</span></div>}
+                      {outlet.address?.city && <div className="flex items-center gap-2" style={{ color: th.outletCardBody }}><MapPin className="h-4 w-4 flex-shrink-0" /><span>{outlet.address.city}, {outlet.address.country}</span></div>}
                     </div>
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* ── Bots Tab ───────────────────────────────────────────────── */}
+          {activeTab === 'bots' && canManageBots && (
+            <div className="space-y-6">
+
+              {/* How-to banner */}
+              <div className="rounded-xl p-4 flex items-start gap-3"
+                style={{ background: th.botBannerBg, border: `1px solid ${th.botBannerBorder}` }}>
+                <Zap className="h-5 w-5 flex-shrink-0 mt-0.5" style={{ color: '#E84545' }} />
+                <div>
+                  <p className="text-sm font-semibold mb-1" style={{ color: th.botCardTitle }}>How to connect a Telegram bot</p>
+                  <ol className="text-xs space-y-1" style={{ color: th.botBannerText }}>
+                    <li>1. Open Telegram → search <strong>@BotFather</strong> → send <code className="px-1 py-0.5 rounded bg-black/30">/newbot</code></li>
+                    <li>2. Copy the token BotFather gives you</li>
+                    <li>3. Click <strong>Connect Bot</strong>, paste the token and give it a name</li>
+                    <li>4. Click <strong>Register Webhook</strong> on the card — bot goes live instantly</li>
+                  </ol>
+                </div>
+              </div>
+
+              {/* Loading */}
+              {botLoading && (
+                <div className="flex items-center justify-center py-12">
+                  <RefreshCw className="h-8 w-8 animate-spin text-[#E84545]" />
+                </div>
+              )}
+
+              {/* Empty state */}
+              {!botLoading && botConfigs.length === 0 && (
+                <div className="rounded-2xl p-12 text-center"
+                  style={{ background: th.botCardBg, border: `1px solid ${th.botCardBorder}` }}>
+                  <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
+                    style={{ background: th.botIconBg, border: `1px solid ${th.botIconBorder}` }}>
+                    <Bot className="h-8 w-8 text-[#E84545]" />
+                  </div>
+                  <p className="text-lg font-semibold mb-2" style={{ color: th.botCardTitle }}>No bots connected</p>
+                  <p className="text-sm mb-6" style={{ color: th.botCardSub }}>Connect a Telegram bot to let your team record transactions by chat.</p>
+                  <button onClick={() => setShowBotModal(true)}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#E84545] text-white rounded-lg hover:bg-[#cc3c3c] transition-all font-semibold">
+                    <Plus className="h-4 w-4" />Connect Bot
+                  </button>
+                </div>
+              )}
+
+              {/* Bot cards grid */}
+              {!botLoading && botConfigs.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {botConfigs.map(bot => (
+                    <div key={bot._id} className="rounded-xl p-5 transition-all"
+                      style={{ background: th.botCardBg, border: `1px solid ${bot.isActive ? 'rgba(232,69,69,0.35)' : th.botCardBorder}` }}
+                      onMouseEnter={e => (e.currentTarget.style.borderColor = bot.isActive ? 'rgba(232,69,69,0.60)' : th.botCardHover)}
+                      onMouseLeave={e => (e.currentTarget.style.borderColor = bot.isActive ? 'rgba(232,69,69,0.35)' : th.botCardBorder)}>
+
+                      {/* Card header */}
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                            style={{ background: th.botIconBg, border: `1px solid ${th.botIconBorder}` }}>
+                            <Bot className="h-6 w-6 text-[#E84545]" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold leading-tight" style={{ color: th.botCardTitle }}>{bot.name}</p>
+                            <p className="text-xs mt-0.5" style={{ color: th.botCardSub }}>
+                              Telegram · {new Date(bot.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </p>
+                          </div>
+                        </div>
+                        {/* Status badge */}
+                        <span className={`px-2.5 py-1 text-xs font-semibold rounded-full flex items-center gap-1.5 ${bot.isActive ? 'bg-emerald-900/30 text-emerald-400 border border-emerald-800/50' : 'bg-gray-800/50 text-gray-500 border border-gray-700'}`}>
+                          {bot.isActive
+                            ? <><span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />Live</>
+                            : <><WifiOff className="h-3 w-3" />Off</>
+                          }
+                        </span>
+                      </div>
+
+                      {/* Token row (masked) */}
+                      <div className="rounded-lg px-3 py-2 mb-4 flex items-center gap-2"
+                        style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', border: `1px solid ${th.botCardBorder}` }}>
+                        <span className="text-xs font-mono flex-1 truncate" style={{ color: th.botCardSub }}>
+                          ••••••••:AAF3••••••••••••••••••••••••
+                        </span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(232,69,69,0.12)', color: '#E84545' }}>secured</span>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-2 pt-3" style={{ borderTop: `1px solid ${th.botCardBorder}` }}>
+                        {/* Register webhook */}
+                        <button
+                          onClick={() => handleRegisterWebhook(bot._id)}
+                          disabled={webhookRegistering === bot._id || !bot.isActive}
+                          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all active:scale-95 disabled:opacity-40"
+                          style={{ background: isDark ? 'rgba(232,69,69,0.12)' : 'rgba(232,69,69,0.08)', border: '1px solid rgba(232,69,69,0.25)', color: '#E84545' }}>
+                          {webhookRegistering === bot._id
+                            ? <RefreshCw className="h-3 w-3 animate-spin" />
+                            : <SendHorizonal className="h-3 w-3" />
+                          }
+                          {webhookRegistering === bot._id ? 'Registering…' : 'Register Webhook'}
+                        </button>
+
+                        {/* Toggle active */}
+                        <button
+                          onClick={() => handleToggleBot(bot._id, !bot.isActive)}
+                          className="p-2 rounded-lg transition-all active:scale-95"
+                          title={bot.isActive ? 'Disable bot' : 'Enable bot'}
+                          style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)', border: `1px solid ${th.botCardBorder}`, color: bot.isActive ? '#22c55e' : th.botCardSub }}>
+                          {bot.isActive ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+                        </button>
+
+                        {/* Delete */}
+                        <button
+                          onClick={() => handleDeleteBot(bot._id)}
+                          className="p-2 rounded-lg transition-all active:scale-95 text-gray-500 hover:text-red-400 hover:bg-red-900/20"
+                          title="Remove bot"
+                          style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)', border: `1px solid ${th.botCardBorder}` }}>
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -683,10 +917,10 @@ export default function SettingsPage() {
         <div className="md:hidden h-24" />
       </div>
 
-      {/* ── Add User Modal ─────────────────────────────────────────────── */}
+      {/* ── Add User Modal ──────────────────────────────────────────────── */}
       {showUserModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'rgba(0,0,0,0.80)' }}>
-          <div className="rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden transition-colors duration-500"
+          <div className="rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
             style={{ background: th.modalBg, border: `1px solid ${th.modalBorder}` }}>
             <div className="flex justify-between items-center px-6 py-5 bg-gradient-to-r from-[#932222] via-[#411010] to-[#a20c0c]">
               <div className="flex items-center space-x-3">
@@ -709,14 +943,16 @@ export default function SettingsPage() {
                   { label:'Phone',      key:'phone',     type:'text', placeholder:'+974-XXXXXXXX' },
                 ].map(f => (
                   <div key={f.key}>
-                    <label className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>{f.label} {['firstName','email','username','password'].includes(f.key) && <span className="text-red-400">*</span>}</label>
+                    <label className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>
+                      {f.label} {['firstName','email','username','password'].includes(f.key) && <span className="text-red-400">*</span>}
+                    </label>
                     <input type={f.type} value={(newUser as any)[f.key]} onChange={e => setNewUser({ ...newUser, [f.key]: e.target.value })}
                       placeholder={f.placeholder} className={modalInputCls} style={modalInputStyle} />
                   </div>
                 ))}
                 <div>
-                  <label htmlFor="new-user-role" className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Role <span className="text-red-400">*</span></label>
-                  <select id="new-user-role" value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value as UserRoleType })}
+                  <label className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Role <span className="text-red-400">*</span></label>
+                  <select value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value as UserRoleType })}
                     className={modalInputCls} style={modalInputStyle}>
                     {user?.role === 'SUPERADMIN' && <option value={UserRole.SUPERADMIN}>Super Admin</option>}
                     <option value={UserRole.ADMIN}>Admin</option>
@@ -729,7 +965,9 @@ export default function SettingsPage() {
                 </div>
                 {(user?.role === 'SUPERADMIN' || newUser.role !== 'SUPERADMIN') && (
                   <div>
-                    <label className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Outlet {newUser.role !== 'SUPERADMIN' && <span className="text-red-400">*</span>}</label>
+                    <label className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>
+                      Outlet {newUser.role !== 'SUPERADMIN' && <span className="text-red-400">*</span>}
+                    </label>
                     <select value={newUser.outletId} onChange={e => setNewUser({ ...newUser, outletId: e.target.value })}
                       disabled={newUser.role === 'SUPERADMIN'} className={`${modalInputCls} disabled:opacity-50`} style={modalInputStyle}>
                       <option value="">{newUser.role === 'SUPERADMIN' ? 'All Outlets' : 'Select Outlet'}</option>
@@ -750,14 +988,101 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* ── Mobile Action Menu ─────────────────────────────────────────── */}
+      {/* ── Connect Bot Modal ───────────────────────────────────────────── */}
+      {showBotModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'rgba(0,0,0,0.85)' }}>
+          <div className="rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden"
+            style={{ background: th.modalBg, border: `1px solid ${th.modalBorder}` }}>
+
+            {/* Modal header */}
+            <div className="flex justify-between items-center px-6 py-5 bg-gradient-to-r from-[#932222] via-[#411010] to-[#a20c0c]">
+              <div className="flex items-center gap-3">
+                <div className="bg-white/20 p-2 rounded-lg"><Bot className="h-6 w-6 text-white" /></div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Connect Telegram Bot</h2>
+                  <p className="text-white/75 text-sm">Paste your BotFather token below</p>
+                </div>
+              </div>
+              <button onClick={() => { setShowBotModal(false); setBotForm({ name: '', botToken: '' }); setShowBotToken(false); }}
+                className="text-white/80 hover:text-white p-1"><X className="h-6 w-6" /></button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              {/* Bot name */}
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>
+                  Bot Name <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={botForm.name}
+                  onChange={e => setBotForm(f => ({ ...f, name: e.target.value }))}
+                  placeholder="e.g. AutoCity Gharafa Bot"
+                  className={modalInputCls}
+                  style={modalInputStyle}
+                />
+                <p className="text-xs mt-1.5" style={{ color: th.inputHintText }}>A friendly label to identify this bot in the dashboard.</p>
+              </div>
+
+              {/* Bot token */}
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>
+                  Bot Token <span className="text-red-400">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showBotToken ? 'text' : 'password'}
+                    value={botForm.botToken}
+                    onChange={e => setBotForm(f => ({ ...f, botToken: e.target.value }))}
+                    placeholder="5823910472:AAF3kdjsf_Xk29dLmNpQrst..."
+                    className={`${modalInputCls} pr-12 font-mono text-sm`}
+                    style={modalInputStyle}
+                  />
+                  <button type="button" onClick={() => setShowBotToken(v => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded transition-colors"
+                    style={{ color: th.inputHintText }}>
+                    {showBotToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <p className="text-xs mt-1.5" style={{ color: th.inputHintText }}>
+                  Get this from <strong>@BotFather</strong> → <code className="px-1 rounded" style={{ background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}>/newbot</code>.
+                  The token is stored securely and never displayed again.
+                </p>
+              </div>
+
+              {/* Info box */}
+              <div className="rounded-xl p-4 flex items-start gap-3"
+                style={{ background: th.botBannerBg, border: `1px solid ${th.botBannerBorder}` }}>
+                <CheckCircle2 className="h-4 w-4 flex-shrink-0 mt-0.5 text-emerald-400" />
+                <p className="text-xs leading-relaxed" style={{ color: th.botBannerText }}>
+                  A 1-year auth token is generated automatically from your account and stored alongside the bot token.
+                  After connecting, click <strong>Register Webhook</strong> on the bot card to make it go live.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2" style={{ borderTop: `1px solid ${th.modalFtrBorder}` }}>
+                <button onClick={() => { setShowBotModal(false); setBotForm({ name: '', botToken: '' }); setShowBotToken(false); }}
+                  className="px-5 py-2.5 rounded-lg font-medium transition-all"
+                  style={{ border: `1px solid ${th.modalCancelBorder}`, color: th.modalCancelText }}>Cancel</button>
+                <button onClick={handleCreateBot} disabled={botSaving || !botForm.name || !botForm.botToken}
+                  className="px-5 py-2.5 bg-[#E84545] text-white rounded-lg hover:bg-[#cc3c3c] transition-all font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                  {botSaving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Bot className="h-4 w-4" />}
+                  {botSaving ? 'Connecting…' : 'Connect Bot'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Mobile Action Menu ──────────────────────────────────────────── */}
       {showMobileMenu && (
         <div className="md:hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 animate-in fade-in duration-200">
-          <div className="absolute bottom-0 left-0 right-0 rounded-t-3xl border-t p-6 animate-in slide-in-from-bottom  transition-colors duration-500"
+          <div className="absolute bottom-0 left-0 right-0 rounded-t-3xl border-t p-6 animate-in slide-in-from-bottom"
             style={{ background: th.menuBg, borderColor: th.menuBorder }}>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-bold" style={{ color: th.menuTitle }}>Settings Actions</h2>
-              <button onClick={() => setShowMobileMenu(false)} className="p-2 rounded-xl active:scale-95 transition-all"
+              <button onClick={() => setShowMobileMenu(false)} className="p-2 rounded-xl active:scale-95"
                 style={{ background: th.menuCloseBg, color: th.menuCloseText }}><X className="h-5 w-5" /></button>
             </div>
             <div className="space-y-3">
@@ -775,7 +1100,14 @@ export default function SettingsPage() {
                   <span>Add Outlet</span><Store className="h-5 w-5" />
                 </button>
               )}
-              <button onClick={() => { fetchUsers(); fetchOutlets(); fetchOnlineUsers(); setShowMobileMenu(false); toast.success('Settings refreshed'); }}
+              {activeTab === 'bots' && canManageBots && (
+                <button onClick={() => { setShowBotModal(true); setShowMobileMenu(false); }}
+                  className="w-full p-4 rounded-xl font-semibold transition-all flex items-center justify-between active:scale-95"
+                  style={{ background: th.menuItemBg, border: `1px solid ${th.menuItemBorder}`, color: th.menuItemText }}>
+                  <span>Connect Bot</span><Bot className="h-5 w-5" />
+                </button>
+              )}
+              <button onClick={() => { fetchUsers(); fetchOutlets(); fetchOnlineUsers(); if (activeTab === 'bots') fetchBotConfigs(); setShowMobileMenu(false); toast.success('Refreshed'); }}
                 className="w-full p-4 rounded-xl font-semibold transition-all flex items-center justify-between active:scale-95"
                 style={{ background: th.menuItemBg, border: `1px solid ${th.menuItemBorder}`, color: th.menuItemText }}>
                 <span>Refresh Data</span><RefreshCw className="h-5 w-5" />

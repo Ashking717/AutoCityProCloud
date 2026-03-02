@@ -26,17 +26,19 @@ export type OcrItem = {
 };
 
 type AIWorkerContextType = {
-  messages:        ChatMessage[];
-  isOpen:          boolean;
-  isLoading:       boolean;
-  ocrModalOpen:    boolean;
-  isDark:          boolean;
-  toggleOpen:      () => void;
-  openOcrModal:    () => void;
-  closeOcrModal:   () => void;
-  sendMessage:     (text: string) => Promise<void>;
-  sendOcrPurchase: (items: OcrItem[], supplierName?: string, invoiceNote?: string) => Promise<void>;
-  clearHistory:    () => void;
+  messages:         ChatMessage[];
+  isOpen:           boolean;
+  isLoading:        boolean;
+  ocrModalOpen:     boolean;
+  isDark:           boolean;
+  isAuthenticated:  boolean;
+  setAuthenticated: (v: boolean) => void;
+  toggleOpen:       () => void;
+  openOcrModal:     () => void;
+  closeOcrModal:    () => void;
+  sendMessage:      (text: string, model?: string) => Promise<void>;
+  sendOcrPurchase:  (items: OcrItem[], supplierName?: string, invoiceNote?: string) => Promise<void>;
+  clearHistory:     () => void;
 };
 
 const AIWorkerContext = createContext<AIWorkerContextType | null>(null);
@@ -47,7 +49,8 @@ const WELCOME: ChatMessage = {
   timestamp: new Date(),
 };
 
-/** Mirrors the exact time-based logic used across the app (dark: 18:00–06:00) */
+const DEFAULT_MODEL = 'gpt-4o-mini';
+
 function useTimeBasedTheme() {
   const [isDark, setIsDark] = useState(true);
   useEffect(() => {
@@ -65,13 +68,14 @@ function useTimeBasedTheme() {
 export function AIWorkerProvider({ children }: { children: ReactNode }) {
   const isDark = useTimeBasedTheme();
 
-  const [isOpen,       setIsOpen]       = useState(false);
-  const [isLoading,    setIsLoading]    = useState(false);
-  const [messages,     setMessages]     = useState<ChatMessage[]>([WELCOME]);
-  const [apiMessages,  setApiMessages]  = useState<any[]>([]);
-  const [ocrModalOpen, setOcrModalOpen] = useState(false);
+  const [isOpen,          setIsOpen]        = useState(false);
+  const [isLoading,       setIsLoading]     = useState(false);
+  const [messages,        setMessages]      = useState<ChatMessage[]>([WELCOME]);
+  const [apiMessages,     setApiMessages]   = useState<any[]>([]);
+  const [ocrModalOpen,    setOcrModalOpen]  = useState(false);
+  const [isAuthenticated, setAuthenticated] = useState(false);
 
-  const sendMessage = useCallback(async (text: string) => {
+  const sendMessage = useCallback(async (text: string, model: string = DEFAULT_MODEL) => {
     if (!text.trim() || isLoading) return;
 
     const userMsg: ChatMessage = { role: 'user', content: text, timestamp: new Date() };
@@ -83,7 +87,7 @@ export function AIWorkerProvider({ children }: { children: ReactNode }) {
       const res = await fetch('/api/ai-worker', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ messages: next }),
+        body:    JSON.stringify({ messages: next, model }),
       });
       if (!res.ok) throw new Error(`Server error ${res.status}`);
       const data = await res.json();
@@ -96,10 +100,10 @@ export function AIWorkerProvider({ children }: { children: ReactNode }) {
       setMessages(prev => [
         ...prev,
         {
-          role: 'assistant',
-          content: 'Something went wrong. Please try again.',
+          role:      'assistant',
+          content:   'Something went wrong. Please try again.',
           timestamp: new Date(),
-          isError: true,
+          isError:   true,
         },
       ]);
     } finally {
@@ -128,7 +132,7 @@ export function AIWorkerProvider({ children }: { children: ReactNode }) {
       'Use these exact items, quantities and prices — do not ask to confirm them again.',
     ].filter(Boolean).join('\n');
 
-    await sendMessage(prompt);
+    await sendMessage(prompt, DEFAULT_MODEL);
   }, [sendMessage]);
 
   const clearHistory = useCallback(() => {
@@ -139,6 +143,7 @@ export function AIWorkerProvider({ children }: { children: ReactNode }) {
   return (
     <AIWorkerContext.Provider value={{
       messages, isOpen, isLoading, ocrModalOpen, isDark,
+      isAuthenticated, setAuthenticated,
       toggleOpen:    () => setIsOpen(v => !v),
       openOcrModal:  () => setOcrModalOpen(true),
       closeOcrModal: () => setOcrModalOpen(false),

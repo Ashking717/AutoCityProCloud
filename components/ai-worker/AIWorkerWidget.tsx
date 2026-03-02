@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -8,9 +7,45 @@ import {
   Sparkles, X, Send, RotateCcw, Mic, MicOff,
   ShoppingCart, Truck, Receipt, BarChart3, Package,
   ChevronDown, ScanLine, Sun, Moon, Zap, Radio,
+  ChevronRight, Check, Cpu,
 } from 'lucide-react';
 import OCRPurchaseModal from '@/components/purchases/OCRPurchaseModal';
 
+// ─── Model config ──────────────────────────────────────────────────────────────
+const MODELS = [
+  {
+    key:   'gpt-4o-mini',
+    label: 'Lite',
+    badge: null,
+    desc:  'Fastest responses at the lowest cost. Great for simple queries, quick lookups, and routine tasks.',
+    pros:  ['Ultra-fast', 'Cost-efficient', 'Great for quick tasks'],
+  },
+  {
+    key:   'gpt-4.1-mini',
+    label: 'Standard',
+    badge: null,
+    desc:  'The best balance of speed and intelligence. Handles most business tasks with accuracy and efficiency.',
+    pros:  ['Balanced speed', 'Strong reasoning', 'Everyday tasks'],
+  },
+  {
+    key:   'gpt-4o',
+    label: 'Pro',
+    badge: null,
+    desc:  'Advanced reasoning for complex analysis, multi-step workflows, and nuanced business decisions.',
+    pros:  ['Deep analysis', 'Multi-step logic', 'Complex queries'],
+  },
+  {
+    key:   'gpt-4.1',
+    label: 'Supra',
+    badge: 'Best',
+    desc:  'The most capable model. Use for high-stakes decisions, intricate data analysis, and demanding tasks.',
+    pros:  ['Maximum capability', 'Best accuracy', 'High-stakes tasks'],
+  },
+] as const;
+
+type ModelKey = typeof MODELS[number]['key'];
+
+// ─── Props ─────────────────────────────────────────────────────────────────────
 interface AIWorkerWidgetProps {
   products?:          any[];
   suppliers?:         any[];
@@ -19,6 +54,7 @@ interface AIWorkerWidgetProps {
   onProductCreated?:  (product: any)  => void;
 }
 
+// ─── Markdown-lite renderer ────────────────────────────────────────────────────
 function renderMessage(text: string) {
   return text.split('\n').map((line, li, arr) => {
     const parts = line.split(/(\*\*[^*]+\*\*)/g);
@@ -35,6 +71,7 @@ function renderMessage(text: string) {
   });
 }
 
+// ─── Quick actions ─────────────────────────────────────────────────────────────
 const QUICK_ACTIONS = [
   { icon: ShoppingCart, label: 'New Sale',        prompt: 'I need to record a sale',                                   ocr: false },
   { icon: Truck,        label: 'New Purchase',    prompt: 'I need to record a purchase from a supplier',              ocr: false },
@@ -46,6 +83,225 @@ const QUICK_ACTIONS = [
 
 const MOBILE_NAV_HEIGHT = 72;
 
+// ─── Model Selector ────────────────────────────────────────────────────────────
+function ModelSelector({
+  selectedModel,
+  onSelect,
+  isDark,
+  th,
+}: {
+  selectedModel: ModelKey;
+  onSelect: (key: ModelKey) => void;
+  isDark: boolean;
+  th: Record<string, string>;
+}) {
+  const [expandedKey, setExpandedKey] = useState<ModelKey | null>(null);
+  const [selectorOpen, setSelectorOpen] = useState(false);
+
+  const selectedMeta = MODELS.find(m => m.key === selectedModel)!;
+  const isGold = (key: string) => key === 'gpt-4.1';
+  const accentColor = (key: string) => isGold(key) ? '#f59e0b' : '#E84545';
+
+  const handleRowClick = (key: ModelKey) => {
+    if (expandedKey === key) {
+      setExpandedKey(null);
+    } else {
+      setExpandedKey(key);
+    }
+  };
+
+  const handleSelect = (key: ModelKey) => {
+    onSelect(key);
+    setSelectorOpen(false);
+    setExpandedKey(null);
+  };
+
+  return (
+    <div
+      className="flex-shrink-0"
+      style={{ borderBottom: `1px solid ${th.headerBorder}` }}
+    >
+      {/* Collapsed trigger */}
+      <button
+        onClick={() => { setSelectorOpen(o => !o); setExpandedKey(null); }}
+        className="w-full flex items-center justify-between px-4 py-2.5 transition-all"
+        style={{
+          background: selectorOpen
+            ? (isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)')
+            : 'transparent',
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <Cpu size={13} style={{ color: accentColor(selectedModel) }} />
+          <span className="text-xs font-medium" style={{ color: th.headerSub }}>Model</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {/* Selected model pill */}
+          <div
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
+            style={{
+              background: isGold(selectedModel)
+                ? (isDark ? 'rgba(245,158,11,0.12)' : 'rgba(245,158,11,0.08)')
+                : (isDark ? 'rgba(232,69,69,0.12)'  : 'rgba(232,69,69,0.08)'),
+              border: `1px solid ${isGold(selectedModel) ? 'rgba(245,158,11,0.35)' : 'rgba(232,69,69,0.35)'}`,
+            }}
+          >
+            <span className="text-[11px] font-bold" style={{ color: accentColor(selectedModel) }}>
+              {selectedMeta.label}
+            </span>
+            {selectedMeta.badge && (
+              <span
+                className="text-[9px] font-black px-1 py-0.5 rounded"
+                style={{
+                  background: accentColor(selectedModel),
+                  color: '#fff',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                {selectedMeta.badge}
+              </span>
+            )}
+          </div>
+          <ChevronDown
+            size={13}
+            style={{
+              color: th.headerSub,
+              transform: selectorOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 0.2s ease',
+            }}
+          />
+        </div>
+      </button>
+
+      {/* Expanded panel */}
+      {selectorOpen && (
+        <div
+          className="px-3 pb-3 space-y-1.5"
+          style={{
+            background: isDark
+              ? 'rgba(255,255,255,0.02)'
+              : 'rgba(0,0,0,0.015)',
+          }}
+        >
+          {MODELS.map((model) => {
+            const active    = selectedModel === model.key;
+            const expanded  = expandedKey  === model.key;
+            const gold      = isGold(model.key);
+            const accent    = accentColor(model.key);
+
+            return (
+              <div
+                key={model.key}
+                className="rounded-xl overflow-hidden transition-all"
+                style={{
+                  border: `1px solid ${active
+                    ? (gold ? 'rgba(245,158,11,0.40)' : 'rgba(232,69,69,0.40)')
+                    : (isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)')}`,
+                  background: active
+                    ? (gold
+                        ? (isDark ? 'rgba(245,158,11,0.07)' : 'rgba(245,158,11,0.05)')
+                        : (isDark ? 'rgba(232,69,69,0.07)'  : 'rgba(232,69,69,0.05)'))
+                    : (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.025)'),
+                }}
+              >
+                {/* Row */}
+                <div className="flex items-center">
+                  {/* Expand toggle */}
+                  <button
+                    onClick={() => handleRowClick(model.key as ModelKey)}
+                    className="flex items-center gap-2.5 flex-1 px-3 py-2.5 text-left"
+                  >
+                    <ChevronRight
+                      size={12}
+                      style={{
+                        color: active ? accent : th.headerSub,
+                        transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.18s ease',
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span
+                      className="text-xs font-semibold"
+                      style={{ color: active ? accent : (isDark ? '#e5e7eb' : '#111827') }}
+                    >
+                      {model.label}
+                    </span>
+                    {model.badge && (
+                      <span
+                        className="text-[9px] font-black px-1.5 py-0.5 rounded-md"
+                        style={{
+                          background: accent,
+                          color: '#fff',
+                          letterSpacing: '0.05em',
+                        }}
+                      >
+                        {model.badge}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Select button */}
+                  <button
+                    onClick={() => handleSelect(model.key as ModelKey)}
+                    className="flex items-center justify-center w-8 h-8 mr-2 rounded-lg flex-shrink-0 transition-all active:scale-95"
+                    style={{
+                      background: active
+                        ? accent
+                        : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'),
+                      border: active ? 'none' : `1px solid ${isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.10)'}`,
+                    }}
+                    title={active ? 'Selected' : `Use ${model.label}`}
+                  >
+                    <Check
+                      size={11}
+                      style={{ color: active ? '#fff' : (isDark ? '#6b7280' : '#9ca3af') }}
+                    />
+                  </button>
+                </div>
+
+                {/* Expanded description */}
+                {expanded && (
+                  <div
+                    className="px-3 pb-3 pt-0"
+                    style={{ borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}
+                  >
+                    <p
+                      className="text-[11px] leading-relaxed mt-2.5 mb-2"
+                      style={{ color: isDark ? '#9ca3af' : '#6b7280' }}
+                    >
+                      {model.desc}
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      {model.pros.map((pro) => (
+                        <span
+                          key={pro}
+                          className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+                          style={{
+                            background: gold
+                              ? (isDark ? 'rgba(245,158,11,0.10)' : 'rgba(245,158,11,0.08)')
+                              : (isDark ? 'rgba(232,69,69,0.10)'  : 'rgba(232,69,69,0.07)'),
+                            color: accent,
+                            border: `1px solid ${gold
+                              ? 'rgba(245,158,11,0.25)'
+                              : 'rgba(232,69,69,0.25)'}`,
+                          }}
+                        >
+                          {pro}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Widget ────────────────────────────────────────────────────────────────────
 export function AIWorkerWidget({
   products          = [],
   suppliers         = [],
@@ -59,9 +315,10 @@ export function AIWorkerWidget({
     toggleOpen, sendMessage, sendOcrPurchase, clearHistory,
   } = useAIWorker();
 
-  const [input,     setInput]     = useState('');
-  const [showClear, setShowClear] = useState(false);
-  const [isMobile,  setIsMobile]  = useState(false);
+  const [input,          setInput]          = useState('');
+  const [showClear,      setShowClear]      = useState(false);
+  const [isMobile,       setIsMobile]       = useState(false);
+  const [selectedModel,  setSelectedModel]  = useState<ModelKey>('gpt-4o-mini');
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);
@@ -76,7 +333,7 @@ export function AIWorkerWidget({
   const voice = useVoiceInput({
     onTranscript: (text) => {
       setInput(text);
-      setTimeout(() => { setInput(''); sendMessage(text); }, 800);
+      setTimeout(() => { setInput(''); sendMessage(text, selectedModel); }, 800);
     },
     onError: (msg) => console.warn('[Voice]', msg),
   });
@@ -84,6 +341,7 @@ export function AIWorkerWidget({
   const micActive = voice.isLive || voice.isRecording;
   const micBusy   = voice.status === 'connecting' || voice.status === 'processing';
 
+  // ─── Theme tokens ────────────────────────────────────────────────────────────
   const th = {
     fabBgActive:         isDark ? '#0A0A0A'                            : '#ffffff',
     fabBorderActive:     isDark ? 'rgba(255,255,255,0.10)'             : 'rgba(0,0,0,0.08)',
@@ -145,6 +403,7 @@ export function AIWorkerWidget({
     scrollThumb:         isDark ? 'rgba(232,69,69,0.40)'               : 'rgba(232,69,69,0.30)',
     overlayBg:           isDark ? 'rgba(0,0,0,0.60)'                   : 'rgba(0,0,0,0.40)',
     pillBg:              isDark ? 'rgba(255,255,255,0.15)'             : 'rgba(0,0,0,0.12)',
+    headerBg:            'transparent',
   };
 
   useEffect(() => {
@@ -167,11 +426,12 @@ export function AIWorkerWidget({
     return () => { document.body.style.overflow = ''; };
   }, [isOpen, isMobile]);
 
+  // ─── Handlers ────────────────────────────────────────────────────────────────
   const handleSend = () => {
     const text = input.trim();
     if (!text || isLoading) return;
     setInput('');
-    sendMessage(text);
+    sendMessage(text, selectedModel);
   };
 
   const handleOcrConfirm = useCallback((
@@ -183,6 +443,7 @@ export function AIWorkerWidget({
     sendOcrPurchase(items, supplierName, invoiceNote);
   }, [closeOcrModal, sendOcrPurchase]);
 
+  // ─── Derived state ────────────────────────────────────────────────────────────
   const micTitle = voice.mode === 'realtime'
     ? (voice.isLive ? 'End live session' : 'Start live voice session')
     : voice.isRecording ? 'Tap to stop & send' : 'Tap to speak';
@@ -190,6 +451,7 @@ export function AIWorkerWidget({
   const hasConversation = messages.length > 1;
   const sendDisabled    = isLoading || !input.trim();
 
+  // ─── Panel content ────────────────────────────────────────────────────────────
   const PanelContent = (
     <div className="flex flex-col h-full">
 
@@ -263,6 +525,14 @@ export function AIWorkerWidget({
         </div>
       </div>
 
+      {/* ── Dedicated Model Selector ───────────────────────────────────────── */}
+      <ModelSelector
+        selectedModel={selectedModel}
+        onSelect={setSelectedModel}
+        isDark={isDark}
+        th={th}
+      />
+
       {/* Clear confirm */}
       {showClear && (
         <div
@@ -335,24 +605,24 @@ export function AIWorkerWidget({
         <div ref={bottomRef} />
       </div>
 
-      {/* Quick actions — horizontal scroll on mobile, wrap on desktop */}
+      {/* Quick actions */}
       {messages.length <= 1 && !isLoading && (
         <div
           className="px-4 pb-3 flex gap-1.5 ai-chip-scroll"
           style={{
-            overflowX:  isMobile ? 'auto' : 'unset',
-            flexWrap:   isMobile ? 'nowrap' : 'wrap',
+            overflowX: isMobile ? 'auto'   : 'unset',
+            flexWrap:  isMobile ? 'nowrap' : 'wrap',
           }}
         >
           {QUICK_ACTIONS.map(({ icon: Icon, label, prompt, ocr }) => (
             <button
               key={label}
-              onClick={() => ocr ? openOcrModal() : sendMessage(prompt)}
+              onClick={() => ocr ? openOcrModal() : sendMessage(prompt, selectedModel)}
               className="flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1.5 rounded-lg border transition-all active:scale-95 flex-shrink-0"
               style={{
-                background: ocr ? th.chipScanBg  : th.chipBg,
+                background: ocr ? th.chipScanBg   : th.chipBg,
                 border:     `1px solid ${ocr ? th.chipScanBorder : th.chipBorder}`,
-                color:      ocr ? th.chipScanText : th.chipText,
+                color:      ocr ? th.chipScanText  : th.chipText,
               }}
               onMouseEnter={e => {
                 if (!ocr) {
@@ -515,6 +785,7 @@ export function AIWorkerWidget({
     </div>
   );
 
+  // ─── Render ───────────────────────────────────────────────────────────────────
   return (
     <>
       <style>{`
@@ -578,7 +849,7 @@ export function AIWorkerWidget({
         </button>
       )}
 
-      {/* ── Mobile FAB (rendered inside DraggableFloat in MainLayout) ─────────── */}
+      {/* ── Mobile FAB ────────────────────────────────────────────────────────── */}
       {isMobile && (
         <button
           onClick={toggleOpen}
@@ -623,23 +894,20 @@ export function AIWorkerWidget({
         </div>
       )}
 
-      {/* ── Mobile bottom sheet (sits above the bottom nav bar) ──────────────── */}
+      {/* ── Mobile bottom sheet ───────────────────────────────────────────────── */}
       {isMobile && isOpen && (
         <>
-          {/* Backdrop */}
           <div
             className="fixed inset-0 z-[9998]"
             style={{ background: th.overlayBg, backdropFilter: 'blur(4px)' }}
             onClick={toggleOpen}
           />
-
-          {/* Sheet — stops exactly above the bottom nav */}
           <div
             className="fixed left-0 right-0 z-[9999] flex flex-col rounded-t-3xl overflow-hidden"
             style={{
-              bottom:     MOBILE_NAV_HEIGHT,
-              maxHeight:  `calc(100dvh - ${MOBILE_NAV_HEIGHT + 80}px)`,
-              height:     `calc(72dvh - ${MOBILE_NAV_HEIGHT}px)`,
+              bottom:    MOBILE_NAV_HEIGHT,
+              maxHeight: `calc(100dvh - ${MOBILE_NAV_HEIGHT + 80}px)`,
+              height:    `calc(72dvh - ${MOBILE_NAV_HEIGHT}px)`,
               background: th.panelBg,
               border:     `1px solid ${th.panelBorder}`,
               boxShadow:  `0 -16px 48px ${th.panelShadow}`,

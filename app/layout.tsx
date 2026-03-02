@@ -5,6 +5,8 @@ import { Toaster } from "react-hot-toast";
 import { jsonLd } from './metadata';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import Script from "next/script";
+import { AIWorkerProvider } from "@/components/ai-worker/AIWorkerProvider";
+import { AIWorkerWidgetPortal } from "@/components/ai-worker/AIWorkerWidgetPortal";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -341,7 +343,10 @@ export default function RootLayout({
         */}
 
         <Toaster position="top-right" />
-        {children}
+         <AIWorkerProvider>
+    {children}
+    <AIWorkerWidgetPortal />
+  </AIWorkerProvider>
         <SpeedInsights />
       </body>
     </html>

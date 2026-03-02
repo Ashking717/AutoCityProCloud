@@ -9,7 +9,7 @@ export const maxDuration = 30;
 export const runtime     = 'nodejs';
 
 /**
- * POST /api/ai-worker/transcribe-audio
+ * POST /api/ai-worker/transcribe
  *
  * Push-to-talk fallback transcription endpoint.
  * Receives a raw audio blob (WebM/OGG/MP4) recorded by MediaRecorder,

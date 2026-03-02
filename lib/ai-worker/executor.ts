@@ -1,9 +1,19 @@
 /**
- * AI Worker Executor — v6
+ * AI Worker Executor — v7
  *
- * Every write operation delegates to the existing internal API routes so
- * there is zero duplication of GL, stock, numbering, or activity-log logic.
- * Read-only lookups still hit MongoDB directly (simple finds, no side-effects).
+ * Every write operation delegates to internal API routes (zero logic duplication).
+ * Read-only lookups hit MongoDB directly.
+ *
+ * v7 changes vs v6:
+ * - Added  : check_stock, get_customer_outstanding
+ * - Fixed  : walk-in customer support in create_sale (customerId="walk-in")
+ * - Fixed  : create_sale / create_purchase now default amountPaid to grandTotal
+ *            only when the field is explicitly omitted (not when it's 0)
+ * - Fixed  : get_summary uses UTC date math — consistent regardless of server TZ
+ * - Fixed  : create_expense logs a warning instead of silently passing undefined
+ *            paymentAccountId when no system account is configured
+ * - Improved: all error messages include the tool name for easier debugging
+ * - Added  : net profit line in get_summary when type="all"
  */
 
 import mongoose from 'mongoose';
@@ -14,6 +24,7 @@ import Customer from '@/lib/models/Customer';
 import Supplier from '@/lib/models/Supplier';
 import Account  from '@/lib/models/Account';
 import Category from '@/lib/models/Category';
+import Sale     from '@/lib/models/Sale';
 
 export type ToolResult = { success: boolean; data?: unknown; message: string };
 
@@ -45,6 +56,14 @@ async function api(
   return { ok: res.ok, status: res.status, data };
 }
 
+// ─── UTC date helpers ─────────────────────────────────────────────────────────
+function utcStartOfDay(d: Date): Date {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+}
+function utcEndOfDay(d: Date): Date {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 23, 59, 59, 999));
+}
+
 // ─── Main executor ─────────────────────────────────────────────────────────────
 export async function executeTool(
   toolName: string,
@@ -69,11 +88,34 @@ export async function executeTool(
           { sku:        { $regex: input.query, $options: 'i' } },
           { partNumber: { $regex: input.query, $options: 'i' } },
         ],
-      }).select('_id name sku sellingPrice costPrice currentStock unit partNumber').limit(10).lean();
+      })
+        .select('_id name sku sellingPrice costPrice currentStock unit partNumber isVehicle carMake carModel')
+        .limit(10)
+        .lean();
 
       if (!products.length)
-        return { success: false, message: `No products found matching "${input.query}"` };
+        return {
+          success: false,
+          message: `search_products: No results for "${input.query}". Ask the user to verify the name or SKU.`,
+        };
       return { success: true, data: products, message: `Found ${products.length} product(s)` };
+    }
+
+    // ── CHECK STOCK ────────────────────────────────────────────────────────────
+    case 'check_stock': {
+      const product = await Product.findOne({ _id: input.productId, outletId })
+        .select('_id name sku currentStock minStock sellingPrice costPrice unit')
+        .lean() as any;
+
+      if (!product)
+        return { success: false, message: `check_stock: product "${input.productId}" not found.` };
+
+      const low = product.currentStock <= product.minStock;
+      return {
+        success: true,
+        data: product,
+        message: `**${product.name}** | Stock: ${product.currentStock} ${product.unit}${low ? ' ⚠️ LOW STOCK' : ''}`,
+      };
     }
 
     // ── SEARCH CUSTOMERS ───────────────────────────────────────────────────────
@@ -87,8 +129,34 @@ export async function executeTool(
       }).select('_id name phone email').limit(10).lean();
 
       if (!customers.length)
-        return { success: false, message: `No customers found matching "${input.query}"` };
+        return {
+          success: false,
+          message: `search_customers: No results for "${input.query}". You may create a new customer or use customerId="walk-in".`,
+        };
       return { success: true, data: customers, message: `Found ${customers.length} customer(s)` };
+    }
+
+    // ── GET CUSTOMER OUTSTANDING ───────────────────────────────────────────────
+    case 'get_customer_outstanding': {
+      const [aggResult, customer] = await Promise.all([
+        (Sale as any).aggregate([
+          { $match: { outletId, customerId: new mongoose.Types.ObjectId(input.customerId) } },
+          { $group: { _id: null, totalDue: { $sum: '$balanceDue' } } },
+        ]).exec() as Promise<any[]>,
+        Customer.findOne({ _id: input.customerId, outletId }).select('name phone').lean() as Promise<any>,
+      ]);
+
+      if (!customer)
+        return { success: false, message: `get_customer_outstanding: customer "${input.customerId}" not found.` };
+
+      const totalDue: number = aggResult[0]?.totalDue ?? 0;
+      return {
+        success: true,
+        data: { customerId: input.customerId, name: customer.name, outstandingBalance: totalDue },
+        message: totalDue > 0
+          ? `**${customer.name}** has an outstanding balance of **QAR ${totalDue.toFixed(2)}**.`
+          : `**${customer.name}** has no outstanding balance.`,
+      };
     }
 
     // ── SEARCH SUPPLIERS ───────────────────────────────────────────────────────
@@ -99,7 +167,10 @@ export async function executeTool(
       }).select('_id name phone email').limit(10).lean();
 
       if (!suppliers.length)
-        return { success: false, message: `No suppliers found matching "${input.query}"` };
+        return {
+          success: false,
+          message: `search_suppliers: No results for "${input.query}". You may create a new supplier.`,
+        };
       return { success: true, data: suppliers, message: `Found ${suppliers.length} supplier(s)` };
     }
 
@@ -109,17 +180,17 @@ export async function executeTool(
         outletId, type: 'expense', isActive: true,
       }).select('_id code name').lean();
 
+      if (!accounts.length)
+        return { success: false, message: 'get_expense_accounts: No expense accounts found. Please configure the Chart of Accounts.' };
+
       return { success: true, data: accounts, message: `Found ${accounts.length} expense account(s)` };
     }
 
     // ── GET CATEGORIES ─────────────────────────────────────────────────────────
-    // When a query is provided, do a server-side regex match so the AI receives
-    // only the matching category — it can never pick the wrong one from a list.
     case 'get_categories': {
       const filter: any = { outletId, isActive: true };
 
       if (input.query?.trim()) {
-        // Escape regex special chars then match anywhere in the name
         const escaped = input.query.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         filter.name   = { $regex: escaped, $options: 'i' };
       }
@@ -132,19 +203,19 @@ export async function executeTool(
       if (input.query?.trim() && !categories.length)
         return {
           success: false,
-          message: `No category found matching "${input.query}". Please fetch all categories (call without query) and pick the closest match.`,
+          message: `get_categories: No match for "${input.query}". Call without a query to list all categories, then pick the closest.`,
         };
 
       return {
-        success:  true,
-        data:     categories,
-        message:  input.query?.trim()
+        success: true,
+        data: categories,
+        message: input.query?.trim()
           ? `Found ${categories.length} categor(ies) matching "${input.query}"`
           : `Found ${categories.length} categor(ies)`,
       };
     }
 
-    // ── CREATE CUSTOMER → POST /api/customers ──────────────────────────────────
+    // ── CREATE CUSTOMER ────────────────────────────────────────────────────────
     case 'create_customer': {
       const res = await api(baseUrl, token, '/api/customers', {
         method: 'POST',
@@ -157,17 +228,17 @@ export async function executeTool(
       });
 
       if (!res.ok)
-        return { success: false, message: res.data?.error ?? `Failed to create customer (${res.status})` };
+        return { success: false, message: res.data?.error ?? `create_customer failed (HTTP ${res.status})` };
 
-      const customer = res.data.customer ?? res.data;
+      const c = res.data.customer ?? res.data;
       return {
         success: true,
-        data: { id: customer._id, name: customer.name, phone: customer.phone },
-        message: `✅ Customer created! **${customer.name}**${customer.phone ? ` | Phone: ${customer.phone}` : ''} — now proceeding with sale.`,
+        data: { id: c._id, name: c.name, phone: c.phone },
+        message: `✅ Customer created: **${c.name}**${c.phone ? ` | ${c.phone}` : ''} — proceeding with sale.`,
       };
     }
 
-    // ── CREATE SUPPLIER → POST /api/suppliers ──────────────────────────────────
+    // ── CREATE SUPPLIER ────────────────────────────────────────────────────────
     case 'create_supplier': {
       const res = await api(baseUrl, token, '/api/suppliers', {
         method: 'POST',
@@ -180,26 +251,24 @@ export async function executeTool(
       });
 
       if (!res.ok)
-        return { success: false, message: res.data?.error ?? `Failed to create supplier (${res.status})` };
+        return { success: false, message: res.data?.error ?? `create_supplier failed (HTTP ${res.status})` };
 
-      const supplier = res.data.supplier ?? res.data;
+      const s = res.data.supplier ?? res.data;
       return {
         success: true,
-        data: { id: supplier._id, name: supplier.name, phone: supplier.phone },
-        message: `✅ Supplier created! **${supplier.name}**${supplier.phone ? ` | Phone: ${supplier.phone}` : ''} — now proceeding with purchase.`,
+        data: { id: s._id, name: s.name, phone: s.phone },
+        message: `✅ Supplier created: **${s.name}**${s.phone ? ` | ${s.phone}` : ''} — proceeding with purchase.`,
       };
     }
 
-    // ── CREATE PRODUCT → POST /api/products ───────────────────────────────────
+    // ── CREATE PRODUCT ─────────────────────────────────────────────────────────
     case 'create_product': {
       const skuRes = await api(baseUrl, token, '/api/products/next-sku');
       if (!skuRes.ok)
-        return { success: false, message: 'Could not generate product SKU. Please try again.' };
+        return { success: false, message: 'create_product: Could not generate SKU. Please retry.' };
 
       const nextSKU: string = skuRes.data.nextSKU ?? '10001';
 
-      // Auto-detect isVehicle: true if ANY vehicle field is present — safety net
-      // so vehicle data is never silently dropped even if the AI forgets isVehicle=true
       const hasVehicleFields = !!(
         input.carMake  || input.carModel || input.variant ||
         input.yearFrom || input.yearTo   || input.color
@@ -220,35 +289,31 @@ export async function executeTool(
           maxStock:     1000,
           description:  input.description ?? '',
           partNumber:   input.partNumber  ?? '',
-          // ── Vehicle fields ──────────────────────────────────────────────
           isVehicle,
-          carMake:      input.carMake  ?? '',
-          carModel:     input.carModel ?? '',
-          variant:      input.variant  ?? '',
-          yearFrom:     input.yearFrom ? Number(input.yearFrom) : null,
-          yearTo:       input.yearTo   ? Number(input.yearTo)   : null,
-          color:        input.color    ?? '',
-          // ───────────────────────────────────────────────────────────────
-          taxRate: 0,
+          carMake:  input.carMake  ?? '',
+          carModel: input.carModel ?? '',
+          variant:  input.variant  ?? '',
+          yearFrom: input.yearFrom ? Number(input.yearFrom) : null,
+          yearTo:   input.yearTo   ? Number(input.yearTo)   : null,
+          color:    input.color    ?? '',
+          taxRate:  0,
         }),
       });
 
       if (!res.ok)
-        return { success: false, message: res.data?.error ?? `Failed to create product (${res.status})` };
+        return { success: false, message: res.data?.error ?? `create_product failed (HTTP ${res.status})` };
 
       const product  = res.data.product ?? res.data;
       const finalSKU = product.sku ?? nextSKU;
       const qty      = Number(input.openingStock ?? 0);
 
       const stockLine = qty > 0
-        ? ` | Opening Stock: **${qty} ${input.unit || 'pcs'}** @ QAR ${Number(input.costPrice).toFixed(2)}`
+        ? ` | Stock: **${qty} ${input.unit || 'pcs'}** @ QAR ${Number(input.costPrice).toFixed(2)}`
         : '';
 
       const vehicleLine = isVehicle
         ? ` | ${[
-            input.carMake,
-            input.carModel,
-            input.variant,
+            input.carMake, input.carModel, input.variant,
             input.yearFrom && input.yearTo
               ? `${input.yearFrom}–${input.yearTo}`
               : (input.yearFrom ?? input.yearTo ?? null),
@@ -258,62 +323,68 @@ export async function executeTool(
       return {
         success: true,
         data: { id: product._id, sku: finalSKU, name: input.name, isVehicle },
-        message: `✅ Product created! **${input.name}** | SKU: **${finalSKU}** | Category: ${input.categoryName} | Cost: QAR ${Number(input.costPrice).toFixed(2)} | Selling: QAR ${Number(input.sellingPrice).toFixed(2)}${vehicleLine}${stockLine}`,
+        message: `✅ Product created: **${input.name}** | SKU: **${finalSKU}** | Category: ${input.categoryName} | Cost: QAR ${Number(input.costPrice).toFixed(2)} | Selling: QAR ${Number(input.sellingPrice).toFixed(2)}${vehicleLine}${stockLine}`,
       };
     }
 
-    // ── CREATE SALE → POST /api/sales ──────────────────────────────────────────
-    case 'create_sale': {
-      const grandTotal = input.items.reduce(
-        (sum: number, item: any) =>
-          sum + Number(item.unitPrice) * Number(item.quantity) - Number(item.discount ?? 0),
-        0
-      );
-      const amountPaid = Number(input.amountPaid ?? grandTotal);
+    // ── CREATE SALE ────────────────────────────────────────────────────────────
+case 'create_sale': {
+  if (!input.items?.length)
+    return { success: false, message: 'create_sale: items array is empty.' };
 
-      const res = await api(baseUrl, token, '/api/sales', {
-        method: 'POST',
-        body: JSON.stringify({
-          customerId:    input.customerId,
-          customerName:  input.customerName,
-          paymentMethod: input.paymentMethod ?? 'CASH',
-          amountPaid,
-          notes:         input.notes,
-          items: input.items.map((item: any) => ({
-            productId:    item.productId,
-            quantity:     Number(item.quantity),
-            unitPrice:    Number(item.unitPrice),
-            discount:     Number(item.discount ?? 0),
-            discountType: 'fixed',
-            unit:         item.unit,
-            name:         item.name,
-            sku:          item.sku,
-          })),
-        }),
-      });
+  const isWalkIn = input.customerId === 'walk-in';
 
-      if (!res.ok)
-        return { success: false, message: res.data?.error ?? `Failed to create sale (${res.status})` };
+  const subtotal     = input.items.reduce((sum: number, item: any) => sum + Number(item.unitPrice) * Number(item.quantity), 0);
+  const discount     = Number(input.discount ?? 0);   // ← top-level only
+  const grandTotal   = subtotal - discount;
+  const amountPaid   = input.amountPaid != null ? Number(input.amountPaid) : grandTotal;
 
-      const sale       = res.data.sale ?? res.data;
-      const invoice    = sale.invoiceNumber ?? '—';
-      const total      = Number(sale.grandTotal ?? grandTotal);
-      const balanceDue = Number(sale.balanceDue ?? 0);
+  const res = await api(baseUrl, token, '/api/sales', {
+    method: 'POST',
+    body: JSON.stringify({
+      customerId:    isWalkIn ? undefined : input.customerId,
+      customerName:  input.customerName,
+      paymentMethod: input.paymentMethod ?? 'CASH',
+      discount,                                        // ← send as order-level field
+      amountPaid,
+      notes:         input.notes ?? '',
+      items: input.items.map((item: any) => ({
+        productId: item.productId,
+        quantity:  Number(item.quantity),
+        unitPrice: Number(item.unitPrice),
+        discount:  0,                                  // ← always 0 at item level
+        discountType: 'fixed',
+        unit:      item.unit,
+        name:      item.name,
+        sku:       item.sku,
+      })),
+    }),
+  });
 
-      return {
-        success: true,
-        data: { id: sale._id, invoiceNumber: invoice, grandTotal: total, balanceDue },
-        message: `✅ Sale created! Invoice: **${invoice}** | Total: QAR ${total.toFixed(2)} | Paid: QAR ${amountPaid.toFixed(2)}${balanceDue > 0 ? ` | Balance Due: QAR ${balanceDue.toFixed(2)}` : ''}`,
-      };
-    }
+  if (!res.ok)
+    return { success: false, message: res.data?.error ?? `create_sale failed (HTTP ${res.status})` };
 
-    // ── CREATE PURCHASE → POST /api/purchases ──────────────────────────────────
+  const sale       = res.data.sale ?? res.data;
+  const invoice    = sale.invoiceNumber ?? '—';
+  const total      = Number(sale.grandTotal ?? grandTotal);
+  const balanceDue = Number(sale.balanceDue ?? 0);
+
+  return {
+    success: true,
+    data: { id: sale._id, invoiceNumber: invoice, grandTotal: total, balanceDue },
+    message: `✅ Sale created! Invoice: **${invoice}**${discount > 0 ? ` | Subtotal: QAR ${subtotal.toFixed(2)} | Discount: QAR ${discount.toFixed(2)}` : ''} | Total: QAR ${total.toFixed(2)} | Paid: QAR ${amountPaid.toFixed(2)}${balanceDue > 0 ? ` | Balance Due: QAR ${balanceDue.toFixed(2)}` : ''}`,
+  };
+}
+    // ── CREATE PURCHASE ────────────────────────────────────────────────────────
     case 'create_purchase': {
+      if (!input.items?.length)
+        return { success: false, message: 'create_purchase: items array is empty. Provide at least one line item.' };
+
       const subtotal   = input.items.reduce(
         (sum: number, item: any) => sum + Number(item.unitPrice) * Number(item.quantity),
         0
       );
-      const amountPaid = Number(input.amountPaid ?? subtotal);
+      const amountPaid = input.amountPaid != null ? Number(input.amountPaid) : subtotal;
 
       const res = await api(baseUrl, token, '/api/purchases', {
         method: 'POST',
@@ -322,7 +393,7 @@ export async function executeTool(
           supplierName:  input.supplierName,
           paymentMethod: input.paymentMethod ?? 'CASH',
           amountPaid,
-          notes:         input.notes,
+          notes:         input.notes ?? '',
           items: input.items.map((item: any) => ({
             productId: item.productId,
             name:      item.name,
@@ -336,7 +407,7 @@ export async function executeTool(
       });
 
       if (!res.ok)
-        return { success: false, message: res.data?.error ?? `Failed to create purchase (${res.status})` };
+        return { success: false, message: res.data?.error ?? `create_purchase failed (HTTP ${res.status})` };
 
       const purchase    = res.data.purchase ?? res.data;
       const purchaseNum = purchase.purchaseNumber ?? '—';
@@ -350,8 +421,11 @@ export async function executeTool(
       };
     }
 
-    // ── CREATE EXPENSE → POST /api/expenses ────────────────────────────────────
+    // ── CREATE EXPENSE ─────────────────────────────────────────────────────────
     case 'create_expense': {
+      if (!input.items?.length)
+        return { success: false, message: 'create_expense: items array is empty. Provide at least one expense line.' };
+
       const subtotal   = input.items.reduce((s: number, i: any) => s + Number(i.amount), 0);
       const amountPaid = Number(input.amountPaid ?? subtotal);
       const method     = (input.paymentMethod ?? 'CASH') as string;
@@ -372,6 +446,10 @@ export async function executeTool(
         }).select('_id').lean() as any;
 
         paymentAccountId = payAcct?._id?.toString();
+
+        if (!paymentAccountId) {
+          console.warn(`[AI Worker] create_expense: no system ${method} payment account found for outlet ${ctx.outletId}. Proceeding without paymentAccountId.`);
+        }
       }
 
       const res = await api(baseUrl, token, '/api/expenses', {
@@ -379,10 +457,10 @@ export async function executeTool(
         body: JSON.stringify({
           category:         input.category,
           paymentMethod:    method,
-          paymentAccountId,
+          paymentAccountId: paymentAccountId ?? null,
           amountPaid,
-          vendorName:       input.vendorName,
-          notes:            input.notes,
+          vendorName:       input.vendorName  ?? '',
+          notes:            input.notes       ?? '',
           taxAmount:        0,
           isRecurring:      false,
           items: input.items.map((item: any) => ({
@@ -396,7 +474,7 @@ export async function executeTool(
       });
 
       if (!res.ok)
-        return { success: false, message: res.data?.error ?? `Failed to create expense (${res.status})` };
+        return { success: false, message: res.data?.error ?? `create_expense failed (HTTP ${res.status})` };
 
       const expense    = res.data.expense ?? res.data;
       const expenseNum = expense.expenseNumber ?? '—';
@@ -404,22 +482,26 @@ export async function executeTool(
       return {
         success: true,
         data: { id: expense._id, expenseNumber: expenseNum, grandTotal: subtotal },
-        message: `✅ Expense recorded! Ref: **${expenseNum}** | ${input.category} | Amount: QAR ${subtotal.toFixed(2)}`,
+        message: `✅ Expense recorded! Ref: **${expenseNum}** | ${input.category} | QAR ${subtotal.toFixed(2)}`,
       };
     }
 
-    // ── GET SUMMARY → /api/reports/* ──────────────────────────────────────────
+    // ── GET SUMMARY ────────────────────────────────────────────────────────────
     case 'get_summary': {
-      const now  = new Date();
+      const now = new Date();
       let from: Date;
+
       if (input.period === 'today') {
-        from = new Date(now); from.setHours(0, 0, 0, 0);
+        from = utcStartOfDay(now);
       } else if (input.period === 'this_week') {
-        from = new Date(now); from.setDate(now.getDate() - now.getDay()); from.setHours(0, 0, 0, 0);
+        const start = new Date(now);
+        start.setUTCDate(now.getUTCDate() - now.getUTCDay()); // Sunday
+        from = utcStartOfDay(start);
       } else {
-        from = new Date(now.getFullYear(), now.getMonth(), 1);
+        from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
       }
-      const to = new Date(now); to.setHours(23, 59, 59, 999);
+
+      const to = utcEndOfDay(now);
       const qs = `startDate=${from.toISOString()}&endDate=${to.toISOString()}`;
 
       const doSales     = input.type === 'sales'     || input.type === 'all';
@@ -433,16 +515,19 @@ export async function executeTool(
       ]);
 
       const result: Record<string, any> = {};
-      const lines: string[] = [`📊 **${input.period.replace('_', ' ')} summary:**`];
+      const periodLabel = input.period.replace(/_/g, ' ');
+      const lines: string[] = [`📊 **${periodLabel} summary:**`];
 
       if (sRes?.ok) {
         const d = sRes.data;
-        const count = d.totalCount ?? d.sales?.length ?? 0;
-        const total = d.totalRevenue ?? d.grandTotal  ?? 0;
+        const count = d.totalCount ?? d.sales?.length    ?? 0;
+        const total = d.totalRevenue ?? d.grandTotal     ?? 0;
         result.sales = { count, total, recent: (d.sales ?? []).slice(0, 3) };
-        lines.push(`\nSales: **QAR ${Number(total).toFixed(2)}** (${count} invoices)`);
+        lines.push(`\n**Sales:** QAR ${Number(total).toFixed(2)} (${count} invoice${count !== 1 ? 's' : ''})`);
         result.sales.recent.forEach((s: any) =>
           lines.push(`  • ${s.invoiceNumber} — ${s.customerName} — QAR ${Number(s.grandTotal).toFixed(2)}`));
+      } else if (doSales) {
+        lines.push('\n**Sales:** unavailable');
       }
 
       if (pRes?.ok) {
@@ -450,9 +535,11 @@ export async function executeTool(
         const count = d.totalCount ?? d.purchases?.length ?? 0;
         const total = d.totalAmount ?? d.grandTotal        ?? 0;
         result.purchases = { count, total, recent: (d.purchases ?? []).slice(0, 3) };
-        lines.push(`\nPurchases: **QAR ${Number(total).toFixed(2)}** (${count} orders)`);
+        lines.push(`\n**Purchases:** QAR ${Number(total).toFixed(2)} (${count} order${count !== 1 ? 's' : ''})`);
         result.purchases.recent.forEach((p: any) =>
           lines.push(`  • ${p.purchaseNumber} — ${p.supplierName} — QAR ${Number(p.grandTotal).toFixed(2)}`));
+      } else if (doPurchases) {
+        lines.push('\n**Purchases:** unavailable');
       }
 
       if (eRes?.ok) {
@@ -460,13 +547,25 @@ export async function executeTool(
         const count = d.totalCount ?? d.expenses?.length ?? 0;
         const total = d.totalExpenses ?? d.grandTotal     ?? 0;
         result.expenses = { count, total };
-        lines.push(`\nExpenses: **QAR ${Number(total).toFixed(2)}** (${count} entries)`);
+        lines.push(`\n**Expenses:** QAR ${Number(total).toFixed(2)} (${count} entr${count !== 1 ? 'ies' : 'y'})`);
+      } else if (doExpenses) {
+        lines.push('\n**Expenses:** unavailable');
+      }
+
+      // Net profit when all three reports are present
+      if (result.sales != null && result.purchases != null && result.expenses != null) {
+        const net = (result.sales.total ?? 0) - (result.purchases.total ?? 0) - (result.expenses.total ?? 0);
+        lines.push(`\n**Net (Sales − Purchases − Expenses):** QAR ${net.toFixed(2)}`);
+        result.net = net;
       }
 
       return { success: true, data: result, message: lines.join('\n') };
     }
 
     default:
-      return { success: false, message: `Unknown tool: ${toolName}` };
+      return {
+        success: false,
+        message: `Unknown tool: "${toolName}". Available tools are listed in the system prompt.`,
+      };
   }
 }

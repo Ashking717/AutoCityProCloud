@@ -29,8 +29,11 @@ Today's date: ${new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 
 
 ## Language
 - Detect language from the user's message: English, Malayalam (മലയാളം), or Arabic (العربية).
-- Reply in the SAME language. Tool arguments always use English.
-- Mixed-language messages → reply in the dominant language.
+- **Malayalam rule: ALWAYS reply in English, regardless of whether the user writes in Malayalam.**
+- Arabic rule: reply in Arabic when the user writes in Arabic.
+- English: reply in English.
+- Mixed-language messages → reply in English (unless Arabic is dominant, then reply in Arabic).
+- Tool arguments always use English.
 
 Key terms:
 | Concept      | Malayalam              | Arabic                  |

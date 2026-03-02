@@ -137,12 +137,33 @@ Exception: if the user's message already contains an explicit "confirm" or "yes 
 function sanitize(
   messages: OpenAI.Chat.ChatCompletionMessageParam[],
 ): OpenAI.Chat.ChatCompletionMessageParam[] {
-  return messages.filter(
-    (m) =>
-      (m.role === 'user' || m.role === 'assistant') &&
-      typeof m.content === 'string' &&
-      (m.content as string).trim() !== '',
-  );
+  // Build a set of tool_call_ids that have a preceding assistant tool_calls message
+  const coveredToolCallIds = new Set<string>();
+
+  for (const m of messages) {
+    if (m.role === 'assistant' && (m as any).tool_calls?.length) {
+      for (const tc of (m as any).tool_calls) {
+        coveredToolCallIds.add(tc.id);
+      }
+    }
+  }
+
+  return messages.filter((m) => {
+    // Always keep user messages
+    if (m.role === 'user') return true;
+
+    // Keep assistant messages that have text content
+    if (m.role === 'assistant' && typeof m.content === 'string' && m.content.trim() !== '') return true;
+
+    // Keep assistant messages that have tool_calls (they will be paired below)
+    if (m.role === 'assistant' && (m as any).tool_calls?.length) return true;
+
+    // Keep tool messages only if their tool_call_id is covered
+    if (m.role === 'tool' && coveredToolCallIds.has((m as any).tool_call_id)) return true;
+
+    // Drop everything else (orphaned tool messages, empty assistant messages)
+    return false;
+  });
 }
 
 // ─── Route ─────────────────────────────────────────────────────────────────────

@@ -310,15 +310,26 @@ export default function SettingsPage() {
   };
 
   const handleRegisterWebhook = async (botId: string) => {
-    setWebhookRegistering(botId);
-    try {
-      const res = await fetch('/api/telegram?register=1', { credentials: 'include' });
-      const data = await res.json();
-      if (data.ok) toast.success('Webhook registered! Bot is live.');
-      else toast.error(data.description || 'Webhook registration failed');
-    } catch { toast.error('Failed to register webhook'); }
-    finally { setWebhookRegistering(null); }
-  };
+  setWebhookRegistering(botId);
+
+  try {
+    const res = await fetch(`/api/telegram/${botId}?register=1`, {
+      credentials: 'include',
+    });
+
+    const data = await res.json();
+
+    if (data.ok) {
+      toast.success('Webhook registered! Bot is live.');
+    } else {
+      toast.error(data.description || 'Webhook registration failed');
+    }
+  } catch {
+    toast.error('Failed to register webhook');
+  } finally {
+    setWebhookRegistering(null);
+  }
+};
 
   const handleDeleteUser = async (userId: string) => {
     if (!confirm('Are you sure you want to delete this user?')) return;

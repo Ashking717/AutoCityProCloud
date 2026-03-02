@@ -126,6 +126,22 @@ Exception: if the user's message already contains an explicit "confirm" or "yes 
 
 `;
 
+// ─── Helper: strip tool/tool_calls messages ────────────────────────────────────
+// tool messages must always be paired with a preceding tool_calls message.
+// When history is serialised and deserialised (e.g. via Telegram sessions) those
+// pairs can be broken, causing a 400 from OpenAI. We sanitize at both entry and
+// exit to guarantee clean history at all times.
+function sanitize(
+  messages: OpenAI.Chat.ChatCompletionMessageParam[],
+): OpenAI.Chat.ChatCompletionMessageParam[] {
+  return messages.filter(
+    (m) =>
+      (m.role === 'user' || m.role === 'assistant') &&
+      typeof m.content === 'string' &&
+      (m.content as string).trim() !== '',
+  );
+}
+
 // ─── Route ─────────────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
   try {
@@ -158,15 +174,9 @@ export async function POST(request: NextRequest) {
       model?:   string;
     };
 
-    // ✅ Sanitize incoming history — strip tool/tool_calls messages.
-    // These can bleed in from Telegram sessions and cause a 400 from OpenAI
-    // because tool messages must always follow a paired tool_calls message.
-    const sanitizedMessages = clientMessages.filter(
-      (m) =>
-        (m.role === 'user' || m.role === 'assistant') &&
-        typeof m.content === 'string' &&
-        (m.content as string).trim() !== '',
-    );
+    // ✅ Sanitize incoming history — remove any tool/tool_calls messages that
+    // cannot be safely replayed without their paired counterparts.
+    const sanitizedMessages = sanitize(clientMessages);
 
     // Validate model — fall back to default if unknown/missing
     const model = clientModel && ALLOWED_MODELS.has(clientModel) ? clientModel : DEFAULT_MODEL;
@@ -238,18 +248,12 @@ export async function POST(request: NextRequest) {
       // Model produced a final text response
       const text = message.content ?? 'Done.';
 
-      // Return updated conversation history (without the system prompt).
-      // Only include user + assistant text turns so callers (e.g. Telegram)
-      // never receive tool/tool_calls messages that cannot be safely replayed.
-      const updatedMessages = currentMessages
-        .slice(1)
-        .filter(
-          (m) =>
-            (m.role === 'user' || m.role === 'assistant') &&
-            typeof m.content === 'string' &&
-            (m.content as string).trim() !== '',
-        )
-        .concat({ role: 'assistant', content: text });
+      // ✅ Sanitize output — strip tool/tool_calls before returning to caller
+      // so Telegram sessions never accumulate unpayable message pairs.
+      const updatedMessages = [
+        ...sanitize(currentMessages.slice(1)),
+        { role: 'assistant' as const, content: text },
+      ];
 
       return NextResponse.json({ message: text, updatedMessages });
     }
@@ -258,15 +262,10 @@ export async function POST(request: NextRequest) {
     const timeoutMsg = 'This request required too many steps to complete. Please try rephrasing or breaking it into smaller tasks.';
     return NextResponse.json({
       message:         timeoutMsg,
-      updatedMessages: currentMessages
-        .slice(1)
-        .filter(
-          (m) =>
-            (m.role === 'user' || m.role === 'assistant') &&
-            typeof m.content === 'string' &&
-            (m.content as string).trim() !== '',
-        )
-        .concat({ role: 'assistant', content: timeoutMsg }),
+      updatedMessages: [
+        ...sanitize(currentMessages.slice(1)),
+        { role: 'assistant' as const, content: timeoutMsg },
+      ],
     });
 
   } catch (err: any) {

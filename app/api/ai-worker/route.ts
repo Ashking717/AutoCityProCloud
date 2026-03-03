@@ -20,7 +20,7 @@ const ALLOWED_MODELS = new Set([
   'gpt-4.1',
 ]);
 
-const DEFAULT_MODEL = 'gpt-4o-mini';
+const DEFAULT_MODEL = 'gpt-4.1-mini';
 
 // ─── System prompt ─────────────────────────────────────────────────────────────
 const SYSTEM_PROMPT = `You are the AutoCity ERP AI assistant — an efficient, accurate staff member managing business operations.

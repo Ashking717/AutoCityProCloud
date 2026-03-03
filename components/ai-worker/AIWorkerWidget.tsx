@@ -318,7 +318,7 @@ export function AIWorkerWidget({
   const [input,          setInput]          = useState('');
   const [showClear,      setShowClear]      = useState(false);
   const [isMobile,       setIsMobile]       = useState(false);
-  const [selectedModel,  setSelectedModel]  = useState<ModelKey>('gpt-4o-mini');
+  const [selectedModel,  setSelectedModel]  = useState<ModelKey>('gpt-4.1-mini');
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);

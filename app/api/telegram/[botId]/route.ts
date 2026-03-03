@@ -47,7 +47,7 @@ function saveHistory(sessionKey: string, history: ChatMessage[]) {
 // ─────────────────────────────────────────────────────────────
 
 const INTENT_MODEL: Record<IntentCategory, ModelKey> = {
-  sale:     'gpt-4.1',
+  sale:     'gpt-4.1-mini',
   purchase: 'gpt-4.1-mini',
   expense:  'gpt-4.1-mini',
   product:  'gpt-4.1-mini',

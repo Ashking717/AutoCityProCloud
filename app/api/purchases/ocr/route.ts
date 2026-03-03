@@ -127,7 +127,7 @@ async function parseSingleImage(
   mediaType: "image/jpeg" | "image/png" | "image/webp" | "image/gif"
 ): Promise<OCRParsedResult> {
   const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: "gpt-4.1-mini",
     max_tokens: 4096,
     messages: [
       {

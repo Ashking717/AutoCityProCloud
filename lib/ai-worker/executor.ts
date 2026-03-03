@@ -301,7 +301,7 @@ export async function executeTool(
       const res = await api(baseUrl, token, '/api/products', {
         method: 'POST',
         body: JSON.stringify({
-          name:         input.name,
+          name:         input.name.toUpperCase(),
           categoryId:   input.categoryId,
           sku:          nextSKU,
           costPrice:    Number(input.costPrice),

@@ -21,7 +21,7 @@ const MODELS = [
     pros:  ['Slow', 'Cost-efficient', 'Simple tasks'],
   },
   {
-    key:   'gpt-5-mini-2025-08-07',
+    key:   'gpt-5-mini',
     label: 'Standard',
     badge: null,
     desc:  'The best balance of speed and intelligence. Handles most business tasks with accuracy and efficiency.',
@@ -318,7 +318,7 @@ export function AIWorkerWidget({
   const [input,          setInput]          = useState('');
   const [showClear,      setShowClear]      = useState(false);
   const [isMobile,       setIsMobile]       = useState(false);
-  const [selectedModel,  setSelectedModel]  = useState<ModelKey>('gpt-5-mini-2025-08-07');
+  const [selectedModel,  setSelectedModel]  = useState<ModelKey>('gpt-5-mini');
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);

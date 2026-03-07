@@ -18,7 +18,7 @@ type IntentCategory =
   | 'query' | 'report'
   | 'unknown';
 
-type ModelKey = 'gpt-4o-mini' | 'gpt-4.1-mini' | 'gpt-4o' | 'gpt-4.1';
+type ModelKey = 'gpt-5-nano' | 'gpt-5.1-mini' | 'gpt-5.2' | 'gpt-5.4' | 'gpt-4o' | 'gpt-4.1-mini' | 'gpt-4.1';
 
 interface IntentResult {
   category: IntentCategory;
@@ -47,14 +47,14 @@ function saveHistory(sessionKey: string, history: ChatMessage[]) {
 // ─────────────────────────────────────────────────────────────
 
 const INTENT_MODEL: Record<IntentCategory, ModelKey> = {
-  sale:     'gpt-4.1-mini',
-  purchase: 'gpt-4.1-mini',
-  expense:  'gpt-4.1-mini',
-  product:  'gpt-4.1-mini',
-  supplier: 'gpt-4.1-mini',
-  query:    'gpt-4.1-mini',
-  report:   'gpt-4o',
-  unknown:  'gpt-4o',
+  sale:     'gpt-5.1-mini',
+  purchase: 'gpt-5.1-mini',
+  expense:  'gpt-5.1-mini',
+  product:  'gpt-5.1-mini',
+  supplier: 'gpt-5.1-mini',
+  query:    'gpt-5.1-mini',
+  report:   'gpt-4.1',
+  unknown:  'gpt-5.1-mini',
 };
 
 // ─────────────────────────────────────────────────────────────

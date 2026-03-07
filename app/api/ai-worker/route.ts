@@ -14,13 +14,16 @@ const MAX_STEPS = 16;
 
 // ─── Allowed models (whitelist to prevent arbitrary injection) ─────────────────
 const ALLOWED_MODELS = new Set([
-  'gpt-4o-mini',
+  'gpt-5-nano',
   'gpt-4o',
   'gpt-4.1-mini',
   'gpt-4.1',
+  'gpt-5-mini-2025-08-07',
+  'gpt-5.2',
+  'gpt-5.4',
 ]);
 
-const DEFAULT_MODEL = 'gpt-4.1-mini';
+const DEFAULT_MODEL = 'gpt-5-mini-2025-08-07';
 
 // ─── System prompt ─────────────────────────────────────────────────────────────
 const SYSTEM_PROMPT = `You are the AutoCity ERP AI assistant — an efficient, accurate staff member managing business operations.

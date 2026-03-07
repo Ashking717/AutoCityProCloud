@@ -14,28 +14,28 @@ import OCRPurchaseModal from '@/components/purchases/OCRPurchaseModal';
 // ─── Model config ──────────────────────────────────────────────────────────────
 const MODELS = [
   {
-    key:   'gpt-4o-mini',
+    key:   'gpt-5-nano',
     label: 'Lite',
     badge: null,
-    desc:  'Fastest responses at the lowest cost. Great for simple queries, quick lookups, and routine tasks.',
-    pros:  ['Ultra-fast', 'Cost-efficient', 'Great for quick tasks'],
+    desc:  'Slow responses at the lowest cost. Great for simple queries, quick lookups, and routine tasks.',
+    pros:  ['Slow', 'Cost-efficient', 'Simple tasks'],
   },
   {
-    key:   'gpt-4.1-mini',
+    key:   'gpt-5-mini-2025-08-07',
     label: 'Standard',
     badge: null,
     desc:  'The best balance of speed and intelligence. Handles most business tasks with accuracy and efficiency.',
-    pros:  ['Balanced speed', 'Strong reasoning', 'Everyday tasks'],
+    pros:  ['Balanced speed', 'Strong reasoning', 'Everyday tasks', 'Cost-effective'],
   },
   {
-    key:   'gpt-4o',
+    key:   'gpt-5.2',
     label: 'Pro',
     badge: null,
     desc:  'Advanced reasoning for complex analysis, multi-step workflows, and nuanced business decisions.',
     pros:  ['Deep analysis', 'Multi-step logic', 'Complex queries'],
   },
   {
-    key:   'gpt-4.1',
+    key:   'gpt-5.4',
     label: 'Supra',
     badge: 'Best',
     desc:  'The most capable model. Use for high-stakes decisions, intricate data analysis, and demanding tasks.',
@@ -99,7 +99,7 @@ function ModelSelector({
   const [selectorOpen, setSelectorOpen] = useState(false);
 
   const selectedMeta = MODELS.find(m => m.key === selectedModel)!;
-  const isGold = (key: string) => key === 'gpt-4.1';
+  const isGold = (key: string) => key === 'gpt-5.4';
   const accentColor = (key: string) => isGold(key) ? '#f59e0b' : '#E84545';
 
   const handleRowClick = (key: ModelKey) => {
@@ -318,7 +318,7 @@ export function AIWorkerWidget({
   const [input,          setInput]          = useState('');
   const [showClear,      setShowClear]      = useState(false);
   const [isMobile,       setIsMobile]       = useState(false);
-  const [selectedModel,  setSelectedModel]  = useState<ModelKey>('gpt-4.1-mini');
+  const [selectedModel,  setSelectedModel]  = useState<ModelKey>('gpt-5-mini-2025-08-07');
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);

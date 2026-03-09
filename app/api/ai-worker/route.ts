@@ -1,19 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies, headers } from 'next/headers';
 import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
 
-import { verifyToken }    from '@/lib/auth/jwt';
-import { aiWorkerTools }  from '@/lib/ai-worker/tools';
+import { verifyToken }             from '@/lib/auth/jwt';
+import { aiWorkerTools }           from '@/lib/ai-worker/tools';
 import { executeTool, ExecutorContext } from '@/lib/ai-worker/executor';
-import { expandShorthand } from '@/lib/ai-worker/shorthand';
+import { expandShorthand }         from '@/lib/ai-worker/shorthand';
+import { getAIClient }             from '@/lib/ai-worker/getAIClient';
 
-const client = new OpenAI();
-
-// ─── Max agentic steps before giving up ───────────────────────────────────────
+// ─── Max agentic steps ────────────────────────────────────────────────────────
 const MAX_STEPS = 16;
 
-// ─── Allowed models (whitelist to prevent arbitrary injection) ─────────────────
-const ALLOWED_MODELS = new Set([
+// ─── Allowed models (both providers) ─────────────────────────────────────────
+const ALLOWED_OPENAI_MODELS = new Set([
   'gpt-5-nano',
   'gpt-4o',
   'gpt-4.1-mini',
@@ -23,9 +23,17 @@ const ALLOWED_MODELS = new Set([
   'gpt-5.4',
 ]);
 
-const DEFAULT_MODEL = 'gpt-5-mini';
+const ALLOWED_ANTHROPIC_MODELS = new Set([
+  'claude-haiku-4-5-20251001',
+  'claude-sonnet-4-5',
+  'claude-sonnet-4-6',
+  'claude-opus-4-5',
+]);
 
-// ─── System prompt ─────────────────────────────────────────────────────────────
+const DEFAULT_OPENAI_MODEL    = 'gpt-5-mini';
+const DEFAULT_ANTHROPIC_MODEL = 'claude-sonnet-4-5';
+
+// ─── System prompt ────────────────────────────────────────────────────────────
 const SYSTEM_PROMPT = `You are the AutoCity ERP AI assistant — an efficient, accurate staff member managing business operations.
 
 Today's date: ${new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.
@@ -55,14 +63,14 @@ Messages starting with "Create a new sale…", "Create a new purchase…", "Crea
 - "Create a new customer first" → call create_customer, then immediately use the returned id.
 - "Create a new supplier first" → call create_supplier, then immediately use the returned id.
 
-## Core rules (read carefully)
+## Core rules
 1. **NEVER fabricate IDs.** IDs are 24-character MongoDB strings like "6642a1f3e4b0c72d88f1a3b9".
    If you do not have a result from a search/create tool IN THIS RESPONSE's tool calls, you MUST
    call the search tool again — even if you think you know the ID from earlier in the conversation.
-   History does not preserve IDs reliably. Always re-search before every write operation.2. **On not-found (0 results):** tell the user and ask to verify — do NOT retry.
+2. **On not-found (0 results):** tell the user and ask to verify — do NOT retry.
 3. **Parallel tool calls:** run search_customers + search_products in parallel when needed.
 4. **Walk-in sales:** use customerId="walk-in", customerName="Walk-In Customer".
-   **if the user is providing a mobile number, create a new walk-in customer with that mobile number as customerId and use the returned ID.**
+   If the user provides a mobile number, create a new walk-in customer with that number.
 5. **amountPaid:** omit for full payment. Set to 0 for CREDIT transactions.
 6. **Default payment method:** CARD unless stated otherwise.
 7. **SKU:** auto-generated — never ask the user.
@@ -86,7 +94,6 @@ Shall I proceed?
 ---
 
 Only call the write tool AFTER the user replies with an affirmative (yes / confirm / proceed / ok / go ahead).
-If the user requests changes, update the plan and show the summary again before proceeding.
 Exception: if the user's message already contains an explicit "confirm" or "yes proceed" at the start, skip the confirmation prompt.
 
 ## Workflows
@@ -132,50 +139,135 @@ Exception: if the user's message already contains an explicit "confirm" or "yes 
 
 ### Summary / report
 1. get_summary — use type="all" unless user asks for specific type
-
 `;
 
-// ─── Helper: strip tool/tool_calls messages ────────────────────────────────────
-// tool messages must always be paired with a preceding tool_calls message.
-// When history is serialised and deserialised (e.g. via Telegram sessions) those
-// pairs can be broken, causing a 400 from OpenAI. We sanitize at both entry and
-// exit to guarantee clean history at all times.
-function sanitize(
+// ─── Type guards: narrow OpenAI SDK discriminated unions ─────────────────────
+// ChatCompletionTool is a union of { type:'function' } and { type:'custom' }.
+// ChatCompletionMessageToolCall is the same pattern.
+// TypeScript requires narrowing before accessing `.function`.
+
+type FunctionTool = OpenAI.Chat.ChatCompletionTool & {
+  type:     'function';
+  function: OpenAI.FunctionDefinition;
+};
+
+type FunctionToolCall = OpenAI.Chat.ChatCompletionMessageToolCall & {
+  type:     'function';
+  function: { name: string; arguments: string };
+};
+
+function isFunctionTool(t: OpenAI.Chat.ChatCompletionTool): t is FunctionTool {
+  return t.type === 'function';
+}
+
+function isFunctionToolCall(
+  tc: OpenAI.Chat.ChatCompletionMessageToolCall,
+): tc is FunctionToolCall {
+  return tc.type === 'function';
+}
+
+// ─── OpenAI tool format → Anthropic tool format ───────────────────────────────
+function toAnthropicTools(
+  openaiTools: OpenAI.Chat.ChatCompletionTool[],
+): Anthropic.Tool[] {
+  return openaiTools
+    .filter(isFunctionTool)
+    .map(t => ({
+      name:         t.function.name,
+      description:  t.function.description ?? '',
+      input_schema: t.function.parameters as Anthropic.Tool['input_schema'],
+    }));
+}
+
+// ─── Message sanitizer (OpenAI format) ────────────────────────────────────────
+function sanitizeOpenAI(
   messages: OpenAI.Chat.ChatCompletionMessageParam[],
 ): OpenAI.Chat.ChatCompletionMessageParam[] {
-  // Build a set of tool_call_ids that have a preceding assistant tool_calls message
-  const coveredToolCallIds = new Set<string>();
-
+  const coveredIds = new Set<string>();
   for (const m of messages) {
     if (m.role === 'assistant' && (m as any).tool_calls?.length) {
-      for (const tc of (m as any).tool_calls) {
-        coveredToolCallIds.add(tc.id);
-      }
+      for (const tc of (m as any).tool_calls) coveredIds.add(tc.id);
     }
   }
-
-  return messages.filter((m) => {
-    // Always keep user messages
+  return messages.filter(m => {
     if (m.role === 'user') return true;
-
-    // Keep assistant messages that have text content
-    if (m.role === 'assistant' && typeof m.content === 'string' && m.content.trim() !== '') return true;
-
-    // Keep assistant messages that have tool_calls (they will be paired below)
+    if (m.role === 'assistant' && typeof m.content === 'string' && m.content.trim()) return true;
     if (m.role === 'assistant' && (m as any).tool_calls?.length) return true;
-
-    // Keep tool messages only if their tool_call_id is covered
-    if (m.role === 'tool' && coveredToolCallIds.has((m as any).tool_call_id)) return true;
-
-    // Drop everything else (orphaned tool messages, empty assistant messages)
+    if (m.role === 'tool' && coveredIds.has((m as any).tool_call_id)) return true;
     return false;
   });
 }
 
-// ─── Route ─────────────────────────────────────────────────────────────────────
+// ─── Convert OpenAI history → Anthropic messages ─────────────────────────────
+// The client sends OpenAI-format history. We normalise it for Anthropic.
+function toAnthropicMessages(
+  messages: OpenAI.Chat.ChatCompletionMessageParam[],
+): Anthropic.MessageParam[] {
+  const result: Anthropic.MessageParam[] = [];
+
+  for (const m of messages) {
+    if (m.role === 'system') continue; // handled as system param
+
+    if (m.role === 'user') {
+      result.push({ role: 'user', content: typeof m.content === 'string' ? m.content : '' });
+      continue;
+    }
+
+    if (m.role === 'assistant') {
+      const toolCalls = (m as any).tool_calls as OpenAI.Chat.ChatCompletionMessageToolCall[] | undefined;
+      if (toolCalls?.length) {
+        // Narrow each tool call to the 'function' variant before accessing .function
+        const functionCalls = toolCalls.filter(isFunctionToolCall);
+        result.push({
+          role: 'assistant',
+          content: functionCalls.map(tc => ({
+            type:  'tool_use' as const,
+            id:    tc.id,
+            name:  tc.function.name,
+            input: (() => { try { return JSON.parse(tc.function.arguments); } catch { return {}; } })(),
+          })),
+        });
+      } else {
+        const text = typeof m.content === 'string' ? m.content : '';
+        if (text) result.push({ role: 'assistant', content: text });
+      }
+      continue;
+    }
+
+    if (m.role === 'tool') {
+      // Tool results must follow an assistant tool_use block — group them together
+      const last = result[result.length - 1];
+      const toolResult: Anthropic.ToolResultBlockParam = {
+        type:        'tool_result',
+        tool_use_id: (m as any).tool_call_id,
+        content:     typeof m.content === 'string' ? m.content : '',
+      };
+      if (last?.role === 'user' && Array.isArray(last.content)) {
+        (last.content as any[]).push(toolResult);
+      } else {
+        result.push({ role: 'user', content: [toolResult] });
+      }
+    }
+  }
+
+  return result;
+}
+
+// ─── Convert Anthropic response → OpenAI-compatible updatedMessages ──────────
+function anthropicToOpenAIHistory(
+  prevMessages: OpenAI.Chat.ChatCompletionMessageParam[],
+  assistantText: string,
+): OpenAI.Chat.ChatCompletionMessageParam[] {
+  return [
+    ...prevMessages,
+    { role: 'assistant' as const, content: assistantText },
+  ];
+}
+
+// ─── Route ────────────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
   try {
-    // Auth
+    // ── Auth ────────────────────────────────────────────────────────────────
     const token = cookies().get('auth-token')?.value;
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -183,9 +275,10 @@ export async function POST(request: NextRequest) {
     try { user = verifyToken(token); }
     catch { return NextResponse.json({ error: 'Invalid token' }, { status: 401 }); }
 
-    if (!user.outletId) return NextResponse.json({ error: 'No outlet associated with this account' }, { status: 401 });
+    if (!user.outletId)
+      return NextResponse.json({ error: 'No outlet associated with this account' }, { status: 401 });
 
-    // Build base URL for internal API calls
+    // ── Build base URL ───────────────────────────────────────────────────────
     const headersList = headers();
     const host        = headersList.get('host') ?? 'localhost:3000';
     const protocol    = host.startsWith('localhost') || host.startsWith('127.') ? 'http' : 'https';
@@ -198,24 +291,29 @@ export async function POST(request: NextRequest) {
       baseUrl,
     };
 
-    // Parse request
+    // ── Parse request ────────────────────────────────────────────────────────
     const { messages: clientMessages, model: clientModel } = await request.json() as {
       messages: OpenAI.Chat.ChatCompletionMessageParam[];
       model?:   string;
     };
 
-    // ✅ Sanitize incoming history — remove any tool/tool_calls messages that
-    // cannot be safely replayed without their paired counterparts.
-    const sanitizedMessages = sanitize(clientMessages);
+    // ── Resolve provider + client from DB (falls back to env) ───────────────
+    const { client, provider } = await getAIClient(user.outletId);
 
-    // Validate model — fall back to default if unknown/missing
-    const model = clientModel && ALLOWED_MODELS.has(clientModel) ? clientModel : DEFAULT_MODEL;
+    console.log(`[AI Worker] provider=${provider}`);
 
-    console.log(`[AI Worker] Using model: ${model}`);
+    // ── Validate / default model ─────────────────────────────────────────────
+    const allowedModels = provider === 'anthropic' ? ALLOWED_ANTHROPIC_MODELS : ALLOWED_OPENAI_MODELS;
+    const defaultModel  = provider === 'anthropic' ? DEFAULT_ANTHROPIC_MODEL  : DEFAULT_OPENAI_MODEL;
+    const model         = clientModel && allowedModels.has(clientModel) ? clientModel : defaultModel;
 
-    // Expand shorthand in the last user message
-    const processedMessages = sanitizedMessages.map((msg, idx) => {
-      const isLastUser = idx === sanitizedMessages.length - 1 && msg.role === 'user';
+    console.log(`[AI Worker] model=${model}`);
+
+    // ── Sanitize + expand shorthand ──────────────────────────────────────────
+    const sanitized = sanitizeOpenAI(clientMessages);
+
+    const processedMessages = sanitized.map((msg, idx) => {
+      const isLastUser = idx === sanitized.length - 1 && msg.role === 'user';
       if (!isLastUser) return msg;
       const content = typeof msg.content === 'string' ? msg.content : null;
       if (!content) return msg;
@@ -225,84 +323,192 @@ export async function POST(request: NextRequest) {
       return { ...msg, content: expanded };
     });
 
-    let currentMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-      { role: 'system', content: SYSTEM_PROMPT },
-      ...processedMessages,
-    ];
-
-    // Agentic loop
-    for (let step = 0; step < MAX_STEPS; step++) {
-      const response = await client.chat.completions.create({
+    // ════════════════════════════════════════════════════════════════════════
+    // ANTHROPIC PATH
+    // ════════════════════════════════════════════════════════════════════════
+    if (provider === 'anthropic') {
+      return await runAnthropicLoop(
+        client as Anthropic,
         model,
-        messages:    currentMessages,
-        tools:       aiWorkerTools,
-        tool_choice: 'auto',
-      });
-
-      const choice  = response.choices[0];
-      const message = choice.message;
-
-      // Model wants to call tools
-      if (choice.finish_reason === 'tool_calls' && message.tool_calls?.length) {
-        currentMessages = [...currentMessages, message];
-
-        // Execute all tool calls in this step in parallel
-        const toolResults = await Promise.all(
-          message.tool_calls
-            .filter((tc): tc is OpenAI.Chat.ChatCompletionMessageToolCall & { type: 'function' } =>
-              tc.type === 'function')
-            .map(async (toolCall) => {
-              let toolInput: Record<string, any> = {};
-              try { toolInput = JSON.parse(toolCall.function.arguments); } catch { /* malformed args */ }
-
-              console.log(`[AI Worker] step=${step} tool=${toolCall.function.name}`, toolInput);
-
-              const result = await executeTool(toolCall.function.name, toolInput, ctx);
-
-              if (!result.success) {
-                console.warn(`[AI Worker] tool=${toolCall.function.name} FAILED: ${result.message}`);
-              }
-
-              return {
-                role:         'tool' as const,
-                tool_call_id: toolCall.id,
-                content:      JSON.stringify(result),
-              };
-            }),
-        );
-
-        currentMessages = [...currentMessages, ...toolResults];
-        continue;
-      }
-
-      // Model produced a final text response
-      const text = message.content ?? 'Done.';
-
-      // ✅ Sanitize output — strip tool/tool_calls before returning to caller
-      // so Telegram sessions never accumulate unpayable message pairs.
-      const updatedMessages = [
-        ...sanitize(currentMessages.slice(1)),
-        { role: 'assistant' as const, content: text },
-      ];
-
-      return NextResponse.json({ message: text, updatedMessages });
+        processedMessages,
+        ctx,
+      );
     }
 
-    // Exceeded step limit
-    const timeoutMsg = 'This request required too many steps to complete. Please try rephrasing or breaking it into smaller tasks.';
-    return NextResponse.json({
-      message:         timeoutMsg,
-      updatedMessages: [
-        ...sanitize(currentMessages.slice(1)),
-        { role: 'assistant' as const, content: timeoutMsg },
-      ],
-    });
+    // ════════════════════════════════════════════════════════════════════════
+    // OPENAI PATH (original)
+    // ════════════════════════════════════════════════════════════════════════
+    return await runOpenAILoop(
+      client as OpenAI,
+      model,
+      processedMessages,
+      ctx,
+    );
 
   } catch (err: any) {
     console.error('[AI Worker] Unhandled error:', err);
     return NextResponse.json(
       { error: err.message ?? 'Internal server error' },
-      { status: 500 }
+      { status: 500 },
     );
   }
+}
+
+// ─── OpenAI agentic loop ──────────────────────────────────────────────────────
+async function runOpenAILoop(
+  client:     OpenAI,
+  model:      string,
+  messages:   OpenAI.Chat.ChatCompletionMessageParam[],
+  ctx:        ExecutorContext,
+): Promise<NextResponse> {
+  let currentMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+    { role: 'system', content: SYSTEM_PROMPT },
+    ...messages,
+  ];
+
+  for (let step = 0; step < MAX_STEPS; step++) {
+    const response = await client.chat.completions.create({
+      model,
+      messages:    currentMessages,
+      tools:       aiWorkerTools,
+      tool_choice: 'auto',
+    });
+
+    const choice  = response.choices[0];
+    const message = choice.message;
+
+    if (choice.finish_reason === 'tool_calls' && message.tool_calls?.length) {
+      currentMessages = [...currentMessages, message];
+
+      const toolResults = await Promise.all(
+        message.tool_calls
+          .filter(isFunctionToolCall)
+          .map(async toolCall => {
+            let toolInput: Record<string, any> = {};
+            try { toolInput = JSON.parse(toolCall.function.arguments); } catch { /* */ }
+
+            console.log(`[AI Worker/OpenAI] step=${step} tool=${toolCall.function.name}`, toolInput);
+            const result = await executeTool(toolCall.function.name, toolInput, ctx);
+            if (!result.success) console.warn(`[AI Worker/OpenAI] tool FAILED: ${result.message}`);
+
+            return {
+              role:         'tool' as const,
+              tool_call_id: toolCall.id,
+              content:      JSON.stringify(result),
+            };
+          }),
+      );
+
+      currentMessages = [...currentMessages, ...toolResults];
+      continue;
+    }
+
+    const text = message.content ?? 'Done.';
+    const updatedMessages = [
+      ...sanitizeOpenAI(currentMessages.slice(1)),
+      { role: 'assistant' as const, content: text },
+    ];
+
+    return NextResponse.json({ message: text, updatedMessages });
+  }
+
+  const timeoutMsg = 'This request required too many steps. Please try rephrasing or breaking it into smaller tasks.';
+  return NextResponse.json({
+    message: timeoutMsg,
+    updatedMessages: [
+      ...sanitizeOpenAI(messages),
+      { role: 'assistant' as const, content: timeoutMsg },
+    ],
+  });
+}
+
+// ─── Anthropic agentic loop ───────────────────────────────────────────────────
+async function runAnthropicLoop(
+  client:     Anthropic,
+  model:      string,
+  messages:   OpenAI.Chat.ChatCompletionMessageParam[],
+  ctx:        ExecutorContext,
+): Promise<NextResponse> {
+  // We keep OpenAI-format history for the response (client always expects that format)
+  // and convert on each call to Anthropic format.
+  let openaiHistory = [...messages];
+  const anthropicTools = toAnthropicTools(aiWorkerTools);
+
+  for (let step = 0; step < MAX_STEPS; step++) {
+    const anthropicMessages = toAnthropicMessages(openaiHistory);
+
+    const response = await client.messages.create({
+      model,
+      max_tokens: 4096,
+      system:     SYSTEM_PROMPT,
+      messages:   anthropicMessages,
+      tools:      anthropicTools,
+    });
+
+    const stopReason = response.stop_reason;
+
+    // ── Tool use ──────────────────────────────────────────────────────────
+    if (stopReason === 'tool_use') {
+      const toolUseBlocks = response.content.filter(
+        (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use',
+      );
+
+      // Add assistant tool_calls to OpenAI-format history (for output serialisation)
+      const assistantToolCallMsg: OpenAI.Chat.ChatCompletionMessageParam = {
+        role:       'assistant',
+        content:    null as any,
+        tool_calls: toolUseBlocks.map(b => ({
+          id:       b.id,
+          type:     'function' as const,
+          function: {
+            name:      b.name,
+            arguments: JSON.stringify(b.input),
+          },
+        })),
+      };
+      openaiHistory = [...openaiHistory, assistantToolCallMsg];
+
+      // Execute all tool calls in parallel
+      const toolResults = await Promise.all(
+        toolUseBlocks.map(async block => {
+          const toolInput = (block.input ?? {}) as Record<string, any>;
+          console.log(`[AI Worker/Anthropic] step=${step} tool=${block.name}`, toolInput);
+          const result = await executeTool(block.name, toolInput, ctx);
+          if (!result.success) console.warn(`[AI Worker/Anthropic] tool FAILED: ${result.message}`);
+
+          // OpenAI-format tool result for history
+          return {
+            role:         'tool' as const,
+            tool_call_id: block.id,
+            content:      JSON.stringify(result),
+          };
+        }),
+      );
+
+      openaiHistory = [...openaiHistory, ...toolResults];
+      continue;
+    }
+
+    // ── Text response ─────────────────────────────────────────────────────
+    const textBlock = response.content.find(
+      (b): b is Anthropic.TextBlock => b.type === 'text',
+    );
+    const text = textBlock?.text ?? 'Done.';
+
+    const updatedMessages = [
+      ...sanitizeOpenAI(openaiHistory),
+      { role: 'assistant' as const, content: text },
+    ];
+
+    return NextResponse.json({ message: text, updatedMessages });
+  }
+
+  const timeoutMsg = 'This request required too many steps. Please try rephrasing or breaking it into smaller tasks.';
+  return NextResponse.json({
+    message: timeoutMsg,
+    updatedMessages: [
+      ...sanitizeOpenAI(messages),
+      { role: 'assistant' as const, content: timeoutMsg },
+    ],
+  });
 }

@@ -6,14 +6,18 @@ import {
   useState,
   useCallback,
   useEffect,
+  useRef,
   ReactNode,
 } from 'react';
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+export type AIProvider = 'openai' | 'anthropic' | null;
+
 export type ChatMessage = {
-  role: 'user' | 'assistant';
-  content: string;
+  role:      'user' | 'assistant';
+  content:   string;
   timestamp: Date;
-  isError?: boolean;
+  isError?:  boolean;
 };
 
 export type OcrItem = {
@@ -26,13 +30,23 @@ export type OcrItem = {
 };
 
 type AIWorkerContextType = {
+  // Chat state
   messages:         ChatMessage[];
   isOpen:           boolean;
   isLoading:        boolean;
   ocrModalOpen:     boolean;
+
+  // Theme
   isDark:           boolean;
+
+  // Auth / provider
   isAuthenticated:  boolean;
+  isWidgetEnabled:  boolean;
+  activeProvider:   AIProvider;
+
+  // Actions
   setAuthenticated: (v: boolean) => void;
+  refreshProvider:  () => void;
   toggleOpen:       () => void;
   openOcrModal:     () => void;
   closeOcrModal:    () => void;
@@ -41,16 +55,17 @@ type AIWorkerContextType = {
   clearHistory:     () => void;
 };
 
+// ─── Context ──────────────────────────────────────────────────────────────────
 const AIWorkerContext = createContext<AIWorkerContextType | null>(null);
 
+// ─── Welcome message ──────────────────────────────────────────────────────────
 const WELCOME: ChatMessage = {
   role:      'assistant',
   content:   "Hi! I'm your AutoCity AI assistant. I can record **sales**, **purchases**, and **expenses** — just tell me what happened.\n\nTry: *\"Sold 2 brake pads to Ahmed for QAR 150 each\"*",
   timestamp: new Date(),
 };
 
-const DEFAULT_MODEL = 'gpt-4o-mini';
-
+// ─── Time-based theme ─────────────────────────────────────────────────────────
 function useTimeBasedTheme() {
   const [isDark, setIsDark] = useState(true);
   useEffect(() => {
@@ -65,43 +80,100 @@ function useTimeBasedTheme() {
   return isDark;
 }
 
+// ─── Provider ─────────────────────────────────────────────────────────────────
 export function AIWorkerProvider({ children }: { children: ReactNode }) {
   const isDark = useTimeBasedTheme();
 
-  const [isOpen,          setIsOpen]        = useState(false);
-  const [isLoading,       setIsLoading]     = useState(false);
-  const [messages,        setMessages]      = useState<ChatMessage[]>([WELCOME]);
-  const [apiMessages,     setApiMessages]   = useState<any[]>([]);
-  const [ocrModalOpen,    setOcrModalOpen]  = useState(false);
-  const [isAuthenticated, setAuthenticated] = useState(false);
+  // Chat UI state
+  const [isOpen,       setIsOpen]       = useState(false);
+  const [isLoading,    setIsLoading]    = useState(false);
+  const [messages,     setMessages]     = useState<ChatMessage[]>([WELCOME]);
+  const [ocrModalOpen, setOcrModalOpen] = useState(false);
 
-  const sendMessage = useCallback(async (text: string, model: string = DEFAULT_MODEL) => {
+  // Raw API history kept in a ref to avoid stale closures in sendMessage
+  const apiHistoryRef = useRef<any[]>([]);
+
+  // Auth + provider
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isWidgetEnabled, setIsWidgetEnabled] = useState(false);
+  const [activeProvider,  setActiveProvider]  = useState<AIProvider>(null);
+  const [providerTick,    setProviderTick]     = useState(0);
+
+  // ── Fetch provider status on auth change or explicit refresh ─────────────────
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setIsWidgetEnabled(false);
+      setActiveProvider(null);
+      return;
+    }
+    fetch('/api/ai-provider', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : { configs: [] })
+      .then((data: { configs: any[] }) => {
+        const active = data.configs?.find((c: any) => c.isActive);
+        setIsWidgetEnabled(active?.widgetEnabled === true);
+        setActiveProvider(active?.provider ?? null);
+      })
+      .catch(() => {
+        setIsWidgetEnabled(false);
+        setActiveProvider(null);
+      });
+  }, [isAuthenticated, providerTick]);
+
+  // ── Primitive actions ─────────────────────────────────────────────────────────
+  const setAuthenticated = useCallback((v: boolean) => setIsAuthenticated(v), []);
+  const refreshProvider  = useCallback(() => setProviderTick(t => t + 1), []);
+  const toggleOpen       = useCallback(() => setIsOpen(v => !v), []);
+  const openOcrModal     = useCallback(() => setOcrModalOpen(true),  []);
+  const closeOcrModal    = useCallback(() => setOcrModalOpen(false), []);
+
+  const clearHistory = useCallback(() => {
+    setMessages([WELCOME]);
+    apiHistoryRef.current = [];
+  }, []);
+
+  // ── sendMessage ───────────────────────────────────────────────────────────────
+  const sendMessage = useCallback(async (text: string, model?: string) => {
     if (!text.trim() || isLoading) return;
 
-    const userMsg: ChatMessage = { role: 'user', content: text, timestamp: new Date() };
-    setMessages(prev => [...prev, userMsg]);
+    setMessages(prev => [
+      ...prev,
+      { role: 'user', content: text, timestamp: new Date() },
+    ]);
     setIsLoading(true);
 
-    const next = [...apiMessages, { role: 'user', content: text }];
+    const next = [...apiHistoryRef.current, { role: 'user', content: text }];
+
     try {
       const res = await fetch('/api/ai-worker', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ messages: next, model }),
+        method:      'POST',
+        headers:     { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body:        JSON.stringify({ messages: next, model }),
       });
-      if (!res.ok) throw new Error(`Server error ${res.status}`);
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Server error ${res.status}`);
+      }
+
       const data = await res.json();
-      setApiMessages(data.updatedMessages);
+
+      // Persist returned history (sanitised by the server)
+      apiHistoryRef.current = data.updatedMessages ?? [
+        ...next,
+        { role: 'assistant', content: data.message },
+      ];
+
       setMessages(prev => [
         ...prev,
         { role: 'assistant', content: data.message, timestamp: new Date() },
       ]);
-    } catch {
+    } catch (err: any) {
       setMessages(prev => [
         ...prev,
         {
           role:      'assistant',
-          content:   'Something went wrong. Please try again.',
+          content:   err.message || 'Something went wrong. Please try again.',
           timestamp: new Date(),
           isError:   true,
         },
@@ -109,19 +181,22 @@ export function AIWorkerProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [apiMessages, isLoading]);
+  }, [isLoading]);
 
+  // ── sendOcrPurchase ───────────────────────────────────────────────────────────
   const sendOcrPurchase = useCallback(async (
-    items: OcrItem[],
+    items:         OcrItem[],
     supplierName?: string,
     invoiceNote?:  string,
   ) => {
     if (!items.length) return;
     setIsOpen(true);
 
-    const lines = items.map((it, i) =>
-      `  ${i + 1}. "${it.name}"${it.sku ? ` (SKU: ${it.sku})` : ''} — qty ${it.quantity} ${it.unit} @ QAR ${it.unitPrice.toFixed(2)}${it.taxRate ? `, tax ${it.taxRate}%` : ''}`
-    ).join('\n');
+    const lines = items
+      .map((it, i) =>
+        `  ${i + 1}. "${it.name}"${it.sku ? ` (SKU: ${it.sku})` : ''} — qty ${it.quantity} ${it.unit} @ QAR ${it.unitPrice.toFixed(2)}${it.taxRate ? `, tax ${it.taxRate}%` : ''}`
+      )
+      .join('\n');
 
     const prompt = [
       'Please record a purchase from the scanned invoice.',
@@ -130,25 +205,25 @@ export function AIWorkerProvider({ children }: { children: ReactNode }) {
       `Items:\n${lines}`,
       'Payment method: CASH (change if needed).',
       'Use these exact items, quantities and prices — do not ask to confirm them again.',
-    ].filter(Boolean).join('\n');
+    ]
+      .filter(Boolean)
+      .join('\n');
 
-    await sendMessage(prompt, DEFAULT_MODEL);
-  }, [sendMessage]);
-
-  const clearHistory = useCallback(() => {
-    setMessages([WELCOME]);
-    setApiMessages([]);
-  }, []);
+    // Use provider-aware default model
+    const defaultModel = activeProvider === 'anthropic' ? 'claude-sonnet-4-5' : 'gpt-5-mini';
+    await sendMessage(prompt, defaultModel);
+  }, [sendMessage, activeProvider]);
 
   return (
-    <AIWorkerContext.Provider value={{
-      messages, isOpen, isLoading, ocrModalOpen, isDark,
-      isAuthenticated, setAuthenticated,
-      toggleOpen:    () => setIsOpen(v => !v),
-      openOcrModal:  () => setOcrModalOpen(true),
-      closeOcrModal: () => setOcrModalOpen(false),
-      sendMessage, sendOcrPurchase, clearHistory,
-    }}>
+    <AIWorkerContext.Provider
+      value={{
+        messages, isOpen, isLoading, ocrModalOpen, isDark,
+        isAuthenticated, isWidgetEnabled, activeProvider,
+        setAuthenticated, refreshProvider,
+        toggleOpen, openOcrModal, closeOcrModal,
+        sendMessage, sendOcrPurchase, clearHistory,
+      }}
+    >
       {children}
     </AIWorkerContext.Provider>
   );

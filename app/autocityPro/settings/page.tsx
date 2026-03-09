@@ -9,10 +9,11 @@ import {
   Mail, Phone, MapPin, MoreVertical, RefreshCw, Search, UserPlus, Store,
   Clock, Wifi, WifiOff, Sun, Moon, Bot, Eye, EyeOff, CheckCircle2,
   AlertCircle, Copy, ExternalLink, Zap, ToggleLeft, ToggleRight,
-  SendHorizonal,
+  SendHorizonal, Key,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-//settings
+import AIProviderTab from '@/components/settings/AIProviderTab';
+
 // ─── Time-based theme hook ────────────────────────────────────────────────────
 function useTimeBasedTheme() {
   const [isDark, setIsDark] = useState(true);
@@ -37,7 +38,6 @@ interface BotConfig {
   outletId: string;
   isActive: boolean;
   createdAt: string;
-  // botToken is never returned by the API — shown masked only
 }
 
 export default function SettingsPage() {
@@ -162,7 +162,6 @@ export default function SettingsPage() {
     emptyIcon:          isDark ? '#374151'                                            : '#d1d5db',
     emptyText:          isDark ? '#94a3b8'                                            : '#6b7280',
     loadingText:        isDark ? '#94a3b8'                                            : '#6b7280',
-    // Bot-specific tokens
     botCardBg:          isDark ? '#000000'                                            : '#ffffff',
     botCardBorder:      isDark ? '#1f2937'                                            : 'rgba(0,0,0,0.08)',
     botCardHover:       isDark ? '#E84545'                                            : 'rgba(232,69,69,0.40)',
@@ -184,9 +183,8 @@ export default function SettingsPage() {
     return () => { window.removeEventListener('resize', check); clearInterval(interval); };
   }, []);
 
-  // Fetch bot configs when tab is opened
   useEffect(() => {
-    if (activeTab === 'bots' && user?.role === 'ADMIN' || user?.role === 'SUPERADMIN') {
+    if ((activeTab === 'bots') && (user?.role === 'ADMIN' || user?.role === 'SUPERADMIN')) {
       fetchBotConfigs();
     }
   }, [activeTab, user]);
@@ -310,26 +308,21 @@ export default function SettingsPage() {
   };
 
   const handleRegisterWebhook = async (botId: string) => {
-  setWebhookRegistering(botId);
-
-  try {
-    const res = await fetch(`/api/telegram/${botId}?register=1`, {
-      credentials: 'include',
-    });
-
-    const data = await res.json();
-
-    if (data.ok) {
-      toast.success('Webhook registered! Bot is live.');
-    } else {
-      toast.error(data.description || 'Webhook registration failed');
+    setWebhookRegistering(botId);
+    try {
+      const res = await fetch(`/api/telegram/${botId}?register=1`, { credentials: 'include' });
+      const data = await res.json();
+      if (data.ok) {
+        toast.success('Webhook registered! Bot is live.');
+      } else {
+        toast.error(data.description || 'Webhook registration failed');
+      }
+    } catch {
+      toast.error('Failed to register webhook');
+    } finally {
+      setWebhookRegistering(null);
     }
-  } catch {
-    toast.error('Failed to register webhook');
-  } finally {
-    setWebhookRegistering(null);
-  }
-};
+  };
 
   const handleDeleteUser = async (userId: string) => {
     if (!confirm('Are you sure you want to delete this user?')) return;
@@ -391,6 +384,7 @@ export default function SettingsPage() {
     'users',
     ...(canCreateOutlet ? ['outlets'] : []),
     ...(canManageBots   ? ['bots']    : []),
+    ...(canManageBots   ? ['ai']      : []),
   ];
 
   return (
@@ -414,6 +408,7 @@ export default function SettingsPage() {
                   {activeTab === 'users'   && <>{filteredUsers.length} users · <span className="inline-flex items-center"><span className="w-1.5 h-1.5 bg-emerald-400 rounded-full mr-1 animate-pulse" />{onlineCount} online</span></>}
                   {activeTab === 'outlets' && `${outlets.length} outlets`}
                   {activeTab === 'bots'    && `${botConfigs.length} bot${botConfigs.length !== 1 ? 's' : ''} connected`}
+                  {activeTab === 'ai'      && 'AI provider settings'}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -457,9 +452,10 @@ export default function SettingsPage() {
                 <button key={tab} onClick={() => setActiveTab(tab)}
                   className={`flex-shrink-0 px-3 py-2 rounded-lg text-sm font-medium transition-all capitalize flex items-center gap-1.5 ${activeTab === tab ? 'bg-[#E84545] text-white' : ''}`}
                   style={activeTab !== tab ? { background: th.mobileBtnBg, color: th.mobileBtnText } : {}}>
-                  {tab === 'users'   && <><Users   className="h-4 w-4" />Users</>}
+                  {tab === 'users'   && <><Users     className="h-4 w-4" />Users</>}
                   {tab === 'outlets' && <><Building2 className="h-4 w-4" />Outlets</>}
-                  {tab === 'bots'    && <><Bot     className="h-4 w-4" />Bots</>}
+                  {tab === 'bots'    && <><Bot       className="h-4 w-4" />Bots</>}
+                  {tab === 'ai'      && <><Key       className="h-4 w-4" />AI</>}
                 </button>
               ))}
             </div>
@@ -524,6 +520,7 @@ export default function SettingsPage() {
                   {tab === 'users'   && <><Users     className="h-4 w-4" />Users</>}
                   {tab === 'outlets' && <><Building2 className="h-4 w-4" />Outlets</>}
                   {tab === 'bots'    && <><Bot       className="h-4 w-4" />Telegram Bots</>}
+                  {tab === 'ai'      && <><Key       className="h-4 w-4" />AI Provider</>}
                 </button>
               ))}
             </div>
@@ -803,8 +800,6 @@ export default function SettingsPage() {
           {/* ── Bots Tab ───────────────────────────────────────────────── */}
           {activeTab === 'bots' && canManageBots && (
             <div className="space-y-6">
-
-              {/* How-to banner */}
               <div className="rounded-xl p-4 flex items-start gap-3"
                 style={{ background: th.botBannerBg, border: `1px solid ${th.botBannerBorder}` }}>
                 <Zap className="h-5 w-5 flex-shrink-0 mt-0.5" style={{ color: '#E84545' }} />
@@ -819,14 +814,12 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* Loading */}
               {botLoading && (
                 <div className="flex items-center justify-center py-12">
                   <RefreshCw className="h-8 w-8 animate-spin text-[#E84545]" />
                 </div>
               )}
 
-              {/* Empty state */}
               {!botLoading && botConfigs.length === 0 && (
                 <div className="rounded-2xl p-12 text-center"
                   style={{ background: th.botCardBg, border: `1px solid ${th.botCardBorder}` }}>
@@ -843,7 +836,6 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              {/* Bot cards grid */}
               {!botLoading && botConfigs.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {botConfigs.map(bot => (
@@ -851,8 +843,6 @@ export default function SettingsPage() {
                       style={{ background: th.botCardBg, border: `1px solid ${bot.isActive ? 'rgba(232,69,69,0.35)' : th.botCardBorder}` }}
                       onMouseEnter={e => (e.currentTarget.style.borderColor = bot.isActive ? 'rgba(232,69,69,0.60)' : th.botCardHover)}
                       onMouseLeave={e => (e.currentTarget.style.borderColor = bot.isActive ? 'rgba(232,69,69,0.35)' : th.botCardBorder)}>
-
-                      {/* Card header */}
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex items-center gap-3">
                           <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -866,7 +856,6 @@ export default function SettingsPage() {
                             </p>
                           </div>
                         </div>
-                        {/* Status badge */}
                         <span className={`px-2.5 py-1 text-xs font-semibold rounded-full flex items-center gap-1.5 ${bot.isActive ? 'bg-emerald-900/30 text-emerald-400 border border-emerald-800/50' : 'bg-gray-800/50 text-gray-500 border border-gray-700'}`}>
                           {bot.isActive
                             ? <><span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />Live</>
@@ -874,8 +863,6 @@ export default function SettingsPage() {
                           }
                         </span>
                       </div>
-
-                      {/* Token row (masked) */}
                       <div className="rounded-lg px-3 py-2 mb-4 flex items-center gap-2"
                         style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', border: `1px solid ${th.botCardBorder}` }}>
                         <span className="text-xs font-mono flex-1 truncate" style={{ color: th.botCardSub }}>
@@ -883,10 +870,7 @@ export default function SettingsPage() {
                         </span>
                         <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(232,69,69,0.12)', color: '#E84545' }}>secured</span>
                       </div>
-
-                      {/* Actions */}
                       <div className="flex items-center gap-2 pt-3" style={{ borderTop: `1px solid ${th.botCardBorder}` }}>
-                        {/* Register webhook */}
                         <button
                           onClick={() => handleRegisterWebhook(bot._id)}
                           disabled={webhookRegistering === bot._id || !bot.isActive}
@@ -898,8 +882,6 @@ export default function SettingsPage() {
                           }
                           {webhookRegistering === bot._id ? 'Registering…' : 'Register Webhook'}
                         </button>
-
-                        {/* Toggle active */}
                         <button
                           onClick={() => handleToggleBot(bot._id, !bot.isActive)}
                           className="p-2 rounded-lg transition-all active:scale-95"
@@ -907,8 +889,6 @@ export default function SettingsPage() {
                           style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)', border: `1px solid ${th.botCardBorder}`, color: bot.isActive ? '#22c55e' : th.botCardSub }}>
                           {bot.isActive ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
                         </button>
-
-                        {/* Delete */}
                         <button
                           onClick={() => handleDeleteBot(bot._id)}
                           className="p-2 rounded-lg transition-all active:scale-95 text-gray-500 hover:text-red-400 hover:bg-red-900/20"
@@ -923,6 +903,12 @@ export default function SettingsPage() {
               )}
             </div>
           )}
+
+          {/* ── AI Provider Tab ────────────────────────────────────────── */}
+          {activeTab === 'ai' && canManageBots && (
+            <AIProviderTab isDark={isDark} outletId={user?.outletId ?? ''} />
+          )}
+
         </div>
 
         <div className="md:hidden h-24" />
@@ -1004,8 +990,6 @@ export default function SettingsPage() {
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'rgba(0,0,0,0.85)' }}>
           <div className="rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden"
             style={{ background: th.modalBg, border: `1px solid ${th.modalBorder}` }}>
-
-            {/* Modal header */}
             <div className="flex justify-between items-center px-6 py-5 bg-gradient-to-r from-[#932222] via-[#411010] to-[#a20c0c]">
               <div className="flex items-center gap-3">
                 <div className="bg-white/20 p-2 rounded-lg"><Bot className="h-6 w-6 text-white" /></div>
@@ -1017,38 +1001,24 @@ export default function SettingsPage() {
               <button onClick={() => { setShowBotModal(false); setBotForm({ name: '', botToken: '' }); setShowBotToken(false); }}
                 className="text-white/80 hover:text-white p-1"><X className="h-6 w-6" /></button>
             </div>
-
             <div className="p-6 space-y-5">
-              {/* Bot name */}
               <div>
                 <label className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>
                   Bot Name <span className="text-red-400">*</span>
                 </label>
-                <input
-                  type="text"
-                  value={botForm.name}
-                  onChange={e => setBotForm(f => ({ ...f, name: e.target.value }))}
-                  placeholder="e.g. AutoCity Gharafa Bot"
-                  className={modalInputCls}
-                  style={modalInputStyle}
-                />
+                <input type="text" value={botForm.name} onChange={e => setBotForm(f => ({ ...f, name: e.target.value }))}
+                  placeholder="e.g. AutoCity Gharafa Bot" className={modalInputCls} style={modalInputStyle} />
                 <p className="text-xs mt-1.5" style={{ color: th.inputHintText }}>A friendly label to identify this bot in the dashboard.</p>
               </div>
-
-              {/* Bot token */}
               <div>
                 <label className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>
                   Bot Token <span className="text-red-400">*</span>
                 </label>
                 <div className="relative">
-                  <input
-                    type={showBotToken ? 'text' : 'password'}
-                    value={botForm.botToken}
+                  <input type={showBotToken ? 'text' : 'password'} value={botForm.botToken}
                     onChange={e => setBotForm(f => ({ ...f, botToken: e.target.value }))}
                     placeholder="5823910472:AAF3kdjsf_Xk29dLmNpQrst..."
-                    className={`${modalInputCls} pr-12 font-mono text-sm`}
-                    style={modalInputStyle}
-                  />
+                    className={`${modalInputCls} pr-12 font-mono text-sm`} style={modalInputStyle} />
                   <button type="button" onClick={() => setShowBotToken(v => !v)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded transition-colors"
                     style={{ color: th.inputHintText }}>
@@ -1060,8 +1030,6 @@ export default function SettingsPage() {
                   The token is stored securely and never displayed again.
                 </p>
               </div>
-
-              {/* Info box */}
               <div className="rounded-xl p-4 flex items-start gap-3"
                 style={{ background: th.botBannerBg, border: `1px solid ${th.botBannerBorder}` }}>
                 <CheckCircle2 className="h-4 w-4 flex-shrink-0 mt-0.5 text-emerald-400" />
@@ -1070,7 +1038,6 @@ export default function SettingsPage() {
                   After connecting, click <strong>Register Webhook</strong> on the bot card to make it go live.
                 </p>
               </div>
-
               <div className="flex justify-end gap-3 pt-2" style={{ borderTop: `1px solid ${th.modalFtrBorder}` }}>
                 <button onClick={() => { setShowBotModal(false); setBotForm({ name: '', botToken: '' }); setShowBotToken(false); }}
                   className="px-5 py-2.5 rounded-lg font-medium transition-all"

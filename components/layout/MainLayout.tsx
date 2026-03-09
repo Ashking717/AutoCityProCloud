@@ -4,11 +4,12 @@ import { ReactNode, useEffect, useState } from 'react';
 import Sidebar from './Sidebar';
 import { useActivityTracker } from '@/hooks/useActivityTracker';
 import { useAIWorker } from '@/components/ai-worker/AIWorkerProvider';
+import { AIWorkerWidget } from '@/components/ai-worker/AIWorkerWidget';
 
 interface MainLayoutProps {
-  children:  ReactNode;
-  user:      any;
-  onLogout:  () => void;
+  children: ReactNode;
+  user:     any;
+  onLogout: () => void;
 }
 
 function useTimeBasedTheme() {
@@ -19,7 +20,7 @@ function useTimeBasedTheme() {
       setIsDark(hour < 6 || hour >= 18);
     };
     check();
-    const id = setInterval(check, 60000);
+    const id = setInterval(check, 60_000);
     return () => clearInterval(id);
   }, []);
   return isDark;
@@ -28,7 +29,8 @@ function useTimeBasedTheme() {
 export default function MainLayout({ children, user, onLogout }: MainLayoutProps) {
   useActivityTracker(true);
   const isDark = useTimeBasedTheme();
-  const { setAuthenticated } = useAIWorker();
+
+  const { setAuthenticated, isWidgetEnabled } = useAIWorker();
 
   // Signal auth state up to the root-level provider
   useEffect(() => {
@@ -39,9 +41,13 @@ export default function MainLayout({ children, user, onLogout }: MainLayoutProps
   return (
     <div className={`flex min-h-[100dvh] ${isDark ? 'bg-black text-white' : 'bg-white text-black'}`}>
       <Sidebar user={user} onLogout={onLogout} />
+
       <main className="flex-1 min-w-0 ml-0 md:ml-64 pb-20 md:pb-0">
         {children}
       </main>
+
+      {/* AI widget — only rendered when an active provider has widgetEnabled=true */}
+      {isWidgetEnabled && <AIWorkerWidget />}
 
       <style>{`
         html, body {

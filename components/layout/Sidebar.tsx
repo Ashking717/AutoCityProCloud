@@ -37,7 +37,6 @@ import {
   Moon,
 } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import Image from "next/image";
 
 interface SidebarProps {
   user: any;
@@ -225,16 +224,20 @@ type NavItem = { name: string; icon: any; href: string; roles: string[] };
 type NavSection = { title: string; items: NavItem[] };
 
 function SidebarHeader({
+  user,
   isDark,
   isDayTime,
   th,
   onShowHelp,
 }: {
+  user: any;
   isDark: boolean;
   isDayTime: boolean;
   th: ThemeTokens;
   onShowHelp: () => void;
 }) {
+  const outletName = user?.role === "SUPERADMIN" ? "" : user?.outletName || "";
+
   return (
     <div
       className="p-6 border-b transition-colors duration-500"
@@ -244,22 +247,16 @@ function SidebarHeader({
       }}
     >
       <div className="flex items-center space-x-3 mb-4">
-        <div
-          className="relative w-14 h-14 flex items-center justify-center rounded-xl shadow-lg ring-2"
-          style={{
-            background: isDark ? "rgba(245,245,245,0.9)" : "rgba(255,255,255,0.95)",
-            
-          }}
-        >
-          <Image src="/sidebar.png" alt="AutoCity Logo" width={60} height={60} className="rounded-lg" priority />
-        </div>
         <div className="flex-1">
-          <h2
-            className="text-xl font-bold tracking-tight"
-            style={{ color: isDark ? "#ffffff" : "#7f1d1d" }}
-          >
-            AutoCity
-          </h2>
+          {outletName && (
+            <h2
+              className="text-xl font-bold tracking-tight truncate"
+              style={{ color: isDark ? "#ffffff" : "#7f1d1d" }}
+              title={outletName}
+            >
+              {outletName}
+            </h2>
+          )}
         </div>
         <div
           className="flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-all duration-500"
@@ -1197,7 +1194,13 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           borderRight: `1px solid ${th.sidebarBorder}`,
         }}
       >
-        <SidebarHeader isDark={isDark} isDayTime={isDayTime} th={th} onShowHelp={() => setActiveOverlay('help')} />
+        <SidebarHeader
+          user={user}
+          isDark={isDark}
+          isDayTime={isDayTime}
+          th={th}
+          onShowHelp={() => setActiveOverlay('help')}
+        />
         {user && (
           <UserProfileSection
             user={user}

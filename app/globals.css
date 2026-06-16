@@ -8,6 +8,103 @@ html, body {
   -webkit-overflow-scrolling: touch;
 }
 
+:root {
+  --autocity-accent: #E84545;
+  --autocity-accent-strong: #cc3c3c;
+  --autocity-accent-rgb: 232 69 69;
+  --autocity-accent-strong-rgb: 204 60 60;
+  --autocity-header-from-dark: #932222;
+  --autocity-header-via-dark: #411010;
+  --autocity-header-to-dark: #a20c0c;
+  --autocity-header-from-light: #fef2f2;
+  --autocity-header-via-light: #fee2e2;
+  --autocity-header-to-light: #fecaca;
+  --autocity-header-text-light: #7f1d1d;
+  --autocity-header-sub-light: #991b1b;
+  --autocity-accent-02: rgba(232, 69, 69, 0.02);
+  --autocity-accent-03: rgba(232, 69, 69, 0.03);
+  --autocity-accent-04: rgba(232, 69, 69, 0.04);
+  --autocity-accent-05: rgba(232, 69, 69, 0.05);
+  --autocity-accent-06: rgba(232, 69, 69, 0.06);
+  --autocity-accent-07: rgba(232, 69, 69, 0.07);
+  --autocity-accent-08: rgba(232, 69, 69, 0.08);
+  --autocity-accent-10: rgba(232, 69, 69, 0.10);
+  --autocity-accent-12: rgba(232, 69, 69, 0.12);
+  --autocity-accent-14: rgba(232, 69, 69, 0.14);
+  --autocity-accent-15: rgba(232, 69, 69, 0.15);
+  --autocity-accent-18: rgba(232, 69, 69, 0.18);
+  --autocity-accent-20: rgba(232, 69, 69, 0.20);
+  --autocity-accent-25: rgba(232, 69, 69, 0.25);
+  --autocity-accent-30: rgba(232, 69, 69, 0.30);
+  --autocity-accent-35: rgba(232, 69, 69, 0.35);
+  --autocity-accent-40: rgba(232, 69, 69, 0.40);
+  --autocity-accent-45: rgba(232, 69, 69, 0.45);
+  --autocity-accent-50: rgba(232, 69, 69, 0.50);
+  --autocity-accent-60: rgba(232, 69, 69, 0.60);
+  --autocity-accent-70: rgba(232, 69, 69, 0.70);
+  --autocity-desktop-sidebar-width: 18rem;
+  --autocity-desktop-header-height: 10rem;
+}
+
+:root[data-visual-theme="yellow"] {
+  --autocity-accent: #f5b700;
+  --autocity-accent-strong: #d99a00;
+  --autocity-accent-rgb: 245 183 0;
+  --autocity-accent-strong-rgb: 217 154 0;
+  --autocity-header-from-dark: #8a5a00;
+  --autocity-header-via-dark: #3f2a00;
+  --autocity-header-to-dark: #b77900;
+  --autocity-header-from-light: #fffbeb;
+  --autocity-header-via-light: #fef3c7;
+  --autocity-header-to-light: #fde68a;
+  --autocity-header-text-light: #713f12;
+  --autocity-header-sub-light: #854d0e;
+  --autocity-accent-02: rgba(245, 183, 0, 0.02);
+  --autocity-accent-03: rgba(245, 183, 0, 0.03);
+  --autocity-accent-04: rgba(245, 183, 0, 0.04);
+  --autocity-accent-05: rgba(245, 183, 0, 0.05);
+  --autocity-accent-06: rgba(245, 183, 0, 0.06);
+  --autocity-accent-07: rgba(245, 183, 0, 0.07);
+  --autocity-accent-08: rgba(245, 183, 0, 0.08);
+  --autocity-accent-10: rgba(245, 183, 0, 0.10);
+  --autocity-accent-12: rgba(245, 183, 0, 0.12);
+  --autocity-accent-14: rgba(245, 183, 0, 0.14);
+  --autocity-accent-15: rgba(245, 183, 0, 0.15);
+  --autocity-accent-18: rgba(245, 183, 0, 0.18);
+  --autocity-accent-20: rgba(245, 183, 0, 0.20);
+  --autocity-accent-25: rgba(245, 183, 0, 0.25);
+  --autocity-accent-30: rgba(245, 183, 0, 0.30);
+  --autocity-accent-35: rgba(245, 183, 0, 0.35);
+  --autocity-accent-40: rgba(245, 183, 0, 0.40);
+  --autocity-accent-45: rgba(245, 183, 0, 0.45);
+  --autocity-accent-50: rgba(245, 183, 0, 0.50);
+  --autocity-accent-60: rgba(245, 183, 0, 0.60);
+  --autocity-accent-70: rgba(245, 183, 0, 0.70);
+}
+
+@media (min-width: 768px) {
+  .autocity-fixed-page-header,
+  [data-autocity-main] > div > div[class*="shadow"]:not([class*="rounded"]):not([class~="md:hidden"])[class*="border-b"],
+  [data-autocity-main] [class~="hidden"][class~="md:block"][class*="shadow"]:not([class*="rounded"])[class*="border-b"],
+  [data-autocity-main] [class~="hidden"][class~="md:block"][class*="shadow"]:not([class*="rounded"])[class*="bg-gradient-to-"] {
+    display: flex !important;
+    flex-direction: column;
+    justify-content: center;
+    height: var(--autocity-desktop-header-height);
+    min-height: var(--autocity-desktop-header-height);
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
+  .autocity-fixed-page-header > [class*="py-"],
+  [data-autocity-main] > div > div[class*="shadow"]:not([class*="rounded"]):not([class~="md:hidden"])[class*="border-b"] > [class*="py-"],
+  [data-autocity-main] [class~="hidden"][class~="md:block"][class*="shadow"]:not([class*="rounded"])[class*="border-b"] > [class*="py-"],
+  [data-autocity-main] [class~="hidden"][class~="md:block"][class*="shadow"]:not([class*="rounded"])[class*="bg-gradient-to-"] > [class*="py-"] {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+}
+
 @supports (-webkit-touch-callout: none) {
   html, body {
     min-height: 100vh;

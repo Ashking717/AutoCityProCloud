@@ -194,7 +194,7 @@ export default function JournalVouchersPage() {
             <div className="bg-black rounded-[28px] px-6 py-3 shadow-2xl border border-white/10 backdrop-blur-xl pointer-events-auto animate-in slide-in-from-top duration-500">
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
-                  <BookOpen className="h-3 w-3 text-[#E84545]" />
+                  <BookOpen className="h-3 w-3 text-[color:var(--autocity-accent)]" />
                   <span className="text-white text-xs font-semibold">{filteredVouchers.length}</span>
                 </div>
                 <div className="h-3 w-px bg-white/20"></div>
@@ -203,7 +203,7 @@ export default function JournalVouchersPage() {
                 </div>
                 <div className="h-3 w-px bg-white/20"></div>
                 <div className="flex items-center gap-1">
-                  <span className="text-[#E84545] text-xs font-medium">
+                  <span className="text-[color:var(--autocity-accent)] text-xs font-medium">
                     {formatCompactCurrency(totalJournalAmount)}
                   </span>
                 </div>
@@ -235,7 +235,7 @@ export default function JournalVouchersPage() {
                 >
                   <Filter className="h-4 w-4" />
                   {activeFiltersCount > 0 && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#E84545] rounded-full text-[10px] flex items-center justify-center">
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-[color:var(--autocity-accent)] rounded-full text-[10px] flex items-center justify-center">
                       {activeFiltersCount}
                     </span>
                   )}
@@ -256,14 +256,14 @@ export default function JournalVouchersPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search journal vouchers..."
-                className="w-full pl-10 pr-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/70 text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/70 text-sm focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
               />
             </div>
           </div>
         </div>
 
         {/* Desktop Header */}
-        <div className="hidden md:block py-12 bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-lg">
+        <div className="hidden md:block py-12 bg-gradient-to-br from-[var(--autocity-header-from-dark)] via-[var(--autocity-header-via-dark)] to-[var(--autocity-header-to-dark)] border-b border-white/5 shadow-lg">
           <div className="px-8">
             <div className="flex justify-between items-center">
               <div>
@@ -293,32 +293,32 @@ export default function JournalVouchersPage() {
         <div className="px-4 md:px-8 pt-[180px] md:pt-6 pb-6">
           {/* Stats Cards - Mobile Optimized */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
-            <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 hover:border-[#E84545]/30 transition-all active:scale-[0.98]">
+            <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 hover:border-[color:var(--autocity-accent-30)] transition-all active:scale-[0.98]">
               <div className="flex items-center justify-between mb-2">
-                <div className="p-2 bg-[#E84545]/10 rounded-xl">
-                  <BookOpen className="h-4 w-4 md:h-5 md:w-5 text-[#E84545]" />
+                <div className="p-2 bg-[color:var(--autocity-accent-10)] rounded-xl">
+                  <BookOpen className="h-4 w-4 md:h-5 md:w-5 text-[color:var(--autocity-accent)]" />
                 </div>
               </div>
               <p className="text-xs text-slate-400 mb-1">Total Vouchers</p>
               <p className="text-lg md:text-xl font-bold text-white">{filteredVouchers.length}</p>
             </div>
 
-            <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 hover:border-[#E84545]/30 transition-all active:scale-[0.98]">
+            <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 hover:border-[color:var(--autocity-accent-30)] transition-all active:scale-[0.98]">
               <div className="flex items-center justify-between mb-2">
-                <div className="p-2 bg-[#E84545]/10 rounded-xl">
-                  <FileText className="h-4 w-4 md:h-5 md:w-5 text-[#E84545]" />
+                <div className="p-2 bg-[color:var(--autocity-accent-10)] rounded-xl">
+                  <FileText className="h-4 w-4 md:h-5 md:w-5 text-[color:var(--autocity-accent)]" />
                 </div>
               </div>
               <p className="text-xs text-slate-400 mb-1">Total Amount</p>
-              <p className="text-lg md:text-xl font-bold text-[#E84545] truncate">
+              <p className="text-lg md:text-xl font-bold text-[color:var(--autocity-accent)] truncate">
                 {formatCompactCurrency(totalJournalAmount)}
               </p>
             </div>
 
-            <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 hover:border-[#E84545]/30 transition-all active:scale-[0.98]">
+            <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 hover:border-[color:var(--autocity-accent-30)] transition-all active:scale-[0.98]">
               <div className="flex items-center justify-between mb-2">
-                <div className="p-2 bg-[#E84545]/10 rounded-xl">
-                  <Clock className="h-4 w-4 md:h-5 md:w-5 text-[#E84545]" />
+                <div className="p-2 bg-[color:var(--autocity-accent-10)] rounded-xl">
+                  <Clock className="h-4 w-4 md:h-5 md:w-5 text-[color:var(--autocity-accent)]" />
                 </div>
               </div>
               <p className="text-xs text-slate-400 mb-1">Draft</p>
@@ -327,10 +327,10 @@ export default function JournalVouchersPage() {
               </p>
             </div>
 
-            <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 hover:border-[#E84545]/30 transition-all active:scale-[0.98]">
+            <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 hover:border-[color:var(--autocity-accent-30)] transition-all active:scale-[0.98]">
               <div className="flex items-center justify-between mb-2">
-                <div className="p-2 bg-[#E84545]/10 rounded-xl">
-                  <CheckCircle className="h-4 w-4 md:h-5 md:w-5 text-[#E84545]" />
+                <div className="p-2 bg-[color:var(--autocity-accent-10)] rounded-xl">
+                  <CheckCircle className="h-4 w-4 md:h-5 md:w-5 text-[color:var(--autocity-accent)]" />
                 </div>
               </div>
               <p className="text-xs text-slate-400 mb-1">Posted</p>
@@ -350,7 +350,7 @@ export default function JournalVouchersPage() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search by voucher #, narration..."
-                  className="w-full pl-10 pr-3 py-2.5 text-sm bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white placeholder-slate-400"
+                  className="w-full pl-10 pr-3 py-2.5 text-sm bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent text-white placeholder-slate-400"
                 />
               </div>
 
@@ -358,7 +358,7 @@ export default function JournalVouchersPage() {
                 <select
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value)}
-                  className="w-full px-3 py-2.5 text-sm bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white appearance-none"
+                  className="w-full px-3 py-2.5 text-sm bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent text-white appearance-none"
                 >
                   <option value="all">All Status</option>
                   <option value="draft">Draft</option>
@@ -380,7 +380,7 @@ export default function JournalVouchersPage() {
 
               <button
                 onClick={() => router.push('/autocityPro/vouchers/journal/new')}
-                className="px-4 py-2.5 text-sm bg-gradient-to-r from-[#E84545] to-[#cc3c3c] border border-[#E84545]/30 rounded-lg hover:from-[#cc3c3c] hover:to-[#E84545] transition-all text-white font-semibold flex items-center justify-center gap-2"
+                className="px-4 py-2.5 text-sm bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] border border-[color:var(--autocity-accent-30)] rounded-lg hover:from-[var(--autocity-accent-strong)] hover:to-[var(--autocity-accent)] transition-all text-white font-semibold flex items-center justify-center gap-2"
               >
                 <Plus className="h-4 w-4" />
                 <span>New Journal</span>
@@ -392,7 +392,7 @@ export default function JournalVouchersPage() {
           <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl shadow-xl overflow-hidden">
             {loading ? (
               <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#E84545]"></div>
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[color:var(--autocity-accent)]"></div>
               </div>
             ) : filteredVouchers.length === 0 ? (
               <div className="text-center py-12">
@@ -401,7 +401,7 @@ export default function JournalVouchersPage() {
                 {(filterType !== 'all' || filterStatus !== 'all' || searchTerm) && (
                   <button
                     onClick={clearFilters}
-                    className="mt-2 text-[#E84545] hover:text-[#cc3c3c] text-sm transition-colors"
+                    className="mt-2 text-[color:var(--autocity-accent)] hover:text-[color:var(--autocity-accent-strong)] text-sm transition-colors"
                   >
                     Clear filters
                   </button>
@@ -414,7 +414,7 @@ export default function JournalVouchersPage() {
                   {filteredVouchers.map((voucher) => (
                     <div
                       key={voucher._id}
-                      className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-xl p-4 hover:border-[#E84545]/30 transition-all active:scale-[0.98]"
+                      className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-xl p-4 hover:border-[color:var(--autocity-accent-30)] transition-all active:scale-[0.98]"
                     >
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex-1 min-w-0">
@@ -442,7 +442,7 @@ export default function JournalVouchersPage() {
                       <div className="flex justify-between items-center pt-3 border-t border-slate-700/50">
                         <div>
                           <span className="text-[10px] text-slate-500 uppercase block mb-1">Amount</span>
-                          <p className="text-sm font-semibold text-[#E84545]">
+                          <p className="text-sm font-semibold text-[color:var(--autocity-accent)]">
                             QAR {voucher.totalDebit?.toLocaleString() || '0'}
                           </p>
                         </div>
@@ -508,7 +508,7 @@ export default function JournalVouchersPage() {
                             {voucher.referenceNumber || '-'}
                           </td>
                           <td className="px-6 py-4">
-                            <p className="text-sm font-semibold text-[#E84545]">
+                            <p className="text-sm font-semibold text-[color:var(--autocity-accent)]">
                               QAR {voucher.totalDebit?.toLocaleString() || '0'}
                             </p>
                           </td>
@@ -602,7 +602,7 @@ export default function JournalVouchersPage() {
                 </button>
                 <button
                   onClick={() => setShowFilters(false)}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] rounded-lg text-white font-semibold active:scale-95 transition-all"
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] rounded-lg text-white font-semibold active:scale-95 transition-all"
                 >
                   Apply
                 </button>

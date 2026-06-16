@@ -96,15 +96,15 @@ export default function ProductsClient({
     cardBorder: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.08)',
     cardLabel:  isDark ? '#9ca3af' : '#6b7280',
     cardValue:  isDark ? '#ffffff' : '#111827',
-    headerBgFrom:    isDark ? '#932222' : '#fef2f2',
-    headerBgVia:     isDark ? '#411010' : '#fee2e2',
-    headerBgTo:      isDark ? '#a20c0c' : '#fecaca',
-    headerTitle:     isDark ? '#ffffff' : '#7f1d1d',
-    headerSub:       isDark ? 'rgba(255,255,255,0.80)' : '#991b1b',
+    headerBgFrom:    isDark ? 'var(--autocity-header-from-dark)' : 'var(--autocity-header-from-light)',
+    headerBgVia:     isDark ? 'var(--autocity-header-via-dark)' : 'var(--autocity-header-via-light)',
+    headerBgTo:      isDark ? 'var(--autocity-header-to-dark)' : 'var(--autocity-header-to-light)',
+    headerTitle:     isDark ? '#ffffff' : 'var(--autocity-header-text-light)',
+    headerSub:       isDark ? 'rgba(255,255,255,0.80)' : 'var(--autocity-header-sub-light)',
     headerBorder:    isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)',
     headerBtnBg:     isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)',
     headerBtnBorder: isDark ? 'rgba(255,255,255,0.20)' : 'rgba(0,0,0,0.15)',
-    headerBtnText:   isDark ? '#ffffff' : '#7f1d1d',
+    headerBtnText:   isDark ? '#ffffff' : 'var(--autocity-header-text-light)',
     shortcutsBg:     isDark ? 'rgba(10,10,12,0.90)' : 'rgba(255,255,255,0.90)',
     shortcutsBorder: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.10)',
     shortcutsText:   isDark ? '#9ca3af' : '#6b7280',
@@ -114,8 +114,8 @@ export default function ProductsClient({
     filterText:   isDark ? '#ffffff' : '#111827',
     filterLabel:  isDark ? '#d1d5db' : '#374151',
     filterDivider:isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)',
-    filterBtnBg:  isDark ? 'rgba(232,69,69,0.10)' : 'rgba(232,69,69,0.08)',
-    filterBtnBorder: isDark ? 'rgba(232,69,69,0.30)' : 'rgba(232,69,69,0.20)',
+    filterBtnBg:  isDark ? 'var(--autocity-accent-10)' : 'var(--autocity-accent-08)',
+    filterBtnBorder: isDark ? 'var(--autocity-accent-30)' : 'var(--autocity-accent-20)',
     containerBg:     isDark ? 'linear-gradient(135deg,#0A0A0A,#050505)' : '#ffffff',
     containerBorder: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)',
     tableHeadBg:     isDark ? '#050505' : '#f3f4f6',
@@ -458,10 +458,10 @@ export default function ProductsClient({
               </button>
             </div>
             <div className="relative">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-[#E84545]" />
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-[color:var(--autocity-accent)]" />
               <input ref={searchInputRef} type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
                 placeholder="Search products..."
-                className="w-full pl-10 pr-4 py-2 rounded-xl text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent transition-colors duration-500"
+                className="w-full pl-10 pr-4 py-2 rounded-xl text-sm focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent transition-colors duration-500"
                 style={{ background: th.mobileSearchBg, border:`1px solid ${th.mobileSearchBorder}`, color: th.mobileSearchText }} />
             </div>
             <div className="grid grid-cols-3 gap-2 mt-3">
@@ -512,7 +512,7 @@ export default function ProductsClient({
                 <FileSpreadsheet className="h-5 w-5" /><span>Bulk Import</span>
               </button>
               <button onClick={openAddModal}
-                className="flex items-center space-x-2 rounded-xl px-4 py-2 bg-[#E84545] text-white hover:bg-[#cc3c3c] transition-colors">
+                className="flex items-center space-x-2 rounded-xl px-4 py-2 bg-[color:var(--autocity-accent)] text-white hover:bg-[color:var(--autocity-accent-strong)] transition-colors">
                 <Plus className="h-5 w-5" /><span className="font-medium">Add Product</span>
               </button>
             </div>
@@ -524,18 +524,18 @@ export default function ProductsClient({
           <div className="hidden md:block space-y-4 mb-6">
             <div className="flex gap-4">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-3 h-5 w-5 text-[#E84545]" />
+                <Search className="absolute left-3 top-3 h-5 w-5 text-[color:var(--autocity-accent)]" />
                 <input ref={searchInputRef} type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
                   placeholder="Search by name, SKU, barcode, make, model, variant, or color... (press / to focus)"
-                  className="w-full pl-10 pr-4 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent transition-colors duration-500"
+                  className="w-full pl-10 pr-4 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent transition-colors duration-500"
                   style={selectStyle} />
               </div>
               <button onClick={() => setShowFilters(!showFilters)}
                 className="flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors"
-                style={{ background: showFilters ? 'rgba(232,69,69,0.20)' : 'transparent', border:`1px solid ${showFilters ? 'rgba(232,69,69,0.30)' : th.filterBorder}`, color: th.filterText }}>
+                style={{ background: showFilters ? 'var(--autocity-accent-20)' : 'transparent', border:`1px solid ${showFilters ? 'var(--autocity-accent-30)' : th.filterBorder}`, color: th.filterText }}>
                 <Filter className="h-5 w-5" /><span>Filters</span>
                 {(filterCategory||filterMake||filterIsVehicle!=="all") && (
-                  <span className="ml-2 px-2 py-0.5 bg-[#E84545] text-white text-xs rounded-full">
+                  <span className="ml-2 px-2 py-0.5 bg-[color:var(--autocity-accent)] text-white text-xs rounded-full">
                     {[filterCategory,filterMake,filterIsVehicle!=="all"].filter(Boolean).length}
                   </span>
                 )}
@@ -560,7 +560,7 @@ export default function ProductsClient({
                 <div className="flex items-end">
                   <button onClick={clearFilters} className="w-full px-4 py-2 rounded-lg transition-colors text-white"
                     style={{ background: th.filterBtnBg, border:`1px solid ${th.filterBtnBorder}` }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(232,69,69,0.20)')}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--autocity-accent-20)')}
                     onMouseLeave={e => (e.currentTarget.style.background = th.filterBtnBg)}>
                     Clear Filters
                   </button>
@@ -588,7 +588,7 @@ export default function ProductsClient({
                   {isPending ? (
                     <tr><td colSpan={7} className="px-6 py-12 text-center">
                       <div className="flex flex-col items-center gap-2">
-                        <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#E84545] border-t-transparent"/>
+                        <div className="animate-spin rounded-full h-8 w-8 border-2 border-[color:var(--autocity-accent)] border-t-transparent"/>
                         <p style={{ color: th.cellMuted }}>Loading products...</p>
                       </div>
                     </td></tr>
@@ -597,18 +597,18 @@ export default function ProductsClient({
                       <Package className="h-12 w-12 mx-auto mb-2" style={{ color: th.cellFaint }} />
                       <p style={{ color: th.cellMuted }}>No products found</p>
                       {(filterCategory||filterMake||filterIsVehicle!=="all") && (
-                        <button onClick={clearFilters} className="mt-2 text-[#E84545] hover:text-[#cc3c3c] text-sm transition-colors">Clear filters</button>
+                        <button onClick={clearFilters} className="mt-2 text-[color:var(--autocity-accent)] hover:text-[color:var(--autocity-accent-strong)] text-sm transition-colors">Clear filters</button>
                       )}
                     </td></tr>
                   ) : products.map((product, index) => (
                     <tr key={product._id} ref={el => { productRefs.current[index] = el; }} className="transition-all cursor-pointer"
-                      style={{ background: selectedProductIndex===index ? 'rgba(232,69,69,0.10)' : 'transparent', boxShadow: selectedProductIndex===index ? 'inset 0 0 0 2px rgba(232,69,69,0.50)' : 'none', borderBottom:`1px solid ${th.tableRowDivider}` }}
+                      style={{ background: selectedProductIndex===index ? 'var(--autocity-accent-10)' : 'transparent', boxShadow: selectedProductIndex===index ? 'inset 0 0 0 2px var(--autocity-accent-50)' : 'none', borderBottom:`1px solid ${th.tableRowDivider}` }}
                       onMouseEnter={e => { if (selectedProductIndex!==index) e.currentTarget.style.background=th.tableRowHover; }}
                       onMouseLeave={e => { if (selectedProductIndex!==index) e.currentTarget.style.background='transparent'; }}
                       onClick={() => setSelectedProductIndex(index)}>
                       <td className="px-6 py-4">
                         <div className="flex items-center">
-                          {product.isVehicle && <Car className="h-4 w-4 mr-2 text-[#E84545] flex-shrink-0" />}
+                          {product.isVehicle && <Car className="h-4 w-4 mr-2 text-[color:var(--autocity-accent)] flex-shrink-0" />}
                           <div>
                             <p className="text-sm font-medium" style={{ color: th.cellPrimary }}>{product.name}</p>
                             {product.partNumber && <p className="text-xs" style={{ color: th.cellFaint }}>Part#: {product.partNumber}</p>}
@@ -621,7 +621,7 @@ export default function ProductsClient({
                         {product.carMake ? (
                           <div className="space-y-1">
                             <div className="flex items-center font-medium" style={{ color: th.cellSecondary }}>
-                              <Car className="h-3 w-3 mr-1 text-[#E84545] flex-shrink-0" />{product.carMake}
+                              <Car className="h-3 w-3 mr-1 text-[color:var(--autocity-accent)] flex-shrink-0" />{product.carMake}
                             </div>
                             {product.carModel && <div className="text-xs pl-4" style={{ color: th.cellMuted }}>Model: {product.carModel}{product.variant&&` (${product.variant})`}</div>}
                             {(product.yearFrom||product.yearTo) && <div className="text-xs pl-4" style={{ color: th.cellFaint }}>Year: {formatYearRange(product.yearFrom,product.yearTo)}</div>}
@@ -641,7 +641,7 @@ export default function ProductsClient({
                       <td className="px-6 py-4 text-right text-sm">
                         <div className="flex justify-end space-x-2">
                           <button onClick={e => { e.stopPropagation(); router.push(`/autocityPro/products/${product._id}`); }} className="text-blue-400 hover:text-blue-300 p-2 transition-colors" title="View"><Eye className="h-5 w-5" /></button>
-                          <button onClick={e => { e.stopPropagation(); openEditModal(product); }} className="text-[#E84545] hover:text-[#cc3c3c] p-2 transition-colors" title="Edit"><Edit className="h-5 w-5" /></button>
+                          <button onClick={e => { e.stopPropagation(); openEditModal(product); }} className="text-[color:var(--autocity-accent)] hover:text-[color:var(--autocity-accent-strong)] p-2 transition-colors" title="Edit"><Edit className="h-5 w-5" /></button>
                           <button onClick={e => { e.stopPropagation(); handleDeleteClick(product); }} className="text-red-400 hover:text-red-300 p-2 transition-colors" title="Delete"><Trash2 className="h-5 w-5" /></button>
                         </div>
                       </td>
@@ -653,7 +653,7 @@ export default function ProductsClient({
               <div className="md:hidden" style={{ borderTop:`1px solid ${th.tableRowDivider}` }}>
                 {isPending ? (
                   <div className="p-6 text-center">
-                    <div className="flex justify-center mb-2"><div className="animate-spin rounded-full h-8 w-8 border-2 border-[#E84545] border-t-transparent"/></div>
+                    <div className="flex justify-center mb-2"><div className="animate-spin rounded-full h-8 w-8 border-2 border-[color:var(--autocity-accent)] border-t-transparent"/></div>
                     <p className="text-sm" style={{ color: th.cellMuted }}>Loading products...</p>
                   </div>
                 ) : products.length === 0 ? (
@@ -661,7 +661,7 @@ export default function ProductsClient({
                     <Package className="h-12 w-12 mx-auto mb-2" style={{ color: th.cellFaint }} />
                     <p className="text-sm" style={{ color: th.cellMuted }}>No products found</p>
                     {(filterCategory||filterMake||filterIsVehicle!=="all") && (
-                      <button onClick={clearFilters} className="mt-2 text-[#E84545] text-sm active:scale-95 transition-all">Clear filters</button>
+                      <button onClick={clearFilters} className="mt-2 text-[color:var(--autocity-accent)] text-sm active:scale-95 transition-all">Clear filters</button>
                     )}
                   </div>
                 ) : products.map((product, index) => (
@@ -676,7 +676,7 @@ export default function ProductsClient({
           {pagination.hasMore && !isPending && (
             <div className="flex justify-center py-8">
               <button onClick={loadMoreProducts} disabled={isLoadingMore}
-                className="flex items-center space-x-3 px-6 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 shadow-lg active:scale-95">
+                className="flex items-center space-x-3 px-6 py-3 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 shadow-lg active:scale-95">
                 {isLoadingMore ? (
                   <><div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"/><span>Loading...</span></>
                 ) : (
@@ -703,7 +703,7 @@ export default function ProductsClient({
             <div className="flex justify-between items-center px-6 py-4" style={{ borderBottom:`1px solid ${th.modalBorder}` }}>
               <div>
                 <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: th.modalTitle }}>
-                  <FileDown className="h-5 w-5 text-[#E84545]" /> Export CSV
+                  <FileDown className="h-5 w-5 text-[color:var(--autocity-accent)]" /> Export CSV
                 </h2>
                 <p className="text-xs mt-0.5" style={{ color: th.modalText }}>All products · sorted by SKU ascending</p>
               </div>
@@ -728,7 +728,7 @@ export default function ProductsClient({
                       value={csvSkuFrom}
                       onChange={e => setCsvSkuFrom(e.target.value)}
                       placeholder="e.g. 10001"
-                      className="w-full px-3 py-2.5 rounded-xl text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent font-mono"
+                      className="w-full px-3 py-2.5 rounded-xl text-sm focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent font-mono"
                       style={{ background: th.modalInputBg, border:`1px solid ${th.modalInputBorder}`, color: th.modalInputText }}
                     />
                   </div>
@@ -739,7 +739,7 @@ export default function ProductsClient({
                       value={csvSkuTo}
                       onChange={e => setCsvSkuTo(e.target.value)}
                       placeholder="e.g. 10500"
-                      className="w-full px-3 py-2.5 rounded-xl text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent font-mono"
+                      className="w-full px-3 py-2.5 rounded-xl text-sm focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent font-mono"
                       style={{ background: th.modalInputBg, border:`1px solid ${th.modalInputBorder}`, color: th.modalInputText }}
                     />
                   </div>
@@ -777,7 +777,7 @@ export default function ProductsClient({
                 <button
                   onClick={() => downloadProductsCSV(csvSkuFrom || undefined, csvSkuTo || undefined)}
                   disabled={isExportingCSV || !!(csvSkuFrom && csvSkuTo && parseInt(csvSkuFrom) > parseInt(csvSkuTo))}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
                   {isExportingCSV ? (
                     <><div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" /><span>Exporting…</span></>
                   ) : (
@@ -817,7 +817,7 @@ export default function ProductsClient({
               <div className="flex gap-3 pt-4">
                 <button onClick={() => { clearFilters(); setShowFilters(false); }} className="flex-1 px-4 py-3 rounded-xl transition-colors active:scale-95"
                   style={{ background: th.overlayItemBg, border:`1px solid ${th.overlayItemBorder}`, color: th.overlayItemText }}>Clear</button>
-                <button onClick={() => setShowFilters(false)} className="flex-1 px-4 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] rounded-xl text-white font-semibold active:scale-95 transition-all">Apply</button>
+                <button onClick={() => setShowFilters(false)} className="flex-1 px-4 py-3 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] rounded-xl text-white font-semibold active:scale-95 transition-all">Apply</button>
               </div>
             </div>
           </div>
@@ -836,7 +836,7 @@ export default function ProductsClient({
             </div>
             <div className="space-y-3">
               <button onClick={() => { setShowAddModal(true); setShowMobileMenu(false); }}
-                className="w-full p-4 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] rounded-2xl text-white font-semibold flex items-center justify-between active:scale-95 transition-all">
+                className="w-full p-4 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] rounded-2xl text-white font-semibold flex items-center justify-between active:scale-95 transition-all">
                 <span>Add Product</span><Plus className="h-5 w-5" />
               </button>
               {[
@@ -871,7 +871,7 @@ export default function ProductsClient({
             style={{ background: th.modalBg, border:`1px solid ${th.modalBorder}` }}>
             <div className="flex justify-between items-center px-4 md:px-6 py-4" style={{ borderBottom:`1px solid ${th.modalBorder}` }}>
               <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: th.modalTitle }}>
-                <Tag className="h-5 w-5 text-[#E84545]" />Quick Add Category
+                <Tag className="h-5 w-5 text-[color:var(--autocity-accent)]" />Quick Add Category
               </h2>
               <button onClick={() => { setShowQuickAddCategory(false); setNewCategoryName(""); }}
                 className="p-2 rounded-xl active:scale-95 transition-all"
@@ -883,7 +883,7 @@ export default function ProductsClient({
                 <input id="quick-add-category-name" type="text" value={newCategoryName}
                   onChange={e => setNewCategoryName(e.target.value)}
                   onKeyDown={e => e.key==="Enter" && handleQuickAddCategory()}
-                  className="w-full px-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent transition-colors duration-500"
+                  className="w-full px-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent transition-colors duration-500"
                   style={{ background: th.modalInputBg, border:`1px solid ${th.modalInputBorder}`, color: th.modalInputText }}
                   placeholder="Enter category name" />
                 <p className="text-xs mt-1" style={{ color: th.cellFaint }}>This will create a new category and automatically select it</p>
@@ -893,7 +893,7 @@ export default function ProductsClient({
                   className="px-4 py-2 rounded-xl transition-colors active:scale-95"
                   style={{ border:`1px solid ${th.modalCancelBorder}`, color: th.modalCancelText, background:'transparent' }}>Cancel</button>
                 <button onClick={handleQuickAddCategory}
-                  className="px-4 py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl hover:opacity-90 transition-opacity active:scale-95">Add Category</button>
+                  className="px-4 py-2 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-xl hover:opacity-90 transition-opacity active:scale-95">Add Category</button>
               </div>
             </div>
           </div>

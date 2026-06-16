@@ -337,10 +337,10 @@ export default function ClosingDetailPage() {
     <MainLayout user={user} onLogout={handleLogout}>
       <div className="min-h-screen bg-[#0a0a0a] print:bg-white">
         {/* Header */}
-        <div className="relative overflow-hidden print:hidden">
+        <div className="autocity-fixed-page-header relative overflow-hidden print:hidden">
           {/* Background Effects */}
-          <div className="absolute inset-0 bg-gradient-to-br from-red-950/40 via-[#0a0a0a] to-[#0a0a0a]" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-red-900/20 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-br from-[var(--autocity-accent-40)] via-[#0a0a0a] to-[#0a0a0a]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[var(--autocity-accent-20)] via-transparent to-transparent" />
           
           <div className="relative px-4 md:px-8 py-8">
             <div className="max-w-7xl mx-auto">
@@ -348,7 +348,7 @@ export default function ClosingDetailPage() {
                 <div className="flex items-center gap-4">
                   <button
                     onClick={() => router.push('/autocityPro/closings')}
-                    className="p-3 bg-[#1a1a1a] border border-red-500/20 rounded-xl hover:bg-red-500/10 hover:border-red-500/40 transition-all"
+                    className="p-3 bg-[#1a1a1a] border border-[color:var(--autocity-accent-20)] rounded-xl hover:bg-[color:var(--autocity-accent-10)] hover:border-[color:var(--autocity-accent-40)] transition-all"
                   >
                     <ArrowLeft className="h-5 w-5 text-gray-300" />
                   </button>

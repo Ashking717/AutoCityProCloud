@@ -49,19 +49,19 @@ function buildTheme(isDark: boolean) {
   return {
     pageBg:               isDark ? "#050505"                                              : "#f3f4f6",
     // Desktop header
-    headerBgFrom:         isDark ? "#932222"                                              : "#fef2f2",
-    headerBgVia:          isDark ? "#411010"                                              : "#fee2e2",
-    headerBgTo:           isDark ? "#a20c0c"                                              : "#fecaca",
+    headerBgFrom:         isDark ? "var(--autocity-header-from-dark)"                                              : "var(--autocity-header-from-light)",
+    headerBgVia:          isDark ? "var(--autocity-header-via-dark)"                                              : "var(--autocity-header-via-light)",
+    headerBgTo:           isDark ? "var(--autocity-header-to-dark)"                                              : "var(--autocity-header-to-light)",
     headerBorder:         isDark ? "rgba(255,255,255,0.05)"                               : "rgba(0,0,0,0.06)",
-    headerTitle:          isDark ? "#ffffff"                                              : "#7f1d1d",
-    headerSub:            isDark ? "rgba(255,255,255,0.90)"                               : "#991b1b",
-    headerBadgeBg:        isDark ? "rgba(232,69,69,0.30)"                                 : "rgba(232,69,69,0.15)",
-    headerBadgeText:      isDark ? "rgba(255,255,255,0.90)"                               : "#7f1d1d",
+    headerTitle:          isDark ? "#ffffff"                                              : "var(--autocity-header-text-light)",
+    headerSub:            isDark ? "rgba(255,255,255,0.90)"                               : "var(--autocity-header-sub-light)",
+    headerBadgeBg:        isDark ? "var(--autocity-accent-30)"                                 : "var(--autocity-accent-15)",
+    headerBadgeText:      isDark ? "rgba(255,255,255,0.90)"                               : "var(--autocity-header-text-light)",
     headerBtnBg:          isDark ? "rgba(255,255,255,0.10)"                               : "rgba(0,0,0,0.07)",
-    headerBtnBorder:      isDark ? "rgba(255,255,255,0.20)"                               : "rgba(127,29,29,0.25)",
-    headerBtnText:        isDark ? "#ffffff"                                              : "#7f1d1d",
-    headerNewSaleBg:      isDark ? "#ffffff"                                              : "#7f1d1d",
-    headerNewSaleText:    isDark ? "#E84545"                                              : "#ffffff",
+    headerBtnBorder:      isDark ? "rgba(255,255,255,0.20)"                               : "var(--autocity-accent-25)",
+    headerBtnText:        isDark ? "#ffffff"                                              : "var(--autocity-header-text-light)",
+    headerNewSaleBg:      isDark ? "#ffffff"                                              : "var(--autocity-header-text-light)",
+    headerNewSaleText:    isDark ? "var(--autocity-accent)"                                              : "#ffffff",
     // Mobile header
     mobileHeaderBg:       isDark ? "linear-gradient(135deg,#0A0A0A,#050505,#0A0A0A)"     : "linear-gradient(135deg,#ffffff,#f9fafb,#ffffff)",
     mobileHeaderBorder:   isDark ? "rgba(255,255,255,0.05)"                               : "rgba(0,0,0,0.08)",
@@ -190,8 +190,8 @@ function buildTheme(isDark: boolean) {
     mobileMenuCloseText:  isDark ? "#9ca3af"                                              : "#6b7280",
     // Date badge (mode indicator)
     modeBadgeBg:          isDark ? "rgba(0,0,0,0.30)"                                     : "rgba(255,255,255,0.60)",
-    modeBadgeBorder:      isDark ? "rgba(255,255,255,0.15)"                               : "rgba(127,29,29,0.20)",
-    modeBadgeText:        isDark ? "rgba(255,255,255,0.70)"                               : "#7f1d1d",
+    modeBadgeBorder:      isDark ? "rgba(255,255,255,0.15)"                               : "var(--autocity-accent-20)",
+    modeBadgeText:        isDark ? "rgba(255,255,255,0.70)"                               : "var(--autocity-header-text-light)",
     // option bg for native selects
     optionBg:             isDark ? "#0A0A0A"                                              : "#ffffff",
   };
@@ -541,7 +541,7 @@ export default function SalesPage() {
     const map: Record<string, string> = {
       COMPLETED:      "bg-green-600/20 text-green-400 border-green-600/30",
       DRAFT:          "bg-white/10 text-gray-400 border-white/10",
-      CANCELLED:      "bg-[#E84545]/20 text-[#E84545] border-[#E84545]/30",
+      CANCELLED:      "bg-[color:var(--autocity-accent-20)] text-[color:var(--autocity-accent)] border-[color:var(--autocity-accent-30)]",
       REFUNDED:       "bg-yellow-600/20 text-yellow-400 border-yellow-600/30",
       RETURNED:       "bg-orange-600/20 text-orange-400 border-orange-600/30",
       PARTIAL_RETURN: "bg-blue-600/20 text-blue-400 border-blue-600/30",
@@ -573,7 +573,7 @@ export default function SalesPage() {
             <div className="rounded-[28px] px-6 py-3 shadow-2xl backdrop-blur-xl pointer-events-auto animate-in slide-in-from-top duration-500"
               style={{ background: th.islandBg, border: `1px solid ${th.islandBorder}` }}>
               <div className="flex items-center gap-3">
-                <Zap className="h-3 w-3 text-[#E84545]" />
+                <Zap className="h-3 w-3 text-[color:var(--autocity-accent)]" />
                 <span className="text-xs font-semibold" style={{ color: th.islandText }}>{formatCompactCurrency(totalSalesAmount)}</span>
                 <div className="h-3 w-px" style={{ background: th.islandDivider }} />
                 <ShoppingCart className="h-3 w-3 text-green-400" />
@@ -581,12 +581,12 @@ export default function SalesPage() {
                 {totalBalance > 0 && (
                   <>
                     <div className="h-3 w-px" style={{ background: th.islandDivider }} />
-                    <AlertCircle className="h-3 w-3 text-[#E84545]" />
-                    <span className="text-xs font-medium text-[#E84545]">{formatCompactCurrency(totalBalance)}</span>
+                    <AlertCircle className="h-3 w-3 text-[color:var(--autocity-accent)]" />
+                    <span className="text-xs font-medium text-[color:var(--autocity-accent)]">{formatCompactCurrency(totalBalance)}</span>
                   </>
                 )}
                 <div className="h-3 w-px" style={{ background: th.islandDivider }} />
-                {isDark ? <Moon className="h-3 w-3 text-[#E84545]" /> : <Sun className="h-3 w-3 text-[#E84545]" />}
+                {isDark ? <Moon className="h-3 w-3 text-[color:var(--autocity-accent)]" /> : <Sun className="h-3 w-3 text-[color:var(--autocity-accent)]" />}
               </div>
             </div>
           </div>
@@ -616,7 +616,7 @@ export default function SalesPage() {
               <Search className="absolute left-3 top-2.5 h-4 w-4" style={{ color: th.mobileSearchPH }} />
               <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search invoice, customer..."
-                className="w-full pl-10 pr-4 py-2 rounded-xl text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 rounded-xl text-sm focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                 style={{ background: th.mobileSearchBg, border: `1px solid ${th.mobileSearchBorder}`, color: th.mobileSearchText }} />
             </div>
           </div>
@@ -668,9 +668,9 @@ export default function SalesPage() {
           {/* Stat Cards */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mb-6">
             {[
-              { label: "Total Sales",     value: formatCompactCurrency(totalSalesAmount), icon: <DollarSign className="h-4 w-4 md:h-5 md:w-5 text-[#E84545]" />, accent: "#E84545", extra: <TrendingUp className="h-4 w-4 text-green-400" /> },
+              { label: "Total Sales",     value: formatCompactCurrency(totalSalesAmount), icon: <DollarSign className="h-4 w-4 md:h-5 md:w-5 text-[color:var(--autocity-accent)]" />, accent: "var(--autocity-accent)", extra: <TrendingUp className="h-4 w-4 text-green-400" /> },
               { label: "Total Paid",      value: formatCompactCurrency(totalPaidAmount),  icon: <CreditCard  className="h-4 w-4 md:h-5 md:w-5 text-green-400"  />, accent: "#22c55e" },
-              { label: "Pending Balance", value: formatCompactCurrency(totalBalance),     icon: <RefreshCw   className="h-4 w-4 md:h-5 md:w-5 text-[#E84545]" />, accent: "#E84545", span: true },
+              { label: "Pending Balance", value: formatCompactCurrency(totalBalance),     icon: <RefreshCw   className="h-4 w-4 md:h-5 md:w-5 text-[color:var(--autocity-accent)]" />, accent: "var(--autocity-accent)", span: true },
             ].map(({ label, value, icon, accent, extra, span }) => (
               <div key={label}
                 className={`rounded-2xl p-4 active:scale-[0.98] transition-all cursor-pointer ${span ? "col-span-2 md:col-span-1" : ""}`}
@@ -697,14 +697,14 @@ export default function SalesPage() {
                 <Search className="absolute left-2 top-2.5 h-4 w-4" style={{ color: th.filterInputPH }} />
                 <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search invoice, customer..."
-                  className="w-full pl-8 pr-3 py-2 text-sm rounded focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                  className="w-full pl-8 pr-3 py-2 text-sm rounded focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                   style={inputStyle} />
               </div>
 
               {/* Status */}
               <div className="relative">
                 <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded focus:ring-2 focus:ring-[#E84545] focus:border-transparent appearance-none"
+                  className="w-full px-3 py-2 text-sm rounded focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent appearance-none"
                   style={inputStyle}>
                   {statusOptions.map((o) => <option key={o.value} value={o.value} style={{ background: th.optionBg }}>{o.label}</option>)}
                 </select>
@@ -715,7 +715,7 @@ export default function SalesPage() {
               <div className="relative">
                 <button onClick={() => setShowDateFilter(!showDateFilter)}
                   className="w-full flex items-center justify-between px-3 py-2 text-sm rounded transition-colors"
-                  style={{ ...inputStyle, ...(showDateFilter ? { borderColor: "#E84545" } : {}) }}>
+                  style={{ ...inputStyle, ...(showDateFilter ? { borderColor: "var(--autocity-accent)" } : {}) }}>
                   <span className="truncate">
                     {safeFormat(dateRange.startDate, "MMM d")} – {safeFormat(dateRange.endDate, "MMM d, yyyy")}
                   </span>
@@ -753,7 +753,7 @@ export default function SalesPage() {
                             <label className="block text-[10px] uppercase mb-1" style={{ color: th.dateDdLabel }}>{label}</label>
                             <input type="date" value={dateRange[key]}
                               onChange={(e) => setDateRange((prev) => ({ ...prev, [key]: e.target.value }))}
-                              className="w-full px-2 py-1.5 text-xs rounded focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                              className="w-full px-2 py-1.5 text-xs rounded focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                               style={{ background: th.dateDdInputBg, border: `1px solid ${th.dateDdInputBorder}`, color: th.dateDdInputText }} />
                           </div>
                         ))}
@@ -770,7 +770,7 @@ export default function SalesPage() {
             style={{ background: th.salesBg, border: `1px solid ${th.salesBorder}` }}>
             {loading ? (
               <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#E84545]" />
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[color:var(--autocity-accent)]" />
               </div>
             ) : filteredSales.length === 0 ? (
               <div className="text-center py-12">
@@ -798,11 +798,11 @@ export default function SalesPage() {
                           onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
 
                           <td className="px-4 py-3 whitespace-nowrap">
-                            <span role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleViewDetails(sale); }} className="text-sm font-medium text-[#E84545] hover:text-[#cc3c3c] cursor-pointer transition-colors" onClick={() => handleViewDetails(sale)}>
+                            <span role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleViewDetails(sale); }} className="text-sm font-medium text-[color:var(--autocity-accent)] hover:text-[color:var(--autocity-accent-strong)] cursor-pointer transition-colors" onClick={() => handleViewDetails(sale)}>
                               {sale.invoiceNumber}
                             </span>
                             {sale.returnStatus && (
-                              <span className="text-xs text-[#E84545] ml-1">({sale.returnStatus === "PARTIAL_RETURN" ? "Partial Return" : "Returned"})</span>
+                              <span className="text-xs text-[color:var(--autocity-accent)] ml-1">({sale.returnStatus === "PARTIAL_RETURN" ? "Partial Return" : "Returned"})</span>
                             )}
                           </td>
 
@@ -833,7 +833,7 @@ export default function SalesPage() {
                           </td>
 
                           <td className="px-4 py-3 whitespace-nowrap text-right">
-                            <span className={`text-sm font-semibold ${sale.balanceDue > 0 ? "text-[#E84545]" : "text-green-400"}`}>
+                            <span className={`text-sm font-semibold ${sale.balanceDue > 0 ? "text-[color:var(--autocity-accent)]" : "text-green-400"}`}>
                               QAR {sale.balanceDue?.toFixed(2)}
                             </span>
                           </td>
@@ -843,7 +843,7 @@ export default function SalesPage() {
                           <td className="px-4 py-3 whitespace-nowrap text-center">
                             {getStatusBadge(sale.status)}
                             {sale.returnStatus && (
-                              <div className="text-xs text-[#E84545] mt-1">{sale.returnStatus === "PARTIAL_RETURN" ? "Partial Return" : "Fully Returned"}</div>
+                              <div className="text-xs text-[color:var(--autocity-accent)] mt-1">{sale.returnStatus === "PARTIAL_RETURN" ? "Partial Return" : "Fully Returned"}</div>
                             )}
                           </td>
 
@@ -866,8 +866,8 @@ export default function SalesPage() {
                                     { show: sale.status === "COMPLETED" && !sale.returnStatus,      label: "Return Items",     icon: <Undo className="h-3 w-3" />,      color: "#facc15",           action: () => handleReturnSale(sale) },
                                     { show: sale.status === "COMPLETED" && sale.returnStatus === "PARTIAL_RETURN", label: "Return More", icon: <Undo className="h-3 w-3" />, color: "#facc15", action: () => handleReturnSale(sale) },
                                     { show: sale.status === "COMPLETED" && sale.balanceDue < 0,     label: "Process Refund",   icon: <CreditCard className="h-3 w-3" />,color: "#c084fc",           action: () => handleRefundSale(sale) },
-                                    { show: sale.status !== "CANCELLED" && sale.status !== "REFUNDED" && !sale.returnStatus, label: "Cancel Sale", icon: <X className="h-3 w-3" />, color: "#E84545", action: () => handleCancelSale(sale) },
-                                    { show: sale.status === "DRAFT",                                label: "Delete Draft",     icon: <Trash2 className="h-3 w-3" />,    color: "#E84545",           action: () => handleDeleteSale(sale) },
+                                    { show: sale.status !== "CANCELLED" && sale.status !== "REFUNDED" && !sale.returnStatus, label: "Cancel Sale", icon: <X className="h-3 w-3" />, color: "var(--autocity-accent)", action: () => handleCancelSale(sale) },
+                                    { show: sale.status === "DRAFT",                                label: "Delete Draft",     icon: <Trash2 className="h-3 w-3" />,    color: "var(--autocity-accent)",           action: () => handleDeleteSale(sale) },
                                   ].filter((b) => b.show).map(({ label, icon, color, action }) => (
                                     <button key={label} onClick={() => { action(); setShowActions(null); }}
                                       className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs transition-colors"
@@ -892,16 +892,16 @@ export default function SalesPage() {
                   {filteredSales.map((sale) => (
                     <div key={sale._id} className="rounded-xl p-4 transition-all active:scale-[0.98] group"
                       style={{ background: `linear-gradient(135deg,${th.mobileCardBgFrom},${th.mobileCardBgTo})`, border: `1px solid ${th.mobileCardBorder}` }}
-                      onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(232,69,69,0.30)")}
+                      onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--autocity-accent-30)")}
                       onMouseLeave={(e) => (e.currentTarget.style.borderColor = th.mobileCardBorder)}>
 
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-[#E84545] mb-1">{sale.invoiceNumber}</p>
+                          <p className="text-sm font-semibold text-[color:var(--autocity-accent)] mb-1">{sale.invoiceNumber}</p>
                           <p className="text-xs truncate" style={{ color: th.tableCellSecondary }}>{sale.customerName}</p>
                           <p className="text-xs mt-1" style={{ color: th.mobileCardLabel }}>{safeFormat(sale.saleDate, "MMM d, h:mm a")}</p>
                           {sale.returnStatus && (
-                            <span className="inline-block text-xs text-[#E84545] mt-1">
+                            <span className="inline-block text-xs text-[color:var(--autocity-accent)] mt-1">
                               ({sale.returnStatus === "PARTIAL_RETURN" ? "Partial Return" : "Returned"})
                             </span>
                           )}
@@ -916,7 +916,7 @@ export default function SalesPage() {
                         {[
                           { label: "Total",   value: formatCompactCurrency(sale.grandTotal), color: th.mobileCardValue },
                           { label: "Paid",    value: formatCompactCurrency(sale.amountPaid),  color: "#22c55e" },
-                          { label: "Balance", value: formatCompactCurrency(sale.balanceDue),  color: sale.balanceDue > 0 ? "#E84545" : "#22c55e" },
+                          { label: "Balance", value: formatCompactCurrency(sale.balanceDue),  color: sale.balanceDue > 0 ? "var(--autocity-accent)" : "#22c55e" },
                         ].map(({ label, value, color }) => (
                           <div key={label}>
                             <span className="text-[10px] uppercase block mb-1" style={{ color: th.mobileCardLabel }}>{label}</span>
@@ -941,8 +941,8 @@ export default function SalesPage() {
                             { show: sale.status === "COMPLETED" && !sale.returnStatus,      label: "Return Items",     icon: <Undo className="h-3 w-3" />,      color: "#facc15",           bg: "rgba(250,204,21,0.10)" },
                             { show: sale.status === "COMPLETED" && sale.returnStatus === "PARTIAL_RETURN", label: "Return More Items", icon: <Undo className="h-3 w-3" />, color: "#facc15", bg: "rgba(250,204,21,0.10)" },
                             { show: sale.status === "COMPLETED" && sale.balanceDue < 0,     label: "Process Refund",   icon: <CreditCard className="h-3 w-3" />,color: "#c084fc",           bg: "rgba(192,132,252,0.10)" },
-                            { show: sale.status !== "CANCELLED" && sale.status !== "REFUNDED" && !sale.returnStatus, label: "Cancel Sale", icon: <X className="h-3 w-3" />, color: "#E84545", bg: "rgba(232,69,69,0.10)" },
-                            { show: sale.status === "DRAFT",                                label: "Delete Draft",     icon: <Trash2 className="h-3 w-3" />,    color: "#E84545",           bg: "rgba(232,69,69,0.10)" },
+                            { show: sale.status !== "CANCELLED" && sale.status !== "REFUNDED" && !sale.returnStatus, label: "Cancel Sale", icon: <X className="h-3 w-3" />, color: "var(--autocity-accent)", bg: "var(--autocity-accent-10)" },
+                            { show: sale.status === "DRAFT",                                label: "Delete Draft",     icon: <Trash2 className="h-3 w-3" />,    color: "var(--autocity-accent)",           bg: "var(--autocity-accent-10)" },
                           ].filter((b) => b.show).map(({ label, icon, color, bg, show, ...rest }) => {
                             const actionMap: Record<string, () => void> = {
                               "View Details":      () => handleViewDetails(sale),
@@ -989,8 +989,8 @@ export default function SalesPage() {
                           <button key={pageNum} onClick={() => setPagination((p) => ({ ...p, page: pageNum }))}
                             className="px-2 py-1 rounded border text-xs transition-colors"
                             style={{
-                              background: pagination.page === pageNum ? "#E84545" : "transparent",
-                              border: `1px solid ${pagination.page === pageNum ? "#E84545" : th.paginationBtnBorder}`,
+                              background: pagination.page === pageNum ? "var(--autocity-accent)" : "transparent",
+                              border: `1px solid ${pagination.page === pageNum ? "var(--autocity-accent)" : th.paginationBtnBorder}`,
                               color: pagination.page === pageNum ? "#ffffff" : th.paginationBtnText,
                             }}>
                             {pageNum}
@@ -1023,7 +1023,7 @@ export default function SalesPage() {
       {invoiceLoading && (
         <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-[100]" style={{ background: th.modalOverlay }}>
           <div className="rounded-xl p-6 shadow-2xl" style={{ background: th.invoiceOverlayBg, border: `1px solid ${th.invoiceOverlayBorder}` }}>
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-white/10 border-t-[#E84545] mx-auto mb-4" />
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-white/10 border-t-[color:var(--autocity-accent)] mx-auto mb-4" />
             <p className="font-medium text-center" style={{ color: th.invoiceOverlayText }}>Preparing invoice...</p>
             <p className="text-sm mt-2 text-center" style={{ color: th.invoiceOverlaySub }}>Loading invoice data for printing</p>
           </div>
@@ -1102,7 +1102,7 @@ export default function SalesPage() {
                     toast.error(err.message || "Failed to update sale");
                   } finally { setSavingEdit(false); }
                 }}
-                className="px-5 py-2 bg-[#E84545] text-white rounded hover:bg-[#cc3c3c] disabled:opacity-50">
+                className="px-5 py-2 bg-[color:var(--autocity-accent)] text-white rounded hover:bg-[color:var(--autocity-accent-strong)] disabled:opacity-50">
                 {savingEdit ? "Saving..." : "Save Correction"}
               </button>
             </div>
@@ -1305,14 +1305,14 @@ export default function SalesPage() {
                           <td className="px-4 py-3" style={{ color: th.tableCellSecondary }}>{item.sku}</td>
                           <td className="px-4 py-3" style={{ color: th.tableCellSecondary }}>
                             {item.quantity} {item.unit}
-                            {item.returnedQuantity > 0 && <div className="text-xs text-[#E84545]">(Returned: {item.returnedQuantity})</div>}
+                            {item.returnedQuantity > 0 && <div className="text-xs text-[color:var(--autocity-accent)]">(Returned: {item.returnedQuantity})</div>}
                           </td>
                           <td className="px-4 py-3" style={{ color: th.tableCellSecondary }}>QAR {item.unitPrice.toFixed(2)}</td>
                           <td className="px-4 py-3" style={{ color: th.tableCellSecondary }}>{item.taxRate}% (QAR {(item.taxAmount || 0).toFixed(2)})</td>
                           <td className="px-4 py-3 font-medium" style={{ color: th.modalTitle }}>QAR {item.total.toFixed(2)}</td>
                           <td className="px-4 py-3">
                             {item.returnedQuantity > 0
-                              ? <span className="text-xs text-[#E84545] bg-[#E84545]/10 px-2 py-1 rounded">{item.returnedQuantity} returned</span>
+                              ? <span className="text-xs text-[color:var(--autocity-accent)] bg-[color:var(--autocity-accent-10)] px-2 py-1 rounded">{item.returnedQuantity} returned</span>
                               : <span className="text-xs" style={{ color: th.tableCellMuted }}>—</span>}
                           </td>
                         </tr>
@@ -1349,7 +1349,7 @@ export default function SalesPage() {
                     </div>
                     <div className="flex justify-between">
                       <span style={{ color: th.modalLabel }}>Balance Due:</span>
-                      <span className={`font-medium ${selectedSaleDetails.balanceDue > 0 ? "text-[#E84545]" : selectedSaleDetails.balanceDue < 0 ? "text-green-400" : ""}`} style={selectedSaleDetails.balanceDue === 0 ? { color: th.modalLabel } : {}}>
+                      <span className={`font-medium ${selectedSaleDetails.balanceDue > 0 ? "text-[color:var(--autocity-accent)]" : selectedSaleDetails.balanceDue < 0 ? "text-green-400" : ""}`} style={selectedSaleDetails.balanceDue === 0 ? { color: th.modalLabel } : {}}>
                         QAR {selectedSaleDetails.balanceDue.toFixed(2)}
                         {selectedSaleDetails.balanceDue < 0 && <span className="text-xs ml-1" style={{ color: th.modalLabel }}>(Customer Credit)</span>}
                       </span>
@@ -1357,7 +1357,7 @@ export default function SalesPage() {
                     {selectedSaleDetails.returns?.length > 0 && (
                       <div className="flex justify-between pt-3" style={{ borderTop: `1px solid ${th.modalSectionBorder}` }}>
                         <span style={{ color: th.modalLabel }}>Total Returns:</span>
-                        <span className="text-[#E84545] font-medium">
+                        <span className="text-[color:var(--autocity-accent)] font-medium">
                           QAR {selectedSaleDetails.returns.reduce((s: number, r: any) => s + r.totalAmount, 0).toFixed(2)}
                         </span>
                       </div>
@@ -1380,7 +1380,7 @@ export default function SalesPage() {
                             {ret.reason && <p className="text-sm mt-1" style={{ color: th.tableCellSecondary }}>Reason: {ret.reason}</p>}
                           </div>
                           <div className="text-right">
-                            <span className="text-lg font-bold text-[#E84545]">QAR {ret.totalAmount.toFixed(2)}</span>
+                            <span className="text-lg font-bold text-[color:var(--autocity-accent)]">QAR {ret.totalAmount.toFixed(2)}</span>
                             <p className="text-sm" style={{ color: th.modalLabel }}>by {ret.processedByName}</p>
                           </div>
                         </div>
@@ -1395,7 +1395,7 @@ export default function SalesPage() {
                               </div>
                               <div className="text-right">
                                 <div style={{ color: th.tableCellSecondary }}>{item.quantity} × QAR {item.unitPrice.toFixed(2)}</div>
-                                <div className="text-[#E84545]">QAR {item.totalAmount.toFixed(2)}</div>
+                                <div className="text-[color:var(--autocity-accent)]">QAR {item.totalAmount.toFixed(2)}</div>
                               </div>
                             </div>
                           ))}
@@ -1436,7 +1436,7 @@ export default function SalesPage() {
                 )}
                 {selectedSaleDetails.status === "COMPLETED" && (
                   <button onClick={() => { setShowDetailsModal(false); handlePrintInvoice(selectedSaleDetails); }}
-                    className="px-6 py-3 bg-[#E84545] text-white rounded-lg hover:bg-[#cc3c3c] transition-colors flex items-center space-x-2">
+                    className="px-6 py-3 bg-[color:var(--autocity-accent)] text-white rounded-lg hover:bg-[color:var(--autocity-accent-strong)] transition-colors flex items-center space-x-2">
                     <Printer className="h-4 w-4" /><span>Print Invoice</span>
                   </button>
                 )}
@@ -1458,7 +1458,7 @@ export default function SalesPage() {
             </div>
             <div className="space-y-3">
               <button onClick={() => { router.push("/autocityPro/sales/new"); setShowMobileMenu(false); }}
-                className="w-full p-4 rounded-2xl font-semibold transition-all flex items-center justify-between active:scale-[0.98] bg-[#E84545]/10 border border-[#E84545]/30 text-[#E84545]">
+                className="w-full p-4 rounded-2xl font-semibold transition-all flex items-center justify-between active:scale-[0.98] bg-[color:var(--autocity-accent-10)] border border-[color:var(--autocity-accent-30)] text-[color:var(--autocity-accent)]">
                 <span>New Sale</span><Plus className="h-5 w-5" />
               </button>
               <button onClick={() => { setShowDateFilter(true); setShowMobileMenu(false); }}

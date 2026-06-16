@@ -49,15 +49,15 @@ export default function AccountsPage() {
   // ── Theme tokens ────────────────────────────────────────────────────────────
   const th = {
     pageBg:             isDark ? '#050505'                                              : '#f3f4f6',
-    headerBgFrom:       isDark ? '#932222'                                              : '#fef2f2',
-    headerBgVia:        isDark ? '#411010'                                              : '#fee2e2',
-    headerBgTo:         isDark ? '#a20c0c'                                              : '#fecaca',
+    headerBgFrom:       isDark ? 'var(--autocity-header-from-dark)'                                              : 'var(--autocity-header-from-light)',
+    headerBgVia:        isDark ? 'var(--autocity-header-via-dark)'                                              : 'var(--autocity-header-via-light)',
+    headerBgTo:         isDark ? 'var(--autocity-header-to-dark)'                                              : 'var(--autocity-header-to-light)',
     headerBorder:       isDark ? 'rgba(255,255,255,0.05)'                               : 'rgba(0,0,0,0.06)',
-    headerTitle:        isDark ? '#ffffff'                                              : '#7f1d1d',
-    headerSub:          isDark ? 'rgba(255,255,255,0.80)'                               : '#991b1b',
-    headerBtnBg:        isDark ? 'rgba(255,255,255,0.10)'                               : 'rgba(127,29,29,0.10)',
-    headerBtnBorder:    isDark ? 'rgba(255,255,255,0.20)'                               : 'rgba(127,29,29,0.20)',
-    headerBtnText:      isDark ? '#ffffff'                                              : '#7f1d1d',
+    headerTitle:        isDark ? '#ffffff'                                              : 'var(--autocity-header-text-light)',
+    headerSub:          isDark ? 'rgba(255,255,255,0.80)'                               : 'var(--autocity-header-sub-light)',
+    headerBtnBg:        isDark ? 'rgba(255,255,255,0.10)'                               : 'var(--autocity-accent-10)',
+    headerBtnBorder:    isDark ? 'rgba(255,255,255,0.20)'                               : 'var(--autocity-accent-20)',
+    headerBtnText:      isDark ? '#ffffff'                                              : 'var(--autocity-header-text-light)',
     mobileHeaderBg:     isDark ? 'linear-gradient(135deg,#0A0A0A,#050505,#0A0A0A)'     : 'linear-gradient(135deg,#ffffff,#f9fafb,#ffffff)',
     mobileHeaderBorder: isDark ? 'rgba(255,255,255,0.05)'                               : 'rgba(0,0,0,0.08)',
     mobileHeaderTitle:  isDark ? '#ffffff'                                              : '#111827',
@@ -75,7 +75,7 @@ export default function AccountsPage() {
     filterIcon:         isDark ? '#6b7280'                                              : '#9ca3af',
     cardBg:             isDark ? '#0A0A0A'                                              : '#ffffff',
     cardBorder:         isDark ? 'rgba(255,255,255,0.05)'                               : 'rgba(0,0,0,0.08)',
-    cardHoverBorder:    isDark ? 'rgba(232,69,69,0.40)'                                 : 'rgba(232,69,69,0.40)',
+    cardHoverBorder:    isDark ? 'var(--autocity-accent-40)'                                 : 'var(--autocity-accent-40)',
     cardTitle:          isDark ? '#ffffff'                                              : '#111827',
     cardSubtext:        isDark ? '#9ca3af'                                              : '#6b7280',
     cardMuted:          isDark ? '#6b7280'                                              : '#9ca3af',
@@ -175,7 +175,7 @@ export default function AccountsPage() {
   };
 
   const handleSort = (key: string) => setSortConfig(prev => ({ key, direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc' }));
-  const getSortIcon = (key: string) => sortConfig.key !== key ? null : sortConfig.direction === 'asc' ? <SortAsc className="h-3 w-3 ml-1 text-[#E84545]" /> : <SortDesc className="h-3 w-3 ml-1 text-[#E84545]" />;
+  const getSortIcon = (key: string) => sortConfig.key !== key ? null : sortConfig.direction === 'asc' ? <SortAsc className="h-3 w-3 ml-1 text-[color:var(--autocity-accent)]" /> : <SortDesc className="h-3 w-3 ml-1 text-[color:var(--autocity-accent)]" />;
 
   const filteredAccounts = accounts.filter(acc => {
     const matchesSearch = (acc.name || acc.accountName || '').toLowerCase().includes(searchTerm.toLowerCase()) || (acc.code || acc.accountNumber || '').toLowerCase().includes(searchTerm.toLowerCase());
@@ -275,11 +275,11 @@ export default function AccountsPage() {
             <div className="bg-black rounded-[28px] px-6 py-3 shadow-2xl border border-white/10 backdrop-blur-xl pointer-events-auto animate-in slide-in-from-top duration-500">
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
-                  <Wallet className="h-3 w-3 text-[#E84545]" />
+                  <Wallet className="h-3 w-3 text-[color:var(--autocity-accent)]" />
                   <span className="text-white text-xs font-semibold">{filteredAccounts.length} accounts</span>
                 </div>
                 <div className="h-3 w-px bg-white/20" />
-                <span className="text-[#E84545] text-xs font-medium">{filterType === 'all' ? 'All Types' : filterType}</span>
+                <span className="text-[color:var(--autocity-accent)] text-xs font-medium">{filterType === 'all' ? 'All Types' : filterType}</span>
               </div>
             </div>
           </div>
@@ -333,7 +333,7 @@ export default function AccountsPage() {
                 </button>
                 <button onClick={() => { setEditingAccount(null); resetForm(); setShowAddModal(true); }}
                   className="flex items-center gap-2 px-4 py-2.5 text-white rounded-lg transition-all"
-                  style={{ background: 'linear-gradient(to right,#E84545,#cc3c3c)' }}>
+                  style={{ background: 'linear-gradient(to right,var(--autocity-accent),var(--autocity-accent-strong))' }}>
                   <Plus className="h-4 w-4" />Add Account
                 </button>
               </div>
@@ -381,7 +381,7 @@ export default function AccountsPage() {
               return (
                 <div key={type} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setFilterType(filterType === type ? 'all' : type); }} onClick={() => setFilterType(filterType === type ? 'all' : type)}
                   className="rounded-xl p-4 md:p-6 cursor-pointer transition-all active:scale-[0.98]"
-                  style={{ background: th.cardBg, border: `1px solid ${isActive ? '#E84545' : th.cardBorder}`, boxShadow: isActive ? '0 0 0 2px rgba(232,69,69,0.15)' : 'none' }}
+                  style={{ background: th.cardBg, border: `1px solid ${isActive ? 'var(--autocity-accent)' : th.cardBorder}`, boxShadow: isActive ? '0 0 0 2px var(--autocity-accent-15)' : 'none' }}
                   onMouseEnter={e => !isActive && (e.currentTarget.style.borderColor = th.cardHoverBorder)}
                   onMouseLeave={e => !isActive && (e.currentTarget.style.borderColor = th.cardBorder)}>
                   <div className="flex items-center justify-between mb-2 md:mb-3">
@@ -403,7 +403,7 @@ export default function AccountsPage() {
           <div className="md:hidden">
             {loading ? (
               <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E84545]"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[color:var(--autocity-accent)]"></div>
               </div>
             ) : sortedAccounts.length === 0 ? (
               <div className="rounded-2xl p-8 text-center" style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}>
@@ -411,7 +411,7 @@ export default function AccountsPage() {
                 <p className="text-lg font-medium" style={{ color: th.emptyText }}>No accounts found</p>
                 {(filterType !== 'all' || searchTerm) && (
                   <button onClick={clearFilters} className="mt-4 px-4 py-2 text-white text-sm font-semibold rounded-lg"
-                    style={{ background: 'linear-gradient(to right,#E84545,#cc3c3c)' }}>Clear Filters</button>
+                    style={{ background: 'linear-gradient(to right,var(--autocity-accent),var(--autocity-accent-strong))' }}>Clear Filters</button>
                 )}
               </div>
             ) : (
@@ -479,7 +479,7 @@ export default function AccountsPage() {
               <tbody>
                 {loading ? (
                   <tr><td colSpan={8} className="px-6 py-12 text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#E84545] mx-auto mb-2"></div>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[color:var(--autocity-accent)] mx-auto mb-2"></div>
                     <p style={{ color: th.emptyText }}>Loading accounts...</p>
                   </td></tr>
                 ) : sortedAccounts.length === 0 ? (
@@ -498,7 +498,7 @@ export default function AccountsPage() {
                       onMouseEnter={el => (el.currentTarget.style.background = th.tableRowHover)}
                       onMouseLeave={el => (el.currentTarget.style.background = 'transparent')}>
                       <td className="px-6 py-4">
-                        <p className="text-sm font-medium text-[#E84545]">{aCode}</p>
+                        <p className="text-sm font-medium text-[color:var(--autocity-accent)]">{aCode}</p>
                         {account.isSystem && <span className="text-xs px-2 py-0.5 rounded mt-1 inline-block" style={{ background: th.innerBg, color: th.cardMuted }}>System</span>}
                       </td>
                       <td className="px-6 py-4 text-sm" style={{ color: th.cardTitle }}>{aName}</td>
@@ -530,7 +530,7 @@ export default function AccountsPage() {
                           {!account.isSystem && (
                             <button onClick={() => handleDelete(account._id)}
                               className="p-2 rounded-lg transition-all"
-                              style={{ background: th.actionBtnBg, border: `1px solid ${th.actionBtnBorder}`, color: '#E84545' }}>
+                              style={{ background: th.actionBtnBg, border: `1px solid ${th.actionBtnBorder}`, color: 'var(--autocity-accent)' }}>
                               <Trash2 className="h-4 w-4" />
                             </button>
                           )}
@@ -566,7 +566,7 @@ export default function AccountsPage() {
                     <label className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>{f.label}</label>
                     <input type="text" value={(formData as any)[f.key]} onChange={e => setFormData({ ...formData, [f.key]: e.target.value })}
                       required disabled={f.disabled}
-                      className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent disabled:opacity-50"
+                      className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent disabled:opacity-50"
                       style={modalInputStyle} />
                   </div>
                 ))}
@@ -577,7 +577,7 @@ export default function AccountsPage() {
                   <select id="account-type" value={formData.accountType}
                     onChange={e => setFormData({ ...formData, accountType: e.target.value as any, accountSubType: '', accountGroup: '' })}
                     disabled={editingAccount?.isSystem}
-                    className="w-full px-3 py-2 rounded-lg appearance-none focus:ring-2 focus:ring-[#E84545] disabled:opacity-50"
+                    className="w-full px-3 py-2 rounded-lg appearance-none focus:ring-2 focus:ring-[color:var(--autocity-accent)] disabled:opacity-50"
                     style={modalInputStyle}>
                     {['asset','liability','equity','revenue','expense'].map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>)}
                   </select>
@@ -586,7 +586,7 @@ export default function AccountsPage() {
                   <label htmlFor="account-sub-type" className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>Sub Type</label>
                   <select id="account-sub-type" value={formData.accountSubType} onChange={e => setFormData({ ...formData, accountSubType: e.target.value })}
                     disabled={editingAccount?.isSystem}
-                    className="w-full px-3 py-2 rounded-lg appearance-none focus:ring-2 focus:ring-[#E84545] disabled:opacity-50"
+                    className="w-full px-3 py-2 rounded-lg appearance-none focus:ring-2 focus:ring-[color:var(--autocity-accent)] disabled:opacity-50"
                     style={modalInputStyle}>
                     <option value="">Select Sub Type</option>
                     {(accountSubTypes[formData.accountType] || []).map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
@@ -595,7 +595,7 @@ export default function AccountsPage() {
                 <div>
                   <label htmlFor="account-group" className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>Account Group *</label>
                   <select id="account-group" value={formData.accountGroup} onChange={e => setFormData({ ...formData, accountGroup: e.target.value })} required
-                    className="w-full px-3 py-2 rounded-lg appearance-none focus:ring-2 focus:ring-[#E84545]"
+                    className="w-full px-3 py-2 rounded-lg appearance-none focus:ring-2 focus:ring-[color:var(--autocity-accent)]"
                     style={modalInputStyle}>
                     <option value="">Select Group</option>
                     {(accountGroups[formData.accountType] || []).map(g => <option key={g} value={g}>{g}</option>)}
@@ -609,13 +609,13 @@ export default function AccountsPage() {
                 </label>
                 <input type="number" value={formData.openingBalance} step="0.01"
                   onChange={e => setFormData({ ...formData, openingBalance: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545]"
+                  className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)]"
                   style={modalInputStyle} placeholder="0.00" />
               </div>
               <div>
                 <label htmlFor="account-description" className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>Description</label>
                 <textarea id="account-description" value={formData.description} rows={3} onChange={e => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545]"
+                  className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)]"
                   style={modalInputStyle} placeholder="Optional description" />
               </div>
               <div className="flex justify-end gap-3 pt-4" style={{ borderTop: `1px solid ${th.modalBorder}` }}>
@@ -624,7 +624,7 @@ export default function AccountsPage() {
                   style={{ background: th.actionBtnBg, border: `1px solid ${th.actionBtnBorder}`, color: th.cardTitle }}>Cancel</button>
                 <button type="submit" disabled={saving}
                   className="px-4 py-2 text-white rounded-lg transition-colors disabled:opacity-50"
-                  style={{ background: 'linear-gradient(to right,#E84545,#cc3c3c)' }}>
+                  style={{ background: 'linear-gradient(to right,var(--autocity-accent),var(--autocity-accent-strong))' }}>
                   {saving ? 'Saving...' : editingAccount ? 'Update' : 'Create'} Account
                 </button>
               </div>
@@ -662,7 +662,7 @@ export default function AccountsPage() {
                   style={{ background: th.actionBtnBg, border: `1px solid ${th.actionBtnBorder}`, color: th.cardTitle }}>Clear All</button>
                 <button onClick={() => setShowFilters(false)}
                   className="flex-1 px-4 py-3 rounded-xl text-white font-semibold"
-                  style={{ background: 'linear-gradient(to right,#E84545,#cc3c3c)' }}>Apply</button>
+                  style={{ background: 'linear-gradient(to right,var(--autocity-accent),var(--autocity-accent-strong))' }}>Apply</button>
               </div>
             </div>
           </div>

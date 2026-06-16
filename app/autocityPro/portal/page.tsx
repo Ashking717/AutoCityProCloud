@@ -66,7 +66,7 @@ export default function PurchasesPortalPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [quickActions] = useState([
-    { id: 1, title: "New Purchase",             shortTitle: "Purchase",   description: "Add new inventory purchase",       icon: ShoppingBag,   gradient: "from-[#E84545] to-[#cc3c3c]",      href: "/autocityPro/purchases/new",             shortcut: "Ctrl+P" },
+    { id: 1, title: "New Purchase",             shortTitle: "Purchase",   description: "Add new inventory purchase",       icon: ShoppingBag,   gradient: "from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)]",      href: "/autocityPro/purchases/new",             shortcut: "Ctrl+P" },
     { id: 2, title: "View/Record Expense",       shortTitle: "Expense",    description: "Record business expense",          icon: CreditCard,    gradient: "from-purple-500 to-pink-600",        href: "/autocityPro/expenses",                  shortcut: "Ctrl+E" },
     { id: 3, title: "Manage Categories",         shortTitle: "Categories", description: "Add/edit product categories",      icon: Tag,           gradient: "from-blue-500 to-cyan-600",          href: "/autocityPro/categories",                shortcut: "Ctrl+C" },
     { id: 4, title: "Manage Suppliers",          shortTitle: "Suppliers",  description: "Add/edit supplier information",    icon: Truck,         gradient: "from-orange-500 to-red-600",         href: "/autocityPro/suppliers",                 shortcut: "Ctrl+S" },
@@ -89,16 +89,16 @@ export default function PurchasesPortalPage() {
   const th = {
     pageBg:          isDark ? '#050505'                                                   : '#f3f4f6',
     // Header
-    headerBgFrom:    isDark ? '#932222'                                                   : '#fef2f2',
-    headerBgVia:     isDark ? '#411010'                                                   : '#fee2e2',
-    headerBgTo:      isDark ? '#a20c0c'                                                   : '#fecaca',
+    headerBgFrom:    isDark ? 'var(--autocity-header-from-dark)'                                                   : 'var(--autocity-header-from-light)',
+    headerBgVia:     isDark ? 'var(--autocity-header-via-dark)'                                                   : 'var(--autocity-header-via-light)',
+    headerBgTo:      isDark ? 'var(--autocity-header-to-dark)'                                                   : 'var(--autocity-header-to-light)',
     headerBorder:    isDark ? 'rgba(255,255,255,0.05)'                                    : 'rgba(0,0,0,0.06)',
-    headerTitle:     isDark ? '#ffffff'                                                   : '#7f1d1d',
-    headerSub:       isDark ? 'rgba(255,255,255,0.80)'                                    : '#991b1b',
+    headerTitle:     isDark ? '#ffffff'                                                   : 'var(--autocity-header-text-light)',
+    headerSub:       isDark ? 'rgba(255,255,255,0.80)'                                    : 'var(--autocity-header-sub-light)',
     // CSV buttons in header
     csvBtnBg:        isDark ? 'rgba(255,255,255,0.10)'                                    : 'rgba(0,0,0,0.08)',
     csvBtnBorder:    isDark ? 'rgba(255,255,255,0.20)'                                    : 'rgba(0,0,0,0.15)',
-    csvBtnText:      isDark ? '#ffffff'                                                   : '#7f1d1d',
+    csvBtnText:      isDark ? '#ffffff'                                                   : 'var(--autocity-header-text-light)',
     csvBtnHoverBg:   isDark ? 'rgba(255,255,255,0.20)'                                    : 'rgba(0,0,0,0.14)',
     // Mobile header
     mobileHeaderBg:  isDark ? 'linear-gradient(135deg,#0A0A0A,#050505,#0A0A0A)'           : 'linear-gradient(135deg,#ffffff,#f9fafb,#ffffff)',
@@ -119,14 +119,14 @@ export default function PurchasesPortalPage() {
     filterBtnBg:     isDark ? 'transparent'                                              : 'transparent',
     filterBtnBorder: isDark ? 'rgba(255,255,255,0.10)'                                   : 'rgba(0,0,0,0.10)',
     filterBtnText:   isDark ? '#ffffff'                                                  : '#374151',
-    filterActiveBg:  isDark ? 'rgba(232,69,69,0.20)'                                     : 'rgba(232,69,69,0.10)',
+    filterActiveBg:  isDark ? 'var(--autocity-accent-20)'                                     : 'var(--autocity-accent-10)',
     filterBorder2:   isDark ? 'rgba(255,255,255,0.10)'                                   : 'rgba(0,0,0,0.08)',
     filterLabel:     isDark ? '#d1d5db'                                                  : '#374151',
     selectBg:        isDark ? '#0A0A0A'                                                  : '#ffffff',
     selectBorder:    isDark ? 'rgba(255,255,255,0.10)'                                   : 'rgba(0,0,0,0.10)',
     selectText:      isDark ? '#ffffff'                                                  : '#111827',
-    clearBtnBg:      isDark ? 'rgba(232,69,69,0.10)'                                     : 'rgba(232,69,69,0.07)',
-    clearBtnBorder:  isDark ? 'rgba(232,69,69,0.30)'                                     : 'rgba(232,69,69,0.25)',
+    clearBtnBg:      isDark ? 'var(--autocity-accent-10)'                                     : 'var(--autocity-accent-07)',
+    clearBtnBorder:  isDark ? 'var(--autocity-accent-30)'                                     : 'var(--autocity-accent-25)',
     // Stat cards
     cardBgFrom:      isDark ? '#0A0A0A'                                                  : '#ffffff',
     cardBgTo:        isDark ? '#050505'                                                  : '#f9fafb',
@@ -158,7 +158,7 @@ export default function PurchasesPortalPage() {
     emptyIcon:       isDark ? '#4b5563'                                                  : '#d1d5db',
     emptyText:       isDark ? '#9ca3af'                                                  : '#6b7280',
     // Section headings
-    addBtnText:      '#E84545',
+    addBtnText:      'var(--autocity-accent)',
     // Mobile card rows
     mobileRowHover:  isDark ? 'rgba(255,255,255,0.02)'                                   : 'rgba(0,0,0,0.02)',
     mobileRowActive: isDark ? 'rgba(255,255,255,0.05)'                                   : 'rgba(0,0,0,0.05)',
@@ -305,7 +305,7 @@ export default function PurchasesPortalPage() {
             >
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
-                  <ShoppingBag className="h-3 w-3 text-[#E84545]" />
+                  <ShoppingBag className="h-3 w-3 text-[color:var(--autocity-accent)]" />
                   <span className="text-xs font-semibold" style={{ color: th.islandText }}>{stats.totalPurchases}</span>
                 </div>
                 <div className="h-3 w-px" style={{ background: th.islandDivider }} />
@@ -321,7 +321,7 @@ export default function PurchasesPortalPage() {
                   </>
                 )}
                 <div className="h-3 w-px" style={{ background: th.islandDivider }} />
-                {isDark ? <Moon className="h-3 w-3 text-[#E84545]" /> : <Sun className="h-3 w-3 text-[#E84545]" />}
+                {isDark ? <Moon className="h-3 w-3 text-[color:var(--autocity-accent)]" /> : <Sun className="h-3 w-3 text-[color:var(--autocity-accent)]" />}
               </div>
             </div>
           </div>
@@ -357,7 +357,7 @@ export default function PurchasesPortalPage() {
               <input
                 type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
                 placeholder="Search..."
-                className="w-full pl-10 pr-4 py-2 rounded-xl text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent transition-colors duration-500"
+                className="w-full pl-10 pr-4 py-2 rounded-xl text-sm focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent transition-colors duration-500"
                 style={{ background: th.mobileSearchBg, border: `1px solid ${th.mobileSearchBorder}`, color: th.mobileSearchText }}
               />
             </div>
@@ -374,7 +374,7 @@ export default function PurchasesPortalPage() {
                 <div className="flex items-center gap-3">
                   <h1 className="text-3xl font-bold" style={{ color: th.headerTitle }}>Purchases, Expenses &amp; Inventory</h1>
                   <div className="flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium"
-                    style={{ background: isDark ? 'rgba(0,0,0,0.30)' : 'rgba(255,255,255,0.60)', border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(127,29,29,0.20)'}`, color: isDark ? 'rgba(255,255,255,0.70)' : '#7f1d1d' }}
+                    style={{ background: isDark ? 'rgba(0,0,0,0.30)' : 'rgba(255,255,255,0.60)', border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'var(--autocity-accent-20)'}`, color: isDark ? 'rgba(255,255,255,0.70)' : 'var(--autocity-header-text-light)' }}
                   >
                     {isDark ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
                   </div>
@@ -404,10 +404,10 @@ export default function PurchasesPortalPage() {
           <div className="hidden md:block space-y-4 mb-6">
             <div className="flex gap-4">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-3 h-5 w-5 text-[#E84545]" />
+                <Search className="absolute left-3 top-3 h-5 w-5 text-[color:var(--autocity-accent)]" />
                 <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
                   placeholder="Search purchases, expenses, categories, suppliers..."
-                  className="w-full pl-10 pr-4 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent transition-colors duration-500"
+                  className="w-full pl-10 pr-4 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent transition-colors duration-500"
                   style={{ background: th.searchBg, border: `1px solid ${th.searchBorder}`, color: th.searchText }}
                 />
               </div>
@@ -415,7 +415,7 @@ export default function PurchasesPortalPage() {
                 className="flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors"
                 style={{
                   background: showFilters ? th.filterActiveBg : th.filterBtnBg,
-                  border: `1px solid ${showFilters ? 'rgba(232,69,69,0.30)' : th.filterBtnBorder}`,
+                  border: `1px solid ${showFilters ? 'var(--autocity-accent-30)' : th.filterBtnBorder}`,
                   color: th.filterBtnText,
                 }}
               >
@@ -439,7 +439,7 @@ export default function PurchasesPortalPage() {
                 <div className="flex items-end">
                   <button onClick={clearFilters}
                     className="w-full px-4 py-2 rounded-lg hover:opacity-80 transition-all text-white"
-                    style={{ background: th.clearBtnBg, border: `1px solid ${th.clearBtnBorder}`, color: '#E84545' }}
+                    style={{ background: th.clearBtnBg, border: `1px solid ${th.clearBtnBorder}`, color: 'var(--autocity-accent)' }}
                   >
                     Clear Filters
                   </button>
@@ -482,7 +482,7 @@ export default function PurchasesPortalPage() {
                       Clear
                     </button>
                     <button onClick={() => setShowFilters(false)}
-                      className="flex-1 px-4 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] rounded-xl text-white font-semibold active:scale-95 transition-all"
+                      className="flex-1 px-4 py-3 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] rounded-xl text-white font-semibold active:scale-95 transition-all"
                     >
                       Apply
                     </button>
@@ -495,7 +495,7 @@ export default function PurchasesPortalPage() {
           {/* Stats Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
             {[
-              { label: 'Purchases',  value: stats.totalPurchases,                  Icon: ShoppingBag,   hoverBorder: 'rgba(232,69,69,0.30)',    gradient: 'from-[#E84545] to-[#cc3c3c]' },
+              { label: 'Purchases',  value: stats.totalPurchases,                  Icon: ShoppingBag,   hoverBorder: 'var(--autocity-accent-30)',    gradient: 'from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)]' },
               { label: 'Expenses',   value: formatCompactCurrency(stats.totalExpenses), Icon: CreditCard, hoverBorder: 'rgba(168,85,247,0.30)',  gradient: 'from-purple-500 to-pink-600' },
               { label: 'Pending',    value: stats.pendingBills,                    Icon: AlertTriangle, hoverBorder: 'rgba(249,115,22,0.30)',   gradient: 'from-orange-500 to-red-600' },
               { label: 'Today',      value: stats.todayPurchases,                  Icon: Calendar,      hoverBorder: 'rgba(59,130,246,0.30)',   gradient: 'from-blue-500 to-cyan-600' },
@@ -530,7 +530,7 @@ export default function PurchasesPortalPage() {
                 <button key={action.id} onClick={() => router.push(action.href)}
                   className="group rounded-2xl p-4 md:p-5 text-left active:scale-[0.98] transition-all duration-300"
                   style={{ background: `linear-gradient(135deg,${th.actionCardBgFrom},${th.actionCardBgTo})`, border: `1px solid ${th.actionCardBorder}` }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = th.actionCardHoverBorder; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 8px 32px rgba(232,69,69,0.05)'; }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = th.actionCardHoverBorder; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 8px 32px var(--autocity-accent-05)'; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = th.actionCardBorder; (e.currentTarget as HTMLButtonElement).style.boxShadow = ''; }}
                 >
                   <div className="flex flex-col gap-3">
@@ -543,7 +543,7 @@ export default function PurchasesPortalPage() {
                         <span className="hidden md:inline">{action.title}</span>
                       </h3>
                       <p className="text-[10px] md:text-xs line-clamp-2 mb-2 md:mb-3" style={{ color: th.actionCardDesc }}>{action.description}</p>
-                      <div className="flex items-center text-[#E84545] group-hover:text-[#cc3c3c] transition-colors">
+                      <div className="flex items-center text-[color:var(--autocity-accent)] group-hover:text-[color:var(--autocity-accent-strong)] transition-colors">
                         <span className="text-xs font-medium">Go</span>
                         <ArrowRight className="h-3 w-3 ml-1" />
                       </div>
@@ -559,7 +559,7 @@ export default function PurchasesPortalPage() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg md:text-xl font-bold" style={{ color: th.sectionTitle }}>Recent Categories</h2>
               <button onClick={() => router.push('/autocityPro/categories/new')}
-                className="flex items-center space-x-2 active:scale-95 transition-all text-[#E84545] hover:text-[#cc3c3c]"
+                className="flex items-center space-x-2 active:scale-95 transition-all text-[color:var(--autocity-accent)] hover:text-[color:var(--autocity-accent-strong)]"
               >
                 <PlusCircle className="h-4 w-4" /><span className="text-sm">Add New</span>
               </button>
@@ -605,7 +605,7 @@ export default function PurchasesPortalPage() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg md:text-xl font-bold" style={{ color: th.sectionTitle }}>Top Suppliers</h2>
               <button onClick={() => router.push('/autocityPro/suppliers/new')}
-                className="flex items-center space-x-2 active:scale-95 transition-all text-[#E84545] hover:text-[#cc3c3c]"
+                className="flex items-center space-x-2 active:scale-95 transition-all text-[color:var(--autocity-accent)] hover:text-[color:var(--autocity-accent-strong)]"
               >
                 <PlusCircle className="h-4 w-4" /><span className="text-sm">Add New</span>
               </button>
@@ -676,7 +676,7 @@ export default function PurchasesPortalPage() {
                         <p className="text-sm font-medium capitalize" style={{ color: th.tableCellPrimary }}>{trans.type}</p>
                         <p className="text-xs" style={{ color: th.mobileCardLabel }}>{trans.vendor || trans.category}</p>
                       </div>
-                      <span className="text-sm font-bold text-[#E84545]">{formatCompactCurrency(trans.amount)}</span>
+                      <span className="text-sm font-bold text-[color:var(--autocity-accent)]">{formatCompactCurrency(trans.amount)}</span>
                     </div>
                     <div className="flex items-center gap-3 text-xs" style={{ color: th.mobileCardLabel }}>
                       <span>{trans.date}</span><span>•</span><span className="capitalize">{trans.status}</span>

@@ -58,12 +58,12 @@ export default function SuppliersPage() {
     mobileSearchText:    isDark ? '#ffffff'                                            : '#111827',
     mobileSearchPH:      isDark ? 'rgba(255,255,255,0.40)'                             : '#9ca3af',
     // Desktop header
-    desktopHdrBgFrom:    isDark ? '#932222'                                            : '#fef2f2',
-    desktopHdrBgVia:     isDark ? '#411010'                                            : '#fee2e2',
-    desktopHdrBgTo:      isDark ? '#a20c0c'                                            : '#fecaca',
+    desktopHdrBgFrom:    isDark ? 'var(--autocity-header-from-dark)'                                            : 'var(--autocity-header-from-light)',
+    desktopHdrBgVia:     isDark ? 'var(--autocity-header-via-dark)'                                            : 'var(--autocity-header-via-light)',
+    desktopHdrBgTo:      isDark ? 'var(--autocity-header-to-dark)'                                            : 'var(--autocity-header-to-light)',
     desktopHdrBorder:    isDark ? 'rgba(255,255,255,0.05)'                             : 'rgba(0,0,0,0.06)',
-    desktopHdrTitle:     isDark ? '#ffffff'                                            : '#7f1d1d',
-    desktopHdrSub:       isDark ? 'rgba(255,255,255,0.80)'                             : '#991b1b',
+    desktopHdrTitle:     isDark ? '#ffffff'                                            : 'var(--autocity-header-text-light)',
+    desktopHdrSub:       isDark ? 'rgba(255,255,255,0.80)'                             : 'var(--autocity-header-sub-light)',
     desktopIconBg:       isDark ? 'rgba(255,255,255,0.10)'                             : 'rgba(0,0,0,0.08)',
     desktopIconBorder:   isDark ? 'rgba(255,255,255,0.20)'                             : 'rgba(0,0,0,0.12)',
     desktopSearchBg:     isDark ? 'rgba(255,255,255,0.10)'                             : 'rgba(255,255,255,0.80)',
@@ -74,13 +74,13 @@ export default function SuppliersPage() {
     desktopAddBtnBorder: isDark ? 'rgba(255,255,255,0.20)'                             : 'rgba(0,0,0,0.12)',
     desktopAddBtnText:   isDark ? '#ffffff'                                            : '#374151',
     badgeBg:             isDark ? 'rgba(0,0,0,0.30)'                                  : 'rgba(255,255,255,0.60)',
-    badgeBorder:         isDark ? 'rgba(255,255,255,0.15)'                             : 'rgba(127,29,29,0.20)',
-    badgeText:           isDark ? 'rgba(255,255,255,0.70)'                             : '#7f1d1d',
+    badgeBorder:         isDark ? 'rgba(255,255,255,0.15)'                             : 'var(--autocity-accent-20)',
+    badgeText:           isDark ? 'rgba(255,255,255,0.70)'                             : 'var(--autocity-header-text-light)',
     // Supplier cards
     cardBgFrom:          isDark ? '#0A0A0A'                                            : '#ffffff',
     cardBgTo:            isDark ? '#050505'                                            : '#f9fafb',
     cardBorder:          isDark ? 'rgba(255,255,255,0.10)'                             : 'rgba(0,0,0,0.08)',
-    cardHover:           isDark ? 'rgba(232,69,69,0.30)'                               : 'rgba(232,69,69,0.25)',
+    cardHover:           isDark ? 'var(--autocity-accent-30)'                               : 'var(--autocity-accent-25)',
     cardTitle:           isDark ? '#ffffff'                                            : '#111827',
     cardCode:            isDark ? '#64748b'                                            : '#9ca3af',
     cardBody:            isDark ? '#d1d5db'                                            : '#374151',
@@ -170,7 +170,7 @@ export default function SuppliersPage() {
 
   const resetForm = () => { setEditingSupplier(null); setFormData({ code:'', name:'', contactPerson:'', phone:'', email:'', address:'', taxNumber:'', creditLimit:0, paymentTerms:'' }); setShowAddModal(true); };
 
-  const modalInputCls = "w-full px-3 py-2 rounded-xl focus:ring-2 focus:ring-[#E84545] focus:border-transparent transition-colors duration-500";
+  const modalInputCls = "w-full px-3 py-2 rounded-xl focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent transition-colors duration-500";
   const modalInputStyle = { background: th.modalInputBg, border: `1px solid ${th.modalInputBorder}`, color: th.modalInputText };
 
   return (
@@ -184,13 +184,13 @@ export default function SuppliersPage() {
               style={{ background: th.islandBg, border: `1px solid ${th.islandBorder}` }}>
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
-                  <Truck className="h-3 w-3 text-[#E84545]" />
+                  <Truck className="h-3 w-3 text-[color:var(--autocity-accent)]" />
                   <span className="text-xs font-semibold" style={{ color: th.islandText }}>{filteredSuppliers.length}</span>
                 </div>
                 <div className="h-3 w-px" style={{ background: th.islandDivider }} />
                 <span className="text-xs font-medium" style={{ color: th.islandText }}>Suppliers</span>
                 <div className="h-3 w-px" style={{ background: th.islandDivider }} />
-                {isDark ? <Moon className="h-3 w-3 text-[#E84545]" /> : <Sun className="h-3 w-3 text-[#E84545]" />}
+                {isDark ? <Moon className="h-3 w-3 text-[color:var(--autocity-accent)]" /> : <Sun className="h-3 w-3 text-[color:var(--autocity-accent)]" />}
               </div>
             </div>
           </div>
@@ -214,14 +214,14 @@ export default function SuppliersPage() {
                 </div>
               </div>
               <button onClick={resetForm}
-                className="p-2 rounded-xl bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white hover:shadow-lg hover:shadow-[#E84545]/20 active:scale-95 transition-all">
+                className="p-2 rounded-xl bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white hover:shadow-lg hover:shadow-[color:var(--autocity-accent-20)] active:scale-95 transition-all">
                 <Plus className="h-4 w-4" />
               </button>
             </div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: th.mobileSearchPH }} />
               <input type="text" placeholder="Search suppliers..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-[#E84545]/50 focus:ring-1 focus:ring-[#E84545]/50 transition-colors duration-500"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-[color:var(--autocity-accent-50)] focus:ring-1 focus:ring-[color:var(--autocity-accent)]/50 transition-colors duration-500"
                 style={{ background: th.mobileSearchBg, border: `1px solid ${th.mobileSearchBorder}`, color: th.mobileSearchText }} />
             </div>
           </div>
@@ -269,7 +269,7 @@ export default function SuppliersPage() {
         <div className="px-4 md:px-8 pt-[200px] md:pt-6 pb-6">
           {loading ? (
             <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E84545] mx-auto mb-4" />
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[color:var(--autocity-accent)] mx-auto mb-4" />
               <p style={{ color: th.loadingText }}>Loading suppliers...</p>
             </div>
           ) : filteredSuppliers.length === 0 ? (
@@ -277,7 +277,7 @@ export default function SuppliersPage() {
               <Truck className="h-16 w-16 mx-auto mb-4" style={{ color: th.emptyIcon }} />
               <p className="text-lg mb-4" style={{ color: th.emptyText }}>No suppliers found</p>
               <button onClick={resetForm}
-                className="px-4 py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl hover:shadow-lg hover:shadow-[#E84545]/20 transition-all">
+                className="px-4 py-2 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-xl hover:shadow-lg hover:shadow-[color:var(--autocity-accent-20)] transition-all">
                 Add Your First Supplier
               </button>
             </div>
@@ -299,12 +299,12 @@ export default function SuppliersPage() {
                   <div className="space-y-2 mb-4">
                     {supplier.contactPerson && (
                       <div className="flex items-center text-xs md:text-sm" style={{ color: th.cardBody }}>
-                        <Building className="h-3 w-3 md:h-4 md:w-4 mr-2 text-[#E84545] flex-shrink-0" />
+                        <Building className="h-3 w-3 md:h-4 md:w-4 mr-2 text-[color:var(--autocity-accent)] flex-shrink-0" />
                         <span className="truncate">{supplier.contactPerson}</span>
                       </div>
                     )}
                     <div className="flex items-center text-xs md:text-sm" style={{ color: th.cardBody }}>
-                      <Phone className="h-3 w-3 md:h-4 md:w-4 mr-2 text-[#E84545] flex-shrink-0" />
+                      <Phone className="h-3 w-3 md:h-4 md:w-4 mr-2 text-[color:var(--autocity-accent)] flex-shrink-0" />
                       <span className="truncate">{supplier.phone}</span>
                     </div>
                     {supplier.email && (
@@ -401,7 +401,7 @@ export default function SuppliersPage() {
                   Cancel
                 </button>
                 <button type="submit"
-                  className="px-4 py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl hover:shadow-lg hover:shadow-[#E84545]/20 transition-all">
+                  className="px-4 py-2 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-xl hover:shadow-lg hover:shadow-[color:var(--autocity-accent-20)] transition-all">
                   {editingSupplier ? 'Update' : 'Create'} Supplier
                 </button>
               </div>

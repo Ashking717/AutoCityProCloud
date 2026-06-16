@@ -64,14 +64,14 @@ export default function LedgersPage() {
   // ── Theme tokens ──────────────────────────────────────────────────────────
   const th = {
     pageBg:             isDark ? "#050505"                                               : "#f3f4f6",
-    headerBgFrom:       isDark ? "#932222"                                               : "#fef2f2",
-    headerBgVia:        isDark ? "#411010"                                               : "#fee2e2",
-    headerBgTo:         isDark ? "#a20c0c"                                               : "#fecaca",
+    headerBgFrom:       isDark ? "var(--autocity-header-from-dark)"                                               : "var(--autocity-header-from-light)",
+    headerBgVia:        isDark ? "var(--autocity-header-via-dark)"                                               : "var(--autocity-header-via-light)",
+    headerBgTo:         isDark ? "var(--autocity-header-to-dark)"                                               : "var(--autocity-header-to-light)",
     headerBorder:       isDark ? "rgba(255,255,255,0.05)"                                : "rgba(0,0,0,0.06)",
-    headerTitle:        isDark ? "#ffffff"                                               : "#7f1d1d",
-    headerSub:          isDark ? "rgba(255,255,255,0.80)"                                : "#991b1b",
-    headerBtnBg:        isDark ? "#ffffff"                                               : "#7f1d1d",
-    headerBtnText:      isDark ? "#E84545"                                               : "#ffffff",
+    headerTitle:        isDark ? "#ffffff"                                               : "var(--autocity-header-text-light)",
+    headerSub:          isDark ? "rgba(255,255,255,0.80)"                                : "var(--autocity-header-sub-light)",
+    headerBtnBg:        isDark ? "#ffffff"                                               : "var(--autocity-header-text-light)",
+    headerBtnText:      isDark ? "var(--autocity-accent)"                                               : "#ffffff",
     mobileHeaderBg:     isDark ? "linear-gradient(135deg,#0A0A0A,#050505,#0A0A0A)"      : "linear-gradient(135deg,#ffffff,#f9fafb,#ffffff)",
     mobileHeaderBorder: isDark ? "rgba(255,255,255,0.05)"                               : "rgba(0,0,0,0.08)",
     mobileHeaderTitle:  isDark ? "#ffffff"                                               : "#111827",
@@ -89,7 +89,7 @@ export default function LedgersPage() {
     filterIcon:         isDark ? "#6b7280"                                               : "#9ca3af",
     cardBg:             isDark ? "#0A0A0A"                                               : "#ffffff",
     cardBorder:         isDark ? "rgba(255,255,255,0.05)"                               : "rgba(0,0,0,0.08)",
-    cardHoverBorder:    isDark ? "rgba(232,69,69,0.30)"                                  : "rgba(232,69,69,0.40)",
+    cardHoverBorder:    isDark ? "var(--autocity-accent-30)"                                  : "var(--autocity-accent-40)",
     cardTitle:          isDark ? "#ffffff"                                               : "#111827",
     cardSubtext:        isDark ? "#9ca3af"                                               : "#6b7280",
     cardMuted:          isDark ? "#6b7280"                                               : "#9ca3af",
@@ -242,12 +242,12 @@ const fmt = (n: any) =>
                 )}
                 <div>
                   <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: th.mobileHeaderTitle }}>
-                    <BookOpen className="h-5 w-5 text-[#E84545]" />
+                    <BookOpen className="h-5 w-5 text-[color:var(--autocity-accent)]" />
                     {view === "accounts" ? "Ledgers" : view === "ledger" ? selectedAccount?.name : "Trial Balance"}
                   </h1>
                   <p className="text-xs flex items-center gap-1" style={{ color: th.mobileHeaderSub }}>
                     {view === "accounts" ? `${filteredAccounts.length} accounts` : view === "ledger" ? selectedAccount?.code : ""}
-                    {isDark ? <Moon className="h-3 w-3 inline ml-1 text-[#E84545]" /> : <Sun className="h-3 w-3 inline ml-1 text-[#E84545]" />}
+                    {isDark ? <Moon className="h-3 w-3 inline ml-1 text-[color:var(--autocity-accent)]" /> : <Sun className="h-3 w-3 inline ml-1 text-[color:var(--autocity-accent)]" />}
                   </p>
                 </div>
               </div>
@@ -260,7 +260,7 @@ const fmt = (n: any) =>
                     </button>
                     <button onClick={() => { setView("trialBalance"); fetchTrialBalance(); }}
                       className="flex items-center gap-1 px-3 py-2 text-white rounded-lg text-xs font-semibold"
-                      style={{ background: "linear-gradient(to right,#E84545,#cc3c3c)" }}>
+                      style={{ background: "linear-gradient(to right,var(--autocity-accent),var(--autocity-accent-strong))" }}>
                       <BarChart3 className="h-3 w-3" />TB
                     </button>
                   </>
@@ -353,7 +353,7 @@ const fmt = (n: any) =>
                     ))}
                   </select>
                   <button onClick={fetchAccounts} className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm"
-                    style={{ background: "linear-gradient(to right,#E84545,#cc3c3c)", color: "#ffffff" }}>
+                    style={{ background: "linear-gradient(to right,var(--autocity-accent),var(--autocity-accent-strong))", color: "#ffffff" }}>
                     <RefreshCw className="h-4 w-4" />Refresh
                   </button>
                 </div>
@@ -362,7 +362,7 @@ const fmt = (n: any) =>
               {/* Accounts Grid */}
               {loading ? (
                 <div className="text-center py-16">
-                  <RefreshCw className="h-10 w-10 mx-auto animate-spin text-[#E84545] mb-4" />
+                  <RefreshCw className="h-10 w-10 mx-auto animate-spin text-[color:var(--autocity-accent)] mb-4" />
                   <p style={{ color: th.emptyText }}>Loading accounts...</p>
                 </div>
               ) : filteredAccounts.length === 0 ? (
@@ -399,7 +399,7 @@ const fmt = (n: any) =>
                         </div>
                         <div className="rounded-lg p-2" style={{ background: th.innerBg }}>
                           <p className="text-xs" style={{ color: th.cardMuted }}>Current</p>
-                          <p className="text-sm font-bold text-[#E84545]">{fmt(acc.currentBalance)}</p>
+                          <p className="text-sm font-bold text-[color:var(--autocity-accent)]">{fmt(acc.currentBalance)}</p>
                         </div>
                       </div>
                       <div className="mt-3 flex items-center gap-1 text-xs" style={{ color: th.cardMuted }}>
@@ -431,7 +431,7 @@ const fmt = (n: any) =>
                   </div>
                   <button onClick={() => fetchLedger(selectedAccount)}
                     className="px-4 py-2 rounded-lg text-sm text-white font-semibold"
-                    style={{ background: "linear-gradient(to right,#E84545,#cc3c3c)" }}>
+                    style={{ background: "linear-gradient(to right,var(--autocity-accent),var(--autocity-accent-strong))" }}>
                     Apply & Refresh
                   </button>
                 </div>
@@ -446,9 +446,9 @@ const fmt = (n: any) =>
                   { label: "Closing Balance", value: fmtDrCr(ledgerSummary.closing, selectedAccount.type), accent: true },
                 ].map(card => (
                   <div key={card.label} className="rounded-xl p-4 transition-colors duration-500"
-                    style={{ background: th.summaryCardBg, border: `1px solid ${card.accent ? "rgba(232,69,69,0.30)" : th.summaryCardBorder}` }}>
+                    style={{ background: th.summaryCardBg, border: `1px solid ${card.accent ? "var(--autocity-accent-30)" : th.summaryCardBorder}` }}>
                     <p className="text-xs mb-1" style={{ color: th.cardMuted }}>{card.label}</p>
-                    <p className="text-lg font-bold" style={{ color: card.color || (card.accent ? "#E84545" : th.cardTitle) }}>
+                    <p className="text-lg font-bold" style={{ color: card.color || (card.accent ? "var(--autocity-accent)" : th.cardTitle) }}>
                       {card.value}
                     </p>
                   </div>
@@ -478,7 +478,7 @@ const fmt = (n: any) =>
                         <td className="px-4 py-3" style={{ color: th.cardTitle }}>{e.narration}</td>
                         <td className="px-4 py-3 text-right" style={{ color: isDark ? "#f87171" : "#dc2626" }}>{e.debit > 0 ? fmt(e.debit) : ""}</td>
                         <td className="px-4 py-3 text-right" style={{ color: isDark ? "#86efac" : "#15803d" }}>{e.credit > 0 ? fmt(e.credit) : ""}</td>
-                        <td className="px-4 py-3 text-right font-semibold text-[#E84545]">{fmt(e.balance)}</td>
+                        <td className="px-4 py-3 text-right font-semibold text-[color:var(--autocity-accent)]">{fmt(e.balance)}</td>
                       </tr>
                     ))}
                     {ledgerEntries.length === 0 && (
@@ -503,7 +503,7 @@ const fmt = (n: any) =>
                     <div className="flex gap-4 text-sm">
                       {e.debit > 0 && <span style={{ color: isDark ? "#f87171" : "#dc2626" }}>Dr: {fmt(e.debit)}</span>}
                       {e.credit > 0 && <span style={{ color: isDark ? "#86efac" : "#15803d" }}>Cr: {fmt(e.credit)}</span>}
-                      <span className="ml-auto font-semibold text-[#E84545]">{fmt(e.balance)}</span>
+                      <span className="ml-auto font-semibold text-[color:var(--autocity-accent)]">{fmt(e.balance)}</span>
                     </div>
                   </div>
                 ))}
@@ -529,7 +529,7 @@ const fmt = (n: any) =>
                       className="w-full px-3 py-2 rounded-lg text-sm" style={selectStyle} />
                   </div>
                   <button onClick={fetchTrialBalance} className="px-4 py-2 rounded-lg text-sm text-white font-semibold"
-                    style={{ background: "linear-gradient(to right,#E84545,#cc3c3c)" }}>
+                    style={{ background: "linear-gradient(to right,var(--autocity-accent),var(--autocity-accent-strong))" }}>
                     Apply & Refresh
                   </button>
                 </div>
@@ -568,7 +568,7 @@ const fmt = (n: any) =>
     <td className="px-4 py-3 text-right" style={{ color: th.cardSubtext }}>{fmt(a.openingBalance || 0)}</td>
     <td className="px-4 py-3 text-right" style={{ color: isDark ? "#f87171" : "#dc2626" }}>{fmt(a.periodDebit || 0)}</td>
     <td className="px-4 py-3 text-right" style={{ color: isDark ? "#86efac" : "#15803d" }}>{fmt(a.periodCredit || 0)}</td>
-    <td className="px-4 py-3 text-right font-semibold text-[#E84545]">{fmtDrCr(a.closingBalance || 0, a.accountType)}</td>
+    <td className="px-4 py-3 text-right font-semibold text-[color:var(--autocity-accent)]">{fmtDrCr(a.closingBalance || 0, a.accountType)}</td>
   </tr>
 ))}
                     {/* Totals Row */}
@@ -605,7 +605,7 @@ const fmt = (n: any) =>
                     <div className="grid grid-cols-3 gap-2 text-xs">
                       <div><p style={{ color: th.cardMuted }}>Dr</p><p style={{ color: isDark ? "#f87171" : "#dc2626" }}>{fmt(a.periodDebit || 0)}</p></div>
                       <div><p style={{ color: th.cardMuted }}>Cr</p><p style={{ color: isDark ? "#86efac" : "#15803d" }}>{fmt(a.periodCredit || 0)}</p></div>
-                      <div><p style={{ color: th.cardMuted }}>Closing</p><p className="text-[#E84545] font-semibold">{fmtDrCr(a.closingBalance || 0, a.type)}</p></div>
+                      <div><p style={{ color: th.cardMuted }}>Closing</p><p className="text-[color:var(--autocity-accent)] font-semibold">{fmtDrCr(a.closingBalance || 0, a.type)}</p></div>
                     </div>
                   </div>
                 ))}
@@ -648,7 +648,7 @@ const fmt = (n: any) =>
                 </button>
                 <button onClick={() => setShowMobileFilters(false)}
                   className="flex-1 px-4 py-3 rounded-xl text-white font-semibold"
-                  style={{ background: "linear-gradient(to right,#E84545,#cc3c3c)" }}>
+                  style={{ background: "linear-gradient(to right,var(--autocity-accent),var(--autocity-accent-strong))" }}>
                   Apply
                 </button>
               </div>

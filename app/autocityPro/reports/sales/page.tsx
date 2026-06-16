@@ -117,7 +117,7 @@ export default function SalesReportPage() {
       <MainLayout user={user} onLogout={handleLogout}>
         <div className="min-h-screen bg-[#050505] flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 md:h-16 md:w-16 border-b-2 border-[#E84545] mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 md:h-16 md:w-16 border-b-2 border-[color:var(--autocity-accent)] mx-auto mb-4"></div>
             <p className="text-slate-300 text-sm md:text-base">Generating sales report...</p>
           </div>
         </div>
@@ -169,7 +169,7 @@ export default function SalesReportPage() {
             <div className="bg-black rounded-[28px] px-5 py-2.5 shadow-2xl border border-white/10 backdrop-blur-xl pointer-events-auto animate-in slide-in-from-top duration-500">
               <div className="flex items-center gap-2.5">
                 <div className="flex items-center gap-1.5">
-                  <DollarSign className="h-3 w-3 text-[#E84545]" />
+                  <DollarSign className="h-3 w-3 text-[color:var(--autocity-accent)]" />
                   <span className="text-white text-[11px] font-semibold">{formatCompactCurrency(summary.totalRevenue)}</span>
                 </div>
                 <div className="h-3 w-px bg-white/20"></div>
@@ -220,7 +220,7 @@ export default function SalesReportPage() {
                   placeholder={`Search ${viewMode === 'detailed' ? 'sales' : viewMode === 'byProduct' ? 'products' : 'customers'}...`}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-white text-sm placeholder-white/40 focus:outline-none focus:border-[#E84545]/50 focus:ring-1 focus:ring-[#E84545]/50"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-white text-sm placeholder-white/40 focus:outline-none focus:border-[color:var(--autocity-accent-50)] focus:ring-1 focus:ring-[color:var(--autocity-accent)]/50"
                 />
               </div>
             )}
@@ -228,7 +228,7 @@ export default function SalesReportPage() {
         </div>
 
         {/* Desktop Header */}
-        <div className="hidden md:block py-8 bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-lg">
+        <div className="hidden md:block py-8 bg-gradient-to-br from-[var(--autocity-header-from-dark)] via-[var(--autocity-header-via-dark)] to-[var(--autocity-header-to-dark)] border-b border-white/5 shadow-lg">
           <div className="px-8">
             <div className="flex justify-between items-center">
               <div className="flex items-center space-x-3">
@@ -320,7 +320,7 @@ export default function SalesReportPage() {
                 <button
                   onClick={fetchReport}
                   disabled={loading}
-                  className="w-full px-4 py-2.5 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl hover:shadow-lg hover:shadow-[#E84545]/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full px-4 py-2.5 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-xl hover:shadow-lg hover:shadow-[color:var(--autocity-accent-20)] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                   <span>Generate</span>
@@ -333,10 +333,10 @@ export default function SalesReportPage() {
         <div className="px-4 md:px-8 pt-[200px] md:pt-6 pb-6">
           {/* Stats Cards - Mobile Optimized */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
-            <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 hover:border-[#E84545]/30 transition-all active:scale-[0.98]">
+            <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 hover:border-[color:var(--autocity-accent-30)] transition-all active:scale-[0.98]">
               <div className="flex items-center justify-between mb-2">
-                <div className="p-2 bg-[#E84545]/10 rounded-xl">
-                  <DollarSign className="h-4 w-4 md:h-5 md:w-5 text-[#E84545]" />
+                <div className="p-2 bg-[color:var(--autocity-accent-10)] rounded-xl">
+                  <DollarSign className="h-4 w-4 md:h-5 md:w-5 text-[color:var(--autocity-accent)]" />
                 </div>
               </div>
               <p className="text-xs text-slate-400 mb-1">Total Revenue</p>
@@ -348,10 +348,10 @@ export default function SalesReportPage() {
               </p>
             </div>
 
-            <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 hover:border-[#E84545]/30 transition-all active:scale-[0.98]">
+            <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 hover:border-[color:var(--autocity-accent-30)] transition-all active:scale-[0.98]">
               <div className="flex items-center justify-between mb-2">
-                <div className="p-2 bg-[#E84545]/10 rounded-xl">
-                  <Package className="h-4 w-4 md:h-5 md:w-5 text-[#E84545]" />
+                <div className="p-2 bg-[color:var(--autocity-accent-10)] rounded-xl">
+                  <Package className="h-4 w-4 md:h-5 md:w-5 text-[color:var(--autocity-accent)]" />
                 </div>
               </div>
               <p className="text-xs text-slate-400 mb-1">Total Sales</p>
@@ -372,14 +372,14 @@ export default function SalesReportPage() {
               <p className="text-xs text-slate-500 mt-1">{profitMargin}% margin</p>
             </div>
 
-            <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 hover:border-[#E84545]/30 transition-all active:scale-[0.98]">
+            <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 hover:border-[color:var(--autocity-accent-30)] transition-all active:scale-[0.98]">
               <div className="flex items-center justify-between mb-2">
-                <div className="p-2 bg-[#E84545]/10 rounded-xl">
-                  <BarChart3 className="h-4 w-4 md:h-5 md:w-5 text-[#E84545]" />
+                <div className="p-2 bg-[color:var(--autocity-accent-10)] rounded-xl">
+                  <BarChart3 className="h-4 w-4 md:h-5 md:w-5 text-[color:var(--autocity-accent)]" />
                 </div>
               </div>
               <p className="text-xs text-slate-400 mb-1">Avg Order Value</p>
-              <p className="text-base md:text-xl font-bold text-[#E84545] truncate">
+              <p className="text-base md:text-xl font-bold text-[color:var(--autocity-accent)] truncate">
                 QR.{summary.averageOrderValue.toFixed(0)}
               </p>
               <p className="text-xs text-slate-500 mt-1">Per order</p>
@@ -403,7 +403,7 @@ export default function SalesReportPage() {
                       onClick={() => setViewMode(tab.key as any)}
                       className={`flex flex-col items-center gap-1 px-2 py-2.5 rounded-xl transition-all ${
                         viewMode === tab.key
-                          ? 'bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white shadow-lg'
+                          ? 'bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white shadow-lg'
                           : 'text-white/60 hover:text-white/80 hover:bg-white/5'
                       }`}
                     >
@@ -424,7 +424,7 @@ export default function SalesReportPage() {
                   <div>
                     <h2 className="text-base md:text-lg font-bold text-white mb-3 md:mb-4">Performance Summary</h2>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
-                      <div className="bg-gradient-to-br from-[#E84545]/10 to-[#050505] border border-[#E84545]/20 rounded-xl p-4">
+                      <div className="bg-gradient-to-br from-[var(--autocity-accent-10)] to-[#050505] border border-[color:var(--autocity-accent-20)] rounded-xl p-4">
                         <p className="text-xs md:text-sm text-slate-400 mb-1">Profit Margin</p>
                         <p className="text-xl md:text-2xl font-bold text-green-400">{profitMargin}%</p>
                         <p className="text-xs text-slate-500 mt-1">Avg margin</p>
@@ -443,9 +443,9 @@ export default function SalesReportPage() {
                   </div>
                   
                   {summary.totalRevenue === 0 && (
-                    <div className="bg-gradient-to-r from-[#E84545]/10 to-[#050505] border border-[#E84545]/30 rounded-xl p-4">
+                    <div className="bg-gradient-to-r from-[var(--autocity-accent-10)] to-[#050505] border border-[color:var(--autocity-accent-30)] rounded-xl p-4">
                       <div className="flex items-start gap-3">
-                        <AlertTriangle className="h-5 w-5 text-[#E84545] flex-shrink-0 mt-0.5" />
+                        <AlertTriangle className="h-5 w-5 text-[color:var(--autocity-accent)] flex-shrink-0 mt-0.5" />
                         <div>
                           <h3 className="text-sm md:text-base font-bold text-white mb-1">
                             No Sales Data Available
@@ -476,7 +476,7 @@ export default function SalesReportPage() {
                       {filteredSales.map((sale: any) => (
                         <div
                           key={sale._id}
-                          className="bg-white/5 border border-white/10 rounded-xl p-3 md:p-4 hover:border-[#E84545]/30 hover:bg-white/10 transition-all active:scale-[0.98]"
+                          className="bg-white/5 border border-white/10 rounded-xl p-3 md:p-4 hover:border-[color:var(--autocity-accent-30)] hover:bg-white/10 transition-all active:scale-[0.98]"
                         >
                           <div className="flex justify-between items-start mb-3">
                             <div className="flex-1 min-w-0">
@@ -494,7 +494,7 @@ export default function SalesReportPage() {
                             <span className={`px-2 md:px-2.5 py-1 rounded-lg border text-xs font-semibold ${
                               sale.status === 'COMPLETED' ? 'bg-green-400/10 text-green-400 border-green-400/20' :
                               sale.status === 'DRAFT' ? 'bg-slate-400/10 text-slate-400 border-slate-400/20' :
-                              'bg-[#E84545]/10 text-[#E84545] border-[#E84545]/20'
+                              'bg-[color:var(--autocity-accent-10)] text-[color:var(--autocity-accent)] border-[color:var(--autocity-accent-20)]'
                             }`}>
                               {sale.status}
                             </span>
@@ -508,11 +508,11 @@ export default function SalesReportPage() {
                           <div className="flex justify-between items-center pt-3 border-t border-white/10">
                             <div>
                               <span className="text-xs text-slate-500">Total Amount</span>
-                              <p className="text-sm md:text-base font-bold text-[#E84545]">
+                              <p className="text-sm md:text-base font-bold text-[color:var(--autocity-accent)]">
                                 QR.{(sale.grandTotal || 0).toLocaleString()}
                               </p>
                             </div>
-                            <button className="text-xs text-white/60 hover:text-[#E84545] font-semibold flex items-center gap-1 active:scale-95 transition-all">
+                            <button className="text-xs text-white/60 hover:text-[color:var(--autocity-accent)] font-semibold flex items-center gap-1 active:scale-95 transition-all">
                               <Eye className="h-3 w-3" />
                               <span className="hidden md:inline">View</span>
                             </button>
@@ -542,7 +542,7 @@ export default function SalesReportPage() {
                         .map(([productName, data]: [string, any]) => (
                           <div
                             key={productName}
-                            className="bg-white/5 border border-white/10 rounded-xl p-3 md:p-4 hover:border-[#E84545]/30 hover:bg-white/10 transition-all active:scale-[0.98]"
+                            className="bg-white/5 border border-white/10 rounded-xl p-3 md:p-4 hover:border-[color:var(--autocity-accent-30)] hover:bg-white/10 transition-all active:scale-[0.98]"
                           >
                             <div className="flex justify-between items-start mb-3">
                               <div className="flex-1 min-w-0">
@@ -588,7 +588,7 @@ export default function SalesReportPage() {
                         .map(([customerName, data]: [string, any]) => (
                           <div
                             key={customerName}
-                            className="bg-white/5 border border-white/10 rounded-xl p-3 md:p-4 hover:border-[#E84545]/30 hover:bg-white/10 transition-all active:scale-[0.98]"
+                            className="bg-white/5 border border-white/10 rounded-xl p-3 md:p-4 hover:border-[color:var(--autocity-accent-30)] hover:bg-white/10 transition-all active:scale-[0.98]"
                           >
                             <div className="flex justify-between items-start mb-3">
                               <div className="flex-1 min-w-0">
@@ -606,7 +606,7 @@ export default function SalesReportPage() {
                               </div>
                               <div>
                                 <span className="text-[10px] text-slate-500 uppercase block mb-1">Avg Order Value</span>
-                                <p className="text-sm font-semibold text-[#E84545]">QR.{(data.revenue / data.count).toFixed(0)}</p>
+                                <p className="text-sm font-semibold text-[color:var(--autocity-accent)]">QR.{(data.revenue / data.count).toFixed(0)}</p>
                               </div>
                             </div>
                           </div>
@@ -644,7 +644,7 @@ export default function SalesReportPage() {
                   type="date"
                   value={dateRange.fromDate}
                   onChange={(e) => setDateRange({ ...dateRange, fromDate: e.target.value })}
-                  className="w-full px-3 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-[#E84545]/50 focus:ring-1 focus:ring-[#E84545]/50"
+                  className="w-full px-3 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-[color:var(--autocity-accent-50)] focus:ring-1 focus:ring-[color:var(--autocity-accent)]/50"
                 />
               </div>
               <div>
@@ -654,7 +654,7 @@ export default function SalesReportPage() {
                   type="date"
                   value={dateRange.toDate}
                   onChange={(e) => setDateRange({ ...dateRange, toDate: e.target.value })}
-                  className="w-full px-3 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-[#E84545]/50 focus:ring-1 focus:ring-[#E84545]/50"
+                  className="w-full px-3 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-[color:var(--autocity-accent-50)] focus:ring-1 focus:ring-[color:var(--autocity-accent)]/50"
                 />
               </div>
               <div className="flex gap-3 pt-4">
@@ -674,7 +674,7 @@ export default function SalesReportPage() {
                     fetchReport();
                     setShowFilters(false);
                   }}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] rounded-xl text-white font-semibold hover:shadow-lg hover:shadow-[#E84545]/20 transition-all active:scale-95"
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] rounded-xl text-white font-semibold hover:shadow-lg hover:shadow-[color:var(--autocity-accent-20)] transition-all active:scale-95"
                 >
                   Apply
                 </button>
@@ -706,7 +706,7 @@ export default function SalesReportPage() {
                 className="w-full p-4 bg-[#0A0A0A] border border-white/10 rounded-xl text-white font-semibold hover:bg-white/5 transition-all flex items-center justify-between active:scale-95"
               >
                 <div className="flex items-center gap-3">
-                  <Calendar className="h-5 w-5 text-[#E84545]" />
+                  <Calendar className="h-5 w-5 text-[color:var(--autocity-accent)]" />
                   <span>Change Date Range</span>
                 </div>
               </button>
@@ -719,7 +719,7 @@ export default function SalesReportPage() {
                 className="w-full p-4 bg-[#0A0A0A] border border-white/10 rounded-xl text-white font-semibold hover:bg-white/5 transition-all flex items-center justify-between active:scale-95"
               >
                 <div className="flex items-center gap-3">
-                  <RefreshCw className="h-5 w-5 text-[#E84545]" />
+                  <RefreshCw className="h-5 w-5 text-[color:var(--autocity-accent)]" />
                   <span>Refresh Data</span>
                 </div>
               </button>
@@ -732,7 +732,7 @@ export default function SalesReportPage() {
                 className="w-full p-4 bg-[#0A0A0A] border border-white/10 rounded-xl text-white font-semibold hover:bg-white/5 transition-all flex items-center justify-between active:scale-95"
               >
                 <div className="flex items-center gap-3">
-                  <Download className="h-5 w-5 text-[#E84545]" />
+                  <Download className="h-5 w-5 text-[color:var(--autocity-accent)]" />
                   <span>Export Report</span>
                 </div>
               </button>
@@ -745,7 +745,7 @@ export default function SalesReportPage() {
                 className="w-full p-4 bg-[#0A0A0A] border border-white/10 rounded-xl text-white font-semibold hover:bg-white/5 transition-all flex items-center justify-between active:scale-95"
               >
                 <div className="flex items-center gap-3">
-                  <Printer className="h-5 w-5 text-[#E84545]" />
+                  <Printer className="h-5 w-5 text-[color:var(--autocity-accent)]" />
                   <span>Print Report</span>
                 </div>
               </button>

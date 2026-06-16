@@ -44,24 +44,24 @@ export default function ReportsPage() {
     mobileBtnBg:       isDark ? 'rgba(255,255,255,0.05)'                              : 'rgba(0,0,0,0.05)',
     mobileBtnText:     isDark ? 'rgba(255,255,255,0.80)'                              : '#374151',
     // Desktop header
-    desktopHdrBgFrom:  isDark ? '#932222'                                             : '#fef2f2',
-    desktopHdrBgVia:   isDark ? '#411010'                                             : '#fee2e2',
-    desktopHdrBgTo:    isDark ? '#a20c0c'                                             : '#fecaca',
+    desktopHdrBgFrom:  isDark ? 'var(--autocity-header-from-dark)'                                             : 'var(--autocity-header-from-light)',
+    desktopHdrBgVia:   isDark ? 'var(--autocity-header-via-dark)'                                             : 'var(--autocity-header-via-light)',
+    desktopHdrBgTo:    isDark ? 'var(--autocity-header-to-dark)'                                             : 'var(--autocity-header-to-light)',
     desktopHdrBorder:  isDark ? 'rgba(255,255,255,0.05)'                              : 'rgba(0,0,0,0.06)',
-    desktopHdrTitle:   isDark ? '#ffffff'                                             : '#7f1d1d',
-    desktopHdrSub:     isDark ? 'rgba(255,255,255,0.80)'                              : '#991b1b',
+    desktopHdrTitle:   isDark ? '#ffffff'                                             : 'var(--autocity-header-text-light)',
+    desktopHdrSub:     isDark ? 'rgba(255,255,255,0.80)'                              : 'var(--autocity-header-sub-light)',
     desktopIconBg:     isDark ? 'rgba(255,255,255,0.10)'                              : 'rgba(0,0,0,0.08)',
     desktopIconBorder: isDark ? 'rgba(255,255,255,0.20)'                              : 'rgba(0,0,0,0.12)',
     badgeBg:           isDark ? 'rgba(0,0,0,0.30)'                                   : 'rgba(255,255,255,0.60)',
-    badgeBorder:       isDark ? 'rgba(255,255,255,0.15)'                              : 'rgba(127,29,29,0.20)',
-    badgeText:         isDark ? 'rgba(255,255,255,0.70)'                              : '#7f1d1d',
+    badgeBorder:       isDark ? 'rgba(255,255,255,0.15)'                              : 'var(--autocity-accent-20)',
+    badgeText:         isDark ? 'rgba(255,255,255,0.70)'                              : 'var(--autocity-header-text-light)',
     // Report cards
     reportCardBgFrom:  isDark ? '#0A0A0A'                                             : '#ffffff',
     reportCardBgTo:    isDark ? '#050505'                                             : '#f9fafb',
     reportCardBorder:  isDark ? 'rgba(255,255,255,0.10)'                              : 'rgba(0,0,0,0.08)',
     reportCardHover:   isDark ? 'rgba(255,255,255,0.20)'                              : 'rgba(0,0,0,0.14)',
     reportCardTitle:   isDark ? '#ffffff'                                             : '#111827',
-    reportCardTitleHover: '#E84545',
+    reportCardTitleHover: 'var(--autocity-accent)',
     reportCardDesc:    isDark ? '#9ca3af'                                             : '#6b7280',
     // Features panel
     featuresBgFrom:    isDark ? '#0A0A0A'                                             : '#ffffff',
@@ -81,10 +81,10 @@ export default function ReportsPage() {
     statLabel:         isDark ? '#9ca3af'                                             : '#6b7280',
     statSub:           isDark ? '#6b7280'                                             : '#9ca3af',
     // Help section
-    helpBgFrom:        isDark ? 'rgba(232,69,69,0.10)'                                : '#fff5f5',
+    helpBgFrom:        isDark ? 'var(--autocity-accent-10)'                                : '#fff5f5',
     helpBgVia:         isDark ? '#0A0A0A'                                             : '#ffffff',
     helpBgTo:          isDark ? '#050505'                                             : '#f9fafb',
-    helpBorder:        isDark ? 'rgba(232,69,69,0.20)'                                : 'rgba(232,69,69,0.20)',
+    helpBorder:        isDark ? 'var(--autocity-accent-20)'                                : 'var(--autocity-accent-20)',
     helpTitle:         isDark ? '#ffffff'                                             : '#111827',
     helpDesc:          isDark ? '#9ca3af'                                             : '#6b7280',
     helpTagBg:         isDark ? '#0A0A0A'                                             : 'rgba(0,0,0,0.04)',
@@ -136,7 +136,7 @@ export default function ReportsPage() {
               style={{ background: th.islandBg, border: `1px solid ${th.islandBorder}` }}>
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
-                  <BarChart3 className="h-3 w-3 text-[#E84545]" />
+                  <BarChart3 className="h-3 w-3 text-[color:var(--autocity-accent)]" />
                   <span className="text-xs font-semibold" style={{ color: th.islandText }}>{reports.length}</span>
                 </div>
                 <div className="h-3 w-px" style={{ background: th.islandDivider }} />
@@ -145,7 +145,7 @@ export default function ReportsPage() {
                   <span className="text-xs font-medium" style={{ color: th.islandText }}>Reports</span>
                 </div>
                 <div className="h-3 w-px" style={{ background: th.islandDivider }} />
-                {isDark ? <Moon className="h-3 w-3 text-[#E84545]" /> : <Sun className="h-3 w-3 text-[#E84545]" />}
+                {isDark ? <Moon className="h-3 w-3 text-[color:var(--autocity-accent)]" /> : <Sun className="h-3 w-3 text-[color:var(--autocity-accent)]" />}
               </div>
             </div>
           </div>
@@ -209,7 +209,7 @@ export default function ReportsPage() {
                     <report.icon className="h-4 w-4 md:h-6 md:w-6 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-sm md:text-lg font-bold mb-1 md:mb-2 transition-colors group-hover:text-[#E84545]"
+                    <h3 className="text-sm md:text-lg font-bold mb-1 md:mb-2 transition-colors group-hover:text-[color:var(--autocity-accent)]"
                       style={{ color: th.reportCardTitle }}>
                       <span className="md:hidden">{report.shortName}</span>
                       <span className="hidden md:inline">{report.name}</span>
@@ -225,7 +225,7 @@ export default function ReportsPage() {
           <div className="rounded-2xl shadow-xl p-4 md:p-6 transition-colors duration-500"
             style={{ background: `linear-gradient(135deg,${th.featuresBgFrom},${th.featuresBgTo})`, border: `1px solid ${th.featuresBorder}` }}>
             <div className="flex items-center gap-2 mb-4 md:mb-6">
-              <Zap className="h-5 w-5 md:h-6 md:w-6 text-[#E84545]" />
+              <Zap className="h-5 w-5 md:h-6 md:w-6 text-[color:var(--autocity-accent)]" />
               <h2 className="text-lg md:text-xl font-bold" style={{ color: th.featuresSectionTitle }}>Report Features</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
@@ -238,7 +238,7 @@ export default function ReportsPage() {
                     <f.icon className="h-4 w-4 md:h-5 md:w-5 text-white" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h3 className="text-sm md:text-base font-semibold mb-1 group-hover:text-[#E84545] transition-colors"
+                    <h3 className="text-sm md:text-base font-semibold mb-1 group-hover:text-[color:var(--autocity-accent)] transition-colors"
                       style={{ color: th.featureItemTitle }}>{f.title}</h3>
                     <p className="text-xs md:text-sm" style={{ color: th.featureItemDesc }}>{f.description}</p>
                   </div>
@@ -271,8 +271,8 @@ export default function ReportsPage() {
           <div className="mt-6 md:mt-8 rounded-2xl p-4 md:p-6 transition-colors duration-500"
             style={{ background: `linear-gradient(135deg,${th.helpBgFrom},${th.helpBgVia},${th.helpBgTo})`, border: `1px solid ${th.helpBorder}` }}>
             <div className="flex items-start gap-3 md:gap-4">
-              <div className="p-2 md:p-3 bg-[#E84545]/10 rounded-xl flex-shrink-0">
-                <AlertCircle className="h-5 w-5 md:h-6 md:w-6 text-[#E84545]" />
+              <div className="p-2 md:p-3 bg-[color:var(--autocity-accent-10)] rounded-xl flex-shrink-0">
+                <AlertCircle className="h-5 w-5 md:h-6 md:w-6 text-[color:var(--autocity-accent)]" />
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-sm md:text-lg font-bold mb-1 md:mb-2" style={{ color: th.helpTitle }}>Need Help?</h3>

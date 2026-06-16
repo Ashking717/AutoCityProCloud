@@ -64,16 +64,16 @@ export default function EditJobPage() {
   const th = {
     pageBg:             isDark ? "#050505"                                               : "#f3f4f6",
     // Desktop header
-    headerBgFrom:       isDark ? "#932222"                                               : "#fef2f2",
-    headerBgVia:        isDark ? "#411010"                                               : "#fee2e2",
-    headerBgTo:         isDark ? "#a20c0c"                                               : "#fecaca",
+    headerBgFrom:       isDark ? "var(--autocity-header-from-dark)"                                               : "var(--autocity-header-from-light)",
+    headerBgVia:        isDark ? "var(--autocity-header-via-dark)"                                               : "var(--autocity-header-via-light)",
+    headerBgTo:         isDark ? "var(--autocity-header-to-dark)"                                               : "var(--autocity-header-to-light)",
     headerBorder:       isDark ? "rgba(255,255,255,0.05)"                                : "rgba(0,0,0,0.06)",
-    headerTitle:        isDark ? "#ffffff"                                               : "#7f1d1d",
-    headerSub:          isDark ? "rgba(255,255,255,0.80)"                                : "#991b1b",
-    headerBtnBg:        isDark ? "linear-gradient(to right,#E84545,#cc3c3c)"            : "linear-gradient(to right,#E84545,#cc3c3c)",
-    headerBackBg:       isDark ? "rgba(255,255,255,0.10)"                                : "rgba(127,29,29,0.10)",
-    headerBackText:     isDark ? "#ffffff"                                               : "#7f1d1d",
-    headerBackHover:    isDark ? "rgba(255,255,255,0.20)"                                : "rgba(127,29,29,0.20)",
+    headerTitle:        isDark ? "#ffffff"                                               : "var(--autocity-header-text-light)",
+    headerSub:          isDark ? "rgba(255,255,255,0.80)"                                : "var(--autocity-header-sub-light)",
+    headerBtnBg:        isDark ? "linear-gradient(to right,var(--autocity-accent),var(--autocity-accent-strong))"            : "linear-gradient(to right,var(--autocity-accent),var(--autocity-accent-strong))",
+    headerBackBg:       isDark ? "rgba(255,255,255,0.10)"                                : "var(--autocity-accent-10)",
+    headerBackText:     isDark ? "#ffffff"                                               : "var(--autocity-header-text-light)",
+    headerBackHover:    isDark ? "rgba(255,255,255,0.20)"                                : "var(--autocity-accent-20)",
     // Mobile header
     mobileHeaderBg:     isDark ? "linear-gradient(135deg,#0A0A0A,#050505,#0A0A0A)"      : "linear-gradient(135deg,#ffffff,#f9fafb,#ffffff)",
     mobileHeaderBorder: isDark ? "rgba(255,255,255,0.05)"                               : "rgba(0,0,0,0.08)",
@@ -97,7 +97,7 @@ export default function EditJobPage() {
     // Products
     productCardBg:      isDark ? "#111111"                                               : "#f9fafb",
     productCardBorder:  isDark ? "rgba(255,255,255,0.05)"                                : "rgba(0,0,0,0.08)",
-    productCardHover:   isDark ? "rgba(232,69,69,0.50)"                                  : "rgba(232,69,69,0.40)",
+    productCardHover:   isDark ? "var(--autocity-accent-50)"                                  : "var(--autocity-accent-40)",
     productTitle:       isDark ? "#ffffff"                                               : "#111827",
     productMuted:       isDark ? "#9ca3af"                                               : "#6b7280",
     // Items
@@ -109,7 +109,7 @@ export default function EditJobPage() {
     priorUnselBorder:   isDark ? "rgba(255,255,255,0.05)"                                : "rgba(0,0,0,0.08)",
     priorUnselText:     isDark ? "#9ca3af"                                               : "#6b7280",
     // Staff panel
-    staffPanelBorder:   isDark ? "rgba(232,69,69,0.20)"                                 : "rgba(232,69,69,0.15)",
+    staffPanelBorder:   isDark ? "var(--autocity-accent-20)"                                 : "var(--autocity-accent-15)",
     // Modals
     modalOverlay:       "rgba(0,0,0,0.70)",
     modalBg:            isDark ? "#0A0A0A"                                               : "#ffffff",
@@ -253,7 +253,7 @@ export default function EditJobPage() {
     <MainLayout user={user} onLogout={handleLogout}>
       <div className="flex items-center justify-center min-h-screen transition-colors duration-500" style={{ background: th.pageBg }}>
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#E84545] mb-3" />
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[color:var(--autocity-accent)] mb-3" />
           <p style={{ color: th.emptyText }}>Loading job...</p>
         </div>
       </div>
@@ -336,19 +336,19 @@ export default function EditJobPage() {
               {/* Job Details */}
               <div className="rounded-xl p-4 md:p-6 transition-colors duration-500" style={{ background: th.panelBg, border: `1px solid ${th.panelBorder}` }}>
                 <h2 className="text-lg font-bold mb-4 flex items-center gap-2" style={{ color: th.panelTitle }}>
-                  <FileText className="h-5 w-5 text-[#E84545]" />Job Details
+                  <FileText className="h-5 w-5 text-[color:var(--autocity-accent)]" />Job Details
                 </h2>
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium mb-2" style={{ color: th.panelTitle }}>Job Title *
                     <input type="text" value={jobTitle} onChange={e => setJobTitle(e.target.value)} placeholder="e.g., Oil Change & Brake Inspection"
-                      className="w-full px-3 py-3 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent" style={inputStyle} />
+                      className="w-full px-3 py-3 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent" style={inputStyle} />
                     </label>
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2" style={{ color: th.panelTitle }}>Description (Optional)
                     <textarea value={jobDescription} onChange={e => setJobDescription(e.target.value)} placeholder="Additional details..." rows={3}
-                      className="w-full px-3 py-3 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent resize-none" style={inputStyle} />
+                      className="w-full px-3 py-3 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent resize-none" style={inputStyle} />
                     </label>
                   </div>
                   <div className="pt-4" style={{ borderTop: `1px solid ${th.divider}` }}>
@@ -374,11 +374,11 @@ export default function EditJobPage() {
                     <Search className="absolute left-3 top-3 h-5 w-5" style={{ color: th.inputPH }} />
                     <input ref={searchInputRef} type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
                       placeholder="Search parts by name, SKU..."
-                      className="w-full pl-10 pr-4 py-3 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent" style={inputStyle} />
+                      className="w-full pl-10 pr-4 py-3 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent" style={inputStyle} />
                   </div>
                   <button onClick={() => setShowAddLabor(true)}
                     className="flex items-center gap-2 px-4 py-3 text-white rounded-lg transition-all shadow-lg whitespace-nowrap"
-                    style={{ background: "linear-gradient(to right,#E84545,#cc3c3c)" }}>
+                    style={{ background: "linear-gradient(to right,var(--autocity-accent),var(--autocity-accent-strong))" }}>
                     <Wrench className="h-5 w-5" /><span className="hidden md:inline">Add Labor</span>
                   </button>
                 </div>
@@ -410,7 +410,7 @@ export default function EditJobPage() {
               {/* Items List */}
               <div className="rounded-xl p-4 md:p-6 transition-colors duration-500" style={{ background: th.panelBg, border: `1px solid ${th.panelBorder}` }}>
                 <h2 className="text-lg font-bold mb-4 flex items-center gap-2" style={{ color: th.panelTitle }}>
-                  <Wrench className="h-5 w-5 text-[#E84545]" />Job Items ({items.length})
+                  <Wrench className="h-5 w-5 text-[color:var(--autocity-accent)]" />Job Items ({items.length})
                 </h2>
                 <div className="space-y-3">
                   {items.length === 0 ? (
@@ -423,16 +423,16 @@ export default function EditJobPage() {
                     <div key={item.productId || `${item.sku}-${index}`} className="rounded-lg p-3 md:p-4" style={{ background: th.itemBg, border: `1px solid ${th.itemBorder}` }}>
                       <div className="flex justify-between items-start mb-2">
                         <h3 className="font-semibold text-sm flex items-center gap-2" style={{ color: th.itemTitle }}>
-                          {item.isLabor && <Wrench className="h-4 w-4 text-[#E84545]" />}{item.productName}
+                          {item.isLabor && <Wrench className="h-4 w-4 text-[color:var(--autocity-accent)]" />}{item.productName}
                         </h3>
-                        <button onClick={() => removeItem(index)} className="text-[#E84545] p-1 active:scale-95 transition-all"><Trash2 className="h-4 w-4" /></button>
+                        <button onClick={() => removeItem(index)} className="text-[color:var(--autocity-accent)] p-1 active:scale-95 transition-all"><Trash2 className="h-4 w-4" /></button>
                       </div>
                       <p className="text-xs mb-3" style={{ color: th.itemMuted }}>SKU: {item.sku}</p>
                       <div className="grid grid-cols-2 gap-2">
                         <input type="number" value={item.quantity} onChange={e => updateItem(index, "quantity", parseFloat(e.target.value) || 1)}
-                          placeholder="Qty" min="1" className="px-3 py-2 rounded text-sm focus:ring-1 focus:ring-[#E84545]" style={inputStyle} />
+                          placeholder="Qty" min="1" className="px-3 py-2 rounded text-sm focus:ring-1 focus:ring-[color:var(--autocity-accent)]" style={inputStyle} />
                         <input type="text" value={item.notes || ""} onChange={e => updateItem(index, "notes", e.target.value)}
-                          placeholder="Notes (optional)" className="px-3 py-2 rounded text-sm focus:ring-1 focus:ring-[#E84545]" style={inputStyle} />
+                          placeholder="Notes (optional)" className="px-3 py-2 rounded text-sm focus:ring-1 focus:ring-[color:var(--autocity-accent)]" style={inputStyle} />
                       </div>
                       <div className="mt-2 flex justify-between items-center text-sm">
                         <span style={{ color: th.itemMuted }}>Qty: {item.quantity} {item.unit}</span>
@@ -450,13 +450,13 @@ export default function EditJobPage() {
                   <div>
                     <label className="block text-sm font-medium mb-2" style={{ color: th.panelTitle }}>Internal Notes
                     <textarea value={internalNotes} onChange={e => setInternalNotes(e.target.value)} placeholder="Notes for internal use only..." rows={3}
-                      className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] resize-none" style={inputStyle} />
+                      className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] resize-none" style={inputStyle} />
                     </label>
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2" style={{ color: th.panelTitle }}>Customer Notes
                     <textarea value={customerNotes} onChange={e => setCustomerNotes(e.target.value)} placeholder="Notes visible to customer..." rows={3}
-                      className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] resize-none" style={inputStyle} />
+                      className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] resize-none" style={inputStyle} />
                     </label>
                   </div>
                 </div>
@@ -484,7 +484,7 @@ export default function EditJobPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2" style={{ color: th.panelTitle }}>Status
-                    <select value={status} onChange={e => setStatus(e.target.value as any)} className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545]" style={selectStyle}>
+                    <select value={status} onChange={e => setStatus(e.target.value as any)} className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)]" style={selectStyle}>
                       <option value="DRAFT">DRAFT</option>
                       <option value="PENDING">PENDING</option>
                       <option value="IN_PROGRESS">IN PROGRESS</option>
@@ -499,10 +499,10 @@ export default function EditJobPage() {
               {isAdmin && (
                 <div className="rounded-xl p-4 md:p-6 transition-colors duration-500" style={{ background: th.panelBg, border: `1px solid ${th.staffPanelBorder}` }}>
                   <h2 className="text-lg font-bold mb-2 flex items-center gap-2" style={{ color: th.panelTitle }}>
-                    <UserCog className="h-5 w-5 text-[#E84545]" />Assign Staff
+                    <UserCog className="h-5 w-5 text-[color:var(--autocity-accent)]" />Assign Staff
                   </h2>
                   <p className="text-xs text-yellow-400 mb-3">💡 Admin/Manager feature</p>
-                  <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)} className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] text-sm" style={selectStyle}>
+                  <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)} className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] text-sm" style={selectStyle}>
                     <option value="">Unassigned</option>
                     {staff.map(s => <option key={s._id} value={s._id}>{s.firstName} {s.lastName} ({s.role})</option>)}
                   </select>
@@ -513,7 +513,7 @@ export default function EditJobPage() {
               {/* Schedule */}
               <div className="rounded-xl p-4 md:p-6 transition-colors duration-500" style={{ background: th.panelBg, border: `1px solid ${th.panelBorder}` }}>
                 <h2 className="text-lg font-bold mb-4 flex items-center gap-2" style={{ color: th.panelTitle }}>
-                  <Calendar className="h-5 w-5 text-[#E84545]" />Schedule
+                  <Calendar className="h-5 w-5 text-[color:var(--autocity-accent)]" />Schedule
                 </h2>
                 <div className="space-y-3">
                   {[
@@ -522,7 +522,7 @@ export default function EditJobPage() {
                   ].map(f => (
                     <div key={f.label}>
                       <label className="block text-sm font-medium mb-2" style={{ color: th.panelTitle }}>{f.label}</label>
-                      <input type="date" value={f.value} onChange={e => f.onChange(e.target.value)} className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] text-sm" style={inputStyle} />
+                      <input type="date" value={f.value} onChange={e => f.onChange(e.target.value)} className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] text-sm" style={inputStyle} />
                     </div>
                   ))}
                 </div>
@@ -532,7 +532,7 @@ export default function EditJobPage() {
               <div className="md:hidden rounded-xl p-4 transition-colors duration-500" style={{ background: th.panelBg, border: `1px solid ${th.panelBorder}` }}>
                 <button onClick={handleSubmit} disabled={loading || isVoiceUploading || !jobTitle.trim() || items.length === 0}
                   className="w-full py-3 text-white rounded-lg font-semibold disabled:opacity-50 transition-all shadow-lg"
-                  style={{ background: "linear-gradient(to right,#E84545,#cc3c3c)" }}>
+                  style={{ background: "linear-gradient(to right,var(--autocity-accent),var(--autocity-accent-strong))" }}>
                   {loading ? "Saving..." : "Save Changes"}
                 </button>
                 <p className="text-xs text-center mt-3" style={{ color: th.subText }}>
@@ -550,7 +550,7 @@ export default function EditJobPage() {
           <div className="rounded-xl shadow-2xl max-w-md w-full" style={{ background: th.modalBg, border: `1px solid ${th.modalBorder}` }}>
             <div className="flex justify-between items-center px-6 py-4" style={{ borderBottom: `1px solid ${th.modalBorder}` }}>
               <h2 className="text-xl font-bold flex items-center gap-2" style={{ color: th.modalTitle }}>
-                <Wrench className="h-5 w-5 text-[#E84545]" />Add Labor Charge
+                <Wrench className="h-5 w-5 text-[color:var(--autocity-accent)]" />Add Labor Charge
               </h2>
               <button onClick={() => setShowAddLabor(false)} style={{ color: th.modalCloseText }}><X className="h-6 w-6" /></button>
             </div>
@@ -577,7 +577,7 @@ export default function EditJobPage() {
                 <button onClick={() => setShowAddLabor(false)} className="px-4 py-2 rounded-lg"
                   style={{ background: "transparent", border: `1px solid ${th.modalCancelBorder}`, color: th.modalCancelText }}>Cancel</button>
                 <button onClick={handleAddLabor} className="px-4 py-2 text-white rounded-lg"
-                  style={{ background: "linear-gradient(to right,#E84545,#cc3c3c)" }}>Add Labor</button>
+                  style={{ background: "linear-gradient(to right,var(--autocity-accent),var(--autocity-accent-strong))" }}>Add Labor</button>
               </div>
             </div>
           </div>

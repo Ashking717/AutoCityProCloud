@@ -364,7 +364,7 @@ export default function BalanceSheetPage() {
       <MainLayout user={user} onLogout={handleLogout}>
         <div className="flex items-center justify-center min-h-screen bg-[#050505]">
           <div className="text-center">
-            <Loader2 className="w-12 h-12 animate-spin text-[#E84545] mx-auto mb-4" />
+            <Loader2 className="w-12 h-12 animate-spin text-[color:var(--autocity-accent)] mx-auto mb-4" />
             <p className="text-white/80">Loading balance sheet...</p>
           </div>
         </div>
@@ -393,7 +393,7 @@ export default function BalanceSheetPage() {
                 )}
                 <div className="h-3 w-px bg-white/20"></div>
                 <div className="flex items-center gap-1">
-                  <DollarSign className="h-3 w-3 text-[#E84545]" />
+                  <DollarSign className="h-3 w-3 text-[color:var(--autocity-accent)]" />
                   <span className="text-white text-xs">{formatCompactCurrency(reportData.assets.totalAssets)}</span>
                 </div>
               </div>
@@ -430,12 +430,12 @@ export default function BalanceSheetPage() {
                 type="date"
                 value={asOfDate}
                 onChange={(e) => setAsOfDate(e.target.value)}
-                className="flex-1 px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                className="flex-1 px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white text-sm focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
               />
               <button
                 onClick={fetchBalanceSheet}
                 disabled={loading}
-                className="px-4 py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl font-medium disabled:opacity-50 text-sm flex items-center gap-2 active:scale-95 transition-all"
+                className="px-4 py-2 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-xl font-medium disabled:opacity-50 text-sm flex items-center gap-2 active:scale-95 transition-all"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <BarChart3 className="h-4 w-4" />}
                 <span className="hidden xs:inline">Generate</span>
@@ -445,7 +445,7 @@ export default function BalanceSheetPage() {
         </div>
 
         {/* Desktop Header */}
-        <div className="hidden md:block py-4 md:py-7 bg-gradient-to-r from-red-900 via-[#541515] to-[#4d0b0b] border border-[#E84545]/30 shadow-lg overflow-hidden relative">
+        <div className="hidden md:block py-4 md:py-7 bg-gradient-to-r from-[var(--autocity-header-from-dark)] via-[var(--autocity-header-via-dark)] to-[var(--autocity-header-to-dark)] border border-[color:var(--autocity-accent-30)] shadow-lg overflow-hidden relative">
           {/* Background Pattern */}
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSIjRjg0NTQ1IiBmaWxsLW9wYWNpdHk9IjAuMSIgZmlsbC1ydWxlPSJldmVub2RkIj48Y2lyY2xlIGN4PSIzIiBjeT0iMyIgcj0iMyIvPjxjaXJjbGUgY3g9IjEzIiBjeT0iMTMiIHI9IjMiLz48L2c+PC9zdmc+')] opacity-20"></div>
           
@@ -494,7 +494,7 @@ export default function BalanceSheetPage() {
                   type="date"
                   value={asOfDate}
                   onChange={(e) => setAsOfDate(e.target.value)}
-                  className="w-full px-4 py-3 bg-[#111111] border border-white/10 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-[#E84545] outline-none transition-all text-white"
+                  className="w-full px-4 py-3 bg-[#111111] border border-white/10 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-[color:var(--autocity-accent)] outline-none transition-all text-white"
                 />
               </div>
 
@@ -502,7 +502,7 @@ export default function BalanceSheetPage() {
                 <button
                   onClick={fetchBalanceSheet}
                   disabled={loading}
-                  className="px-6 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] hover:opacity-90 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 shadow-lg transition-all duration-200"
+                  className="px-6 py-3 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] hover:opacity-90 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 shadow-lg transition-all duration-200"
                 >
                   {loading ? (
                     <>
@@ -623,7 +623,7 @@ export default function BalanceSheetPage() {
               </p>
               <button
                 onClick={fetchBalanceSheet}
-                className="px-6 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] hover:opacity-90 text-white rounded-lg font-medium inline-flex items-center space-x-2 active:scale-95 transition-all"
+                className="px-6 py-3 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] hover:opacity-90 text-white rounded-lg font-medium inline-flex items-center space-x-2 active:scale-95 transition-all"
               >
                 <BarChart3 className="w-5 h-5" />
                 <span>Generate Report</span>
@@ -698,7 +698,7 @@ export default function BalanceSheetPage() {
 
               {/* Liabilities & Equity Card */}
               <div className="bg-[#0A0A0A] rounded-2xl shadow-lg border border-white/5 overflow-hidden">
-                <div className="bg-gradient-to-r from-[#E84545] to-[#cc3c3c] px-4 md:px-6 py-3 md:py-4">
+                <div className="bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] px-4 md:px-6 py-3 md:py-4">
                   <div className="flex justify-between items-center gap-2">
                     <h2 className="text-lg md:text-xl font-bold text-white">LIABILITIES & EQUITY</h2>
                     <div className="text-right">

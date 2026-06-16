@@ -69,28 +69,30 @@ export default function ClosingsPage() {
     pageBg:              isDark ? '#0a0a0a'                                            : '#f3f4f6',
     // Mobile header
     mobileHdrBg:         isDark ? 'rgba(15,15,15,0.95)'                               : 'rgba(255,255,255,0.95)',
-    mobileHdrBorder:     isDark ? 'rgba(239,68,68,0.10)'                              : 'rgba(239,68,68,0.15)',
-    mobileHdrTitle:      isDark ? '#ffffff'                                            : '#111827',
+    mobileHdrBorder:     isDark ? 'var(--autocity-accent-10)'                          : 'var(--autocity-accent-15)',
+    mobileHdrTitle:      isDark ? '#ffffff'                                            : 'var(--autocity-header-text-light)',
     mobileHdrSub:        isDark ? '#6b7280'                                            : '#9ca3af',
     mobileBtnBg:         isDark ? '#1a1a1a'                                            : '#ffffff',
-    mobileBtnBorder:     isDark ? 'rgba(239,68,68,0.20)'                              : 'rgba(239,68,68,0.20)',
-    mobileBtnText:       isDark ? '#f87171'                                            : '#dc2626',
+    mobileBtnBorder:     'var(--autocity-accent-20)',
+    mobileBtnText:       'var(--autocity-accent)',
     // Desktop header bg layers
-    desktopHdrGrad:      isDark ? 'rgba(69,10,10,0.40)'                               : 'rgba(254,242,242,0.90)',
-    desktopHdrRadial:    isDark ? 'rgba(127,29,29,0.20)'                              : 'rgba(254,226,226,0.60)',
-    desktopHdrTitle:     isDark ? '#ffffff'                                            : '#111827',
-    desktopHdrSub:       isDark ? '#9ca3af'                                            : '#6b7280',
-    desktopIconBg:       isDark ? 'rgba(239,68,68,0.10)'                              : 'rgba(239,68,68,0.08)',
-    desktopIconBorder:   isDark ? 'rgba(239,68,68,0.20)'                              : 'rgba(239,68,68,0.20)',
-    desktopIconText:     isDark ? '#f87171'                                            : '#dc2626',
-    desktopIconGlow:     isDark ? 'rgba(239,68,68,0.20)'                              : 'rgba(239,68,68,0.08)',
+    desktopHdrGrad:      isDark
+      ? 'linear-gradient(135deg,var(--autocity-header-from-dark),var(--autocity-header-via-dark),var(--autocity-header-to-dark))'
+      : 'linear-gradient(135deg,var(--autocity-header-from-light),var(--autocity-header-via-light),var(--autocity-header-to-light))',
+    desktopHdrRadial:    isDark ? 'var(--autocity-accent-20)'                          : 'var(--autocity-accent-14)',
+    desktopHdrTitle:     isDark ? '#ffffff'                                            : 'var(--autocity-header-text-light)',
+    desktopHdrSub:       isDark ? 'rgba(255,255,255,0.80)'                             : 'var(--autocity-header-sub-light)',
+    desktopIconBg:       isDark ? 'var(--autocity-accent-10)'                          : 'var(--autocity-accent-08)',
+    desktopIconBorder:   'var(--autocity-accent-20)',
+    desktopIconText:     'var(--autocity-accent)',
+    desktopIconGlow:     isDark ? 'var(--autocity-accent-20)'                          : 'var(--autocity-accent-08)',
     badgeBg:             isDark ? 'rgba(0,0,0,0.40)'                                  : 'rgba(255,255,255,0.80)',
     badgeBorder:         isDark ? 'rgba(255,255,255,0.15)'                            : 'rgba(153,27,27,0.20)',
-    badgeText:           isDark ? 'rgba(255,255,255,0.70)'                            : '#991b1b',
+    badgeText:           isDark ? 'rgba(255,255,255,0.70)'                            : 'var(--autocity-header-sub-light)',
     // Stat cards
     statCardBg:          isDark ? '#141414'                                            : '#ffffff',
-    statCardBorder:      isDark ? 'rgba(239,68,68,0.10)'                              : 'rgba(0,0,0,0.08)',
-    statCardHoverBorder: isDark ? 'rgba(239,68,68,0.30)'                              : 'rgba(239,68,68,0.30)',
+    statCardBorder:      isDark ? 'var(--autocity-accent-10)'                          : 'rgba(0,0,0,0.08)',
+    statCardHoverBorder: 'var(--autocity-accent-30)',
     statLabelText:       isDark ? '#6b7280'                                            : '#9ca3af',
     statValueText:       isDark ? '#ffffff'                                            : '#111827',
     statMetaText:        isDark ? '#4b5563'                                            : '#d1d5db',
@@ -99,23 +101,24 @@ export default function ClosingsPage() {
     filterPanelBorder:   isDark ? 'rgba(239,68,68,0.10)'                              : 'rgba(0,0,0,0.08)',
     filterLabelText:     isDark ? '#6b7280'                                            : '#9ca3af',
     filterInputBg:       isDark ? '#1a1a1a'                                            : '#f9fafb',
-    filterInputBorder:   isDark ? 'rgba(239,68,68,0.20)'                              : 'rgba(0,0,0,0.10)',
+    filterInputBorder:   isDark ? 'var(--autocity-accent-20)'                          : 'rgba(0,0,0,0.10)',
     filterInputText:     isDark ? '#ffffff'                                            : '#111827',
     filterInputPH:       isDark ? '#4b5563'                                            : '#9ca3af',
-    filterBtnActive:     isDark ? 'from-red-600 to-red-700'                           : 'from-red-600 to-red-700',
+    filterBtnActiveBg:   'linear-gradient(135deg,var(--autocity-accent),var(--autocity-accent-strong))',
+    filterBtnActiveShadow:'0 10px 24px var(--autocity-accent-25)',
     filterBtnInactiveBg: isDark ? '#1a1a1a'                                            : '#f9fafb',
-    filterBtnInactiveBorder: isDark ? 'rgba(239,68,68,0.10)'                          : 'rgba(0,0,0,0.08)',
+    filterBtnInactiveBorder: isDark ? 'var(--autocity-accent-10)'                      : 'rgba(0,0,0,0.08)',
     filterBtnInactiveText: isDark ? '#9ca3af'                                          : '#6b7280',
     filterClearBg:       isDark ? '#1a1a1a'                                            : '#f9fafb',
-    filterClearBorder:   isDark ? 'rgba(239,68,68,0.20)'                              : 'rgba(0,0,0,0.10)',
+    filterClearBorder:   isDark ? 'var(--autocity-accent-20)'                          : 'rgba(0,0,0,0.10)',
     filterClearText:     isDark ? '#9ca3af'                                            : '#6b7280',
     // Closing cards
     cardBg:              isDark ? '#141414'                                            : '#ffffff',
-    cardBorder:          isDark ? 'rgba(239,68,68,0.10)'                              : 'rgba(0,0,0,0.08)',
-    cardHoverBorder:     isDark ? 'rgba(239,68,68,0.30)'                              : 'rgba(239,68,68,0.30)',
+    cardBorder:          isDark ? 'var(--autocity-accent-10)'                          : 'rgba(0,0,0,0.08)',
+    cardHoverBorder:     'var(--autocity-accent-30)',
     cardHdrBgFrom:       isDark ? '#1a1a1a'                                            : '#fafafa',
     cardHdrBgTo:         isDark ? '#141414'                                            : '#ffffff',
-    cardHdrBorder:       isDark ? 'rgba(239,68,68,0.10)'                              : 'rgba(0,0,0,0.06)',
+    cardHdrBorder:       isDark ? 'var(--autocity-accent-10)'                          : 'rgba(0,0,0,0.06)',
     cardTitle:           isDark ? '#ffffff'                                            : '#111827',
     cardSub:             isDark ? '#6b7280'                                            : '#9ca3af',
     // Inner panels
@@ -286,9 +289,11 @@ export default function ClosingsPage() {
   });
 
   const filterBtnCls = (active: boolean) => active
-    ? `flex-1 px-4 py-3 rounded-xl font-medium text-sm bg-gradient-to-br ${th.filterBtnActive} text-white shadow-lg shadow-red-500/25`
+    ? `flex-1 px-4 py-3 rounded-xl font-medium text-sm text-white shadow-lg`
     : `flex-1 px-4 py-3 rounded-xl font-medium text-sm transition-all duration-300`;
-  const filterBtnStyle = (active: boolean) => active ? {} : { background: th.filterBtnInactiveBg, border: `1px solid ${th.filterBtnInactiveBorder}`, color: th.filterBtnInactiveText };
+  const filterBtnStyle = (active: boolean) => active
+    ? { background: th.filterBtnActiveBg, boxShadow: th.filterBtnActiveShadow }
+    : { background: th.filterBtnInactiveBg, border: `1px solid ${th.filterBtnInactiveBorder}`, color: th.filterBtnInactiveText };
 
   const modalInputCls = "w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-red-500/20 transition-all font-medium";
   const modalInputStyle = { background: th.modalInputBg, border: `1px solid ${th.modalInputBorder}`, color: th.modalInputText };
@@ -324,16 +329,16 @@ export default function ClosingsPage() {
         </div>
 
         {/* ── Desktop Header ──────────────────────────────────────────── */}
-        <div className="hidden md:block relative overflow-hidden transition-colors duration-500">
-          <div className="absolute inset-0" style={{ background: `linear-gradient(135deg,${th.desktopHdrGrad},transparent)` }} />
+        <div className="hidden md:block relative overflow-hidden border-b shadow-xl transition-colors duration-500" style={{ borderColor: 'var(--autocity-accent-25)' }}>
+          <div className="absolute inset-0" style={{ background: th.desktopHdrGrad }} />
           <div className="absolute inset-0" style={{ background: `radial-gradient(ellipse at top right, ${th.desktopHdrRadial},transparent,transparent)` }} />
           <div className="absolute inset-0" style={{
             backgroundImage: 'url(\'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMtMy4zMTQgMC02IDIuNjg2LTYgNnMyLjY4NiA2IDYgNiA2LTIuNjg2IDYtNi0yLjY4Ni02LTYtNnoiIHN0cm9rZT0iIzk5MTgxOCIgc3Ryb2tlLXdpZHRoPSIuNSIgb3BhY2l0eT0iLjEiLz48L2c+PC9zdmc+\')',
             opacity: isDark ? 0.20 : 0.06,
           }} />
-          <div className="relative px-8 py-16">
+          <div className="relative px-8 py-11">
             <div className="max-w-7xl mx-auto">
-              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-12">
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8">
                 <div className="flex items-center gap-5">
                   <div className="relative">
                     <div className="absolute inset-0 blur-xl rounded-2xl" style={{ background: th.desktopIconGlow }} />
@@ -357,7 +362,8 @@ export default function ClosingsPage() {
                     <span>Export CSV</span>
                   </button>
                   <button onClick={() => setShowCloseModal(true)}
-                    className="group relative flex items-center gap-2 px-6 py-3 bg-gradient-to-br from-red-600 to-red-700 text-white rounded-xl hover:from-red-500 hover:to-red-600 transition-all duration-300 shadow-lg shadow-red-500/25 hover:shadow-xl hover:shadow-red-500/40">
+                    className="group relative flex items-center gap-2 px-6 py-3 text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl"
+                    style={{ background: th.filterBtnActiveBg, boxShadow: th.filterBtnActiveShadow }}>
                     <div className="absolute inset-0 bg-white/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
                     <Lock className="h-4 w-4 relative z-10 group-hover:scale-110 transition-transform" />
                     <span className="font-semibold relative z-10">Close Period</span>
@@ -459,7 +465,8 @@ export default function ClosingsPage() {
                   <p className="text-xl font-semibold mb-2" style={{ color: th.emptyTitle }}>No closings found</p>
                   <p className="text-sm mb-6" style={{ color: th.emptySubtext }}>Start managing your financial periods</p>
                   <button onClick={() => setShowCloseModal(true)}
-                    className="px-8 py-3 bg-gradient-to-br from-red-600 to-red-700 text-white rounded-xl hover:from-red-500 hover:to-red-600 transition-all duration-300 font-semibold shadow-lg shadow-red-500/25">
+                    className="px-8 py-3 text-white rounded-xl transition-all duration-300 font-semibold shadow-lg"
+                    style={{ background: th.filterBtnActiveBg, boxShadow: th.filterBtnActiveShadow }}>
                     Close First Period
                   </button>
                 </div>
@@ -760,7 +767,8 @@ export default function ClosingsPage() {
                   </button>
                 )}
                 <button onClick={handleClose} disabled={isClosing}
-                  className={`px-8 py-2.5 bg-gradient-to-br from-red-600 to-red-700 text-white rounded-xl hover:from-red-500 hover:to-red-600 transition-all font-semibold shadow-lg shadow-red-500/25 ${isClosing?"opacity-50 cursor-not-allowed":""}`}>
+                  className={`px-8 py-2.5 text-white rounded-xl transition-all font-semibold shadow-lg ${isClosing?"opacity-50 cursor-not-allowed":""}`}
+                  style={{ background: th.filterBtnActiveBg, boxShadow: th.filterBtnActiveShadow }}>
                   {isClosing ? "Closing..." : "Close Period"}
                 </button>
               </div>
@@ -801,7 +809,8 @@ export default function ClosingsPage() {
                   Clear
                 </button>
                 <button onClick={() => setShowFilters(false)}
-                  className="flex-1 px-4 py-3 bg-gradient-to-br from-red-600 to-red-700 rounded-xl text-white font-semibold active:scale-95 transition-all shadow-lg shadow-red-500/25">
+                  className="flex-1 px-4 py-3 rounded-xl text-white font-semibold active:scale-95 transition-all shadow-lg"
+                  style={{ background: th.filterBtnActiveBg, boxShadow: th.filterBtnActiveShadow }}>
                   Apply
                 </button>
               </div>

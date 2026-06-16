@@ -296,7 +296,7 @@ export default function OpeningBalancePage() {
       <MainLayout user={user} onLogout={handleLogout}>
         <div className="min-h-screen bg-[#050505] flex items-center justify-center">
           <div className="text-center">
-            <RefreshCw className="h-16 w-16 animate-spin text-[#E84545] mx-auto mb-4" />
+            <RefreshCw className="h-16 w-16 animate-spin text-[color:var(--autocity-accent)] mx-auto mb-4" />
             <p className="text-gray-400">Checking opening balance status...</p>
           </div>
         </div>
@@ -364,7 +364,7 @@ export default function OpeningBalancePage() {
         </div>
 
         {/* Desktop Header */}
-        <div className="hidden md:block py-12 bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-lg">
+        <div className="hidden md:block py-12 bg-gradient-to-br from-[var(--autocity-header-from-dark)] via-[var(--autocity-header-via-dark)] to-[var(--autocity-header-to-dark)] border-b border-white/5 shadow-lg">
           <div className="px-8">
             <div className="flex justify-between items-center">
               <div className="flex items-center space-x-4">
@@ -416,7 +416,7 @@ export default function OpeningBalancePage() {
                 type="date"
                 value={balanceDate}
                 onChange={(e) => setBalanceDate(e.target.value)}
-                className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
               />
             </div>
           </div>
@@ -497,7 +497,7 @@ export default function OpeningBalancePage() {
                 <button
                   onClick={addEntry}
                   disabled={availableAccounts.length === 0}
-                  className="flex items-center space-x-2 px-4 py-2.5 bg-[#E84545] text-white rounded-lg hover:bg-[#cc3c3c] disabled:opacity-50 disabled:cursor-not-allowed transition-all group"
+                  className="flex items-center space-x-2 px-4 py-2.5 bg-[color:var(--autocity-accent)] text-white rounded-lg hover:bg-[color:var(--autocity-accent-strong)] disabled:opacity-50 disabled:cursor-not-allowed transition-all group"
                 >
                   <Plus className="h-4 w-4 group-hover:rotate-90 transition-transform" />
                   <span>Add Account</span>
@@ -520,7 +520,7 @@ export default function OpeningBalancePage() {
                       {entries.map((entry, index) => (
                         <div
                           key={entry.id}
-                          className="bg-gradient-to-br from-[#0A0A0A] to-black border border-gray-800 rounded-xl p-4 hover:border-[#E84545] transition-colors"
+                          className="bg-gradient-to-br from-[#0A0A0A] to-black border border-gray-800 rounded-xl p-4 hover:border-[color:var(--autocity-accent)] transition-colors"
                         >
                           <div className="flex justify-between items-start mb-3">
                             <div className="flex-1 min-w-0 mr-2">
@@ -529,7 +529,7 @@ export default function OpeningBalancePage() {
                                 id={`entry-account-${index}`}
                                 value={entry.accountId}
                                 onChange={(e) => updateEntry(index, "accountId", e.target.value)}
-                                className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                                className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white text-sm focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                               >
                                 <option value="">Choose account...</option>
                                 {availableAccounts.map((acc) => (
@@ -585,7 +585,7 @@ export default function OpeningBalancePage() {
                                     onChange={(e) => updateEntry(index, "balance", parseFloat(e.target.value) || 0)}
                                     step="0.01"
                                     min="0"
-                                    className="w-full pl-14 pr-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                                    className="w-full pl-14 pr-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                                     placeholder="0.00"
                                   />
                                 </div>
@@ -615,7 +615,7 @@ export default function OpeningBalancePage() {
                                 <select
                                   value={entry.accountId}
                                   onChange={(e) => updateEntry(index, "accountId", e.target.value)}
-                                  className="w-full px-3 py-2 bg-black border border-gray-800 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white"
+                                  className="w-full px-3 py-2 bg-black border border-gray-800 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent text-white"
                                 >
                                   <option value="">Select account...</option>
                                   {availableAccounts.map((acc) => (
@@ -670,7 +670,7 @@ export default function OpeningBalancePage() {
                                     }
                                     step="0.01"
                                     min="0"
-                                    className="w-full pl-14 pr-3 py-2 bg-black border border-gray-800 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white"
+                                    className="w-full pl-14 pr-3 py-2 bg-black border border-gray-800 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent text-white"
                                     placeholder="0.00"
                                   />
                                 </div>
@@ -803,7 +803,7 @@ export default function OpeningBalancePage() {
                   <button
                     onClick={handleSubmit}
                     disabled={loading || entries.length === 0}
-                    className="flex items-center space-x-2 px-6 py-3 bg-[#E84545] text-white rounded-lg hover:bg-[#cc3c3c] disabled:opacity-50 disabled:cursor-not-allowed transition-all group"
+                    className="flex items-center space-x-2 px-6 py-3 bg-[color:var(--autocity-accent)] text-white rounded-lg hover:bg-[color:var(--autocity-accent-strong)] disabled:opacity-50 disabled:cursor-not-allowed transition-all group"
                   >
                     <Save className="h-5 w-5 group-hover:scale-110 transition-transform" />
                     <span>
@@ -840,7 +840,7 @@ export default function OpeningBalancePage() {
                   setShowMobileMenu(false);
                 }}
                 disabled={availableAccounts.length === 0}
-                className="w-full p-4 bg-black border border-gray-800 rounded-xl text-gray-300 font-semibold hover:bg-gray-900 hover:border-[#E84545] transition-all flex items-center justify-between active:scale-95 disabled:opacity-50"
+                className="w-full p-4 bg-black border border-gray-800 rounded-xl text-gray-300 font-semibold hover:bg-gray-900 hover:border-[color:var(--autocity-accent)] transition-all flex items-center justify-between active:scale-95 disabled:opacity-50"
               >
                 <span>Add Account</span>
                 <Plus className="h-5 w-5" />
@@ -864,7 +864,7 @@ export default function OpeningBalancePage() {
                   setShowMobileMenu(false);
                 }}
                 disabled={loading || entries.length === 0}
-                className="w-full p-4 bg-[#E84545] text-white rounded-xl font-semibold hover:bg-[#cc3c3c] transition-all flex items-center justify-between active:scale-95"
+                className="w-full p-4 bg-[color:var(--autocity-accent)] text-white rounded-xl font-semibold hover:bg-[color:var(--autocity-accent-strong)] transition-all flex items-center justify-between active:scale-95"
               >
                 <span>{loading ? 'Posting...' : 'Post Balances'}</span>
                 <Save className="h-5 w-5" />
@@ -874,7 +874,7 @@ export default function OpeningBalancePage() {
                   router.push('/autocityPro/accounts');
                   setShowMobileMenu(false);
                 }}
-                className="w-full p-4 bg-black border border-gray-800 rounded-xl text-gray-300 font-semibold hover:bg-gray-900 hover:border-[#E84545] transition-all flex items-center justify-between active:scale-95"
+                className="w-full p-4 bg-black border border-gray-800 rounded-xl text-gray-300 font-semibold hover:bg-gray-900 hover:border-[color:var(--autocity-accent)] transition-all flex items-center justify-between active:scale-95"
               >
                 <span>Cancel</span>
                 <ChevronLeft className="h-5 w-5" />

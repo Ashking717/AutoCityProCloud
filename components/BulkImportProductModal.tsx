@@ -201,15 +201,15 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
   // ── Theme tokens (matches ProductsClient exactly) ────────────────────────
   const th = {
     pageBg:            isDark ? '#050505'  : '#f3f4f6',
-    headerBgFrom:    isDark ? '#932222' : '#fef2f2',
-    headerBgVia:     isDark ? '#411010' : '#fee2e2',
-    headerBgTo:      isDark ? '#a20c0c' : '#fecaca',
-    headerTitle:     isDark ? '#ffffff' : '#7f1d1d',
-    headerSub:       isDark ? 'rgba(255,255,255,0.80)' : '#991b1b',
+    headerBgFrom:    isDark ? 'var(--autocity-header-from-dark)' : 'var(--autocity-header-from-light)',
+    headerBgVia:     isDark ? 'var(--autocity-header-via-dark)' : 'var(--autocity-header-via-light)',
+    headerBgTo:      isDark ? 'var(--autocity-header-to-dark)' : 'var(--autocity-header-to-light)',
+    headerTitle:     isDark ? '#ffffff' : 'var(--autocity-header-text-light)',
+    headerSub:       isDark ? 'rgba(255,255,255,0.80)' : 'var(--autocity-header-sub-light)',
     headerBorder:    isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)',
     headerBtnBg:     isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)',
     headerBtnBorder: isDark ? 'rgba(255,255,255,0.20)' : 'rgba(0,0,0,0.15)',
-    headerBtnText:   isDark ? '#ffffff' : '#7f1d1d',
+    headerBtnText:   isDark ? '#ffffff' : 'var(--autocity-header-text-light)',
     containerBg:     isDark ? 'linear-gradient(135deg,#0A0A0A,#050505)' : '#ffffff',
     containerBorder: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)',
     cardBg:          isDark ? 'rgba(10,10,10,0.50)' : 'rgba(255,255,255,0.80)',
@@ -227,8 +227,8 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
     secondaryText:   isDark ? '#d1d5db' : '#374151',
     pillBg:          isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
     pillBorder:      isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)',
-    infoBg:          isDark ? 'rgba(232,69,69,0.05)' : 'rgba(232,69,69,0.04)',
-    infoBorder:      isDark ? 'rgba(232,69,69,0.15)' : 'rgba(232,69,69,0.12)',
+    infoBg:          isDark ? 'var(--autocity-accent-05)' : 'var(--autocity-accent-04)',
+    infoBorder:      isDark ? 'var(--autocity-accent-15)' : 'var(--autocity-accent-12)',
     mapRowBg:        isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
     mapRowBorder:    isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
   };
@@ -484,7 +484,7 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
               </button>
               <div>
                 <div className="flex items-center gap-3">
-                  <FileSpreadsheet className="h-6 w-6" style={{ color: isDark ? 'rgba(255,255,255,0.7)' : '#991b1b' }} />
+                  <FileSpreadsheet className="h-6 w-6" style={{ color: isDark ? 'rgba(255,255,255,0.7)' : 'var(--autocity-header-sub-light)' }} />
                   <h1 className="text-2xl md:text-3xl font-bold transition-colors duration-500" style={{ color: th.headerTitle }}>
                     Bulk Import
                   </h1>
@@ -507,9 +507,9 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                     <span
                       className="px-2.5 py-1 rounded-full font-medium transition-all"
                       style={{
-                        background: isActive ? '#E84545' : isDone ? 'rgba(232,69,69,0.20)' : th.pillBg,
-                        color:      isActive ? '#ffffff' : isDone ? '#E84545'               : th.mutedText,
-                        border:     `1px solid ${isActive ? '#E84545' : isDone ? 'rgba(232,69,69,0.30)' : th.pillBorder}`,
+                        background: isActive ? 'var(--autocity-accent)' : isDone ? 'var(--autocity-accent-20)' : th.pillBg,
+                        color:      isActive ? '#ffffff' : isDone ? 'var(--autocity-accent)'               : th.mutedText,
+                        border:     `1px solid ${isActive ? 'var(--autocity-accent)' : isDone ? 'var(--autocity-accent-30)' : th.pillBorder}`,
                       }}
                     >
                       {labels[i]}
@@ -536,16 +536,16 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                 onClick={() => fileInputRef.current?.click()}
                 className="rounded-2xl border-2 border-dashed p-16 text-center cursor-pointer transition-all"
                 style={{
-                  borderColor: isDragging ? '#E84545' : th.inputBorder,
-                  background:  isDragging ? 'rgba(232,69,69,0.04)' : th.cardBg,
+                  borderColor: isDragging ? 'var(--autocity-accent)' : th.inputBorder,
+                  background:  isDragging ? 'var(--autocity-accent-04)' : th.cardBg,
                 }}
               >
                 <div className="flex flex-col items-center gap-4">
                   <div
                     className="p-5 rounded-2xl transition-all"
-                    style={{ background: isDragging ? 'rgba(232,69,69,0.15)' : th.pillBg }}
+                    style={{ background: isDragging ? 'var(--autocity-accent-15)' : th.pillBg }}
                   >
-                    <Upload className="h-9 w-9" style={{ color: isDragging ? '#E84545' : th.mutedText }} />
+                    <Upload className="h-9 w-9" style={{ color: isDragging ? 'var(--autocity-accent)' : th.mutedText }} />
                   </div>
                   <div>
                     <p className="text-xl font-semibold" style={{ color: th.primaryText }}>
@@ -570,7 +570,7 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                   className="flex items-start gap-3 p-5 rounded-2xl"
                   style={{ background: th.infoBg, border: `1px solid ${th.infoBorder}` }}
                 >
-                  <Info className="h-4 w-4 text-[#E84545] mt-0.5 shrink-0" />
+                  <Info className="h-4 w-4 text-[color:var(--autocity-accent)] mt-0.5 shrink-0" />
                   <div className="flex-1">
                     <p className="text-sm font-medium" style={{ color: th.primaryText }}>Need a template?</p>
                     <p className="text-xs mt-1" style={{ color: th.mutedText }}>
@@ -580,7 +580,7 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                   <button
                     onClick={e => { e.stopPropagation(); downloadTemplate(); }}
                     className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium active:scale-95 transition-all shrink-0"
-                    style={{ background: 'rgba(232,69,69,0.10)', border: '1px solid rgba(232,69,69,0.30)', color: '#E84545' }}
+                    style={{ background: 'var(--autocity-accent-10)', border: '1px solid var(--autocity-accent-30)', color: 'var(--autocity-accent)' }}
                   >
                     <Download className="h-3.5 w-3.5" />
                     Template
@@ -625,13 +625,13 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                       className="flex items-center gap-2 px-3 py-2 rounded-lg"
                       style={{ background: th.pillBg, border: `1px solid ${th.pillBorder}` }}
                     >
-                      {f.required && <span className="w-1.5 h-1.5 rounded-full bg-[#E84545] shrink-0" />}
+                      {f.required && <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--autocity-accent)] shrink-0" />}
                       <span className="text-xs truncate" style={{ color: th.secondaryText }}>{f.label}</span>
                     </div>
                   ))}
                 </div>
                 <p className="text-xs mt-3 flex items-center gap-1" style={{ color: th.faintText }}>
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#E84545] inline-block" /> Required fields
+                  <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--autocity-accent)] inline-block" /> Required fields
                 </p>
               </div>
             </>
@@ -644,7 +644,7 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                 <div>
                   <h2 className="text-lg font-semibold" style={{ color: th.primaryText }}>Map Columns</h2>
                   <p className="text-sm mt-0.5" style={{ color: th.mutedText }}>
-                    <span className="font-medium" style={{ color: '#E84545' }}>{rawRows.length} rows</span> detected in{" "}
+                    <span className="font-medium" style={{ color: 'var(--autocity-accent)' }}>{rawRows.length} rows</span> detected in{" "}
                     <span className="font-mono text-xs">{fileName}</span>
                     {" "}· Match each column to a product field
                   </p>
@@ -681,7 +681,7 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                       <div
                         key={header}
                         className="grid grid-cols-5 gap-3 items-center px-4 py-3 transition-colors"
-                        style={{ background: isMapped ? (isDark ? 'rgba(232,69,69,0.03)' : 'rgba(232,69,69,0.02)') : 'transparent' }}
+                        style={{ background: isMapped ? (isDark ? 'var(--autocity-accent-03)' : 'var(--autocity-accent-02)') : 'transparent' }}
                       >
                         <div className="col-span-2">
                           <p className="text-sm font-medium" style={{ color: th.primaryText }}>{header}</p>
@@ -694,14 +694,14 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                         <div className="flex justify-center">
                           <ArrowRight
                             className="h-4 w-4"
-                            style={{ color: isMapped ? '#E84545' : th.faintText }}
+                            style={{ color: isMapped ? 'var(--autocity-accent)' : th.faintText }}
                           />
                         </div>
                         <div className="col-span-2">
                           <select
                             value={mapped}
                             onChange={e => setColumnMap(prev => ({ ...prev, [header]: e.target.value as ProductField | "" }))}
-                            className="w-full px-3 py-2 rounded-lg text-sm appearance-none focus:ring-2 focus:ring-[#E84545] focus:border-transparent transition-colors"
+                            className="w-full px-3 py-2 rounded-lg text-sm appearance-none focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent transition-colors"
                             style={inputStyle}
                           >
                             <option value="">— Skip this column —</option>
@@ -741,7 +741,7 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                 <button
                   onClick={applyMapping}
                   disabled={!hasMappedName}
-                  className="px-6 py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="px-6 py-2 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Preview & Validate →
                 </button>
@@ -792,9 +792,9 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                     onClick={() => setFilterStatus(f)}
                     className="px-4 py-2 rounded-xl text-sm font-medium transition-all capitalize active:scale-95"
                     style={{
-                      background: filterStatus === f ? '#E84545' : th.pillBg,
+                      background: filterStatus === f ? 'var(--autocity-accent)' : th.pillBg,
                       color:      filterStatus === f ? '#ffffff'  : th.mutedText,
-                      border:     `1px solid ${filterStatus === f ? '#E84545' : th.pillBorder}`,
+                      border:     `1px solid ${filterStatus === f ? 'var(--autocity-accent)' : th.pillBorder}`,
                     }}
                   >
                     {f} {f !== "all" && (
@@ -958,7 +958,7 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                   <button
                     onClick={startImport}
                     disabled={stats.valid === 0}
-                    className="px-6 py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                    className="px-6 py-2 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
                   >
                     <Upload className="h-4 w-4" />
                     Import {stats.valid} Product{stats.valid !== 1 ? "s" : ""}
@@ -975,8 +975,8 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                 className="p-8 rounded-2xl text-center space-y-4"
                 style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}
               >
-                <div className="inline-flex p-4 rounded-2xl" style={{ background: 'rgba(232,69,69,0.10)' }}>
-                  <Loader2 className="h-9 w-9 text-[#E84545] animate-spin" />
+                <div className="inline-flex p-4 rounded-2xl" style={{ background: 'var(--autocity-accent-10)' }}>
+                  <Loader2 className="h-9 w-9 text-[color:var(--autocity-accent)] animate-spin" />
                 </div>
                 <div>
                   <h3 className="text-xl font-bold" style={{ color: th.primaryText }}>Importing Products…</h3>
@@ -993,7 +993,7 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                   </div>
                   <div className="h-2.5 rounded-full overflow-hidden" style={{ background: th.pillBg }}>
                     <div
-                      className="h-full bg-gradient-to-r from-[#E84545] to-[#ff6b6b] rounded-full transition-all duration-300"
+                      className="h-full bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] rounded-full transition-all duration-300"
                       style={{ width: `${importProgress.total > 0 ? (importProgress.done / importProgress.total) * 100 : 0}%` }}
                     />
                   </div>
@@ -1027,7 +1027,7 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                   {rows.filter(r => r.errors.length === 0).map(row => (
                     <div key={row._rowIndex} className="flex items-center gap-3 px-4 py-3">
                       <span className="shrink-0 w-5">
-                        {row.status === "importing" ? <Loader2 className="h-4 w-4 text-[#E84545] animate-spin" />
+                        {row.status === "importing" ? <Loader2 className="h-4 w-4 text-[color:var(--autocity-accent)] animate-spin" />
                         : row.status === "success"  ? <Check    className="h-4 w-4 text-emerald-400" />
                         : row.status === "error"    ? <XCircle  className="h-4 w-4 text-red-400" />
                         : <span className="h-4 w-4 rounded-full border block" style={{ borderColor: th.pillBorder }} />}
@@ -1165,7 +1165,7 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                   </button>
                   <button
                     onClick={() => router.push("/autocityPro/products")}
-                    className="px-6 py-2.5 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity active:scale-95"
+                    className="px-6 py-2.5 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity active:scale-95"
                   >
                     View Products →
                   </button>

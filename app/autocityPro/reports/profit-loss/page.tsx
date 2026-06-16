@@ -197,7 +197,7 @@ export default function ProfitLossPage() {
       <MainLayout user={user} onLogout={handleLogout}>
         <div className="flex items-center justify-center h-screen bg-[#050505]">
           <div className="text-center">
-            <Loader2 className="h-12 w-12 animate-spin text-[#E84545] mx-auto mb-4" />
+            <Loader2 className="h-12 w-12 animate-spin text-[color:var(--autocity-accent)] mx-auto mb-4" />
             <span className="text-slate-300">Generating profit & loss statement...</span>
           </div>
         </div>
@@ -230,7 +230,7 @@ export default function ProfitLossPage() {
                 )}
                 <div className="h-3 w-px bg-white/20"></div>
                 <div className="flex items-center gap-1">
-                  <DollarSign className="h-3 w-3 text-[#E84545]" />
+                  <DollarSign className="h-3 w-3 text-[color:var(--autocity-accent)]" />
                   <span className={`text-xs font-medium ${reportData.netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                     {formatCompactCurrency(Math.abs(reportData.netProfit))}
                   </span>
@@ -271,20 +271,20 @@ export default function ProfitLossPage() {
                 type="date"
                 value={dateRange.fromDate}
                 onChange={(e) => setDateRange({ ...dateRange, fromDate: e.target.value })}
-                className="px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white text-xs focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                className="px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white text-xs focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
               />
               <input
                 type="date"
                 value={dateRange.toDate}
                 onChange={(e) => setDateRange({ ...dateRange, toDate: e.target.value })}
-                className="px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white text-xs focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                className="px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white text-xs focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
               />
             </div>
             
             <button
               onClick={fetchReport}
               disabled={loading}
-              className="w-full mt-2 px-4 py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl font-medium disabled:opacity-50 text-sm flex items-center justify-center gap-2 active:scale-95 transition-all"
+              className="w-full mt-2 px-4 py-2 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-xl font-medium disabled:opacity-50 text-sm flex items-center justify-center gap-2 active:scale-95 transition-all"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <TrendingUp className="h-4 w-4" />}
               <span>Generate</span>
@@ -293,7 +293,7 @@ export default function ProfitLossPage() {
         </div>
 
         {/* Desktop Header */}
-        <div className="hidden md:block py-4 md:py-12 bg-gradient-to-r from-red-900 via-[#541515] to-[#4d0b0b] border border-[#E84545]/30 shadow-lg overflow-hidden relative">
+        <div className="hidden md:block py-4 md:py-12 bg-gradient-to-r from-[var(--autocity-header-from-dark)] via-[var(--autocity-header-via-dark)] to-[var(--autocity-header-to-dark)] border border-[color:var(--autocity-accent-30)] shadow-lg overflow-hidden relative">
           {/* Background Pattern */}
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSIjRjg0NTQ1IiBmaWxsLW9wYWNpdHk9IjAuMSIgZmlsbC1ydWxlPSJldmVub2RkIj48Y2lyY2xlIGN4PSIzIiBjeT0iMyIgcj0iMyIvPjxjaXJjbGUgY3g9IjEzIiBjeT0iMTMiIHI9IjMiLz48L2c+PC9zdmc+')] opacity-20"></div>
           
@@ -354,7 +354,7 @@ export default function ProfitLossPage() {
                   type="date"
                   value={dateRange.fromDate}
                   onChange={(e) => setDateRange({ ...dateRange, fromDate: e.target.value })}
-                  className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-[#E84545] outline-none transition-all text-slate-100"
+                  className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-[color:var(--autocity-accent)] outline-none transition-all text-slate-100"
                 />
               </div>
               
@@ -370,7 +370,7 @@ export default function ProfitLossPage() {
                   type="date"
                   value={dateRange.toDate}
                   onChange={(e) => setDateRange({ ...dateRange, toDate: e.target.value })}
-                  className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-[#E84545] outline-none transition-all text-slate-100"
+                  className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-[color:var(--autocity-accent)] outline-none transition-all text-slate-100"
                 />
               </div>
               
@@ -433,7 +433,7 @@ export default function ProfitLossPage() {
                 <button
                   onClick={fetchReport}
                   disabled={loading}
-                  className="px-6 py-2.5 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center space-x-2 font-medium active:scale-95 transition-all"
+                  className="px-6 py-2.5 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center space-x-2 font-medium active:scale-95 transition-all"
                 >
                   <TrendingUp className="h-4 w-4" />
                   <span>Generate Report</span>
@@ -591,17 +591,17 @@ export default function ProfitLossPage() {
                 )}
                 
                 {/* Net Profit */}
-                <div className={`${reportData.netProfit >= 0 ? 'bg-gradient-to-r from-[#E84545]/20 to-[#cc3c3c]/20 border-[#E84545]/50' : 'bg-gradient-to-r from-red-900/30 to-pink-900/30 border-red-800/50'} p-4 md:p-6 rounded-xl border active:scale-[0.98] transition-all`}>
+                <div className={`${reportData.netProfit >= 0 ? 'bg-gradient-to-r from-[var(--autocity-accent-20)] to-[var(--autocity-accent-20)] border-[color:var(--autocity-accent-50)]' : 'bg-gradient-to-r from-red-900/30 to-pink-900/30 border-red-800/50'} p-4 md:p-6 rounded-xl border active:scale-[0.98] transition-all`}>
                   <div className="flex justify-between items-center mb-2">
                     <div>
                       <h3 className="text-sm md:text-lg font-bold text-slate-200">NET PROFIT</h3>
                       <p className="text-xs md:text-sm text-slate-300">Net Profit Margin: {netProfitMargin}%</p>
                     </div>
-                    <span className={`text-xl md:text-3xl font-bold ${reportData.netProfit >= 0 ? 'text-[#E84545]' : 'text-red-400'}`}>
+                    <span className={`text-xl md:text-3xl font-bold ${reportData.netProfit >= 0 ? 'text-[color:var(--autocity-accent)]' : 'text-red-400'}`}>
                       {isMobile ? formatCompactCurrency(reportData.netProfit) : formatCurrency(reportData.netProfit)}
                     </span>
                   </div>
-                  <div className={`mt-2 h-1 rounded-full ${reportData.netProfit >= 0 ? 'bg-gradient-to-r from-[#E84545] to-[#cc3c3c]' : 'bg-gradient-to-r from-red-500 to-pink-500'}`}></div>
+                  <div className={`mt-2 h-1 rounded-full ${reportData.netProfit >= 0 ? 'bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)]' : 'bg-gradient-to-r from-red-500 to-pink-500'}`}></div>
                   <div className="flex items-center justify-center space-x-2 mt-4">
                     {reportData.netProfit >= 0 ? (
                       <div className="w-5 h-5 md:w-6 md:h-6 bg-green-900/50 rounded-full flex items-center justify-center">

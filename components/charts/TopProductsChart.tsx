@@ -38,7 +38,7 @@ export default function TopProductsChart({ products, isMobile, formatCurrency }:
     sub:          isDark ? '#9ca3af'                                 : '#6b7280',
     rowBg:        isDark ? 'rgba(10,10,10,0.50)'                     : 'rgba(0,0,0,0.03)',
     rowBorder:    isDark ? 'rgba(255,255,255,0.05)'                  : 'rgba(0,0,0,0.06)',
-    rowHoverBorder: 'rgba(232,69,69,0.20)',
+    rowHoverBorder: 'var(--autocity-accent-20)',
     rowHoverBg:   isDark ? '#0A0A0A'                                 : 'rgba(0,0,0,0.06)',
     productName:  isDark ? '#ffffff'                                 : '#111827',
     productMeta:  isDark ? '#9ca3af'                                 : '#6b7280',
@@ -54,7 +54,7 @@ export default function TopProductsChart({ products, isMobile, formatCurrency }:
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-sm md:text-lg font-bold flex items-center" style={{ color: th.title }}>
-            <Package className="h-4 w-4 md:h-5 md:w-5 mr-2 text-[#E84545]" />
+            <Package className="h-4 w-4 md:h-5 md:w-5 mr-2 text-[color:var(--autocity-accent)]" />
             Top Products
           </h2>
           <p className="text-[10px] md:text-sm mt-1" style={{ color: th.sub }}>Best sellers</p>
@@ -78,7 +78,7 @@ export default function TopProductsChart({ products, isMobile, formatCurrency }:
               }}
             >
               <div className="flex items-center gap-2 min-w-0 flex-1">
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#E84545] to-[#cc3c3c] flex items-center justify-center text-white text-xs font-bold shadow-md flex-shrink-0">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] flex items-center justify-center text-white text-xs font-bold shadow-md flex-shrink-0">
                   {index + 1}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -91,7 +91,7 @@ export default function TopProductsChart({ products, isMobile, formatCurrency }:
                 </div>
               </div>
               <div className="text-right flex-shrink-0 ml-2">
-                <p className="text-xs md:text-sm font-bold text-[#E84545]">
+                <p className="text-xs md:text-sm font-bold text-[color:var(--autocity-accent)]">
                   {formatCurrency(product.revenue)}
                 </p>
               </div>

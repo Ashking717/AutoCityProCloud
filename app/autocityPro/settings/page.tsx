@@ -9,10 +9,11 @@ import {
   Mail, Phone, MapPin, MoreVertical, RefreshCw, Search, UserPlus, Store,
   Clock, Wifi, WifiOff, Sun, Moon, Bot, Eye, EyeOff, CheckCircle2,
   AlertCircle, Copy, ExternalLink, Zap, ToggleLeft, ToggleRight,
-  SendHorizonal, Key,
+  SendHorizonal, Key, FileImage, Stamp, Upload, Palette,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AIProviderTab from '@/components/settings/AIProviderTab';
+import { isVisualThemeKey, VISUAL_THEMES, VISUAL_THEME_STORAGE_KEY, type VisualThemeKey } from '@/lib/theme/visualThemes';
 
 // ─── Time-based theme hook ────────────────────────────────────────────────────
 function useTimeBasedTheme() {
@@ -59,6 +60,9 @@ export default function SettingsPage() {
   const [searchTerm, setSearchTerm]         = useState('');
   const [filterRole, setFilterRole]         = useState<string>('all');
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
+  const [selectedBrandingOutletId, setSelectedBrandingOutletId] = useState('');
+  const [brandingUploading, setBrandingUploading] = useState<'logo' | 'seal' | null>(null);
+  const [selectedTheme, setSelectedTheme] = useState<VisualThemeKey>('original');
 
   // Bot form state
   const [botForm, setBotForm]               = useState({ name: '', botToken: '' });
@@ -81,17 +85,17 @@ export default function SettingsPage() {
   // ── Theme tokens ──────────────────────────────────────────────────────────
   const th = {
     pageBg:             isDark ? '#050505'                                            : '#f3f4f6',
-    headerBgFrom:       isDark ? '#932222'                                            : '#fef2f2',
-    headerBgVia:        isDark ? '#411010'                                            : '#fee2e2',
-    headerBgTo:         isDark ? '#a20c0c'                                            : '#fecaca',
+    headerBgFrom:       isDark ? 'var(--autocity-header-from-dark)'                   : 'var(--autocity-header-from-light)',
+    headerBgVia:        isDark ? 'var(--autocity-header-via-dark)'                    : 'var(--autocity-header-via-light)',
+    headerBgTo:         isDark ? 'var(--autocity-header-to-dark)'                     : 'var(--autocity-header-to-light)',
     headerBorder:       isDark ? 'rgba(255,255,255,0.05)'                             : 'rgba(0,0,0,0.06)',
-    headerTitle:        isDark ? '#ffffff'                                            : '#7f1d1d',
-    headerSub:          isDark ? 'rgba(255,255,255,0.80)'                             : '#991b1b',
+    headerTitle:        isDark ? '#ffffff'                                            : 'var(--autocity-header-text-light)',
+    headerSub:          isDark ? 'rgba(255,255,255,0.80)'                             : 'var(--autocity-header-sub-light)',
     headerIconBg:       isDark ? 'rgba(255,255,255,0.10)'                             : 'rgba(0,0,0,0.08)',
     headerIconBorder:   isDark ? 'rgba(255,255,255,0.20)'                             : 'rgba(0,0,0,0.12)',
     badgeBg:            isDark ? 'rgba(0,0,0,0.30)'                                  : 'rgba(255,255,255,0.60)',
-    badgeBorder:        isDark ? 'rgba(255,255,255,0.15)'                             : 'rgba(127,29,29,0.20)',
-    badgeText:          isDark ? 'rgba(255,255,255,0.70)'                             : '#7f1d1d',
+    badgeBorder:        isDark ? 'rgba(255,255,255,0.15)'                             : 'var(--autocity-accent-20)',
+    badgeText:          isDark ? 'rgba(255,255,255,0.70)'                             : 'var(--autocity-header-text-light)',
     mobileHdrBg:        isDark ? 'linear-gradient(135deg,#0A0A0A,#050505,#0A0A0A)'   : 'linear-gradient(135deg,#ffffff,#f9fafb,#ffffff)',
     mobileHdrBorder:    isDark ? 'rgba(255,255,255,0.05)'                             : 'rgba(0,0,0,0.08)',
     mobileHdrTitle:     isDark ? '#ffffff'                                            : '#111827',
@@ -102,7 +106,7 @@ export default function SettingsPage() {
     mobileSearchBorder: isDark ? 'rgba(255,255,255,0.20)'                             : 'rgba(0,0,0,0.12)',
     mobileSearchText:   isDark ? '#ffffff'                                            : '#111827',
     mobileSearchPH:     isDark ? 'rgba(255,255,255,0.70)'                             : '#9ca3af',
-    tabActive:          '#E84545',
+    tabActive:          'var(--autocity-accent)',
     tabActiveText:      '#ffffff',
     tabInactiveText:    isDark ? '#94a3b8'                                            : '#6b7280',
     tabHoverText:       isDark ? '#ffffff'                                            : '#111827',
@@ -122,24 +126,24 @@ export default function SettingsPage() {
     tableRowHover:      isDark ? '#111827'                                            : 'rgba(0,0,0,0.02)',
     tableCellPrimary:   isDark ? '#ffffff'                                            : '#111827',
     tableCellSecondary: isDark ? '#94a3b8'                                            : '#6b7280',
-    tableAvatarBg:      isDark ? 'rgba(232,69,69,0.20)'                               : 'rgba(232,69,69,0.10)',
-    tableAvatarBorder:  isDark ? 'rgba(232,69,69,0.30)'                               : 'rgba(232,69,69,0.20)',
+    tableAvatarBg:      isDark ? 'var(--autocity-accent-20)'                          : 'var(--autocity-accent-10)',
+    tableAvatarBorder:  isDark ? 'var(--autocity-accent-30)'                          : 'var(--autocity-accent-20)',
     mobileCardBgFrom:   isDark ? '#0A0A0A'                                            : '#ffffff',
     mobileCardBgTo:     isDark ? '#000000'                                            : '#f9fafb',
     mobileCardBorder:   isDark ? '#1f2937'                                            : 'rgba(0,0,0,0.08)',
-    mobileCardHover:    isDark ? '#E84545'                                            : 'rgba(232,69,69,0.40)',
+    mobileCardHover:    isDark ? 'var(--autocity-accent)'                             : 'var(--autocity-accent-40)',
     mobileCardDivider:  isDark ? '#1f2937'                                            : 'rgba(0,0,0,0.06)',
     mobileCardLabel:    isDark ? '#64748b'                                            : '#9ca3af',
     outletCardBgFrom:   isDark ? '#000000'                                            : '#ffffff',
     outletCardBgTo:     isDark ? '#111827'                                            : '#f9fafb',
     outletCardBorder:   isDark ? '#1f2937'                                            : 'rgba(0,0,0,0.08)',
-    outletCardHover:    isDark ? '#E84545'                                            : 'rgba(232,69,69,0.40)',
+    outletCardHover:    isDark ? 'var(--autocity-accent)'                             : 'var(--autocity-accent-40)',
     outletCardTitle:    isDark ? '#ffffff'                                            : '#111827',
     outletCardSub:      isDark ? '#6b7280'                                            : '#9ca3af',
     outletCardBody:     isDark ? '#94a3b8'                                            : '#374151',
     outletCardDivider:  isDark ? '#1f2937'                                            : 'rgba(0,0,0,0.06)',
-    outletIconBg:       isDark ? 'rgba(232,69,69,0.20)'                               : 'rgba(232,69,69,0.10)',
-    outletIconBorder:   isDark ? 'rgba(232,69,69,0.30)'                               : 'rgba(232,69,69,0.20)',
+    outletIconBg:       isDark ? 'var(--autocity-accent-20)'                          : 'var(--autocity-accent-10)',
+    outletIconBorder:   isDark ? 'var(--autocity-accent-30)'                          : 'var(--autocity-accent-20)',
     modalBg:            isDark ? '#000000'                                            : '#ffffff',
     modalBorder:        isDark ? '#1f2937'                                            : 'rgba(0,0,0,0.10)',
     modalHdrBorder:     isDark ? '#1f2937'                                            : 'rgba(0,0,0,0.08)',
@@ -164,13 +168,13 @@ export default function SettingsPage() {
     loadingText:        isDark ? '#94a3b8'                                            : '#6b7280',
     botCardBg:          isDark ? '#000000'                                            : '#ffffff',
     botCardBorder:      isDark ? '#1f2937'                                            : 'rgba(0,0,0,0.08)',
-    botCardHover:       isDark ? '#E84545'                                            : 'rgba(232,69,69,0.40)',
+    botCardHover:       isDark ? 'var(--autocity-accent)'                             : 'var(--autocity-accent-40)',
     botCardTitle:       isDark ? '#ffffff'                                            : '#111827',
     botCardSub:         isDark ? '#6b7280'                                            : '#9ca3af',
-    botIconBg:          isDark ? 'rgba(232,69,69,0.15)'                               : 'rgba(232,69,69,0.08)',
-    botIconBorder:      isDark ? 'rgba(232,69,69,0.30)'                               : 'rgba(232,69,69,0.20)',
-    botBannerBg:        isDark ? 'rgba(232,69,69,0.06)'                               : 'rgba(232,69,69,0.04)',
-    botBannerBorder:    isDark ? 'rgba(232,69,69,0.18)'                               : 'rgba(232,69,69,0.15)',
+    botIconBg:          isDark ? 'var(--autocity-accent-15)'                          : 'var(--autocity-accent-08)',
+    botIconBorder:      isDark ? 'var(--autocity-accent-30)'                          : 'var(--autocity-accent-20)',
+    botBannerBg:        isDark ? 'var(--autocity-accent-06)'                          : 'var(--autocity-accent-04)',
+    botBannerBorder:    isDark ? 'var(--autocity-accent-18)'                          : 'var(--autocity-accent-15)',
     botBannerText:      isDark ? '#fca5a5'                                            : '#b91c1c',
     inputHintText:      isDark ? '#64748b'                                            : '#9ca3af',
   };
@@ -181,6 +185,13 @@ export default function SettingsPage() {
     check(); window.addEventListener('resize', check);
     const interval = setInterval(fetchOnlineUsers, 30000);
     return () => { window.removeEventListener('resize', check); clearInterval(interval); };
+  }, []);
+
+  useEffect(() => {
+    const savedTheme = window.localStorage.getItem(VISUAL_THEME_STORAGE_KEY);
+    if (isVisualThemeKey(savedTheme)) {
+      setSelectedTheme(savedTheme);
+    }
   }, []);
 
   useEffect(() => {
@@ -195,7 +206,11 @@ export default function SettingsPage() {
       if (res.ok) {
         const data = await res.json();
         setUser(data.user);
-        if (data.user.role !== 'SUPERADMIN') setNewUser(prev => ({ ...prev, outletId: data.user.outletId }));
+        if (data.user.role !== 'SUPERADMIN') {
+          const outletId = String(data.user.outletId || '');
+          setNewUser(prev => ({ ...prev, outletId }));
+          setSelectedBrandingOutletId(outletId);
+        }
       }
     } catch {}
   };
@@ -217,7 +232,11 @@ export default function SettingsPage() {
   const fetchOutlets = async () => {
     try {
       const res = await fetch('/api/outlets', { credentials: 'include' });
-      if (res.ok) setOutlets((await res.json()).outlets || []);
+      if (res.ok) {
+        const nextOutlets = (await res.json()).outlets || [];
+        setOutlets(nextOutlets);
+        setSelectedBrandingOutletId(current => current || String(nextOutlets[0]?._id || ''));
+      }
     } catch {}
   };
 
@@ -324,6 +343,104 @@ export default function SettingsPage() {
     }
   };
 
+  const handleThemeChange = (theme: VisualThemeKey) => {
+    setSelectedTheme(theme);
+    window.localStorage.setItem(VISUAL_THEME_STORAGE_KEY, theme);
+    document.documentElement.dataset.visualTheme = theme;
+    window.dispatchEvent(new CustomEvent('autocity-theme-change', { detail: { theme } }));
+    toast.success(`${VISUAL_THEMES.find(item => item.key === theme)?.name || 'Theme'} applied`);
+  };
+
+  const selectedBrandingOutlet = outlets.find(o => String(o._id) === String(selectedBrandingOutletId));
+
+  const getBrandingPreviewUrl = (
+    outlet: any,
+    asset: 'logo' | 'seal',
+    fallback: string
+  ) => {
+    const dbAsset = outlet?.branding?.[asset];
+    const dbUpdatedAt = dbAsset?.updatedAt ? new Date(dbAsset.updatedAt).getTime() : null;
+
+    if (dbUpdatedAt) {
+      return `/api/outlets/${outlet._id}/branding/${asset}?v=${dbUpdatedAt}`;
+    }
+
+    const legacyUrl = asset === 'logo' ? outlet?.branding?.logoUrl : outlet?.branding?.sealUrl;
+    return legacyUrl || fallback;
+  };
+
+  const hasCustomBrandingAsset = (outlet: any, asset: 'logo' | 'seal') => {
+    const legacyUrl = asset === 'logo' ? outlet?.branding?.logoUrl : outlet?.branding?.sealUrl;
+    return Boolean(outlet?.branding?.[asset]?.updatedAt || legacyUrl);
+  };
+
+  const clearOutletBranding = async (asset: 'logo' | 'seal') => {
+    if (!selectedBrandingOutlet) {
+      toast.error('Please select an outlet first');
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/outlets/${selectedBrandingOutlet._id}/branding`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ asset }),
+      });
+
+      if (!res.ok) {
+        toast.error((await res.json()).error || 'Failed to clear branding');
+        return;
+      }
+
+      const data = await res.json();
+      setOutlets(prev => prev.map(outlet => String(outlet._id) === String(data.outlet._id) ? data.outlet : outlet));
+      toast.success(asset === 'logo' ? 'Outlet logo reset to default' : 'Outlet seal reset to default');
+    } catch {
+      toast.error('Failed to clear branding');
+    }
+  };
+
+  const handleBrandingUpload = async (asset: 'logo' | 'seal', file?: File | null) => {
+    if (!selectedBrandingOutlet) {
+      toast.error('Please select an outlet first');
+      return;
+    }
+
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+
+    setBrandingUploading(asset);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('asset', asset);
+
+      const uploadRes = await fetch(`/api/outlets/${selectedBrandingOutlet._id}/branding`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+
+      if (!uploadRes.ok) {
+        toast.error((await uploadRes.json()).error || 'Upload failed');
+        return;
+      }
+
+      const data = await uploadRes.json();
+      setOutlets(prev => prev.map(outlet => String(outlet._id) === String(data.outlet._id) ? data.outlet : outlet));
+      toast.success(asset === 'logo' ? 'Outlet logo saved in database' : 'Outlet seal saved in database');
+    } catch {
+      toast.error('Upload failed');
+    } finally {
+      setBrandingUploading(null);
+    }
+  };
+
   const handleDeleteUser = async (userId: string) => {
     if (!confirm('Are you sure you want to delete this user?')) return;
     try {
@@ -366,6 +483,8 @@ export default function SettingsPage() {
   const canCreateOutlet = user?.role === 'SUPERADMIN';
   const canManageBots   = user?.role === 'SUPERADMIN' || user?.role === 'ADMIN';
   const canCreateUser   = user?.role === 'SUPERADMIN' || user?.role === 'ADMIN';
+  const canManageBranding = user?.role === 'SUPERADMIN' || user?.role === 'ADMIN';
+  const canManageThemes = user?.role === 'SUPERADMIN' || user?.role === 'ADMIN';
 
   const handleLogout = async () => { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); window.location.href = '/autocityPro/login'; };
 
@@ -376,13 +495,15 @@ export default function SettingsPage() {
 
   const onlineCount = users.filter(u => isUserOnline(u._id)).length;
 
-  const modalInputCls = "w-full px-4 py-3 rounded-lg focus:border-[#E84545] focus:ring-2 focus:ring-red-900/30 transition-all outline-none";
+  const modalInputCls = "w-full px-4 py-3 rounded-lg focus:border-[color:var(--autocity-accent)] focus:ring-2 focus:ring-red-900/30 transition-all outline-none";
   const modalInputStyle = { background: th.modalInputBg, border: `1px solid ${th.modalInputBorder}`, color: th.modalInputText };
 
   // ── Tab list ───────────────────────────────────────────────────────────────
   const tabs = [
     'users',
     ...(canCreateOutlet ? ['outlets'] : []),
+    ...(canManageThemes ? ['themes'] : []),
+    ...(canManageBranding ? ['branding'] : []),
     ...(canManageBots   ? ['bots']    : []),
     ...(canManageBots   ? ['ai']      : []),
   ];
@@ -407,6 +528,8 @@ export default function SettingsPage() {
                 <p className="text-xs" style={{ color: th.mobileHdrSub }}>
                   {activeTab === 'users'   && <>{filteredUsers.length} users · <span className="inline-flex items-center"><span className="w-1.5 h-1.5 bg-emerald-400 rounded-full mr-1 animate-pulse" />{onlineCount} online</span></>}
                   {activeTab === 'outlets' && `${outlets.length} outlets`}
+                  {activeTab === 'themes' && 'Visual theme templates'}
+                  {activeTab === 'branding' && 'Invoice logo and seal'}
                   {activeTab === 'bots'    && `${botConfigs.length} bot${botConfigs.length !== 1 ? 's' : ''} connected`}
                   {activeTab === 'ai'      && 'AI provider settings'}
                 </p>
@@ -450,10 +573,12 @@ export default function SettingsPage() {
             <div className="flex space-x-2 overflow-x-auto pb-0.5">
               {tabs.map(tab => (
                 <button key={tab} onClick={() => setActiveTab(tab)}
-                  className={`flex-shrink-0 px-3 py-2 rounded-lg text-sm font-medium transition-all capitalize flex items-center gap-1.5 ${activeTab === tab ? 'bg-[#E84545] text-white' : ''}`}
+                  className={`flex-shrink-0 px-3 py-2 rounded-lg text-sm font-medium transition-all capitalize flex items-center gap-1.5 ${activeTab === tab ? 'bg-[color:var(--autocity-accent)] text-white' : ''}`}
                   style={activeTab !== tab ? { background: th.mobileBtnBg, color: th.mobileBtnText } : {}}>
                   {tab === 'users'   && <><Users     className="h-4 w-4" />Users</>}
                   {tab === 'outlets' && <><Building2 className="h-4 w-4" />Outlets</>}
+                  {tab === 'themes' && <><Palette className="h-4 w-4" />Themes</>}
+                  {tab === 'branding' && <><FileImage className="h-4 w-4" />Branding</>}
                   {tab === 'bots'    && <><Bot       className="h-4 w-4" />Bots</>}
                   {tab === 'ai'      && <><Key       className="h-4 w-4" />AI</>}
                 </button>
@@ -464,7 +589,7 @@ export default function SettingsPage() {
               <div className="mt-3 relative">
                 <Search className="absolute left-3 top-2.5 h-4 w-4" style={{ color: th.mobileSearchPH }} />
                 <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search users..."
-                  className="w-full pl-10 pr-4 py-2 rounded-xl text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent outline-none"
+                  className="w-full pl-10 pr-4 py-2 rounded-xl text-sm focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent outline-none"
                   style={{ background: th.mobileSearchBg, border: `1px solid ${th.mobileSearchBorder}`, color: th.mobileSearchText }} />
               </div>
             )}
@@ -519,6 +644,8 @@ export default function SettingsPage() {
                   onMouseLeave={e => activeTab !== tab && (e.currentTarget.style.color = th.tabInactiveText)}>
                   {tab === 'users'   && <><Users     className="h-4 w-4" />Users</>}
                   {tab === 'outlets' && <><Building2 className="h-4 w-4" />Outlets</>}
+                  {tab === 'themes' && <><Palette className="h-4 w-4" />Themes</>}
+                  {tab === 'branding' && <><FileImage className="h-4 w-4" />Branding</>}
                   {tab === 'bots'    && <><Bot       className="h-4 w-4" />Telegram Bots</>}
                   {tab === 'ai'      && <><Key       className="h-4 w-4" />AI Provider</>}
                 </button>
@@ -527,19 +654,19 @@ export default function SettingsPage() {
             <div className="flex items-center space-x-3">
               {activeTab === 'users' && canCreateUser && (
                 <button onClick={() => setShowUserModal(true)}
-                  className="flex items-center space-x-2 px-4 py-2.5 bg-[#E84545] text-white rounded-lg hover:bg-[#cc3c3c] transition-all group">
+                  className="flex items-center space-x-2 px-4 py-2.5 bg-[color:var(--autocity-accent)] text-white rounded-lg hover:bg-[color:var(--autocity-accent-strong)] transition-all group">
                   <UserPlus className="h-4 w-4 group-hover:scale-110 transition-transform" /><span>Add User</span>
                 </button>
               )}
               {activeTab === 'outlets' && canCreateOutlet && (
                 <button onClick={() => setShowOutletModal(true)}
-                  className="flex items-center space-x-2 px-4 py-2.5 bg-[#E84545] text-white rounded-lg hover:bg-[#cc3c3c] transition-all group">
+                  className="flex items-center space-x-2 px-4 py-2.5 bg-[color:var(--autocity-accent)] text-white rounded-lg hover:bg-[color:var(--autocity-accent-strong)] transition-all group">
                   <Store className="h-4 w-4 group-hover:scale-110 transition-transform" /><span>Add Outlet</span>
                 </button>
               )}
               {activeTab === 'bots' && canManageBots && (
                 <button onClick={() => setShowBotModal(true)}
-                  className="flex items-center space-x-2 px-4 py-2.5 bg-[#E84545] text-white rounded-lg hover:bg-[#cc3c3c] transition-all group">
+                  className="flex items-center space-x-2 px-4 py-2.5 bg-[color:var(--autocity-accent)] text-white rounded-lg hover:bg-[color:var(--autocity-accent-strong)] transition-all group">
                   <Plus className="h-4 w-4 group-hover:scale-110 transition-transform" /><span>Connect Bot</span>
                 </button>
               )}
@@ -556,12 +683,12 @@ export default function SettingsPage() {
                   <div className="relative">
                     <Search className="absolute left-2 top-2.5 h-4 w-4" style={{ color: th.filterInputPH }} />
                     <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search users..."
-                      className="w-full pl-8 pr-3 py-2 text-sm rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent outline-none"
+                      className="w-full pl-8 pr-3 py-2 text-sm rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent outline-none"
                       style={{ background: th.filterInputBg, border: `1px solid ${th.filterInputBorder}`, color: th.filterInputText }} />
                   </div>
                   <div className="relative">
                     <select value={filterRole} onChange={e => setFilterRole(e.target.value)}
-                      className="w-full px-3 py-2 text-sm rounded-lg focus:ring-2 focus:ring-[#E84545] appearance-none outline-none"
+                      className="w-full px-3 py-2 text-sm rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] appearance-none outline-none"
                       style={{ background: th.filterInputBg, border: `1px solid ${th.filterInputBorder}`, color: th.filterInputText }}>
                       <option value="all">All Roles</option>
                       {user?.role === 'SUPERADMIN' && <option value="SUPERADMIN">Super Admin</option>}
@@ -591,7 +718,7 @@ export default function SettingsPage() {
               {/* Mobile Users List */}
               <div className="md:hidden">
                 {loading ? (
-                  <div className="flex items-center justify-center py-12"><RefreshCw className="h-12 w-12 animate-spin text-[#E84545]" /></div>
+                  <div className="flex items-center justify-center py-12"><RefreshCw className="h-12 w-12 animate-spin text-[color:var(--autocity-accent)]" /></div>
                 ) : filteredUsers.length === 0 ? (
                   <div className="rounded-2xl p-8 text-center" style={{ background: th.mobileCardBgFrom, border: `1px solid ${th.mobileCardBorder}` }}>
                     <Users className="h-12 w-12 mx-auto mb-4" style={{ color: th.emptyIcon }} />
@@ -612,7 +739,7 @@ export default function SettingsPage() {
                               <div className="relative">
                                 <div className="h-10 w-10 rounded-full flex items-center justify-center"
                                   style={{ background: th.tableAvatarBg, border: `1px solid ${th.tableAvatarBorder}` }}>
-                                  <span className="text-[#E84545] font-semibold">{u.firstName?.[0]}{u.lastName?.[0]}</span>
+                                  <span className="text-[color:var(--autocity-accent)] font-semibold">{u.firstName?.[0]}{u.lastName?.[0]}</span>
                                 </div>
                                 {online && <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-400 rounded-full border-2 border-black animate-pulse" />}
                               </div>
@@ -667,7 +794,7 @@ export default function SettingsPage() {
                   <tbody>
                     {loading ? (
                       <tr><td colSpan={6} className="px-6 py-12 text-center">
-                        <RefreshCw className="h-8 w-8 animate-spin text-[#E84545] mx-auto" />
+                        <RefreshCw className="h-8 w-8 animate-spin text-[color:var(--autocity-accent)] mx-auto" />
                         <p className="mt-2" style={{ color: th.loadingText }}>Loading users...</p>
                       </td></tr>
                     ) : filteredUsers.length === 0 ? (
@@ -687,7 +814,7 @@ export default function SettingsPage() {
                               <div className="relative">
                                 <div className="h-10 w-10 rounded-full flex items-center justify-center"
                                   style={{ background: th.tableAvatarBg, border: `1px solid ${th.tableAvatarBorder}` }}>
-                                  <span className="text-[#E84545] font-semibold">{u.firstName?.[0]}{u.lastName?.[0]}</span>
+                                  <span className="text-[color:var(--autocity-accent)] font-semibold">{u.firstName?.[0]}{u.lastName?.[0]}</span>
                                 </div>
                                 {online && <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-400 rounded-full border-2 border-black animate-pulse" />}
                               </div>
@@ -753,7 +880,7 @@ export default function SettingsPage() {
                     onMouseLeave={e => (e.currentTarget.style.borderColor = th.outletCardBorder)}>
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <Building2 className="h-6 w-6 text-[#E84545]" />
+                        <Building2 className="h-6 w-6 text-[color:var(--autocity-accent)]" />
                         <div>
                           <h3 className="text-base font-bold" style={{ color: th.outletCardTitle }}>{outlet.name}</h3>
                           <p className="text-xs" style={{ color: th.outletCardSub }}>Code: {outlet.code}</p>
@@ -778,7 +905,7 @@ export default function SettingsPage() {
                     onMouseLeave={e => (e.currentTarget.style.borderColor = th.outletCardBorder)}>
                     <div className="flex items-center justify-between mb-4">
                       <div className="p-3 rounded-lg" style={{ background: th.outletIconBg, border: `1px solid ${th.outletIconBorder}` }}>
-                        <Building2 className="h-6 w-6 text-[#E84545]" />
+                        <Building2 className="h-6 w-6 text-[color:var(--autocity-accent)]" />
                       </div>
                       <span className={`px-3 py-1.5 text-xs font-semibold rounded-full ${outlet.isActive ? 'bg-emerald-900/30 text-emerald-400 border border-emerald-800/50' : 'bg-red-900/30 text-red-400 border border-red-800/50'}`}>
                         {outlet.isActive ? 'Active' : 'Inactive'}
@@ -797,12 +924,196 @@ export default function SettingsPage() {
             </div>
           )}
 
+          {/* ── Themes Tab ─────────────────────────────────────────────── */}
+          {activeTab === 'themes' && canManageThemes && (
+            <div className="space-y-6">
+              <div className="rounded-xl p-5"
+                style={{ background: th.filterBg, border: `1px solid ${th.filterBorder}` }}>
+                <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: th.tableCellPrimary }}>
+                  <Palette className="h-5 w-5" style={{ color: 'var(--autocity-accent)' }} />
+                  Visual Theme Templates
+                </h2>
+                <p className="text-sm mt-1" style={{ color: th.tableCellSecondary }}>
+                  Switch the app accent colors without changing layout or data. The selection is saved on this device.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {VISUAL_THEMES.map(theme => {
+                  const active = selectedTheme === theme.key;
+                  return (
+                    <button
+                      key={theme.key}
+                      type="button"
+                      onClick={() => handleThemeChange(theme.key)}
+                      className="text-left rounded-2xl p-6 transition-all active:scale-[0.99]"
+                      style={{
+                        background: `linear-gradient(135deg,${th.outletCardBgFrom},${th.outletCardBgTo})`,
+                        border: `1px solid ${active ? theme.accent : th.outletCardBorder}`,
+                        boxShadow: active ? `0 0 0 3px ${theme.accent}22` : 'none',
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-4 mb-5">
+                        <div>
+                          <h3 className="text-xl font-bold" style={{ color: th.outletCardTitle }}>{theme.name}</h3>
+                          <p className="text-sm mt-1" style={{ color: th.outletCardSub }}>{theme.description}</p>
+                        </div>
+                        {active && (
+                          <span className="px-3 py-1 text-xs font-semibold rounded-full text-white" style={{ background: theme.accent }}>
+                            Active
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="rounded-xl overflow-hidden border" style={{ borderColor: th.outletCardDivider }}>
+                        <div
+                          className="h-20"
+                          style={{ background: `linear-gradient(135deg, ${theme.accent}, ${theme.accentStrong})` }}
+                        />
+                        <div className="p-4 flex items-center gap-3" style={{ background: th.tableBg }}>
+                          <span className="h-10 w-10 rounded-xl" style={{ background: theme.accent }} />
+                          <div className="flex-1">
+                            <div className="h-2.5 rounded-full mb-2" style={{ background: active ? theme.accent : th.outletCardDivider }} />
+                            <div className="h-2 rounded-full w-2/3" style={{ background: th.outletCardDivider }} />
+                          </div>
+                          <span className="h-8 w-16 rounded-lg" style={{ background: theme.accentStrong }} />
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ── Branding Tab ───────────────────────────────────────────── */}
+          {activeTab === 'branding' && canManageBranding && (
+            <div className="space-y-6">
+              <div className="rounded-xl p-5"
+                style={{ background: th.filterBg, border: `1px solid ${th.filterBorder}` }}>
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: th.tableCellPrimary }}>
+                      <FileImage className="h-5 w-5 text-[color:var(--autocity-accent)]" />
+                      Invoice Branding
+                    </h2>
+                    <p className="text-sm mt-1" style={{ color: th.tableCellSecondary }}>
+                      Upload the logo and seal used when printing invoices for an outlet.
+                    </p>
+                  </div>
+                  {user?.role === 'SUPERADMIN' && (
+                    <select
+                      value={selectedBrandingOutletId}
+                      onChange={e => setSelectedBrandingOutletId(e.target.value)}
+                      className="w-full md:w-72 px-4 py-3 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] outline-none"
+                      style={{ background: th.filterInputBg, border: `1px solid ${th.filterInputBorder}`, color: th.filterInputText }}
+                    >
+                      <option value="">Select outlet</option>
+                      {outlets.map(outlet => (
+                        <option key={outlet._id} value={outlet._id}>{outlet.name}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              </div>
+
+              {!selectedBrandingOutlet ? (
+                <div className="rounded-2xl p-10 text-center"
+                  style={{ background: th.tableBg, border: `1px solid ${th.tableBorder}` }}>
+                  <Store className="h-12 w-12 mx-auto mb-4 text-[color:var(--autocity-accent)]" />
+                  <p className="font-semibold" style={{ color: th.tableCellPrimary }}>Select an outlet to manage branding</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {([
+                    {
+                      asset: 'logo' as const,
+                      title: 'Outlet Logo',
+                      description: 'Printed at the top right of the invoice.',
+                      icon: FileImage,
+                      fallback: '/logo.png',
+                      uploadLabel: 'Upload Logo',
+                    },
+                    {
+                      asset: 'seal' as const,
+                      title: 'Outlet Seal',
+                      description: 'Printed near the invoice signature area.',
+                      icon: Stamp,
+                      fallback: '/seal.png',
+                      uploadLabel: 'Upload Seal',
+                    },
+                  ]).map(asset => {
+                    const Icon = asset.icon;
+                    const hasCustomAsset = hasCustomBrandingAsset(selectedBrandingOutlet, asset.asset);
+                    const previewUrl = getBrandingPreviewUrl(selectedBrandingOutlet, asset.asset, asset.fallback);
+                    const uploading = brandingUploading === asset.asset;
+
+                    return (
+                      <div key={asset.asset} className="rounded-2xl p-6 shadow-xl"
+                        style={{ background: `linear-gradient(135deg,${th.outletCardBgFrom},${th.outletCardBgTo})`, border: `1px solid ${th.outletCardBorder}` }}>
+                        <div className="flex items-start justify-between gap-4 mb-5">
+                          <div className="flex items-center gap-3">
+                            <div className="p-3 rounded-xl" style={{ background: th.outletIconBg, border: `1px solid ${th.outletIconBorder}` }}>
+                              <Icon className="h-6 w-6 text-[color:var(--autocity-accent)]" />
+                            </div>
+                            <div>
+                              <h3 className="text-lg font-bold" style={{ color: th.outletCardTitle }}>{asset.title}</h3>
+                              <p className="text-sm" style={{ color: th.outletCardSub }}>{asset.description}</p>
+                            </div>
+                          </div>
+                          <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${hasCustomAsset ? 'bg-emerald-900/30 text-emerald-400 border border-emerald-800/50' : 'bg-gray-800/50 text-gray-400 border border-gray-700'}`}>
+                            {hasCustomAsset ? 'Database' : 'Default'}
+                          </span>
+                        </div>
+
+                        <div
+                          className="h-48 rounded-xl bg-white border border-black/10 bg-contain bg-center bg-no-repeat mb-5"
+                          style={{ backgroundImage: `url("${previewUrl}")` }}
+                          aria-label={`${asset.title} preview`}
+                        />
+
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <label className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[color:var(--autocity-accent)] text-white rounded-lg hover:bg-[color:var(--autocity-accent-strong)] transition-all font-semibold cursor-pointer">
+                            {uploading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                            {uploading ? 'Uploading...' : asset.uploadLabel}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              disabled={!!brandingUploading}
+                              onChange={e => {
+                                const input = e.currentTarget;
+                                handleBrandingUpload(asset.asset, input.files?.[0]).finally(() => {
+                                  input.value = '';
+                                });
+                              }}
+                            />
+                          </label>
+                          {hasCustomAsset && (
+                            <button
+                              onClick={() => clearOutletBranding(asset.asset)}
+                              disabled={!!brandingUploading}
+                              className="px-4 py-3 rounded-lg font-semibold transition-all disabled:opacity-50"
+                              style={{ background: th.menuItemBg, border: `1px solid ${th.menuItemBorder}`, color: th.menuItemText }}
+                            >
+                              Use Default
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* ── Bots Tab ───────────────────────────────────────────────── */}
           {activeTab === 'bots' && canManageBots && (
             <div className="space-y-6">
               <div className="rounded-xl p-4 flex items-start gap-3"
                 style={{ background: th.botBannerBg, border: `1px solid ${th.botBannerBorder}` }}>
-                <Zap className="h-5 w-5 flex-shrink-0 mt-0.5" style={{ color: '#E84545' }} />
+                <Zap className="h-5 w-5 flex-shrink-0 mt-0.5" style={{ color: 'var(--autocity-accent)' }} />
                 <div>
                   <p className="text-sm font-semibold mb-1" style={{ color: th.botCardTitle }}>How to connect a Telegram bot</p>
                   <ol className="text-xs space-y-1" style={{ color: th.botBannerText }}>
@@ -816,7 +1127,7 @@ export default function SettingsPage() {
 
               {botLoading && (
                 <div className="flex items-center justify-center py-12">
-                  <RefreshCw className="h-8 w-8 animate-spin text-[#E84545]" />
+                  <RefreshCw className="h-8 w-8 animate-spin text-[color:var(--autocity-accent)]" />
                 </div>
               )}
 
@@ -825,12 +1136,12 @@ export default function SettingsPage() {
                   style={{ background: th.botCardBg, border: `1px solid ${th.botCardBorder}` }}>
                   <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
                     style={{ background: th.botIconBg, border: `1px solid ${th.botIconBorder}` }}>
-                    <Bot className="h-8 w-8 text-[#E84545]" />
+                    <Bot className="h-8 w-8 text-[color:var(--autocity-accent)]" />
                   </div>
                   <p className="text-lg font-semibold mb-2" style={{ color: th.botCardTitle }}>No bots connected</p>
                   <p className="text-sm mb-6" style={{ color: th.botCardSub }}>Connect a Telegram bot to let your team record transactions by chat.</p>
                   <button onClick={() => setShowBotModal(true)}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#E84545] text-white rounded-lg hover:bg-[#cc3c3c] transition-all font-semibold">
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-[color:var(--autocity-accent)] text-white rounded-lg hover:bg-[color:var(--autocity-accent-strong)] transition-all font-semibold">
                     <Plus className="h-4 w-4" />Connect Bot
                   </button>
                 </div>
@@ -840,14 +1151,14 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {botConfigs.map(bot => (
                     <div key={bot._id} className="rounded-xl p-5 transition-all"
-                      style={{ background: th.botCardBg, border: `1px solid ${bot.isActive ? 'rgba(232,69,69,0.35)' : th.botCardBorder}` }}
-                      onMouseEnter={e => (e.currentTarget.style.borderColor = bot.isActive ? 'rgba(232,69,69,0.60)' : th.botCardHover)}
-                      onMouseLeave={e => (e.currentTarget.style.borderColor = bot.isActive ? 'rgba(232,69,69,0.35)' : th.botCardBorder)}>
+                      style={{ background: th.botCardBg, border: `1px solid ${bot.isActive ? 'var(--autocity-accent-35)' : th.botCardBorder}` }}
+                      onMouseEnter={e => (e.currentTarget.style.borderColor = bot.isActive ? 'var(--autocity-accent-60)' : th.botCardHover)}
+                      onMouseLeave={e => (e.currentTarget.style.borderColor = bot.isActive ? 'var(--autocity-accent-35)' : th.botCardBorder)}>
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex items-center gap-3">
                           <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
                             style={{ background: th.botIconBg, border: `1px solid ${th.botIconBorder}` }}>
-                            <Bot className="h-6 w-6 text-[#E84545]" />
+                            <Bot className="h-6 w-6 text-[color:var(--autocity-accent)]" />
                           </div>
                           <div>
                             <p className="text-sm font-bold leading-tight" style={{ color: th.botCardTitle }}>{bot.name}</p>
@@ -868,14 +1179,14 @@ export default function SettingsPage() {
                         <span className="text-xs font-mono flex-1 truncate" style={{ color: th.botCardSub }}>
                           ••••••••:AAF3••••••••••••••••••••••••
                         </span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(232,69,69,0.12)', color: '#E84545' }}>secured</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--autocity-accent-12)', color: 'var(--autocity-accent)' }}>secured</span>
                       </div>
                       <div className="flex items-center gap-2 pt-3" style={{ borderTop: `1px solid ${th.botCardBorder}` }}>
                         <button
                           onClick={() => handleRegisterWebhook(bot._id)}
                           disabled={webhookRegistering === bot._id || !bot.isActive}
                           className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all active:scale-95 disabled:opacity-40"
-                          style={{ background: isDark ? 'rgba(232,69,69,0.12)' : 'rgba(232,69,69,0.08)', border: '1px solid rgba(232,69,69,0.25)', color: '#E84545' }}>
+                          style={{ background: isDark ? 'var(--autocity-accent-12)' : 'var(--autocity-accent-08)', border: '1px solid var(--autocity-accent-25)', color: 'var(--autocity-accent)' }}>
                           {webhookRegistering === bot._id
                             ? <RefreshCw className="h-3 w-3 animate-spin" />
                             : <SendHorizonal className="h-3 w-3" />
@@ -919,7 +1230,7 @@ export default function SettingsPage() {
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'rgba(0,0,0,0.80)' }}>
           <div className="rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
             style={{ background: th.modalBg, border: `1px solid ${th.modalBorder}` }}>
-            <div className="flex justify-between items-center px-6 py-5 bg-gradient-to-r from-[#932222] via-[#411010] to-[#a20c0c]">
+            <div className="flex justify-between items-center px-6 py-5 bg-gradient-to-r from-[var(--autocity-header-from-dark)] via-[var(--autocity-header-via-dark)] to-[var(--autocity-header-to-dark)]">
               <div className="flex items-center space-x-3">
                 <div className="bg-white/20 p-2 rounded-lg"><UserPlus className="h-6 w-6 text-white" /></div>
                 <div>
@@ -978,7 +1289,7 @@ export default function SettingsPage() {
                   className="px-6 py-2.5 rounded-lg transition-all font-medium"
                   style={{ border: `1px solid ${th.modalCancelBorder}`, color: th.modalCancelText }}>Cancel</button>
                 <button onClick={handleCreateUser}
-                  className="px-6 py-2.5 bg-[#E84545] text-white rounded-lg hover:bg-[#cc3c3c] transition-all font-semibold shadow-lg">Create User</button>
+                  className="px-6 py-2.5 bg-[color:var(--autocity-accent)] text-white rounded-lg hover:bg-[color:var(--autocity-accent-strong)] transition-all font-semibold shadow-lg">Create User</button>
               </div>
             </div>
           </div>
@@ -990,7 +1301,7 @@ export default function SettingsPage() {
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'rgba(0,0,0,0.85)' }}>
           <div className="rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden"
             style={{ background: th.modalBg, border: `1px solid ${th.modalBorder}` }}>
-            <div className="flex justify-between items-center px-6 py-5 bg-gradient-to-r from-[#932222] via-[#411010] to-[#a20c0c]">
+            <div className="flex justify-between items-center px-6 py-5 bg-gradient-to-r from-[var(--autocity-header-from-dark)] via-[var(--autocity-header-via-dark)] to-[var(--autocity-header-to-dark)]">
               <div className="flex items-center gap-3">
                 <div className="bg-white/20 p-2 rounded-lg"><Bot className="h-6 w-6 text-white" /></div>
                 <div>
@@ -1043,7 +1354,7 @@ export default function SettingsPage() {
                   className="px-5 py-2.5 rounded-lg font-medium transition-all"
                   style={{ border: `1px solid ${th.modalCancelBorder}`, color: th.modalCancelText }}>Cancel</button>
                 <button onClick={handleCreateBot} disabled={botSaving || !botForm.name || !botForm.botToken}
-                  className="px-5 py-2.5 bg-[#E84545] text-white rounded-lg hover:bg-[#cc3c3c] transition-all font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                  className="px-5 py-2.5 bg-[color:var(--autocity-accent)] text-white rounded-lg hover:bg-[color:var(--autocity-accent-strong)] transition-all font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
                   {botSaving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Bot className="h-4 w-4" />}
                   {botSaving ? 'Connecting…' : 'Connect Bot'}
                 </button>

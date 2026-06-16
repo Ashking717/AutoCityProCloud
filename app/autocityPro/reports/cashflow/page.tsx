@@ -161,7 +161,7 @@ export default function CashFlowPage() {
       <MainLayout user={user} onLogout={handleLogout}>
         <div className="flex items-center justify-center min-h-screen bg-[#050505]">
           <div className="text-center">
-            <Loader2 className="w-12 h-12 animate-spin text-[#E84545] mx-auto mb-4" />
+            <Loader2 className="w-12 h-12 animate-spin text-[color:var(--autocity-accent)] mx-auto mb-4" />
             <p className="text-white">Generating cash flow statement...</p>
           </div>
         </div>
@@ -193,7 +193,7 @@ export default function CashFlowPage() {
                   </>
                 )}
                 <div className="h-3 w-px bg-white/20"></div>
-                <Droplet className="h-3 w-3 text-[#E84545]" />
+                <Droplet className="h-3 w-3 text-[color:var(--autocity-accent)]" />
                 <span className="text-white text-xs">Cash Flow</span>
               </div>
             </div>
@@ -229,20 +229,20 @@ export default function CashFlowPage() {
                 type="date"
                 value={dateRange.fromDate}
                 onChange={(e) => setDateRange({ ...dateRange, fromDate: e.target.value })}
-                className="px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white text-xs focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                className="px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white text-xs focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
               />
               <input
                 type="date"
                 value={dateRange.toDate}
                 onChange={(e) => setDateRange({ ...dateRange, toDate: e.target.value })}
-                className="px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white text-xs focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                className="px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white text-xs focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
               />
             </div>
 
             <button
               onClick={fetchReport}
               disabled={loading}
-              className="w-full px-4 py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl font-medium disabled:opacity-50 text-sm flex items-center justify-center gap-2 active:scale-95 transition-all"
+              className="w-full px-4 py-2 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-xl font-medium disabled:opacity-50 text-sm flex items-center justify-center gap-2 active:scale-95 transition-all"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Activity className="h-4 w-4" />}
               <span>Generate</span>
@@ -251,7 +251,7 @@ export default function CashFlowPage() {
         </div>
 
         {/* Desktop Header */}
-        <div className="hidden md:block py-4 md:py-7 bg-gradient-to-r from-red-900 via-[#541515] to-[#4d0b0b] border border-[#E84545]/30 shadow-lg overflow-hidden relative">
+        <div className="hidden md:block py-4 md:py-7 bg-gradient-to-r from-[var(--autocity-header-from-dark)] via-[var(--autocity-header-via-dark)] to-[var(--autocity-header-to-dark)] border border-[color:var(--autocity-accent-30)] shadow-lg overflow-hidden relative">
           {/* Background Pattern */}
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSIjRjg0NTQ1IiBmaWxsLW9wYWNpdHk9IjAuMSIgZmlsbC1ydWxlPSJldmVub2RkIj48Y2lyY2xlIGN4PSIzIiBjeT0iMyIgcj0iMyIvPjxjaXJjbGUgY3g9IjEzIiBjeT0iMTMiIHI9IjMiLz48L2c+PC9zdmc+')] opacity-20"></div>
           
@@ -298,7 +298,7 @@ export default function CashFlowPage() {
                   type="date"
                   value={dateRange.fromDate}
                   onChange={(e) => setDateRange({ ...dateRange, fromDate: e.target.value })}
-                  className="w-full px-4 py-3 bg-[#111111] border border-white/5 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-[#E84545] outline-none transition-all text-white"
+                  className="w-full px-4 py-3 bg-[#111111] border border-white/5 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-[color:var(--autocity-accent)] outline-none transition-all text-white"
                 />
               </div>
               
@@ -311,7 +311,7 @@ export default function CashFlowPage() {
                   type="date"
                   value={dateRange.toDate}
                   onChange={(e) => setDateRange({ ...dateRange, toDate: e.target.value })}
-                  className="w-full px-4 py-3 bg-[#111111] border border-white/5 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-[#E84545] outline-none transition-all text-white"
+                  className="w-full px-4 py-3 bg-[#111111] border border-white/5 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-[color:var(--autocity-accent)] outline-none transition-all text-white"
                 />
               </div>
               
@@ -319,7 +319,7 @@ export default function CashFlowPage() {
                 <button
                   onClick={fetchReport}
                   disabled={loading}
-                  className="w-full px-6 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] hover:opacity-90 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 shadow-lg transition-all duration-200"
+                  className="w-full px-6 py-3 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] hover:opacity-90 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 shadow-lg transition-all duration-200"
                 >
                   {loading ? (
                     <>
@@ -370,7 +370,7 @@ export default function CashFlowPage() {
               </p>
               <button
                 onClick={fetchReport}
-                className="px-6 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] hover:opacity-90 text-white rounded-lg font-medium inline-flex items-center space-x-2 active:scale-95 transition-all"
+                className="px-6 py-3 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] hover:opacity-90 text-white rounded-lg font-medium inline-flex items-center space-x-2 active:scale-95 transition-all"
               >
                 <Activity className="w-5 h-5" />
                 <span>Generate Report</span>
@@ -397,18 +397,18 @@ export default function CashFlowPage() {
                   </p>
                 </div>
                 
-                <div className={`bg-gradient-to-br ${reportData.investingActivities.total >= 0 ? 'from-[#E84545]/20 to-[#cc3c3c]/20 border-[#E84545]/50' : 'from-orange-900/30 to-orange-800/30 border-orange-700/50'} border rounded-xl p-3 md:p-4 active:scale-[0.98] transition-all`}>
-                  <p className={`${reportData.investingActivities.total >= 0 ? 'text-[#E84545]' : 'text-orange-300'} text-xs md:text-sm font-medium mb-1 truncate`}>
+                <div className={`bg-gradient-to-br ${reportData.investingActivities.total >= 0 ? 'from-[var(--autocity-accent-20)] to-[var(--autocity-accent-20)] border-[color:var(--autocity-accent-50)]' : 'from-orange-900/30 to-orange-800/30 border-orange-700/50'} border rounded-xl p-3 md:p-4 active:scale-[0.98] transition-all`}>
+                  <p className={`${reportData.investingActivities.total >= 0 ? 'text-[color:var(--autocity-accent)]' : 'text-orange-300'} text-xs md:text-sm font-medium mb-1 truncate`}>
                     Investing
                   </p>
-                  <p className={`text-lg md:text-2xl font-bold truncate ${reportData.investingActivities.total >= 0 ? 'text-[#E84545]' : 'text-orange-400'}`}>
+                  <p className={`text-lg md:text-2xl font-bold truncate ${reportData.investingActivities.total >= 0 ? 'text-[color:var(--autocity-accent)]' : 'text-orange-400'}`}>
                     {reportData.investingActivities.total >= 0 ? '+' : ''}
                     {isMobile ? formatCompactCurrency(reportData.investingActivities.total) : formatCurrency(reportData.investingActivities.total)}
                   </p>
                 </div>
                 
-                <div className="bg-gradient-to-br from-[#E84545]/20 to-[#cc3c3c]/20 border border-[#E84545]/50 rounded-xl p-3 md:p-4 active:scale-[0.98] transition-all">
-                  <p className="text-[#E84545] text-xs md:text-sm font-medium mb-1">Closing Cash</p>
+                <div className="bg-gradient-to-br from-[var(--autocity-accent-20)] to-[var(--autocity-accent-20)] border border-[color:var(--autocity-accent-50)] rounded-xl p-3 md:p-4 active:scale-[0.98] transition-all">
+                  <p className="text-[color:var(--autocity-accent)] text-xs md:text-sm font-medium mb-1">Closing Cash</p>
                   <p className="text-lg md:text-2xl font-bold text-white truncate">
                     {isMobile ? formatCompactCurrency(reportData.closingCash) : formatCurrency(reportData.closingCash)}
                   </p>
@@ -418,7 +418,7 @@ export default function CashFlowPage() {
               {/* Main Report */}
               <div className="bg-[#0A0A0A] rounded-2xl shadow-lg border border-white/5 overflow-hidden">
                 {/* Header */}
-                <div className="px-4 md:px-6 py-3 md:py-4 bg-gradient-to-r from-[#E84545] to-[#cc3c3c]">
+                <div className="px-4 md:px-6 py-3 md:py-4 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)]">
                   <div className="flex items-center justify-between">
                     <div>
                       <h2 className="text-base md:text-xl font-bold text-white">{user?.outletName || 'AutoCity'}</h2>
@@ -452,14 +452,14 @@ export default function CashFlowPage() {
                   
                   {/* Investing Activities */}
                   <div className="bg-[#111111] rounded-xl border border-white/5 overflow-hidden active:scale-[0.98] transition-all">
-                    <div className={`px-4 md:px-5 py-3 md:py-4 ${reportData.investingActivities.total >= 0 ? 'bg-[#E84545]/20' : 'bg-orange-900/20'}`}>
+                    <div className={`px-4 md:px-5 py-3 md:py-4 ${reportData.investingActivities.total >= 0 ? 'bg-[color:var(--autocity-accent-20)]' : 'bg-orange-900/20'}`}>
                       <div className="flex items-center justify-between">
                         <h3 className="text-sm md:text-lg font-bold text-white flex items-center">
-                          <span className={`h-2 w-2 md:h-3 md:w-3 ${reportData.investingActivities.total >= 0 ? 'bg-[#E84545]' : 'bg-orange-500'} rounded-full mr-2`}></span>
+                          <span className={`h-2 w-2 md:h-3 md:w-3 ${reportData.investingActivities.total >= 0 ? 'bg-[color:var(--autocity-accent)]' : 'bg-orange-500'} rounded-full mr-2`}></span>
                           <span className="hidden md:inline">CASH FLOWS FROM INVESTING ACTIVITIES</span>
                           <span className="md:hidden">INVESTING</span>
                         </h3>
-                        <span className={`font-bold text-sm md:text-xl ${reportData.investingActivities.total >= 0 ? 'text-[#E84545]' : 'text-orange-400'}`}>
+                        <span className={`font-bold text-sm md:text-xl ${reportData.investingActivities.total >= 0 ? 'text-[color:var(--autocity-accent)]' : 'text-orange-400'}`}>
                           {reportData.investingActivities.total >= 0 ? '+' : ''}
                           {isMobile ? formatCompactCurrency(reportData.investingActivities.total) : formatCurrency(reportData.investingActivities.total)}
                         </span>
@@ -511,8 +511,8 @@ export default function CashFlowPage() {
                   </div>
                   
                   {/* Cash Reconciliation */}
-                  <div className="bg-gradient-to-r from-[#E84545]/10 to-[#cc3c3c]/10 p-4 md:p-6 rounded-xl border-2 border-[#E84545]/50 active:scale-[0.98] transition-all">
-                    <h3 className="text-base md:text-xl font-bold text-[#E84545] mb-4 flex items-center">
+                  <div className="bg-gradient-to-r from-[var(--autocity-accent-10)] to-[var(--autocity-accent-strong)]/10 p-4 md:p-6 rounded-xl border-2 border-[color:var(--autocity-accent-50)] active:scale-[0.98] transition-all">
+                    <h3 className="text-base md:text-xl font-bold text-[color:var(--autocity-accent)] mb-4 flex items-center">
                       <Activity className="w-4 h-4 md:w-5 md:h-5 mr-2" />
                       CASH RECONCILIATION
                     </h3>
@@ -523,7 +523,7 @@ export default function CashFlowPage() {
                           {isMobile ? formatCompactCurrency(reportData.openingCash) : formatCurrency(reportData.openingCash)}
                         </span>
                       </div>
-                      <div className="h-px bg-[#E84545]/30"></div>
+                      <div className="h-px bg-[color:var(--autocity-accent-30)]"></div>
                       <div className="flex justify-between items-center">
                         <span className="text-white/80 text-sm md:text-lg">Net Change in Cash</span>
                         <span className={`font-semibold text-sm md:text-lg ${reportData.netCashFlow >= 0 ? 'text-green-400' : 'text-red-400'}`}>
@@ -531,10 +531,10 @@ export default function CashFlowPage() {
                           {isMobile ? formatCompactCurrency(reportData.netCashFlow) : formatCurrency(reportData.netCashFlow)}
                         </span>
                       </div>
-                      <div className="h-px bg-[#E84545]/50"></div>
+                      <div className="h-px bg-[color:var(--autocity-accent-05)]0"></div>
                       <div className="flex justify-between items-center pt-2">
-                        <span className="text-base md:text-xl font-bold text-[#E84545]">Closing Cash Balance</span>
-                        <span className="text-xl md:text-2xl font-bold text-[#E84545]">
+                        <span className="text-base md:text-xl font-bold text-[color:var(--autocity-accent)]">Closing Cash Balance</span>
+                        <span className="text-xl md:text-2xl font-bold text-[color:var(--autocity-accent)]">
                           {isMobile ? formatCompactCurrency(reportData.closingCash) : formatCurrency(reportData.closingCash)}
                         </span>
                       </div>

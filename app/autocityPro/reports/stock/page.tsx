@@ -107,7 +107,7 @@ export default function StockReportPage() {
       <MainLayout user={user} onLogout={handleLogout}>
         <div className="min-h-screen bg-[#050505] flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 md:h-16 md:w-16 border-b-2 border-[#E84545] mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 md:h-16 md:w-16 border-b-2 border-[color:var(--autocity-accent)] mx-auto mb-4"></div>
             <p className="text-slate-300 text-sm md:text-base">Generating stock report...</p>
           </div>
         </div>
@@ -158,7 +158,7 @@ export default function StockReportPage() {
       case 'low':
         return 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20';
       case 'out':
-        return 'text-[#E84545] bg-[#E84545]/10 border-[#E84545]/20';
+        return 'text-[color:var(--autocity-accent)] bg-[color:var(--autocity-accent-10)] border-[color:var(--autocity-accent-20)]';
       case 'over':
         return 'text-blue-400 bg-blue-400/10 border-blue-400/20';
       default:
@@ -190,7 +190,7 @@ export default function StockReportPage() {
             <div className="bg-black rounded-[28px] px-6 py-3 shadow-2xl border border-white/10 backdrop-blur-xl pointer-events-auto animate-in slide-in-from-top duration-500">
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
-                  <Package className="h-3 w-3 text-[#E84545]" />
+                  <Package className="h-3 w-3 text-[color:var(--autocity-accent)]" />
                   <span className="text-white text-xs font-semibold">{summary.totalProducts}</span>
                 </div>
                 <div className="h-3 w-px bg-white/20"></div>
@@ -236,7 +236,7 @@ export default function StockReportPage() {
                   placeholder="Search products..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-white text-sm placeholder-white/40 focus:outline-none focus:border-[#E84545]/50 focus:ring-1 focus:ring-[#E84545]/50"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-white text-sm placeholder-white/40 focus:outline-none focus:border-[color:var(--autocity-accent-50)] focus:ring-1 focus:ring-[color:var(--autocity-accent)]/50"
                 />
               </div>
             )}
@@ -244,7 +244,7 @@ export default function StockReportPage() {
         </div>
 
         {/* Desktop Header */}
-        <div className="hidden md:block py-12 bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-lg">
+        <div className="hidden md:block py-12 bg-gradient-to-br from-[var(--autocity-header-from-dark)] via-[var(--autocity-header-via-dark)] to-[var(--autocity-header-to-dark)] border-b border-white/5 shadow-lg">
           <div className="px-8">
             <div className="flex justify-between items-center">
               <div className="flex items-center space-x-3">
@@ -304,10 +304,10 @@ export default function StockReportPage() {
         <div className="px-4 md:px-8 pt-[200px] md:pt-6 pb-6">
           {/* Stats Cards - Mobile Optimized */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
-            <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 hover:border-[#E84545]/30 transition-all active:scale-[0.98]">
+            <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 hover:border-[color:var(--autocity-accent-30)] transition-all active:scale-[0.98]">
               <div className="flex items-center justify-between mb-2">
-                <div className="p-2 bg-[#E84545]/10 rounded-xl">
-                  <DollarSign className="h-4 w-4 md:h-5 md:w-5 text-[#E84545]" />
+                <div className="p-2 bg-[color:var(--autocity-accent-10)] rounded-xl">
+                  <DollarSign className="h-4 w-4 md:h-5 md:w-5 text-[color:var(--autocity-accent)]" />
                 </div>
               </div>
               <p className="text-xs text-slate-400 mb-1">Stock Value</p>
@@ -337,14 +337,14 @@ export default function StockReportPage() {
               <p className="text-xs text-slate-500 mt-1">Items</p>
             </div>
 
-            <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 hover:border-[#E84545]/30 transition-all active:scale-[0.98]">
+            <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 hover:border-[color:var(--autocity-accent-30)] transition-all active:scale-[0.98]">
               <div className="flex items-center justify-between mb-2">
-                <div className="p-2 bg-[#E84545]/10 rounded-xl">
-                  <AlertCircle className="h-4 w-4 md:h-5 md:w-5 text-[#E84545]" />
+                <div className="p-2 bg-[color:var(--autocity-accent-10)] rounded-xl">
+                  <AlertCircle className="h-4 w-4 md:h-5 md:w-5 text-[color:var(--autocity-accent)]" />
                 </div>
               </div>
               <p className="text-xs text-slate-400 mb-1">Out of Stock</p>
-              <p className="text-base md:text-xl font-bold text-[#E84545]">{summary.outOfStockItems}</p>
+              <p className="text-base md:text-xl font-bold text-[color:var(--autocity-accent)]">{summary.outOfStockItems}</p>
               <p className="text-xs text-slate-500 mt-1">Urgent</p>
             </div>
           </div>
@@ -363,7 +363,7 @@ export default function StockReportPage() {
                   onClick={() => setViewMode(tab.key as any)}
                   className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 md:py-4 text-sm md:text-base font-semibold transition-all ${
                     viewMode === tab.key
-                      ? 'text-[#E84545] bg-[#E84545]/10 border-b-2 border-[#E84545]'
+                      ? 'text-[color:var(--autocity-accent)] bg-[color:var(--autocity-accent-10)] border-b-2 border-[color:var(--autocity-accent)]'
                       : 'text-white/60 hover:text-white/80 hover:bg-white/5'
                   }`}
                 >
@@ -399,21 +399,21 @@ export default function StockReportPage() {
                         <p className="text-xs text-slate-500 mt-1">{products.length > 0 ? ((summary.lowStockItems / products.length) * 100).toFixed(0) : 0}% of stock</p>
                       </div>
 
-                      <div className="bg-gradient-to-br from-[#E84545]/10 to-[#050505] border border-[#E84545]/20 rounded-xl p-3 md:p-4">
+                      <div className="bg-gradient-to-br from-[var(--autocity-accent-10)] to-[#050505] border border-[color:var(--autocity-accent-20)] rounded-xl p-3 md:p-4">
                         <div className="flex items-center gap-2 mb-2">
-                          <AlertCircle className="h-4 w-4 text-[#E84545]" />
+                          <AlertCircle className="h-4 w-4 text-[color:var(--autocity-accent)]" />
                           <span className="text-xs md:text-sm text-slate-400">Out</span>
                         </div>
-                        <p className="text-xl md:text-2xl font-bold text-[#E84545]">{summary.outOfStockItems}</p>
+                        <p className="text-xl md:text-2xl font-bold text-[color:var(--autocity-accent)]">{summary.outOfStockItems}</p>
                         <p className="text-xs text-slate-500 mt-1">{products.length > 0 ? ((summary.outOfStockItems / products.length) * 100).toFixed(0) : 0}% of stock</p>
                       </div>
                     </div>
                   </div>
 
                   {/* Total Inventory Value */}
-                  <div className="bg-gradient-to-br from-[#E84545]/10 to-[#050505] border border-[#E84545]/20 rounded-xl p-4">
+                  <div className="bg-gradient-to-br from-[var(--autocity-accent-10)] to-[#050505] border border-[color:var(--autocity-accent-20)] rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-2">
-                      <DollarSign className="h-5 w-5 text-[#E84545]" />
+                      <DollarSign className="h-5 w-5 text-[color:var(--autocity-accent)]" />
                       <span className="text-sm text-slate-400">Total Inventory Value</span>
                     </div>
                     <p className="text-2xl md:text-3xl font-bold text-white">QR.{summary.totalStockValue.toLocaleString()}</p>
@@ -443,7 +443,7 @@ export default function StockReportPage() {
                         return (
                           <div
                             key={product._id}
-                            className="bg-white/5 border border-white/10 rounded-xl p-3 md:p-4 hover:border-[#E84545]/30 hover:bg-white/10 transition-all active:scale-[0.98]"
+                            className="bg-white/5 border border-white/10 rounded-xl p-3 md:p-4 hover:border-[color:var(--autocity-accent-30)] hover:bg-white/10 transition-all active:scale-[0.98]"
                           >
                             <div className="flex items-start justify-between mb-3">
                               <div className="flex-1 min-w-0">
@@ -473,7 +473,7 @@ export default function StockReportPage() {
                               </div>
                               <div>
                                 <p className="text-xs text-slate-500 mb-1">Value</p>
-                                <p className="text-sm md:text-base font-semibold text-[#E84545]">QR.{stockValue.toFixed(2)}</p>
+                                <p className="text-sm md:text-base font-semibold text-[color:var(--autocity-accent)]">QR.{stockValue.toFixed(2)}</p>
                               </div>
                             </div>
 
@@ -488,7 +488,7 @@ export default function StockReportPage() {
                               <div className="h-1.5 md:h-2 bg-white/5 rounded-full overflow-hidden">
                                 <div
                                   className={`h-full rounded-full ${
-                                    status === 'out' ? 'bg-[#E84545]' :
+                                    status === 'out' ? 'bg-[color:var(--autocity-accent)]' :
                                     status === 'low' ? 'bg-yellow-400' :
                                     status === 'over' ? 'bg-blue-400' :
                                     'bg-green-400'
@@ -525,11 +525,11 @@ export default function StockReportPage() {
                       {Object.entries(stockByCategory).map(([category, data]: [string, any]) => (
                         <div
                           key={category}
-                          className="bg-white/5 border border-white/10 rounded-xl p-3 md:p-4 hover:border-[#E84545]/30 hover:bg-white/10 transition-all active:scale-[0.98]"
+                          className="bg-white/5 border border-white/10 rounded-xl p-3 md:p-4 hover:border-[color:var(--autocity-accent-30)] hover:bg-white/10 transition-all active:scale-[0.98]"
                         >
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
-                              <Box className="h-4 w-4 text-[#E84545]" />
+                              <Box className="h-4 w-4 text-[color:var(--autocity-accent)]" />
                               <span className="text-sm md:text-base font-bold text-white">{category}</span>
                             </div>
                             <span className="text-xs md:text-sm text-slate-400">{data.count} products</span>
@@ -542,7 +542,7 @@ export default function StockReportPage() {
                             </div>
                             <div>
                               <span className="text-[10px] text-slate-500 uppercase block mb-1">Value</span>
-                              <p className="text-sm font-semibold text-[#E84545]">QR.{data.value.toFixed(2)}</p>
+                              <p className="text-sm font-semibold text-[color:var(--autocity-accent)]">QR.{data.value.toFixed(2)}</p>
                             </div>
                           </div>
                         </div>
@@ -559,8 +559,8 @@ export default function StockReportPage() {
                   {summary.outOfStockItems > 0 && (
                     <div>
                       <div className="flex items-center gap-2 mb-3 md:mb-4">
-                        <AlertCircle className="h-5 w-5 text-[#E84545]" />
-                        <h3 className="text-base md:text-lg font-bold text-[#E84545]">
+                        <AlertCircle className="h-5 w-5 text-[color:var(--autocity-accent)]" />
+                        <h3 className="text-base md:text-lg font-bold text-[color:var(--autocity-accent)]">
                           Out of Stock ({summary.outOfStockItems})
                         </h3>
                       </div>
@@ -568,22 +568,22 @@ export default function StockReportPage() {
                         {products.filter((p: any) => getStockStatus(p) === 'out').map((product: any) => (
                           <div
                             key={product._id}
-                            className="bg-gradient-to-r from-[#E84545]/10 to-[#050505] border border-[#E84545]/30 rounded-xl p-3 md:p-4"
+                            className="bg-gradient-to-r from-[var(--autocity-accent-10)] to-[#050505] border border-[color:var(--autocity-accent-30)] rounded-xl p-3 md:p-4"
                           >
                             <div className="flex items-start justify-between mb-2">
                               <div>
                                 <h4 className="text-sm md:text-base font-bold text-white mb-1">{product.name}</h4>
                                 <p className="text-xs text-slate-400">SKU: {product.sku}</p>
                               </div>
-                              <span className="px-2 md:px-3 py-1 bg-[#E84545] text-white text-xs font-bold rounded-lg">
+                              <span className="px-2 md:px-3 py-1 bg-[color:var(--autocity-accent)] text-white text-xs font-bold rounded-lg">
                                 URGENT
                               </span>
                             </div>
                             <div className="flex items-center justify-between text-xs md:text-sm">
                               <span className="text-slate-400">
-                                Current: <span className="text-[#E84545] font-semibold">0</span> / Min: {product.minStock || 0}
+                                Current: <span className="text-[color:var(--autocity-accent)] font-semibold">0</span> / Min: {product.minStock || 0}
                               </span>
-                              <button className="text-[#E84545] hover:text-[#ff5555] font-semibold flex items-center gap-1">
+                              <button className="text-[color:var(--autocity-accent)] hover:text-[#ff5555] font-semibold flex items-center gap-1">
                                 <span>Reorder</span>
                                 <ArrowUpRight className="h-3 w-3" />
                               </button>
@@ -666,7 +666,7 @@ export default function StockReportPage() {
                 className="w-full p-4 bg-[#0A0A0A] border border-white/10 rounded-xl text-white font-semibold hover:bg-white/5 transition-all flex items-center justify-between active:scale-95"
               >
                 <div className="flex items-center gap-3">
-                  <RefreshCw className="h-5 w-5 text-[#E84545]" />
+                  <RefreshCw className="h-5 w-5 text-[color:var(--autocity-accent)]" />
                   <span>Refresh Data</span>
                 </div>
               </button>
@@ -679,7 +679,7 @@ export default function StockReportPage() {
                 className="w-full p-4 bg-[#0A0A0A] border border-white/10 rounded-xl text-white font-semibold hover:bg-white/5 transition-all flex items-center justify-between active:scale-95"
               >
                 <div className="flex items-center gap-3">
-                  <Download className="h-5 w-5 text-[#E84545]" />
+                  <Download className="h-5 w-5 text-[color:var(--autocity-accent)]" />
                   <span>Export Report</span>
                 </div>
               </button>
@@ -692,7 +692,7 @@ export default function StockReportPage() {
                 className="w-full p-4 bg-[#0A0A0A] border border-white/10 rounded-xl text-white font-semibold hover:bg-white/5 transition-all flex items-center justify-between active:scale-95"
               >
                 <div className="flex items-center gap-3">
-                  <Printer className="h-5 w-5 text-[#E84545]" />
+                  <Printer className="h-5 w-5 text-[color:var(--autocity-accent)]" />
                   <span>Print Report</span>
                 </div>
               </button>

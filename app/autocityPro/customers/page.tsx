@@ -36,18 +36,18 @@ export default function CustomersPage() {
   // ── Theme tokens ──────────────────────────────────────────────────────────
   const th = {
     pageBg:             isDark ? "#050505"                                          : "#f3f4f6",
-    headerBgFrom:       isDark ? "#932222"                                          : "#fef2f2",
-    headerBgVia:        isDark ? "#411010"                                          : "#fee2e2",
-    headerBgTo:         isDark ? "#a20c0c"                                          : "#fecaca",
+    headerBgFrom:       isDark ? "var(--autocity-header-from-dark)"                                          : "var(--autocity-header-from-light)",
+    headerBgVia:        isDark ? "var(--autocity-header-via-dark)"                                          : "var(--autocity-header-via-light)",
+    headerBgTo:         isDark ? "var(--autocity-header-to-dark)"                                          : "var(--autocity-header-to-light)",
     headerBorder:       isDark ? "rgba(255,255,255,0.05)"                           : "rgba(0,0,0,0.06)",
-    headerTitle:        isDark ? "#ffffff"                                          : "#7f1d1d",
-    headerSub:          isDark ? "rgba(255,255,255,0.80)"                           : "#991b1b",
-    headerIconBg:       isDark ? "rgba(255,255,255,0.10)"                           : "rgba(127,29,29,0.10)",
-    headerIconBorder:   isDark ? "rgba(255,255,255,0.20)"                           : "rgba(127,29,29,0.20)",
-    headerBtnBg:        isDark ? "rgba(255,255,255,0.10)"                           : "#7f1d1d",
+    headerTitle:        isDark ? "#ffffff"                                          : "var(--autocity-header-text-light)",
+    headerSub:          isDark ? "rgba(255,255,255,0.80)"                           : "var(--autocity-header-sub-light)",
+    headerIconBg:       isDark ? "rgba(255,255,255,0.10)"                           : "var(--autocity-accent-10)",
+    headerIconBorder:   isDark ? "rgba(255,255,255,0.20)"                           : "var(--autocity-accent-20)",
+    headerBtnBg:        isDark ? "rgba(255,255,255,0.10)"                           : "var(--autocity-header-text-light)",
     headerBtnText:      isDark ? "#ffffff"                                          : "#ffffff",
-    headerBtnHover:     isDark ? "rgba(255,255,255,0.20)"                           : "#991b1b",
-    headerBtnBorder:    isDark ? "rgba(255,255,255,0.20)"                           : "rgba(127,29,29,0.20)",
+    headerBtnHover:     isDark ? "rgba(255,255,255,0.20)"                           : "var(--autocity-header-sub-light)",
+    headerBtnBorder:    isDark ? "rgba(255,255,255,0.20)"                           : "var(--autocity-accent-20)",
     mobileHdrBg:        isDark ? "linear-gradient(to br,#0A0A0A,#050505,#0A0A0A)"  : "linear-gradient(to br,#ffffff,#f9fafb,#ffffff)",
     mobileHdrBorder:    isDark ? "rgba(255,255,255,0.05)"                           : "rgba(0,0,0,0.08)",
     mobileHdrTitle:     isDark ? "#ffffff"                                          : "#111827",
@@ -60,11 +60,11 @@ export default function CustomersPage() {
     searchText:         isDark ? "#ffffff"                                          : "#111827",
     searchPlaceholder:  isDark ? "rgba(255,255,255,0.40)"                           : "#9ca3af",
     searchIcon:         isDark ? "rgba(255,255,255,0.40)"                           : "#9ca3af",
-    searchFocusBorder:  isDark ? "rgba(232,69,69,0.50)"                             : "rgba(232,69,69,0.40)",
-    searchFocusRing:    isDark ? "rgba(232,69,69,0.50)"                             : "rgba(232,69,69,0.30)",
+    searchFocusBorder:  isDark ? "var(--autocity-accent-50)"                             : "var(--autocity-accent-40)",
+    searchFocusRing:    isDark ? "var(--autocity-accent-50)"                             : "var(--autocity-accent-30)",
     statCardBg:         isDark ? "linear-gradient(to br,#0A0A0A,#050505)"          : "#ffffff",
     statCardBorder:     isDark ? "rgba(255,255,255,0.10)"                           : "rgba(0,0,0,0.08)",
-    statIconBg:         isDark ? "rgba(232,69,69,0.10)"                             : "rgba(232,69,69,0.08)",
+    statIconBg:         isDark ? "var(--autocity-accent-10)"                             : "var(--autocity-accent-08)",
     statLabel:          isDark ? "#9ca3af"                                          : "#6b7280",
     statValue:          isDark ? "#ffffff"                                          : "#111827",
     statValueGreen:     isDark ? "#86efac"                                          : "#15803d",
@@ -77,7 +77,7 @@ export default function CustomersPage() {
     tblCellName:        isDark ? "#ffffff"                                          : "#111827",
     tblCellCode:        isDark ? "#64748b"                                          : "#9ca3af",
     tblCellText:        isDark ? "#cbd5e1"                                          : "#374151",
-    iconRed:            isDark ? "#E84545"                                          : "#dc2626",
+    iconRed:            isDark ? "var(--autocity-accent)"                                          : "#dc2626",
     iconBlue:           isDark ? "#60a5fa"                                          : "#2563eb",
     iconGreen:          isDark ? "#86efac"                                          : "#15803d",
     actionBtnBlueBg:    isDark ? "rgba(59,130,246,0.10)"                            : "rgba(59,130,246,0.06)",
@@ -151,7 +151,7 @@ export default function CustomersPage() {
               style={{ background: th.islandBg, border: `1px solid ${th.islandBorder}` }}>
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
-                  <User className="h-3 w-3 text-[#E84545]" />
+                  <User className="h-3 w-3 text-[color:var(--autocity-accent)]" />
                   <span className="text-xs font-semibold" style={{ color: th.islandText }}>{filteredCustomers.length}</span>
                 </div>
                 <div className="h-3 w-px" style={{ background: th.islandDivider }}></div>
@@ -174,14 +174,14 @@ export default function CustomersPage() {
                 <div>
                   <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: th.mobileHdrTitle }}>
                     Customers
-                    {isDark ? <Moon className="h-4 w-4 text-[#E84545]" /> : <Sun className="h-4 w-4 text-[#E84545]" />}
+                    {isDark ? <Moon className="h-4 w-4 text-[color:var(--autocity-accent)]" /> : <Sun className="h-4 w-4 text-[color:var(--autocity-accent)]" />}
                   </h1>
                   <p className="text-xs" style={{ color: th.mobileHdrSub }}>{filteredCustomers.length} customers</p>
                 </div>
               </div>
               <button onClick={() => toast.success('Add Customer coming soon!')}
                 className="p-2 rounded-xl text-white active:scale-95 transition-all"
-                style={{ background: "linear-gradient(to r,#E84545,#cc3c3c)" }}>
+                style={{ background: "linear-gradient(to r,var(--autocity-accent),var(--autocity-accent-strong))" }}>
                 <Plus className="h-4 w-4" />
               </button>
             </div>
@@ -244,7 +244,7 @@ export default function CustomersPage() {
           {/* Stats Card */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-6">
             {[
-              { icon: <User className="h-5 w-5 text-[#E84545]" />, label: "Total Customers", value: customers.length, bg: th.statIconBg },
+              { icon: <User className="h-5 w-5 text-[color:var(--autocity-accent)]" />, label: "Total Customers", value: customers.length, bg: th.statIconBg },
               { icon: <FileText className="h-5 w-5" style={{ color: th.iconGreen }} />, label: "Active", value: customers.length, color: th.statValueGreen, bg: isDark ? "rgba(34,197,94,0.10)" : "rgba(34,197,94,0.08)" },
               { icon: <Search className="h-5 w-5" style={{ color: th.iconBlue }} />, label: "Search Results", value: filteredCustomers.length, bg: isDark ? "rgba(59,130,246,0.10)" : "rgba(59,130,246,0.08)" },
             ].map((stat) => (
@@ -264,7 +264,7 @@ export default function CustomersPage() {
             style={{ background: th.mainCardBg, border: `1px solid ${th.mainCardBorder}` }}>
             {loading ? (
               <div className="p-12 text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E84545] mx-auto mb-4"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[color:var(--autocity-accent)] mx-auto mb-4"></div>
                 <p style={{ color: th.emptyText }}>Loading customers...</p>
               </div>
             ) : filteredCustomers.length === 0 ? (

@@ -148,7 +148,7 @@ function ModelSelector({
 
   const selectedMeta = models.find(m => m.key === selectedModel) ?? models[1];
   const isGold       = (key: string) => key === models[models.length - 1].key;
-  const accentColor  = (key: string) => isGold(key) ? '#f59e0b' : '#E84545';
+  const accentColor  = (key: string) => isGold(key) ? '#f59e0b' : 'var(--autocity-accent)';
 
   return (
     <div className="flex-shrink-0" style={{ borderBottom: `1px solid ${th.headerBorder}` }}>
@@ -168,8 +168,8 @@ function ModelSelector({
             style={{
               background: isGold(selectedModel)
                 ? (isDark ? 'rgba(245,158,11,0.12)' : 'rgba(245,158,11,0.08)')
-                : (isDark ? 'rgba(232,69,69,0.12)'  : 'rgba(232,69,69,0.08)'),
-              border: `1px solid ${isGold(selectedModel) ? 'rgba(245,158,11,0.35)' : 'rgba(232,69,69,0.35)'}`,
+                : (isDark ? 'var(--autocity-accent-12)'  : 'var(--autocity-accent-08)'),
+              border: `1px solid ${isGold(selectedModel) ? 'rgba(245,158,11,0.35)' : 'var(--autocity-accent-35)'}`,
             }}
           >
             <span className="text-[11px] font-bold" style={{ color: accentColor(selectedModel) }}>
@@ -203,12 +203,12 @@ function ModelSelector({
               <div key={model.key} className="rounded-xl overflow-hidden transition-all"
                 style={{
                   border: `1px solid ${active
-                    ? (gold ? 'rgba(245,158,11,0.40)' : 'rgba(232,69,69,0.40)')
+                    ? (gold ? 'rgba(245,158,11,0.40)' : 'var(--autocity-accent-40)')
                     : (isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)')}`,
                   background: active
                     ? (gold
                         ? (isDark ? 'rgba(245,158,11,0.07)' : 'rgba(245,158,11,0.05)')
-                        : (isDark ? 'rgba(232,69,69,0.07)'  : 'rgba(232,69,69,0.05)'))
+                        : (isDark ? 'var(--autocity-accent-07)'  : 'var(--autocity-accent-05)'))
                     : (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.025)'),
                 }}>
                 <div className="flex items-center">
@@ -252,9 +252,9 @@ function ModelSelector({
                           style={{
                             background: gold
                               ? (isDark ? 'rgba(245,158,11,0.10)' : 'rgba(245,158,11,0.08)')
-                              : (isDark ? 'rgba(232,69,69,0.10)'  : 'rgba(232,69,69,0.07)'),
+                              : (isDark ? 'var(--autocity-accent-10)'  : 'var(--autocity-accent-07)'),
                             color: accent,
-                            border: `1px solid ${gold ? 'rgba(245,158,11,0.25)' : 'rgba(232,69,69,0.25)'}`,
+                            border: `1px solid ${gold ? 'rgba(245,158,11,0.25)' : 'var(--autocity-accent-25)'}`,
                           }}>
                           {pro}
                         </span>
@@ -327,8 +327,8 @@ export function AIWorkerWidget({
   const th: Record<string, string> = {
     fabBgActive:         isDark ? '#0A0A0A'                            : '#ffffff',
     fabBorderActive:     isDark ? 'rgba(255,255,255,0.10)'             : 'rgba(0,0,0,0.08)',
-    fabBgIdle:           'linear-gradient(135deg, #E84545, #cc3c3c)',
-    fabShadow:           isDark ? 'rgba(232,69,69,0.25)'               : 'rgba(232,69,69,0.20)',
+    fabBgIdle:           'linear-gradient(135deg, var(--autocity-accent), var(--autocity-accent-strong))',
+    fabShadow:           isDark ? 'var(--autocity-accent-25)'               : 'var(--autocity-accent-20)',
     panelBg:             isDark
       ? 'linear-gradient(160deg, #0A0A0A 0%, #050505 60%, #0A0A0A 100%)'
       : 'linear-gradient(160deg, #ffffff 0%, #f9fafb 60%, #ffffff 100%)',
@@ -342,29 +342,29 @@ export function AIWorkerWidget({
     clearBarBg:          isDark ? '#0A0A0A'                            : '#f9fafb',
     clearBarBorder:      isDark ? 'rgba(255,255,255,0.06)'             : 'rgba(0,0,0,0.06)',
     clearBarText:        isDark ? '#9ca3af'                            : '#6b7280',
-    userBubbleBg:        'linear-gradient(135deg, #E84545, #cc3c3c)',
+    userBubbleBg:        'linear-gradient(135deg, var(--autocity-accent), var(--autocity-accent-strong))',
     userBubbleText:      '#ffffff',
     aiBubbleBg:          isDark ? 'rgba(255,255,255,0.05)'             : 'rgba(0,0,0,0.04)',
     aiBubbleBorder:      isDark ? 'rgba(255,255,255,0.08)'             : 'rgba(0,0,0,0.08)',
     aiBubbleText:        isDark ? '#e5e7eb'                            : '#111827',
-    errBubbleBg:         isDark ? 'rgba(232,69,69,0.08)'               : 'rgba(232,69,69,0.06)',
-    errBubbleBorder:     isDark ? 'rgba(232,69,69,0.20)'               : 'rgba(232,69,69,0.15)',
+    errBubbleBg:         isDark ? 'var(--autocity-accent-08)'               : 'var(--autocity-accent-06)',
+    errBubbleBorder:     isDark ? 'var(--autocity-accent-20)'               : 'var(--autocity-accent-15)',
     errBubbleText:       isDark ? '#fca5a5'                            : '#b91c1c',
-    avatarBg:            isDark ? 'rgba(232,69,69,0.12)'               : 'rgba(232,69,69,0.08)',
-    avatarBorder:        isDark ? 'rgba(232,69,69,0.25)'               : 'rgba(232,69,69,0.20)',
-    avatarIcon:          '#E84545',
+    avatarBg:            isDark ? 'var(--autocity-accent-12)'               : 'var(--autocity-accent-08)',
+    avatarBorder:        isDark ? 'var(--autocity-accent-25)'               : 'var(--autocity-accent-20)',
+    avatarIcon:          'var(--autocity-accent)',
     dotBg:               isDark ? 'rgba(255,255,255,0.20)'             : 'rgba(0,0,0,0.15)',
     chipBg:              isDark ? 'rgba(255,255,255,0.04)'             : 'rgba(0,0,0,0.03)',
     chipBorder:          isDark ? 'rgba(255,255,255,0.08)'             : 'rgba(0,0,0,0.08)',
     chipText:            isDark ? '#9ca3af'                            : '#6b7280',
-    chipHoverBorder:     isDark ? 'rgba(232,69,69,0.30)'               : 'rgba(232,69,69,0.25)',
+    chipHoverBorder:     isDark ? 'var(--autocity-accent-30)'               : 'var(--autocity-accent-25)',
     chipHoverText:       isDark ? '#e5e7eb'                            : '#111827',
     chipHoverBg:         isDark ? 'rgba(255,255,255,0.06)'             : 'rgba(0,0,0,0.05)',
-    chipScanBorder:      isDark ? 'rgba(232,69,69,0.25)'               : 'rgba(232,69,69,0.20)',
-    chipScanText:        '#E84545',
-    chipScanBg:          isDark ? 'rgba(232,69,69,0.08)'               : 'rgba(232,69,69,0.05)',
-    scanBannerBg:        isDark ? 'rgba(232,69,69,0.06)'               : 'rgba(232,69,69,0.04)',
-    scanBannerBorder:    isDark ? 'rgba(232,69,69,0.18)'               : 'rgba(232,69,69,0.15)',
+    chipScanBorder:      isDark ? 'var(--autocity-accent-25)'               : 'var(--autocity-accent-20)',
+    chipScanText:        'var(--autocity-accent)',
+    chipScanBg:          isDark ? 'var(--autocity-accent-08)'               : 'var(--autocity-accent-05)',
+    scanBannerBg:        isDark ? 'var(--autocity-accent-06)'               : 'var(--autocity-accent-04)',
+    scanBannerBorder:    isDark ? 'var(--autocity-accent-18)'               : 'var(--autocity-accent-15)',
     scanBannerText:      isDark ? '#fca5a5'                            : '#b91c1c',
     voiceBannerBg:       isDark ? 'rgba(239,68,68,0.08)'               : 'rgba(239,68,68,0.06)',
     voiceBannerBorder:   isDark ? 'rgba(239,68,68,0.20)'               : 'rgba(239,68,68,0.15)',
@@ -373,16 +373,16 @@ export function AIWorkerWidget({
     inputBg:             isDark ? 'rgba(255,255,255,0.05)'             : 'rgba(0,0,0,0.04)',
     inputBorder:         isDark ? 'rgba(255,255,255,0.10)'             : 'rgba(0,0,0,0.10)',
     inputText:           isDark ? '#f9fafb'                            : '#111827',
-    inputFocusBorder:    'rgba(232,69,69,0.50)',
-    inputFocusRing:      'rgba(232,69,69,0.15)',
+    inputFocusBorder:    'var(--autocity-accent-50)',
+    inputFocusRing:      'var(--autocity-accent-15)',
     voiceBtnBg:          isDark ? 'rgba(255,255,255,0.06)'             : 'rgba(0,0,0,0.05)',
     voiceBtnBorder:      isDark ? 'rgba(255,255,255,0.10)'             : 'rgba(0,0,0,0.10)',
     voiceBtnIcon:        isDark ? '#9ca3af'                            : '#6b7280',
-    sendBtnBg:           'linear-gradient(135deg, #E84545, #cc3c3c)',
+    sendBtnBg:           'linear-gradient(135deg, var(--autocity-accent), var(--autocity-accent-strong))',
     sendBtnDisabled:     isDark ? 'rgba(255,255,255,0.06)'             : 'rgba(0,0,0,0.05)',
     sendBtnDisabledIcon: isDark ? '#4b5563'                            : '#d1d5db',
     scrollTrack:         isDark ? '#050505'                            : '#f1f5f9',
-    scrollThumb:         isDark ? 'rgba(232,69,69,0.40)'               : 'rgba(232,69,69,0.30)',
+    scrollThumb:         isDark ? 'var(--autocity-accent-40)'               : 'var(--autocity-accent-30)',
     overlayBg:           isDark ? 'rgba(0,0,0,0.60)'                   : 'rgba(0,0,0,0.40)',
     pillBg:              isDark ? 'rgba(255,255,255,0.15)'             : 'rgba(0,0,0,0.12)',
   };
@@ -448,7 +448,7 @@ export function AIWorkerWidget({
             <div className="flex items-center gap-1.5">
               <p className="text-sm font-bold leading-none" style={{ color: th.headerTitle }}>AutoCity AI</p>
               <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{
-                background: isLoading ? '#E84545' : voice.isLive ? '#f59e0b' : '#22c55e',
+                background: isLoading ? 'var(--autocity-accent)' : voice.isLive ? '#f59e0b' : '#22c55e',
               }} />
               {/* Provider badge */}
               {activeProvider && (
@@ -509,7 +509,7 @@ export function AIWorkerWidget({
           <span className="text-xs" style={{ color: th.clearBarText }}>Clear conversation?</span>
           <div className="flex gap-3">
             <button onClick={() => setShowClear(false)} className="text-xs" style={{ color: th.clearBarText }}>Cancel</button>
-            <button onClick={() => { clearHistory(); setShowClear(false); }} className="text-xs font-semibold" style={{ color: '#E84545' }}>Clear</button>
+            <button onClick={() => { clearHistory(); setShowClear(false); }} className="text-xs font-semibold" style={{ color: 'var(--autocity-accent)' }}>Clear</button>
           </div>
         </div>
       )}
@@ -594,12 +594,12 @@ export function AIWorkerWidget({
           <div className="flex items-center gap-0.5 flex-shrink-0">
             {[0,1,2,3,4].map(n => (
               <span key={n} className="w-0.5 rounded-full"
-                style={{ background: '#E84545', height: `${8+(n%3)*5}px`, animation: 'ai-wave 0.8s ease-in-out infinite', animationDelay: `${n*0.12}s` }} />
+                style={{ background: 'var(--autocity-accent)', height: `${8+(n%3)*5}px`, animation: 'ai-wave 0.8s ease-in-out infinite', animationDelay: `${n*0.12}s` }} />
             ))}
           </div>
           <span className="text-xs flex-1" style={{ color: th.voiceBannerText }}>Live voice · Realtime API</span>
           <button onClick={() => voice.stop()} className="text-xs font-semibold px-2 py-0.5 rounded-lg text-white"
-            style={{ background: 'linear-gradient(135deg, #E84545, #cc3c3c)' }}>End</button>
+            style={{ background: 'linear-gradient(135deg, var(--autocity-accent), var(--autocity-accent-strong))' }}>End</button>
         </div>
       )}
 
@@ -608,10 +608,10 @@ export function AIWorkerWidget({
         <div className="mx-3 mb-2 px-3 py-2 rounded-xl flex items-center gap-2 flex-shrink-0"
           style={{ background: th.voiceBannerBg, border: `1px solid ${th.voiceBannerBorder}` }}>
           <span className="w-2 h-2 rounded-full flex-shrink-0"
-            style={{ background: '#E84545', animation: 'ai-mic-pulse 1s ease-in-out infinite' }} />
+            style={{ background: 'var(--autocity-accent)', animation: 'ai-mic-pulse 1s ease-in-out infinite' }} />
           <span className="text-xs flex-1" style={{ color: th.voiceBannerText }}>Recording… tap mic to send</span>
           <button onClick={() => voice.stop()} className="text-xs font-semibold px-2 py-0.5 rounded-lg text-white"
-            style={{ background: 'linear-gradient(135deg, #E84545, #cc3c3c)' }}>Send</button>
+            style={{ background: 'linear-gradient(135deg, var(--autocity-accent), var(--autocity-accent-strong))' }}>Send</button>
         </div>
       )}
 
@@ -633,10 +633,10 @@ export function AIWorkerWidget({
           <button onClick={() => voice.start()} disabled={isLoading || micBusy}
             className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all disabled:opacity-40 active:scale-95"
             style={micActive
-              ? { background: 'linear-gradient(135deg, #E84545, #cc3c3c)', animation: 'ai-mic-pulse 1.2s ease-in-out infinite' }
+              ? { background: 'linear-gradient(135deg, var(--autocity-accent), var(--autocity-accent-strong))', animation: 'ai-mic-pulse 1.2s ease-in-out infinite' }
               : { background: th.voiceBtnBg, border: `1px solid ${th.voiceBtnBorder}` }}
             title={micTitle}>
-            {micBusy ? <Radio size={15} style={{ color: '#E84545', animation: 'ai-spin-slow 1.5s linear infinite' }} />
+            {micBusy ? <Radio size={15} style={{ color: 'var(--autocity-accent)', animation: 'ai-spin-slow 1.5s linear infinite' }} />
               : micActive ? <MicOff size={16} className="text-white" />
               : <Mic size={16} style={{ color: th.voiceBtnIcon }} />}
           </button>
@@ -646,7 +646,7 @@ export function AIWorkerWidget({
           style={{
             background: sendDisabled ? th.sendBtnDisabled : th.sendBtnBg,
             border:     sendDisabled ? `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}` : 'none',
-            boxShadow:  sendDisabled ? 'none' : '0 4px 12px rgba(232,69,69,0.25)',
+            boxShadow:  sendDisabled ? 'none' : '0 4px 12px var(--autocity-accent-25)',
           }}>
           <Send size={15} style={{ color: sendDisabled ? th.sendBtnDisabledIcon : '#ffffff' }} />
         </button>
@@ -665,7 +665,7 @@ export function AIWorkerWidget({
         @keyframes ai-dot-bounce { 0%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-5px); } }
         .ai-dot { animation: ai-dot-bounce 1.4s ease-in-out infinite; }
         @keyframes ai-wave       { 0%, 100% { transform: scaleY(0.4); } 50% { transform: scaleY(1.0); } }
-        @keyframes ai-mic-pulse  { 0%, 100% { box-shadow: 0 4px 12px rgba(232,69,69,0.35); } 50% { box-shadow: 0 4px 24px rgba(232,69,69,0.70); } }
+        @keyframes ai-mic-pulse  { 0%, 100% { box-shadow: 0 4px 12px var(--autocity-accent-35); } 50% { box-shadow: 0 4px 24px var(--autocity-accent-70); } }
         @keyframes ai-spin-slow  { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes ai-sheet-up   { from { transform: translateY(100%); } to { transform: translateY(0); } }
       `}</style>
@@ -685,7 +685,7 @@ export function AIWorkerWidget({
             : <>
                 <Sparkles size={22} className="text-white group-hover:scale-110 transition-transform" />
                 <span className="absolute inset-0 rounded-2xl pointer-events-none"
-                  style={{ border: '2px solid #E84545', opacity: 0.35, animation: 'ai-fab-ping 2s ease-out infinite' }} />
+                  style={{ border: '2px solid var(--autocity-accent)', opacity: 0.35, animation: 'ai-fab-ping 2s ease-out infinite' }} />
               </>
           }
         </button>
@@ -706,7 +706,7 @@ export function AIWorkerWidget({
             : <>
                 <Sparkles size={22} className="text-white group-hover:scale-110 transition-transform" />
                 <span className="absolute inset-0 rounded-2xl pointer-events-none"
-                  style={{ border: '2px solid #E84545', opacity: 0.35, animation: 'ai-fab-ping 2s ease-out infinite' }} />
+                  style={{ border: '2px solid var(--autocity-accent)', opacity: 0.35, animation: 'ai-fab-ping 2s ease-out infinite' }} />
               </>
           }
         </button>

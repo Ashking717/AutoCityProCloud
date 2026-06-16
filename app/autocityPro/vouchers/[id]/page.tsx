@@ -175,7 +175,7 @@ export default function VoucherViewPage() {
     return (
       <MainLayout user={user} onLogout={handleLogout}>
         <div className="flex items-center justify-center min-h-screen bg-[#050505]">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-[#E84545]"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-[color:var(--autocity-accent)]"></div>
         </div>
       </MainLayout>
     );
@@ -189,7 +189,7 @@ export default function VoucherViewPage() {
             <h2 className="text-xl font-bold text-white mb-4">Voucher Not Found</h2>
             <button
               onClick={() => router.push('/autocityPro/vouchers')}
-              className="px-4 py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-lg hover:opacity-90 active:scale-95 transition-all"
+              className="px-4 py-2 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-lg hover:opacity-90 active:scale-95 transition-all"
             >
               Back to Vouchers
             </button>
@@ -219,8 +219,8 @@ export default function VoucherViewPage() {
                 </div>
                 <div className="h-3 w-px bg-white/20"></div>
                 <div className="flex items-center gap-1">
-                  <Clock className="h-3 w-3 text-[#E84545]" />
-                  <span className="text-[#E84545] text-xs font-medium capitalize">{voucher.status}</span>
+                  <Clock className="h-3 w-3 text-[color:var(--autocity-accent)]" />
+                  <span className="text-[color:var(--autocity-accent)] text-xs font-medium capitalize">{voucher.status}</span>
                 </div>
               </div>
             </div>
@@ -264,7 +264,7 @@ export default function VoucherViewPage() {
         </div>
 
         {/* Desktop Header */}
-        <div className="hidden md:block py-12 bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-lg">
+        <div className="hidden md:block py-12 bg-gradient-to-br from-[var(--autocity-header-from-dark)] via-[var(--autocity-header-via-dark)] to-[var(--autocity-header-to-dark)] border-b border-white/5 shadow-lg">
           <div className="px-8">
             <div className="flex justify-between items-center">
               <div className="flex items-center space-x-4">
@@ -387,7 +387,7 @@ export default function VoucherViewPage() {
             {/* Narration - Mobile */}
             <div className="md:hidden bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 mb-6">
               <div className="flex items-center gap-2 mb-3">
-                <FileText className="h-4 w-4 text-[#E84545]" />
+                <FileText className="h-4 w-4 text-[color:var(--autocity-accent)]" />
                 <span className="text-white text-sm font-semibold">Narration</span>
               </div>
               <p className="text-sm text-slate-300">{voucher.narration}</p>
@@ -409,7 +409,7 @@ export default function VoucherViewPage() {
               {voucher.entries.map((entry: any) => (
                 <div 
                   key={entry._id || `${entry.accountName}-${entry.debit}-${entry.credit}`} 
-                  className="bg-gradient-to-br from-[#0A0A0A] to-slate-900 border border-white/10 rounded-xl p-4 hover:border-[#E84545]/30 transition-all active:scale-[0.98]"
+                  className="bg-gradient-to-br from-[#0A0A0A] to-slate-900 border border-white/10 rounded-xl p-4 hover:border-[color:var(--autocity-accent-30)] transition-all active:scale-[0.98]"
                 >
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex-1 min-w-0">
@@ -529,7 +529,7 @@ export default function VoucherViewPage() {
                     <button
                       onClick={handlePostVoucher}
                       disabled={processing}
-                      className="w-full px-4 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white font-semibold rounded-lg hover:opacity-90 active:scale-95 disabled:opacity-50 transition-all"
+                      className="w-full px-4 py-3 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white font-semibold rounded-lg hover:opacity-90 active:scale-95 disabled:opacity-50 transition-all"
                     >
                       {processing ? 'Posting...' : 'Post Voucher'}
                     </button>
@@ -599,7 +599,7 @@ export default function VoucherViewPage() {
                       setShowMobileMenu(false);
                     }}
                     disabled={processing}
-                    className="w-full p-4 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-between active:scale-95"
+                    className="w-full p-4 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-between active:scale-95"
                   >
                     <span>{processing ? 'Posting...' : 'Post Voucher'}</span>
                     <CheckCircle className="h-5 w-5" />

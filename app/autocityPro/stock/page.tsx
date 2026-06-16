@@ -59,15 +59,15 @@ export default function StockPage() {
   const th = {
     pageBg:         isDark ? '#050505'                                                : '#f3f4f6',
     // Header
-    headerBgFrom:   isDark ? '#932222'                                                : '#fef2f2',
-    headerBgVia:    isDark ? '#411010'                                                : '#fee2e2',
-    headerBgTo:     isDark ? '#a20c0c'                                                : '#fecaca',
+    headerBgFrom:   isDark ? 'var(--autocity-header-from-dark)'                                                : 'var(--autocity-header-from-light)',
+    headerBgVia:    isDark ? 'var(--autocity-header-via-dark)'                                                : 'var(--autocity-header-via-light)',
+    headerBgTo:     isDark ? 'var(--autocity-header-to-dark)'                                                : 'var(--autocity-header-to-light)',
     headerBorder:   isDark ? 'rgba(255,255,255,0.05)'                                 : 'rgba(0,0,0,0.06)',
-    headerTitle:    isDark ? '#ffffff'                                                : '#7f1d1d',
-    headerSub:      isDark ? 'rgba(255,255,255,0.80)'                                 : '#991b1b',
+    headerTitle:    isDark ? '#ffffff'                                                : 'var(--autocity-header-text-light)',
+    headerSub:      isDark ? 'rgba(255,255,255,0.80)'                                 : 'var(--autocity-header-sub-light)',
     headerBtnBg:    isDark ? 'rgba(255,255,255,0.10)'                                 : 'rgba(0,0,0,0.08)',
     headerBtnBorder:isDark ? 'rgba(255,255,255,0.20)'                                 : 'rgba(0,0,0,0.15)',
-    headerBtnText:  isDark ? '#ffffff'                                                : '#7f1d1d',
+    headerBtnText:  isDark ? '#ffffff'                                                : 'var(--autocity-header-text-light)',
     headerBtnHover: isDark ? 'rgba(255,255,255,0.20)'                                 : 'rgba(0,0,0,0.14)',
     // Mobile header
     mobileHeaderBg:  isDark ? 'linear-gradient(135deg,#0A0A0A,#050505,#0A0A0A)'       : 'linear-gradient(135deg,#ffffff,#f9fafb,#ffffff)',
@@ -86,12 +86,12 @@ export default function StockPage() {
     cardBorder:     isDark ? 'rgba(255,255,255,0.10)'                                 : 'rgba(0,0,0,0.08)',
     cardLabel:      isDark ? '#94a3b8'                                                : '#6b7280',
     cardValue:      isDark ? '#ffffff'                                                : '#111827',
-    cardValueRed:   '#E84545',
+    cardValueRed:   'var(--autocity-accent)',
     cardSubText:    isDark ? '#64748b'                                                : '#9ca3af',
-    cardIconBg:     isDark ? 'rgba(232,69,69,0.10)'                                   : 'rgba(232,69,69,0.08)',
+    cardIconBg:     isDark ? 'var(--autocity-accent-10)'                                   : 'var(--autocity-accent-08)',
     // Alert banner
-    alertBg:        isDark ? 'rgba(232,69,69,0.10)'                                   : 'rgba(232,69,69,0.07)',
-    alertBorder:    isDark ? 'rgba(232,69,69,0.20)'                                   : 'rgba(232,69,69,0.25)',
+    alertBg:        isDark ? 'var(--autocity-accent-10)'                                   : 'var(--autocity-accent-07)',
+    alertBorder:    isDark ? 'var(--autocity-accent-20)'                                   : 'var(--autocity-accent-25)',
     alertTitle:     isDark ? '#ffffff'                                                : '#111827',
     alertSub:       isDark ? '#cbd5e1'                                                : '#374151',
     // Desktop filter panel
@@ -102,7 +102,7 @@ export default function StockPage() {
     filterInputText: isDark ? '#ffffff'                                               : '#111827',
     filterInputPH:  isDark ? '#64748b'                                                : '#9ca3af',
     filterInputIcon: isDark ? '#94a3b8'                                               : '#6b7280',
-    filterTagBg:    isDark ? 'rgba(232,69,69,0.20)'                                   : 'rgba(232,69,69,0.10)',
+    filterTagBg:    isDark ? 'var(--autocity-accent-20)'                                   : 'var(--autocity-accent-10)',
     clearAllBg:     isDark ? '#0f172a'                                                : 'rgba(0,0,0,0.05)',
     clearAllBorder: isDark ? '#334155'                                                : 'rgba(0,0,0,0.10)',
     clearAllText:   isDark ? '#ffffff'                                                : '#374151',
@@ -292,7 +292,7 @@ export default function StockPage() {
               style={{ background: th.islandBg, border: `1px solid ${th.islandBorder}` }}
             >
               <div className="flex items-center gap-3">
-                <Package className="h-3 w-3 text-[#E84545]" />
+                <Package className="h-3 w-3 text-[color:var(--autocity-accent)]" />
                 <span className="text-xs font-semibold" style={{ color: th.islandText }}>{totalStockCode}</span>
                 <div className="h-3 w-px" style={{ background: th.islandDivider }} />
                 <span className="text-xs font-medium" style={{ color: th.islandText }}>{products.length} of {totalProducts}</span>
@@ -304,7 +304,7 @@ export default function StockPage() {
                   </>
                 )}
                 <div className="h-3 w-px" style={{ background: th.islandDivider }} />
-                {isDark ? <Moon className="h-3 w-3 text-[#E84545]" /> : <Sun className="h-3 w-3 text-[#E84545]" />}
+                {isDark ? <Moon className="h-3 w-3 text-[color:var(--autocity-accent)]" /> : <Sun className="h-3 w-3 text-[color:var(--autocity-accent)]" />}
               </div>
             </div>
           </div>
@@ -337,7 +337,7 @@ export default function StockPage() {
                   style={{ background: th.mobileBtnBg, color: th.mobileBtnText }}>
                   <Filter className="h-4 w-4" />
                   {activeFilterCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-[#E84545] text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">{activeFilterCount}</span>
+                    <span className="absolute -top-1 -right-1 bg-[color:var(--autocity-accent)] text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">{activeFilterCount}</span>
                   )}
                 </button>
                 <button onClick={() => setShowMobileMenu(true)} className="p-2 rounded-xl active:scale-95 transition-all"
@@ -347,7 +347,7 @@ export default function StockPage() {
             <div className="relative">
               <Search className="absolute left-3 top-2.5 h-4 w-4" style={{ color: th.mobileSearchPH }} />
               <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search stock..."
-                className="w-full pl-10 pr-4 py-2 rounded-xl text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent transition-colors duration-500"
+                className="w-full pl-10 pr-4 py-2 rounded-xl text-sm focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent transition-colors duration-500"
                 style={{ background: th.mobileSearchBg, border: `1px solid ${th.mobileSearchBorder}`, color: th.mobileSearchText }} />
             </div>
           </div>
@@ -363,7 +363,7 @@ export default function StockPage() {
                 <div className="flex items-center gap-3">
                   <h1 className="text-3xl font-bold" style={{ color: th.headerTitle }}>Stock Management</h1>
                   <div className="flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium"
-                    style={{ background: isDark ? 'rgba(0,0,0,0.30)' : 'rgba(255,255,255,0.60)', border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(127,29,29,0.20)'}`, color: isDark ? 'rgba(255,255,255,0.70)' : '#7f1d1d' }}>
+                    style={{ background: isDark ? 'rgba(0,0,0,0.30)' : 'rgba(255,255,255,0.60)', border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'var(--autocity-accent-20)'}`, color: isDark ? 'rgba(255,255,255,0.70)' : 'var(--autocity-header-text-light)' }}>
                     {isDark ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
                   </div>
                 </div>
@@ -404,12 +404,12 @@ export default function StockPage() {
               <div key={label}
                 className="rounded-2xl p-4 transition-all active:scale-[0.98]"
                 style={{ background: `linear-gradient(135deg,${th.cardBgFrom},${th.cardBgTo})`, border: `1px solid ${th.cardBorder}` }}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(232,69,69,0.30)')}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--autocity-accent-30)')}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = th.cardBorder)}
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="p-2 rounded-xl" style={{ background: th.cardIconBg }}>
-                    <Package className="h-4 w-4 md:h-5 md:w-5 text-[#E84545]" />
+                    <Package className="h-4 w-4 md:h-5 md:w-5 text-[color:var(--autocity-accent)]" />
                   </div>
                 </div>
                 <p className="text-xs mb-1" style={{ color: th.cardLabel }}>{label}</p>
@@ -421,11 +421,11 @@ export default function StockPage() {
 
           {/* Low Stock Alert */}
           {globalStats.lowStockCount > 0 && (
-            <div className="border-l-4 border-[#E84545] p-4 md:p-6 mb-6 rounded-xl transition-all active:scale-[0.98]"
+            <div className="border-l-4 border-[color:var(--autocity-accent)] p-4 md:p-6 mb-6 rounded-xl transition-all active:scale-[0.98]"
               style={{ background: th.alertBg, border: `1px solid ${th.alertBorder}` }}
             >
               <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 md:h-6 md:w-6 text-[#E84545] flex-shrink-0 mt-0.5" />
+                <AlertTriangle className="h-5 w-5 md:h-6 md:w-6 text-[color:var(--autocity-accent)] flex-shrink-0 mt-0.5" />
                 <div>
                   <h3 className="text-base md:text-lg font-semibold" style={{ color: th.alertTitle }}>{globalStats.lowStockCount} items need reordering</h3>
                   <p className="text-sm mt-1" style={{ color: th.alertSub }}>These products are running low on stock and need to be reordered soon.</p>
@@ -443,7 +443,7 @@ export default function StockPage() {
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4" style={{ color: th.filterInputIcon }} />
                 <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search products..."
-                  className="w-full pl-8 pr-3 py-2 text-sm rounded focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                  className="w-full pl-8 pr-3 py-2 text-sm rounded focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                   style={selectStyle} />
               </div>
               {[
@@ -453,7 +453,7 @@ export default function StockPage() {
               ].map((s) => (
                 <div key={s.id} className="relative">
                   <select value={s.value} onChange={e => s.onChange(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded focus:ring-2 focus:ring-[#E84545] focus:border-transparent appearance-none"
+                    className="w-full px-3 py-2 text-sm rounded focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent appearance-none"
                     style={selectStyle}
                   >
                     {s.opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
@@ -466,21 +466,21 @@ export default function StockPage() {
               <div className="relative">
                 <Car className="absolute left-2 top-2.5 h-4 w-4" style={{ color: th.filterInputIcon }} />
                 <select value={filterMake} onChange={e => { setFilterMake(e.target.value); setFilterModel(''); }}
-                  className="w-full pl-8 pr-3 py-2 text-sm rounded focus:ring-2 focus:ring-[#E84545] appearance-none" style={selectStyle}>
+                  className="w-full pl-8 pr-3 py-2 text-sm rounded focus:ring-2 focus:ring-[color:var(--autocity-accent)] appearance-none" style={selectStyle}>
                   <option value="">All Makes</option>
                   {availableMakes.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
               <div className="relative">
                 <select value={filterModel} onChange={e => setFilterModel(e.target.value)} disabled={!filterMake}
-                  className="w-full px-3 py-2 text-sm rounded focus:ring-2 focus:ring-[#E84545] appearance-none disabled:opacity-50" style={selectStyle}>
+                  className="w-full px-3 py-2 text-sm rounded focus:ring-2 focus:ring-[color:var(--autocity-accent)] appearance-none disabled:opacity-50" style={selectStyle}>
                   <option value="">All Models</option>
                   {availableModels.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
               <div className="relative">
                 <select value={filterVariant} onChange={e => setFilterVariant(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded focus:ring-2 focus:ring-[#E84545] appearance-none" style={selectStyle}>
+                  className="w-full px-3 py-2 text-sm rounded focus:ring-2 focus:ring-[color:var(--autocity-accent)] appearance-none" style={selectStyle}>
                   <option value="">All Variants</option>
                   {availableVariants.map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
@@ -488,7 +488,7 @@ export default function StockPage() {
               <div className="relative">
                 <Palette className="absolute left-2 top-2.5 h-4 w-4" style={{ color: th.filterInputIcon }} />
                 <select value={filterColor} onChange={e => setFilterColor(e.target.value)}
-                  className="w-full pl-8 pr-3 py-2 text-sm rounded focus:ring-2 focus:ring-[#E84545] appearance-none" style={selectStyle}>
+                  className="w-full pl-8 pr-3 py-2 text-sm rounded focus:ring-2 focus:ring-[color:var(--autocity-accent)] appearance-none" style={selectStyle}>
                   <option value="">All Colors</option>
                   {availableColors.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
@@ -496,7 +496,7 @@ export default function StockPage() {
               <div className="relative">
                 <Calendar className="absolute left-2 top-2.5 h-4 w-4" style={{ color: th.filterInputIcon }} />
                 <select value={filterYear} onChange={e => setFilterYear(e.target.value)}
-                  className="w-full pl-8 pr-3 py-2 text-sm rounded focus:ring-2 focus:ring-[#E84545] appearance-none" style={selectStyle}>
+                  className="w-full pl-8 pr-3 py-2 text-sm rounded focus:ring-2 focus:ring-[color:var(--autocity-accent)] appearance-none" style={selectStyle}>
                   <option value="">All Years</option>
                   {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
                 </select>
@@ -513,7 +513,7 @@ export default function StockPage() {
                     filterColor    && { label: `Color: ${filterColor}`,   clear: () => setFilterColor('') },
                     filterYear     && { label: `Year: ${filterYear}`,     clear: () => setFilterYear('') },
                   ].filter(Boolean).map((tag: any) => (
-                    <span key={tag.label} className="px-2 py-1 text-[#E84545] text-xs rounded-full flex items-center gap-1"
+                    <span key={tag.label} className="px-2 py-1 text-[color:var(--autocity-accent)] text-xs rounded-full flex items-center gap-1"
                       style={{ background: th.filterTagBg }}>
                       {tag.label}<X className="h-3 w-3 cursor-pointer" onClick={tag.clear} />
                     </span>
@@ -536,14 +536,14 @@ export default function StockPage() {
           >
             {loading && !products.length ? (
               <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#E84545]" />
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[color:var(--autocity-accent)]" />
               </div>
             ) : !filteredProducts.length ? (
               <div className="text-center py-12">
                 <Package className="h-16 w-16 mx-auto mb-4" style={{ color: th.emptyIcon }} />
                 <p className="text-lg font-medium" style={{ color: th.emptyText }}>No products found</p>
                 {activeFilterCount > 0 && (
-                  <button onClick={clearFilters} className="mt-4 px-4 py-2 bg-[#E84545] text-white rounded-lg hover:bg-[#cc3c3c] transition-colors">
+                  <button onClick={clearFilters} className="mt-4 px-4 py-2 bg-[color:var(--autocity-accent)] text-white rounded-lg hover:bg-[color:var(--autocity-accent-strong)] transition-colors">
                     Clear Filters
                   </button>
                 )}
@@ -559,13 +559,13 @@ export default function StockPage() {
                     return (
                       <div key={product._id} className="rounded-xl p-4 transition-all active:scale-[0.98]"
                         style={{ background: `linear-gradient(135deg,${th.mobileCardBgFrom},${th.mobileCardBgTo})`, border: `1px solid ${th.mobileCardBorder}` }}
-                        onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(232,69,69,0.30)')}
+                        onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--autocity-accent-30)')}
                         onMouseLeave={e => (e.currentTarget.style.borderColor = th.mobileCardBorder)}
                       >
                         <div className="flex justify-between items-start mb-3">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              {product.isVehicle && <Car className="h-3 w-3 text-[#E84545]" />}
+                              {product.isVehicle && <Car className="h-3 w-3 text-[color:var(--autocity-accent)]" />}
                               <p className="text-sm font-semibold truncate" style={{ color: th.stockCellPrimary }}>{product.name}</p>
                             </div>
                             <p className="text-xs mt-1" style={{ color: th.mobileCardLabel }}>{product.sku}</p>
@@ -619,7 +619,7 @@ export default function StockPage() {
                           >
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-2">
-                                {product.isVehicle && <Car className="h-4 w-4 text-[#E84545]" />}
+                                {product.isVehicle && <Car className="h-4 w-4 text-[color:var(--autocity-accent)]" />}
                                 <div>
                                   <p className="font-medium" style={{ color: th.stockCellPrimary }}>{product.name}</p>
                                   <p className="text-xs" style={{ color: th.stockCellMuted }}>{product.sku}</p>
@@ -641,7 +641,7 @@ export default function StockPage() {
                             <td className="px-6 py-4 text-sm" style={{ color: th.stockCellSecondary }}>{product.currentStock} {product.unit}</td>
                             <td className="px-6 py-4 text-sm" style={{ color: th.stockCellSecondary }}>{product.minStock} {product.unit}</td>
                             <td className="px-6 py-4 text-sm" style={{ color: th.stockCellSecondary }}>{product.reorderPoint} {product.unit}</td>
-                            <td className="px-6 py-4 text-sm font-semibold text-[#E84545]">{pCode}</td>
+                            <td className="px-6 py-4 text-sm font-semibold text-[color:var(--autocity-accent)]">{pCode}</td>
                             <td className="px-6 py-4">
                               <span className={`px-3 py-1.5 inline-flex items-center space-x-2 text-xs font-semibold rounded-full ${s.desktopClass}`}>
                                 {s.icon}<span>{s.text}</span>
@@ -657,7 +657,7 @@ export default function StockPage() {
                 {isLoadingMore && (
                   <div className="flex justify-center py-6" style={{ borderTop: `1px solid ${th.endBorder}` }}>
                     <div className="flex items-center gap-2">
-                      <Loader2 className="h-5 w-5 animate-spin text-[#E84545]" />
+                      <Loader2 className="h-5 w-5 animate-spin text-[color:var(--autocity-accent)]" />
                       <span className="text-sm" style={{ color: th.loaderText }}>Loading more products...</span>
                     </div>
                   </div>
@@ -732,7 +732,7 @@ export default function StockPage() {
                   Clear All
                 </button>
                 <button onClick={() => setShowFilters(false)}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] rounded-lg text-white font-semibold active:scale-95 transition-all">
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] rounded-lg text-white font-semibold active:scale-95 transition-all">
                   Apply Filters
                 </button>
               </div>

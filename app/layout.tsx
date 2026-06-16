@@ -7,6 +7,7 @@ import { SpeedInsights } from '@vercel/speed-insights/next';
 import Script from "next/script";
 import { AIWorkerProvider } from "@/components/ai-worker/AIWorkerProvider";
 import { AIWorkerWidgetPortal } from "@/components/ai-worker/AIWorkerWidgetPortal";
+import VisualThemeProvider from "@/components/theme/VisualThemeProvider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -218,9 +219,23 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
 
+        <script
+          id="autocity-visual-theme-init"
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                var theme = window.localStorage.getItem('autocity-visual-theme');
+                document.documentElement.dataset.visualTheme = theme === 'yellow' ? 'yellow' : 'original';
+              } catch (_) {
+                document.documentElement.dataset.visualTheme = 'original';
+              }
+            `,
+          }}
+        />
+
         {/* ── PWA / Theme ── */}
-        <meta name="theme-color" content="#E84545" />
-        <meta name="msapplication-TileColor" content="#E84545" />
+        <meta name="theme-color" content="var(--autocity-accent)" />
+        <meta name="msapplication-TileColor" content="var(--autocity-accent)" />
         <meta name="msapplication-TileImage" content="/icons/icon-144.png" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -343,6 +358,7 @@ export default function RootLayout({
         */}
 
         <Toaster position="top-right" />
+        <VisualThemeProvider />
          <AIWorkerProvider>
     {children}
     <AIWorkerWidgetPortal />

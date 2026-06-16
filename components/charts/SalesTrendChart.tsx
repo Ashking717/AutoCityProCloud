@@ -90,7 +90,7 @@ export default function SalesTrendChart({ data, period, isMobile, formatCurrency
         backgroundColor: th.tooltipBg,
         titleColor: th.tooltipTitle,
         bodyColor: th.tooltipBody,
-        borderColor: '#E84545',
+        borderColor: 'var(--autocity-accent)',
         borderWidth: 1,
         padding: isMobile ? 8 : 12,
         cornerRadius: 8,
@@ -126,12 +126,12 @@ export default function SalesTrendChart({ data, period, isMobile, formatCurrency
       {
         label: 'Sales',
         data: data.data,
-        borderColor: '#E84545',
-        backgroundColor: isDark ? 'rgba(232,69,69,0.10)' : 'rgba(232,69,69,0.07)',
+        borderColor: 'var(--autocity-accent)',
+        backgroundColor: isDark ? 'var(--autocity-accent-10)' : 'var(--autocity-accent-07)',
         fill: true,
         tension: 0.4,
         borderWidth: 2,
-        pointBackgroundColor: '#E84545',
+        pointBackgroundColor: 'var(--autocity-accent)',
         pointBorderColor: th.pointBorder,
         pointBorderWidth: 2,
         pointRadius: isMobile ? 2 : 4,
@@ -162,7 +162,7 @@ export default function SalesTrendChart({ data, period, isMobile, formatCurrency
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-sm md:text-lg font-bold flex items-center" style={{ color: th.title }}>
-            <TrendingUp className="h-4 w-4 md:h-5 md:w-5 mr-2 text-[#E84545]" />
+            <TrendingUp className="h-4 w-4 md:h-5 md:w-5 mr-2 text-[color:var(--autocity-accent)]" />
             Sales Trend
           </h2>
           <p className="text-[10px] md:text-sm mt-1" style={{ color: th.sub }}>

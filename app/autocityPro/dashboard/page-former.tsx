@@ -302,7 +302,7 @@ export default function DashboardPage() {
 
   const getActivityIcon = (type: string) => {
     switch (type) {
-      case 'order': return <ShoppingCart className="h-4 w-4 text-[#E84545]" />;
+      case 'order': return <ShoppingCart className="h-4 w-4 text-[color:var(--autocity-accent)]" />;
       case 'inventory': return <Package className="h-4 w-4 text-blue-400" />;
       case 'payment': return <CreditCard className="h-4 w-4 text-green-400" />;
       case 'customer': return <Users className="h-4 w-4 text-yellow-400" />;
@@ -321,7 +321,7 @@ export default function DashboardPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#050505]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-white/10 border-t-[#E84545] mx-auto"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-white/10 border-t-[color:var(--autocity-accent)] mx-auto"></div>
           <p className="mt-4 text-white text-lg font-medium">Loading dashboard...</p>
           <p className="text-gray-400 text-sm mt-2">Calculating real-time metrics</p>
         </div>
@@ -333,12 +333,12 @@ export default function DashboardPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#050505] p-4">
         <div className="text-center max-w-md w-full p-8 bg-[#0A0A0A] rounded-2xl border border-white/5 shadow-2xl">
-          <AlertCircle className="h-16 w-16 text-[#E84545] mx-auto mb-4" />
+          <AlertCircle className="h-16 w-16 text-[color:var(--autocity-accent)] mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-white mb-2">Unable to Load Dashboard</h2>
           <p className="text-gray-400 mb-6">{error}</p>
           <button
             onClick={() => fetchDashboardData()}
-            className="px-6 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-lg"
+            className="px-6 py-3 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-lg"
           >
             Try Again
           </button>
@@ -364,7 +364,7 @@ export default function DashboardPage() {
         backgroundColor: 'rgba(10, 10, 10, 0.95)',
         titleColor: '#e2e8f0',
         bodyColor: '#cbd5e1',
-        borderColor: '#E84545',
+        borderColor: 'var(--autocity-accent)',
         borderWidth: 1,
         padding: isMobile ? 8 : 12,
         cornerRadius: 8,
@@ -400,12 +400,12 @@ export default function DashboardPage() {
       {
         label: 'Sales',
         data: salesTrend.data,
-        borderColor: '#E84545',
-        backgroundColor: 'rgba(232, 69, 69, 0.1)',
+        borderColor: 'var(--autocity-accent)',
+        backgroundColor: 'var(--autocity-accent-10)',
         fill: true,
         tension: 0.4,
         borderWidth: 2,
-        pointBackgroundColor: '#E84545',
+        pointBackgroundColor: 'var(--autocity-accent)',
         pointBorderColor: '#fff',
         pointBorderWidth: 2,
         pointRadius: isMobile ? 2 : 4,
@@ -433,8 +433,8 @@ export default function DashboardPage() {
     datasets: [{
       label: 'Revenue',
       data: topProducts.map(p => p.revenue),
-      backgroundColor: ['rgba(232, 69, 69, 0.8)', 'rgba(204, 60, 60, 0.8)', 'rgba(176, 51, 51, 0.8)', 'rgba(148, 42, 42, 0.8)', 'rgba(120, 33, 33, 0.8)'],
-      borderColor: ['#E84545', '#cc3c3c', '#b03333', '#942a2a', '#782121'],
+      backgroundColor: ['var(--autocity-accent-70)', 'rgba(204, 60, 60, 0.8)', 'rgba(176, 51, 51, 0.8)', 'rgba(148, 42, 42, 0.8)', 'rgba(120, 33, 33, 0.8)'],
+      borderColor: ['var(--autocity-accent)', 'var(--autocity-accent-strong)', '#b03333', '#942a2a', '#782121'],
       borderWidth: 1,
       borderRadius: 6,
     }],
@@ -445,7 +445,7 @@ export default function DashboardPage() {
       title: "Today's Sales",
       value: formatCompactCurrency(stats.todaySales),
       icon: DollarSign,
-      gradient: 'from-[#E84545] to-[#cc3c3c]',
+      gradient: 'from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)]',
       change: formatPercentage(percentageChanges.todayVsYesterday.sales),
       changePositive: percentageChanges.todayVsYesterday.sales >= 0,
       description: 'vs yesterday',
@@ -455,7 +455,7 @@ export default function DashboardPage() {
       title: `${period.charAt(0).toUpperCase() + period.slice(1)} Revenue`,
       value: formatCompactCurrency(stats.monthSales),
       icon: TrendingUp,
-      gradient: 'from-[#E84545] to-[#cc3c3c]',
+      gradient: 'from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)]',
       change: formatPercentage(percentageChanges.salesChange),
       changePositive: percentageChanges.salesChange >= 0,
       description: `vs last ${period}`,
@@ -508,7 +508,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="h-3 w-px bg-white/20"></div>
                 <div className="flex items-center gap-1.5">
-                  <Zap className="h-3 w-3 text-[#E84545]" />
+                  <Zap className="h-3 w-3 text-[color:var(--autocity-accent)]" />
                   <span className="text-white text-xs font-semibold">{formatCompactCurrency(stats.todaySales)}</span>
                 </div>
                 {stats.lowStockItems > 0 && (
@@ -544,7 +544,7 @@ export default function DashboardPage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowMobileFilter(true)}
-                  className="px-3 py-2 text-xs font-medium bg-[#E84545]/10 border border-[#E84545]/20 rounded-lg text-[#E84545] flex items-center gap-1.5 active:scale-95 transition-all"
+                  className="px-3 py-2 text-xs font-medium bg-[color:var(--autocity-accent-10)] border border-[color:var(--autocity-accent-20)] rounded-lg text-[color:var(--autocity-accent)] flex items-center gap-1.5 active:scale-95 transition-all"
                 >
                   <span>{period.charAt(0).toUpperCase() + period.slice(1)}</span>
                   <ChevronRightIcon className="h-3 w-3" />
@@ -593,7 +593,7 @@ export default function DashboardPage() {
                     onClick={() => handlePeriodChange(option.value)}
                     className={`p-4 rounded-2xl text-left transition-all active:scale-95 ${
                       period === option.value
-                        ? 'bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white shadow-lg shadow-[#E84545]/20'
+                        ? 'bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white shadow-lg shadow-[color:var(--autocity-accent-20)]'
                         : 'bg-white/5 text-gray-300 hover:bg-white/10 border border-white/5'
                     }`}
                   >
@@ -606,17 +606,17 @@ export default function DashboardPage() {
         )}
 
         {/* Desktop Header */}
-        <div className="hidden md:block py-11 bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-xl">
+        <div className="hidden md:block py-11 bg-gradient-to-br from-[var(--autocity-header-from-dark)] via-[var(--autocity-header-via-dark)] to-[var(--autocity-header-to-dark)] border-b border-white/5 shadow-xl">
           <div className="px-8">
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
-                  <Sparkles className="h-8 w-8 text-[#E84545]" />
+                  <Sparkles className="h-8 w-8 text-[color:var(--autocity-accent)]" />
                   Dashboard
                 </h1>
                 <div className="flex items-center gap-2 mt-2">
                   <p className="text-white/90">
-                    Welcome back, <span className="text-[#E84545] font-semibold">{user?.firstName}!</span>
+                    Welcome back, <span className="text-[color:var(--autocity-accent)] font-semibold">{user?.firstName}!</span>
                   </p>
                   {lastUpdated && (
                     <span className="flex items-center gap-1 text-xs text-white/60">
@@ -634,7 +634,7 @@ export default function DashboardPage() {
                       onClick={() => handlePeriodChange(option.value)}
                       className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
                         period === option.value
-                          ? 'bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white shadow-lg shadow-[#E84545]/20'
+                          ? 'bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white shadow-lg shadow-[color:var(--autocity-accent-20)]'
                           : 'text-gray-400 hover:text-white hover:bg-white/5'
                       }`}
                     >
@@ -645,7 +645,7 @@ export default function DashboardPage() {
                 <button
                   onClick={handleRefresh}
                   disabled={refreshing}
-                  className="p-3 bg-[#0A0A0A]/50 border border-white/5 rounded-xl hover:bg-[#0A0A0A] hover:border-[#E84545]/30 transition-all disabled:opacity-50 backdrop-blur-sm shadow-lg"
+                  className="p-3 bg-[#0A0A0A]/50 border border-white/5 rounded-xl hover:bg-[#0A0A0A] hover:border-[color:var(--autocity-accent-30)] transition-all disabled:opacity-50 backdrop-blur-sm shadow-lg"
                 >
                   <RefreshCw className={`h-5 w-5 text-gray-400 ${refreshing ? 'animate-spin' : ''}`} />
                 </button>
@@ -662,14 +662,14 @@ export default function DashboardPage() {
               {statCards.map((stat, index) => (
                 <div
                   key={stat.title}
-                  className="group bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl shadow-lg p-4 hover:border-[#E84545]/30 hover:shadow-xl hover:shadow-[#E84545]/5 transition-all duration-300 active:scale-[0.98]"
+                  className="group bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl shadow-lg p-4 hover:border-[color:var(--autocity-accent-30)] hover:shadow-xl hover:shadow-[color:var(--autocity-accent-05)] transition-all duration-300 active:scale-[0.98]"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className={`bg-gradient-to-r ${stat.gradient} p-2.5 rounded-xl shadow-lg`}>
                       <stat.icon className="h-4 w-4 text-white" />
                     </div>
                     {stat.alert && (
-                      <div className="animate-pulse h-2 w-2 rounded-full bg-[#E84545] shadow-lg shadow-[#E84545]/50"></div>
+                      <div className="animate-pulse h-2 w-2 rounded-full bg-[color:var(--autocity-accent)] shadow-lg shadow-[color:var(--autocity-accent-50)]"></div>
                     )}
                   </div>
                   <h3 className="text-gray-400 text-[10px] font-semibold uppercase tracking-wider mb-1.5 md:hidden">
@@ -695,7 +695,7 @@ export default function DashboardPage() {
           {/* Performance Summary - Compact Mobile */}
           <div className="mb-6 p-4 md:p-6 bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl backdrop-blur-sm shadow-lg">
             <h2 className="text-base md:text-lg font-bold text-white mb-4 flex items-center">
-              <Activity className="h-4 w-4 md:h-5 md:w-5 mr-2 text-[#E84545]" />
+              <Activity className="h-4 w-4 md:h-5 md:w-5 mr-2 text-[color:var(--autocity-accent)]" />
               Performance
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
@@ -730,13 +730,13 @@ export default function DashboardPage() {
               <div className="bg-[#0A0A0A]/50 p-3 md:p-4 rounded-xl border border-white/5">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs md:text-sm font-medium text-gray-300">Avg Order</span>
-                  <span className="text-xs md:text-sm font-bold text-[#E84545]">
+                  <span className="text-xs md:text-sm font-bold text-[color:var(--autocity-accent)]">
                     {formatCompactCurrency(stats.averageOrderValue)}
                   </span>
                 </div>
                 <div className="h-2 bg-white/5 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-[#E84545] to-[#cc3c3c] rounded-full transition-all duration-500"
+                    className="h-full bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] rounded-full transition-all duration-500"
                     style={{ width: `${Math.min(stats.averageOrderValue / 5000 * 100, 100)}%` }}
                   ></div>
                 </div>
@@ -751,7 +751,7 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-sm md:text-lg font-bold text-white flex items-center">
-                    <TrendingUp className="h-4 w-4 md:h-5 md:w-5 mr-2 text-[#E84545]" />
+                    <TrendingUp className="h-4 w-4 md:h-5 md:w-5 mr-2 text-[color:var(--autocity-accent)]" />
                     Sales Trend
                   </h2>
                   <p className="text-[10px] md:text-sm text-gray-400 mt-1">
@@ -776,7 +776,7 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-sm md:text-lg font-bold text-white flex items-center">
-                    <Package className="h-4 w-4 md:h-5 md:w-5 mr-2 text-[#E84545]" />
+                    <Package className="h-4 w-4 md:h-5 md:w-5 mr-2 text-[color:var(--autocity-accent)]" />
                     Top Products
                   </h2>
                   <p className="text-[10px] md:text-sm text-gray-400 mt-1">Best sellers</p>
@@ -785,9 +785,9 @@ export default function DashboardPage() {
               {topProducts.length > 0 ? (
                 <div className="space-y-2">
                   {topProducts.slice(0, 5).map((product, index) => (
-                    <div key={product.id} className="flex items-center justify-between p-3 bg-[#0A0A0A]/50 rounded-xl border border-white/5 hover:border-[#E84545]/20 transition-all active:scale-[0.98]">
+                    <div key={product.id} className="flex items-center justify-between p-3 bg-[#0A0A0A]/50 rounded-xl border border-white/5 hover:border-[color:var(--autocity-accent-20)] transition-all active:scale-[0.98]">
                       <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#E84545] to-[#cc3c3c] flex items-center justify-center text-white text-xs font-bold shadow-md flex-shrink-0">
+                        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] flex items-center justify-center text-white text-xs font-bold shadow-md flex-shrink-0">
                           {index + 1}
                         </div>
                         <div className="min-w-0 flex-1">
@@ -796,7 +796,7 @@ export default function DashboardPage() {
                         </div>
                       </div>
                       <div className="text-right flex-shrink-0 ml-2">
-                        <p className="text-xs md:text-sm font-bold text-[#E84545]">
+                        <p className="text-xs md:text-sm font-bold text-[color:var(--autocity-accent)]">
                           {formatCompactCurrency(product.revenue)}
                         </p>
                       </div>
@@ -817,7 +817,7 @@ export default function DashboardPage() {
             {/* Recent Activity */}
             <div className="lg:col-span-2 bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl shadow-lg p-4 md:p-6">
               <h2 className="text-sm md:text-lg font-bold text-white mb-4 flex items-center">
-                <Activity className="h-4 w-4 md:h-5 md:w-5 mr-2 text-[#E84545]" />
+                <Activity className="h-4 w-4 md:h-5 md:w-5 mr-2 text-[color:var(--autocity-accent)]" />
                 Recent Activity
               </h2>
               <div className="space-y-2 md:space-y-3">
@@ -825,7 +825,7 @@ export default function DashboardPage() {
                   recentActivity.slice(0, isMobile ? 3 : 5).map((activity) => (
                     <div
                       key={activity.id}
-                      className="flex items-start gap-3 p-3 bg-[#0A0A0A]/50 rounded-xl hover:bg-[#0A0A0A] transition-all border border-white/5 hover:border-[#E84545]/20 active:scale-[0.98]"
+                      className="flex items-start gap-3 p-3 bg-[#0A0A0A]/50 rounded-xl hover:bg-[#0A0A0A] transition-all border border-white/5 hover:border-[color:var(--autocity-accent-20)] active:scale-[0.98]"
                     >
                       <div className="pt-1 flex-shrink-0">
                         {getActivityIcon(activity.type)}
@@ -857,28 +857,28 @@ export default function DashboardPage() {
               <div className="space-y-2 md:space-y-3">
                 <button
                   onClick={() => router.push('/autocityPro/sales/new')}
-                  className="w-full p-3 md:p-4 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] rounded-xl text-white font-semibold hover:from-[#d63d3d] hover:to-[#b53535] transition-all flex items-center justify-between shadow-lg active:scale-[0.98]"
+                  className="w-full p-3 md:p-4 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] rounded-xl text-white font-semibold hover:from-[#d63d3d] hover:to-[#b53535] transition-all flex items-center justify-between shadow-lg active:scale-[0.98]"
                 >
                   <span className="text-sm">New Sale</span>
                   <ShoppingCart className="h-4 w-4 md:h-5 md:w-5" />
                 </button>
                 <button
                   onClick={() => router.push('/autocityPro/stock')}
-                  className="w-full p-3 bg-[#0A0A0A]/50 border border-white/5 rounded-xl text-gray-300 font-semibold hover:bg-white/5 hover:border-[#E84545]/20 transition-all flex items-center justify-between active:scale-[0.98]"
+                  className="w-full p-3 bg-[#0A0A0A]/50 border border-white/5 rounded-xl text-gray-300 font-semibold hover:bg-white/5 hover:border-[color:var(--autocity-accent-20)] transition-all flex items-center justify-between active:scale-[0.98]"
                 >
                   <span className="text-sm">Inventory</span>
                   <Package className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => router.push('autocityPro/customers')}
-                  className="w-full p-3 bg-[#0A0A0A]/50 border border-white/5 rounded-xl text-gray-300 font-semibold hover:bg-white/5 hover:border-[#E84545]/20 transition-all flex items-center justify-between active:scale-[0.98]"
+                  className="w-full p-3 bg-[#0A0A0A]/50 border border-white/5 rounded-xl text-gray-300 font-semibold hover:bg-white/5 hover:border-[color:var(--autocity-accent-20)] transition-all flex items-center justify-between active:scale-[0.98]"
                 >
                   <span className="text-sm">Customers</span>
                   <Users className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => router.push('/autocityPro/reports')}
-                  className="w-full p-3 bg-[#0A0A0A]/50 border border-white/5 rounded-xl text-gray-300 font-semibold hover:bg-white/5 hover:border-[#E84545]/20 transition-all flex items-center justify-between active:scale-[0.98]"
+                  className="w-full p-3 bg-[#0A0A0A]/50 border border-white/5 rounded-xl text-gray-300 font-semibold hover:bg-white/5 hover:border-[color:var(--autocity-accent-20)] transition-all flex items-center justify-between active:scale-[0.98]"
                 >
                   <span className="text-sm">Reports</span>
                   <BarChart3 className="h-4 w-4" />

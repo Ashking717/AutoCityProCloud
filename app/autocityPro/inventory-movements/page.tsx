@@ -58,18 +58,18 @@ export default function InventoryMovementsPage() {
   // ── Theme tokens ──────────────────────────────────────────────────────────
   const th = {
     pageBg:             isDark ? "#050505"                                          : "#f3f4f6",
-    headerBgFrom:       isDark ? "#932222"                                          : "#fef2f2",
-    headerBgVia:        isDark ? "#411010"                                          : "#fee2e2",
-    headerBgTo:         isDark ? "#a20c0c"                                          : "#fecaca",
+    headerBgFrom:       isDark ? "var(--autocity-header-from-dark)"                                          : "var(--autocity-header-from-light)",
+    headerBgVia:        isDark ? "var(--autocity-header-via-dark)"                                          : "var(--autocity-header-via-light)",
+    headerBgTo:         isDark ? "var(--autocity-header-to-dark)"                                          : "var(--autocity-header-to-light)",
     headerBorder:       isDark ? "rgba(255,255,255,0.05)"                           : "rgba(0,0,0,0.06)",
-    headerTitle:        isDark ? "#ffffff"                                          : "#7f1d1d",
-    headerSub:          isDark ? "rgba(255,255,255,0.80)"                           : "#991b1b",
-    headerIconBg:       isDark ? "rgba(255,255,255,0.10)"                           : "rgba(127,29,29,0.10)",
-    headerIconBorder:   isDark ? "rgba(255,255,255,0.20)"                           : "rgba(127,29,29,0.20)",
-    headerBtnBg:        isDark ? "rgba(255,255,255,0.10)"                           : "rgba(127,29,29,0.10)",
-    headerBtnText:      isDark ? "#ffffff"                                          : "#7f1d1d",
-    headerBtnHover:     isDark ? "rgba(255,255,255,0.20)"                           : "rgba(127,29,29,0.15)",
-    headerBtnBorder:    isDark ? "rgba(255,255,255,0.20)"                           : "rgba(127,29,29,0.20)",
+    headerTitle:        isDark ? "#ffffff"                                          : "var(--autocity-header-text-light)",
+    headerSub:          isDark ? "rgba(255,255,255,0.80)"                           : "var(--autocity-header-sub-light)",
+    headerIconBg:       isDark ? "rgba(255,255,255,0.10)"                           : "var(--autocity-accent-10)",
+    headerIconBorder:   isDark ? "rgba(255,255,255,0.20)"                           : "var(--autocity-accent-20)",
+    headerBtnBg:        isDark ? "rgba(255,255,255,0.10)"                           : "var(--autocity-accent-10)",
+    headerBtnText:      isDark ? "#ffffff"                                          : "var(--autocity-header-text-light)",
+    headerBtnHover:     isDark ? "rgba(255,255,255,0.20)"                           : "var(--autocity-accent-15)",
+    headerBtnBorder:    isDark ? "rgba(255,255,255,0.20)"                           : "var(--autocity-accent-20)",
     mobileHdrBg:        isDark ? "linear-gradient(to br,#0A0A0A,#050505,#0A0A0A)"  : "linear-gradient(to br,#ffffff,#f9fafb,#ffffff)",
     mobileHdrBorder:    isDark ? "rgba(255,255,255,0.05)"                           : "rgba(0,0,0,0.08)",
     mobileHdrTitle:     isDark ? "#ffffff"                                          : "#111827",
@@ -82,13 +82,13 @@ export default function InventoryMovementsPage() {
     searchText:         isDark ? "#ffffff"                                          : "#111827",
     searchPlaceholder:  isDark ? "rgba(255,255,255,0.40)"                           : "#9ca3af",
     searchIcon:         isDark ? "rgba(255,255,255,0.40)"                           : "#9ca3af",
-    filterBtnActiveBg:  isDark ? "#E84545"                                          : "#E84545",
+    filterBtnActiveBg:  isDark ? "var(--autocity-accent)"                                          : "var(--autocity-accent)",
     filterBtnActiveText:isDark ? "#ffffff"                                          : "#ffffff",
     filterBtnBg:        isDark ? "rgba(255,255,255,0.05)"                           : "rgba(0,0,0,0.05)",
     filterBtnText:      isDark ? "rgba(255,255,255,0.60)"                           : "#6b7280",
     filterBtnHover:     isDark ? "rgba(255,255,255,0.10)"                           : "rgba(0,0,0,0.08)",
-    filterBtnDesktopActive:isDark ? "#ffffff"                                       : "#7f1d1d",
-    filterBtnDesktopActiveText:isDark ? "#932222"                                   : "#ffffff",
+    filterBtnDesktopActive:isDark ? "#ffffff"                                       : "var(--autocity-header-text-light)",
+    filterBtnDesktopActiveText:isDark ? "var(--autocity-header-from-dark)"                                   : "#ffffff",
     statCardBg:         isDark ? "linear-gradient(to br,#0A0A0A,#050505)"          : "#ffffff",
     statCardBorder:     isDark ? "rgba(255,255,255,0.10)"                           : "rgba(0,0,0,0.08)",
     statLabel:          isDark ? "#9ca3af"                                          : "#6b7280",
@@ -209,7 +209,7 @@ export default function InventoryMovementsPage() {
               style={{ background: th.islandBg, border: `1px solid ${th.islandBorder}` }}>
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
-                  <Package className="h-3 w-3 text-[#E84545]" />
+                  <Package className="h-3 w-3 text-[color:var(--autocity-accent)]" />
                   <span className="text-xs font-semibold" style={{ color: th.islandText }}>{filteredMovements.length}</span>
                 </div>
                 <div className="h-3 w-px" style={{ background: th.islandDivider }}></div>
@@ -232,14 +232,14 @@ export default function InventoryMovementsPage() {
                 <div>
                   <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: th.mobileHdrTitle }}>
                     Inventory
-                    {isDark ? <Moon className="h-4 w-4 text-[#E84545]" /> : <Sun className="h-4 w-4 text-[#E84545]" />}
+                    {isDark ? <Moon className="h-4 w-4 text-[color:var(--autocity-accent)]" /> : <Sun className="h-4 w-4 text-[color:var(--autocity-accent)]" />}
                   </h1>
                   <p className="text-xs" style={{ color: th.mobileHdrSub }}>{filteredMovements.length} movements</p>
                 </div>
               </div>
               <button onClick={() => fetchMovements()}
                 className="p-2 rounded-xl text-white active:scale-95 transition-all"
-                style={{ background: "linear-gradient(to r,#E84545,#cc3c3c)" }}>
+                style={{ background: "linear-gradient(to r,var(--autocity-accent),var(--autocity-accent-strong))" }}>
                 <RefreshCw className="h-4 w-4" />
               </button>
             </div>
@@ -335,7 +335,7 @@ export default function InventoryMovementsPage() {
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3 md:gap-4 mb-6">
             {[
-              { icon: <Package className="h-5 w-5 text-[#E84545]" />, label: "Total Movements", value: movements.length, bg: "rgba(232,69,69,0.10)" },
+              { icon: <Package className="h-5 w-5 text-[color:var(--autocity-accent)]" />, label: "Total Movements", value: movements.length, bg: "var(--autocity-accent-10)" },
               { icon: <TrendingUp className="h-5 w-5" style={{ color: th.statValueGreen }} />, label: "Stock In Value", value: `QAR ${totalIn.toLocaleString()}`, color: th.statValueGreen, bg: isDark ? "rgba(34,197,94,0.10)" : "rgba(34,197,94,0.08)" },
               { icon: <TrendingDown className="h-5 w-5" style={{ color: th.statValueRed }} />, label: "Stock Out Value", value: `QAR ${totalOut.toLocaleString()}`, color: th.statValueRed, bg: isDark ? "rgba(239,68,68,0.10)" : "rgba(239,68,68,0.08)" },
               { icon: <FileText className="h-5 w-5" style={{ color: isDark ? "#60a5fa" : "#2563eb" }} />, label: "Net Movement", value: `QAR ${(totalIn - totalOut).toLocaleString()}`, color: totalIn - totalOut >= 0 ? th.statValueGreen : th.statValueRed, bg: isDark ? "rgba(59,130,246,0.10)" : "rgba(59,130,246,0.08)" },
@@ -356,7 +356,7 @@ export default function InventoryMovementsPage() {
             style={{ background: th.mainCardBg, border: `1px solid ${th.mainCardBorder}` }}>
             {loading ? (
               <div className="p-12 text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E84545] mx-auto mb-4"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[color:var(--autocity-accent)] mx-auto mb-4"></div>
                 <p style={{ color: th.emptyText }}>Loading movements...</p>
               </div>
             ) : filteredMovements.length === 0 ? (

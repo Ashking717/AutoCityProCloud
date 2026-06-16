@@ -88,7 +88,7 @@ export default function PurchasesReportPage() {
       <MainLayout user={user} onLogout={handleLogout}>
         <div className="flex items-center justify-center min-h-screen bg-[#050505]">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 md:h-16 md:w-16 border-b-4 border-[#E84545] mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 md:h-16 md:w-16 border-b-4 border-[color:var(--autocity-accent)] mx-auto mb-4"></div>
             <p className="text-white">Generating purchases report...</p>
           </div>
         </div>
@@ -130,15 +130,15 @@ export default function PurchasesReportPage() {
               </button>
             </div>
             <div className="grid grid-cols-2 gap-2 mb-2">
-              <input type="date" value={dateRange.fromDate} onChange={(e) => setDateRange({ ...dateRange, fromDate: e.target.value })} className="px-3 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-xs focus:ring-2 focus:ring-[#E84545]" />
-              <input type="date" value={dateRange.toDate} onChange={(e) => setDateRange({ ...dateRange, toDate: e.target.value })} className="px-3 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-xs focus:ring-2 focus:ring-[#E84545]" />
+              <input type="date" value={dateRange.fromDate} onChange={(e) => setDateRange({ ...dateRange, fromDate: e.target.value })} className="px-3 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-xs focus:ring-2 focus:ring-[color:var(--autocity-accent)]" />
+              <input type="date" value={dateRange.toDate} onChange={(e) => setDateRange({ ...dateRange, toDate: e.target.value })} className="px-3 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-xs focus:ring-2 focus:ring-[color:var(--autocity-accent)]" />
             </div>
-            <button onClick={fetchReport} disabled={loading} className="w-full px-4 py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl font-medium text-sm active:scale-95 transition-all">Generate</button>
+            <button onClick={fetchReport} disabled={loading} className="w-full px-4 py-2 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-xl font-medium text-sm active:scale-95 transition-all">Generate</button>
           </div>
         </div>
 
         {/* Desktop Header */}
-        <div className="hidden md:block py-12 bg-gradient-to-r from-red-900 via-[#541515] to-[#4d0b0b] border border-[#E84545]/30 shadow-lg overflow-hidden relative">
+        <div className="hidden md:block py-12 bg-gradient-to-r from-[var(--autocity-header-from-dark)] via-[var(--autocity-header-via-dark)] to-[var(--autocity-header-to-dark)] border border-[color:var(--autocity-accent-30)] shadow-lg overflow-hidden relative">
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSIjRjg0NTQ1IiBmaWxsLW9wYWNpdHk9IjAuMSIgZmlsbC1ydWxlPSJldmVub2RkIj48Y2lyY2xlIGN4PSIzIiBjeT0iMyIgcj0iMyIvPjxjaXJjbGUgY3g9IjEzIiBjeT0iMTMiIHI9IjMiLz48L2c+PC9zdmc+')] opacity-20"></div>
           <div className="px-8 relative z-10">
             <div className="flex items-center justify-between">
@@ -162,13 +162,13 @@ export default function PurchasesReportPage() {
           <div className="bg-[#0A0A0A] rounded-xl shadow-lg border border-white/5 p-6 mb-6">
             <div className="grid grid-cols-5 gap-4">
               <div><label htmlFor="purchases-from-date" className="block text-sm font-medium text-white mb-1">From Date</label>
-                <input id="purchases-from-date" type="date" value={dateRange.fromDate} onChange={(e) => setDateRange({ ...dateRange, fromDate: e.target.value })} className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg text-white focus:ring-2 focus:ring-[#E84545]" />
+                <input id="purchases-from-date" type="date" value={dateRange.fromDate} onChange={(e) => setDateRange({ ...dateRange, fromDate: e.target.value })} className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg text-white focus:ring-2 focus:ring-[color:var(--autocity-accent)]" />
               </div>
               <div><label htmlFor="purchases-to-date" className="block text-sm font-medium text-white mb-1">To Date</label>
-                <input id="purchases-to-date" type="date" value={dateRange.toDate} onChange={(e) => setDateRange({ ...dateRange, toDate: e.target.value })} className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg text-white focus:ring-2 focus:ring-[#E84545]" />
+                <input id="purchases-to-date" type="date" value={dateRange.toDate} onChange={(e) => setDateRange({ ...dateRange, toDate: e.target.value })} className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg text-white focus:ring-2 focus:ring-[color:var(--autocity-accent)]" />
               </div>
               <div className="flex items-end">
-                <button onClick={fetchReport} disabled={loading} className="w-full px-4 py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-lg hover:opacity-90 transition-all">Generate</button>
+                <button onClick={fetchReport} disabled={loading} className="w-full px-4 py-2 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-lg hover:opacity-90 transition-all">Generate</button>
               </div>
               <div className="flex items-end space-x-2 col-span-2">
                 <button onClick={() => toast.success('PDF export coming soon!')} className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 bg-[#111111] border border-white/5 rounded-lg hover:bg-white/5 transition-all">
@@ -187,17 +187,17 @@ export default function PurchasesReportPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-6">
             <div className="bg-[#0A0A0A] rounded-xl shadow-lg border border-white/5 p-4 active:scale-[0.98] transition-all">
               <div className="flex items-center justify-between mb-2">
-                <div className="bg-[#E84545]/10 p-2 md:p-3 rounded-lg"><ShoppingCart className="h-4 w-4 md:h-6 md:w-6 text-[#E84545]" /></div>
+                <div className="bg-[color:var(--autocity-accent-10)] p-2 md:p-3 rounded-lg"><ShoppingCart className="h-4 w-4 md:h-6 md:w-6 text-[color:var(--autocity-accent)]" /></div>
               </div>
               <p className="text-xs md:text-sm text-white/60">Total Purchases</p>
               <p className="text-lg md:text-2xl font-bold text-white">{summary.totalPurchases}</p>
             </div>
             <div className="bg-[#0A0A0A] rounded-xl shadow-lg border border-white/5 p-4 active:scale-[0.98] transition-all">
               <div className="flex items-center justify-between mb-2">
-                <div className="bg-[#E84545]/10 p-2 md:p-3 rounded-lg"><TrendingUp className="h-4 w-4 md:h-6 md:w-6 text-[#E84545]" /></div>
+                <div className="bg-[color:var(--autocity-accent-10)] p-2 md:p-3 rounded-lg"><TrendingUp className="h-4 w-4 md:h-6 md:w-6 text-[color:var(--autocity-accent)]" /></div>
               </div>
               <p className="text-xs md:text-sm text-white/60">Purchase Amount</p>
-              <p className="text-lg md:text-2xl font-bold text-[#E84545] truncate">{isMobile ? formatCompactCurrency(summary.totalPurchaseAmount) : `QAR ${summary.totalPurchaseAmount.toFixed(2)}`}</p>
+              <p className="text-lg md:text-2xl font-bold text-[color:var(--autocity-accent)] truncate">{isMobile ? formatCompactCurrency(summary.totalPurchaseAmount) : `QAR ${summary.totalPurchaseAmount.toFixed(2)}`}</p>
             </div>
             <div className="bg-[#0A0A0A] rounded-xl shadow-lg border border-white/5 p-4 active:scale-[0.98] transition-all">
               <div className="flex items-center justify-between mb-2">
@@ -225,7 +225,7 @@ export default function PurchasesReportPage() {
                   { key: 'bySupplier', label: 'Suppliers' },
                   { key: 'byCategory', label: 'Categories' },
                 ].map(tab => (
-                  <button key={tab.key} onClick={() => setViewMode(tab.key as any)} className={`${viewMode === tab.key ? 'border-[#E84545] text-[#E84545]' : 'border-transparent text-white/60 hover:text-white'} whitespace-nowrap py-3 md:py-4 px-1 border-b-2 font-medium text-xs md:text-sm transition-colors`}>
+                  <button key={tab.key} onClick={() => setViewMode(tab.key as any)} className={`${viewMode === tab.key ? 'border-[color:var(--autocity-accent)] text-[color:var(--autocity-accent)]' : 'border-transparent text-white/60 hover:text-white'} whitespace-nowrap py-3 md:py-4 px-1 border-b-2 font-medium text-xs md:text-sm transition-colors`}>
                     {tab.label}
                   </button>
                 ))}
@@ -236,7 +236,7 @@ export default function PurchasesReportPage() {
               {viewMode === 'summary' && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="border-l-4 border-[#E84545] pl-4 bg-[#111111] p-4 rounded-lg">
+                    <div className="border-l-4 border-[color:var(--autocity-accent)] pl-4 bg-[#111111] p-4 rounded-lg">
                       <p className="text-xs md:text-sm text-white/60">Total Purchase Value</p>
                       <p className="text-lg md:text-xl font-bold text-white">{isMobile ? formatCompactCurrency(summary.totalPurchaseAmount) : `QAR ${summary.totalPurchaseAmount.toLocaleString()}`}</p>
                     </div>
@@ -270,7 +270,7 @@ export default function PurchasesReportPage() {
                           <span className={`px-2 py-1 text-[10px] font-semibold rounded-full ${purchase.status === 'approved' ? 'bg-green-500/10 text-green-400' : 'bg-white/10 text-white/80'}`}>{purchase.status}</span>
                         </div>
                         <p className="text-xs text-white/80 mb-2 line-clamp-2">{purchase.narration}</p>
-                        <p className="text-sm font-bold text-[#E84545]">{formatCompactCurrency(purchase.totalDebit)}</p>
+                        <p className="text-sm font-bold text-[color:var(--autocity-accent)]">{formatCompactCurrency(purchase.totalDebit)}</p>
                       </div>
                     ))
                   )}
@@ -312,7 +312,7 @@ export default function PurchasesReportPage() {
                         <p className="text-sm font-medium text-white mb-2">{category}</p>
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           <div><p className="text-white/40">Purchases</p><p className="text-white font-medium">{data.count}</p></div>
-                          <div><p className="text-white/40">Amount</p><p className="text-[#E84545] font-semibold">{formatCompactCurrency(data.amount)}</p></div>
+                          <div><p className="text-white/40">Amount</p><p className="text-[color:var(--autocity-accent)] font-semibold">{formatCompactCurrency(data.amount)}</p></div>
                         </div>
                       </div>
                     ))

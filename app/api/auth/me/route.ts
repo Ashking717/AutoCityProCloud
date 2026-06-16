@@ -42,9 +42,16 @@ export async function GET() {
 
     // Get outlet info separately if exists
     let outletName = null;
+    let outletLogoUrl = null;
     if (user.outletId) {
       const outlet = await Outlet.findById(user.outletId);
       outletName = outlet?.name || null;
+      const logoUpdatedAt = outlet?.branding?.logo?.updatedAt
+        ? new Date(outlet.branding.logo.updatedAt).getTime()
+        : null;
+      outletLogoUrl = logoUpdatedAt
+        ? `/api/outlets/${user.outletId}/branding/logo?v=${logoUpdatedAt}`
+        : outlet?.branding?.logoUrl || null;
     }
 
     return NextResponse.json({
@@ -57,6 +64,7 @@ export async function GET() {
         role: user.role,
         outletId: user.outletId || null,
         outletName: outletName,
+        outletLogoUrl: outletLogoUrl,
         isActive: user.isActive,
       },
     });

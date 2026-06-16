@@ -319,7 +319,7 @@ export default function AddProductModal({
                     setHighlightedIndex(-1);
                   }, 150);
                 }}
-                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                 placeholder="Product name"
                 autoComplete="off"
               />
@@ -346,8 +346,8 @@ export default function AddProductModal({
                         }}
                         className={`px-3 py-2 text-sm cursor-pointer ${
                           index === highlightedIndex
-                            ? "bg-[#E84545]/40 text-white"
-                            : "text-gray-200 hover:bg-[#E84545]/20"
+                            ? "bg-[color:var(--autocity-accent-40)] text-white"
+                            : "text-gray-200 hover:bg-[color:var(--autocity-accent-20)]"
                         }`}
                       >
                         {name}
@@ -369,7 +369,7 @@ export default function AddProductModal({
                   setFormData({ ...formData, description: e.target.value })
                 }
                 rows={2}
-                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                 placeholder="Product description"
               />
             </div>
@@ -385,7 +385,7 @@ export default function AddProductModal({
                   onChange={(e) =>
                     setFormData({ ...formData, categoryId: e.target.value })
                   }
-                  className="flex-1 px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                  className="flex-1 px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                 >
                   <option value="" className="text-[#050505]">
                     Select Category
@@ -402,7 +402,7 @@ export default function AddProductModal({
                 </select>
                 <button
                   onClick={onQuickAddCategory}
-                  className="px-3 py-2 bg-[#E84545]/10 border border-[#E84545]/30 rounded-lg hover:bg-[#E84545]/20 transition-colors text-white active:scale-95"
+                  className="px-3 py-2 bg-[color:var(--autocity-accent-10)] border border-[color:var(--autocity-accent-30)] rounded-lg hover:bg-[color:var(--autocity-accent-20)] transition-colors text-white active:scale-95"
                   title="Quick Add Category"
                 >
                   <Plus className="h-4 w-4" />
@@ -421,7 +421,7 @@ export default function AddProductModal({
                 onChange={(e) =>
                   setFormData({ ...formData, barcode: e.target.value })
                 }
-                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                 placeholder="Barcode"
               />
             </div>
@@ -436,7 +436,7 @@ export default function AddProductModal({
                 onChange={(e) =>
                   setFormData({ ...formData, unit: e.target.value })
                 }
-                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
               >
                 <option value="pcs" className="text-[#050505]">
                   Pieces
@@ -461,26 +461,26 @@ export default function AddProductModal({
           </div>
 
           {/* Vehicle Toggle */}
-          <div className="flex items-center space-x-2 p-3 bg-[#E84545]/10 rounded-xl border border-[#E84545]/20">
+          <div className="flex items-center space-x-2 p-3 bg-[color:var(--autocity-accent-10)] rounded-xl border border-[color:var(--autocity-accent-20)]">
             <input
               type="checkbox"
               id="isVehicle"
               checked={isVehicle}
               onChange={(e) => setIsVehicle(e.target.checked)}
-              className="h-4 w-4 text-[#E84545]"
+              className="h-4 w-4 text-[color:var(--autocity-accent)]"
             />
             <label
               htmlFor="isVehicle"
               className="text-xs md:text-sm font-medium text-white flex items-center cursor-pointer"
             >
-              <Car className="h-4 w-4 mr-2 text-[#E84545]" />
+              <Car className="h-4 w-4 mr-2 text-[color:var(--autocity-accent)]" />
               This is a vehicle or vehicle part
             </label>
           </div>
 
           {/* Vehicle Details */}
           {isVehicle && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-[#E84545]/5 rounded-xl border border-[#E84545]/10">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-[color:var(--autocity-accent-05)] rounded-xl border border-[color:var(--autocity-accent-10)]">
               <div>
                 <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                   Make *
@@ -493,7 +493,7 @@ export default function AddProductModal({
                       carModel: "",
                     })
                   }
-                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                 >
                   <option value="" className="text-[#050505]">
                     Select Make
@@ -515,7 +515,7 @@ export default function AddProductModal({
                   onChange={(e) =>
                     setFormData({ ...formData, carModel: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                   disabled={!formData.carMake}
                 >
                   <option value="" className="text-[#050505]">
@@ -543,7 +543,7 @@ export default function AddProductModal({
                   onChange={(e) =>
                     setFormData({ ...formData, variant: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                 >
                   <option value="" className="text-[#050505]">
                     Select Variant
@@ -572,7 +572,7 @@ export default function AddProductModal({
                   onChange={(e) =>
                     setFormData({ ...formData, color: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                 >
                   <option value="" className="text-[#050505]">
                     Select Color
@@ -603,7 +603,7 @@ export default function AddProductModal({
                     onChange={(e) =>
                       setFormData({ ...formData, variant: e.target.value })
                     }
-                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                     placeholder="Enter custom variant"
                   />
                   </label>
@@ -620,7 +620,7 @@ export default function AddProductModal({
                     onChange={(e) =>
                       setFormData({ ...formData, color: e.target.value })
                     }
-                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                     placeholder="Enter custom color"
                   />
                   </label>
@@ -641,7 +641,7 @@ export default function AddProductModal({
                       onChange={(e) =>
                         setFormData({ ...formData, yearFrom: e.target.value })
                       }
-                      className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                      className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                       placeholder="e.g., 2015"
                       min="1900"
                       max="2100"
@@ -657,7 +657,7 @@ export default function AddProductModal({
                       onChange={(e) =>
                         setFormData({ ...formData, yearTo: e.target.value })
                       }
-                      className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                      className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                       placeholder="e.g., 2020"
                       min="1900"
                       max="2100"
@@ -680,7 +680,7 @@ export default function AddProductModal({
                   onChange={(e) =>
                     setFormData({ ...formData, partNumber: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                   placeholder="Part number"
                 />
                 </label>
@@ -704,7 +704,7 @@ export default function AddProductModal({
                 }
                 min="0"
                 step="0.01"
-                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
               />
               </label>
             </div>
@@ -722,7 +722,7 @@ export default function AddProductModal({
                 }
                 min="0"
                 step="0.01"
-                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
               />
               </label>
             </div>
@@ -741,7 +741,7 @@ export default function AddProductModal({
                 min="0"
                 max="100"
                 step="0.1"
-                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
               />
               </label>
             </div>
@@ -762,7 +762,7 @@ export default function AddProductModal({
                   })
                 }
                 min="0"
-                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
               />
               </label>
             </div>
@@ -779,7 +779,7 @@ export default function AddProductModal({
                   })
                 }
                 min="0"
-                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
               />
               </label>
             </div>
@@ -795,7 +795,7 @@ export default function AddProductModal({
           </button>
           <button
             onClick={handleSubmit}
-            className="px-4 py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl hover:opacity-90 transition-opacity active:scale-95"
+            className="px-4 py-2 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-xl hover:opacity-90 transition-opacity active:scale-95"
           >
             Add Product
           </button>

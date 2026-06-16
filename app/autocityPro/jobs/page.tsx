@@ -97,14 +97,14 @@ export default function JobsPage() {
   const th = {
     pageBg:              isDark ? "#050505"                                                  : "#f3f4f6",
     // Desktop header
-    headerBgFrom:        isDark ? "#932222"                                                  : "#fef2f2",
-    headerBgVia:         isDark ? "#411010"                                                  : "#fee2e2",
-    headerBgTo:          isDark ? "#a20c0c"                                                  : "#fecaca",
+    headerBgFrom:        isDark ? "var(--autocity-header-from-dark)"                                                  : "var(--autocity-header-from-light)",
+    headerBgVia:         isDark ? "var(--autocity-header-via-dark)"                                                  : "var(--autocity-header-via-light)",
+    headerBgTo:          isDark ? "var(--autocity-header-to-dark)"                                                  : "var(--autocity-header-to-light)",
     headerBorder:        isDark ? "rgba(255,255,255,0.05)"                                   : "rgba(0,0,0,0.06)",
-    headerTitle:         isDark ? "#ffffff"                                                  : "#7f1d1d",
-    headerSub:           isDark ? "rgba(255,255,255,0.80)"                                   : "#991b1b",
-    headerBtnBg:         isDark ? "#ffffff"                                                  : "#7f1d1d",
-    headerBtnText:       isDark ? "#E84545"                                                  : "#ffffff",
+    headerTitle:         isDark ? "#ffffff"                                                  : "var(--autocity-header-text-light)",
+    headerSub:           isDark ? "rgba(255,255,255,0.80)"                                   : "var(--autocity-header-sub-light)",
+    headerBtnBg:         isDark ? "#ffffff"                                                  : "var(--autocity-header-text-light)",
+    headerBtnText:       isDark ? "var(--autocity-accent)"                                                  : "#ffffff",
     // Mobile header
     mobileHeaderBg:      isDark ? "linear-gradient(135deg,#0A0A0A,#050505,#0A0A0A)"         : "linear-gradient(135deg,#ffffff,#f9fafb,#ffffff)",
     mobileHeaderBorder:  isDark ? "rgba(255,255,255,0.05)"                                  : "rgba(0,0,0,0.08)",
@@ -127,7 +127,7 @@ export default function JobsPage() {
     // Job cards
     cardBg:              isDark ? "#0A0A0A"                                                  : "#ffffff",
     cardBorder:          isDark ? "rgba(255,255,255,0.05)"                                  : "rgba(0,0,0,0.08)",
-    cardHoverBorder:     isDark ? "rgba(232,69,69,0.30)"                                    : "rgba(232,69,69,0.40)",
+    cardHoverBorder:     isDark ? "var(--autocity-accent-30)"                                    : "var(--autocity-accent-40)",
     cardTitle:           isDark ? "#ffffff"                                                  : "#111827",
     cardSubtext:         isDark ? "#9ca3af"                                                  : "#6b7280",
     cardMuted:           isDark ? "#6b7280"                                                  : "#9ca3af",
@@ -294,12 +294,12 @@ export default function JobsPage() {
             <div className="flex items-center justify-between mb-3">
               <div>
                 <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: th.mobileHeaderTitle }}>
-                  <Wrench className="h-5 w-5 text-[#E84545]" />
+                  <Wrench className="h-5 w-5 text-[color:var(--autocity-accent)]" />
                   Jobs
                 </h1>
                 <p className="text-xs" style={{ color: th.mobileHeaderSub }}>
                   {filteredJobs.length} job{filteredJobs.length !== 1 ? "s" : ""}
-                  {isDark ? <Moon className="h-3 w-3 inline ml-1 text-[#E84545]" /> : <Sun className="h-3 w-3 inline ml-1 text-[#E84545]" />}
+                  {isDark ? <Moon className="h-3 w-3 inline ml-1 text-[color:var(--autocity-accent)]" /> : <Sun className="h-3 w-3 inline ml-1 text-[color:var(--autocity-accent)]" />}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -309,13 +309,13 @@ export default function JobsPage() {
                   style={{ background: th.mobileBtnBg, color: th.mobileBtnText }}>
                   <Filter className="h-4 w-4" />
                   {activeFilterCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-[#E84545] text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">{activeFilterCount}</span>
+                    <span className="absolute -top-1 -right-1 bg-[color:var(--autocity-accent)] text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">{activeFilterCount}</span>
                   )}
                 </button>
                 <button
                   onClick={() => router.push("/autocityPro/jobs/new")}
                   className="flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-semibold active:scale-95 transition-all shadow-lg"
-                  style={{ background: "linear-gradient(to right,#E84545,#cc3c3c)" }}>
+                  style={{ background: "linear-gradient(to right,var(--autocity-accent),var(--autocity-accent-strong))" }}>
                   <Plus className="h-4 w-4" />
                   New
                 </button>
@@ -329,7 +329,7 @@ export default function JobsPage() {
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 placeholder="Search jobs..."
-                className="w-full pl-10 pr-4 py-2 rounded-xl text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent transition-colors duration-500"
+                className="w-full pl-10 pr-4 py-2 rounded-xl text-sm focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent transition-colors duration-500"
                 style={{ background: th.mobileSearchBg, border: `1px solid ${th.mobileSearchBorder}`, color: th.mobileSearchText }}
               />
             </div>
@@ -348,7 +348,7 @@ export default function JobsPage() {
                     Jobs & Work Orders
                   </h1>
                   <div className="flex items-center gap-1 px-2 py-1 rounded-full text-xs"
-                    style={{ background: isDark ? "rgba(0,0,0,0.30)" : "rgba(255,255,255,0.60)", border: `1px solid ${isDark ? "rgba(255,255,255,0.15)" : "rgba(127,29,29,0.20)"}`, color: isDark ? "rgba(255,255,255,0.70)" : "#7f1d1d" }}>
+                    style={{ background: isDark ? "rgba(0,0,0,0.30)" : "rgba(255,255,255,0.60)", border: `1px solid ${isDark ? "rgba(255,255,255,0.15)" : "var(--autocity-accent-20)"}`, color: isDark ? "rgba(255,255,255,0.70)" : "var(--autocity-header-text-light)" }}>
                     {isDark ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
                   </div>
                 </div>
@@ -379,7 +379,7 @@ export default function JobsPage() {
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
                   placeholder="Search jobs..."
-                  className="w-full pl-10 pr-4 py-2.5 rounded-lg text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-lg text-sm focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                   style={selectStyle}
                 />
               </div>
@@ -389,7 +389,7 @@ export default function JobsPage() {
                 { value: convertedFilter, onChange: (v: string) => { setConvertedFilter(v); setPage(1); }, opts: [["all","All Jobs"],["false","Not Converted"],["true","Converted to Sale"]] },
               ].map((s, i) => (
                 <select key={s.opts[0][1]} value={s.value} onChange={e => s.onChange(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-lg text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent appearance-none"
+                  className="w-full px-3 py-2.5 rounded-lg text-sm focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent appearance-none"
                   style={selectStyle}>
                   {s.opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </select>
@@ -400,7 +400,7 @@ export default function JobsPage() {
           {/* Jobs List */}
           {loading ? (
             <div className="text-center py-16">
-              <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-[#E84545] mb-4" />
+              <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-[color:var(--autocity-accent)] mb-4" />
               <p style={{ color: th.emptyText }}>Loading jobs...</p>
             </div>
           ) : filteredJobs.length === 0 ? (
@@ -449,7 +449,7 @@ export default function JobsPage() {
                           </div>
                           {job.vehicleRegistrationNumber && (
                             <div className="flex items-center gap-1">
-                              <span className="font-mono text-[#E84545]">{job.vehicleRegistrationNumber}</span>
+                              <span className="font-mono text-[color:var(--autocity-accent)]">{job.vehicleRegistrationNumber}</span>
                               {job.vehicleMake && <span className="hidden sm:inline">• {job.vehicleMake} {job.vehicleModel}</span>}
                             </div>
                           )}
@@ -500,7 +500,7 @@ export default function JobsPage() {
                               <button
                                 onClick={() => handleDeleteJob(job._id)}
                                 className="p-2 rounded-lg transition-colors active:scale-95"
-                                style={{ background: th.actionBtnBg, border: `1px solid ${th.actionBtnBorder}`, color: "#E84545" }}
+                                style={{ background: th.actionBtnBg, border: `1px solid ${th.actionBtnBorder}`, color: "var(--autocity-accent)" }}
                                 title="Cancel Job">
                                 <Trash2 className="h-4 w-4" />
                               </button>
@@ -577,7 +577,7 @@ export default function JobsPage() {
                 <button
                   onClick={() => setShowMobileFilters(false)}
                   className="flex-1 px-4 py-3 rounded-xl text-white font-semibold"
-                  style={{ background: "linear-gradient(to right,#E84545,#cc3c3c)" }}>
+                  style={{ background: "linear-gradient(to right,var(--autocity-accent),var(--autocity-accent-strong))" }}>
                   Apply Filters
                 </button>
               </div>

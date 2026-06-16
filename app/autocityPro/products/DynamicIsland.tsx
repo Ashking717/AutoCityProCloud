@@ -21,7 +21,7 @@ export default function DynamicIsland({ totalProducts, totalValue, lowStockCount
       >
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <Box className="h-3 w-3 text-[#E84545]" />
+            <Box className="h-3 w-3 text-[color:var(--autocity-accent)]" />
             <span
               className="text-xs font-semibold transition-colors duration-500"
               style={{ color: isDark ? '#ffffff' : '#111827' }}

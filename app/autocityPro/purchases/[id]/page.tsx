@@ -60,14 +60,14 @@ export default function PurchaseDetailPage() {
   const th = {
     pageBg:           isDark ? '#050505'                                                    : '#f3f4f6',
     // Header
-    headerBg:         isDark ? 'linear-gradient(135deg,#932222,#411010,#a20c0c)'           : 'linear-gradient(135deg,#fef2f2,#fee2e2,#fecaca)',
+    headerBg:         isDark ? 'linear-gradient(135deg,var(--autocity-header-from-dark),var(--autocity-header-via-dark),var(--autocity-header-to-dark))'           : 'linear-gradient(135deg,var(--autocity-header-from-light),var(--autocity-header-via-light),var(--autocity-header-to-light))',
     headerBorder:     isDark ? 'rgba(255,255,255,0.05)'                                    : 'rgba(0,0,0,0.08)',
-    headerTitle:      isDark ? '#ffffff'                                                    : '#7f1d1d',
-    headerSub:        isDark ? 'rgba(255,255,255,0.60)'                                    : '#991b1b',
-    headerBackText:   isDark ? 'rgba(255,255,255,0.80)'                                    : '#991b1b',
+    headerTitle:      isDark ? '#ffffff'                                                    : 'var(--autocity-header-text-light)',
+    headerSub:        isDark ? 'rgba(255,255,255,0.60)'                                    : 'var(--autocity-header-sub-light)',
+    headerBackText:   isDark ? 'rgba(255,255,255,0.80)'                                    : 'var(--autocity-header-sub-light)',
     headerBtnBg:      isDark ? 'rgba(10,10,10,0.50)'                                       : 'rgba(255,255,255,0.60)',
-    headerBtnBorder:  isDark ? 'rgba(255,255,255,0.10)'                                    : 'rgba(127,29,29,0.20)',
-    headerBtnText:    isDark ? '#ffffff'                                                    : '#7f1d1d',
+    headerBtnBorder:  isDark ? 'rgba(255,255,255,0.10)'                                    : 'var(--autocity-accent-20)',
+    headerBtnText:    isDark ? '#ffffff'                                                    : 'var(--autocity-header-text-light)',
     // Cards
     cardBg:           isDark ? 'linear-gradient(135deg,#0A0A0A,#050505)'                   : 'linear-gradient(135deg,#ffffff,#f9fafb)',
     cardBorder:       isDark ? 'rgba(255,255,255,0.10)'                                    : 'rgba(0,0,0,0.08)',
@@ -107,7 +107,7 @@ export default function PurchaseDetailPage() {
   };
 
   const inputStyle = { background: th.inputBg, border: `1px solid ${th.inputBorder}`, color: th.inputText };
-  const inputClass = "focus:outline-none focus:ring-2 focus:ring-[#E84545]/50 focus:border-[#E84545]/50";
+  const inputClass = "focus:outline-none focus:ring-2 focus:ring-[color:var(--autocity-accent)]/50 focus:border-[color:var(--autocity-accent-50)]";
 
   useEffect(() => { fetchUser(); fetchPurchase(); fetchPayments(); }, [purchaseId]);
 
@@ -181,7 +181,7 @@ export default function PurchaseDetailPage() {
       <MainLayout user={user} onLogout={handleLogout}>
         <div className="min-h-screen flex items-center justify-center transition-colors duration-500" style={{ background: th.pageBg }}>
           <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-4 border-t-[#E84545] mx-auto" style={{ borderColor: `${th.summaryDivider} ${th.summaryDivider} ${th.summaryDivider} #E84545` }} />
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-t-[color:var(--autocity-accent)] mx-auto" style={{ borderColor: `${th.summaryDivider} ${th.summaryDivider} ${th.summaryDivider} var(--autocity-accent)` }} />
             <p className="mt-4 text-lg font-medium" style={{ color: th.loadingText }}>Loading purchase details...</p>
           </div>
         </div>
@@ -197,7 +197,7 @@ export default function PurchaseDetailPage() {
             <AlertCircle className="h-16 w-16 text-red-400 mx-auto mb-4" />
             <p className="text-lg font-medium" style={{ color: th.textPrimary }}>Purchase not found</p>
             <button onClick={() => router.push("/autocityPro/purchases")}
-              className="mt-4 px-6 py-2 bg-[#E84545] text-white rounded-xl hover:opacity-90 transition-all">
+              className="mt-4 px-6 py-2 bg-[color:var(--autocity-accent)] text-white rounded-xl hover:opacity-90 transition-all">
               Back to Purchases
             </button>
           </div>
@@ -224,7 +224,7 @@ export default function PurchaseDetailPage() {
                 {/* Sun/Moon indicator */}
                 <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg backdrop-blur-sm border"
                   style={{ background: th.headerBtnBg, borderColor: th.headerBtnBorder }}>
-                  {isDark ? <Moon className="h-3.5 w-3.5 text-[#E84545]" /> : <Sun className="h-3.5 w-3.5 text-[#E84545]" />}
+                  {isDark ? <Moon className="h-3.5 w-3.5 text-[color:var(--autocity-accent)]" /> : <Sun className="h-3.5 w-3.5 text-[color:var(--autocity-accent)]" />}
                 </div>
                 {purchase.balanceDue > 0 && (
                   <button onClick={() => setShowPaymentModal(true)}
@@ -233,7 +233,7 @@ export default function PurchaseDetailPage() {
                   </button>
                 )}
                 <button onClick={() => toast.success("Downloading invoice...")}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl font-semibold transition-all backdrop-blur-sm border hover:border-[#E84545]/30"
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl font-semibold transition-all backdrop-blur-sm border hover:border-[color:var(--autocity-accent-30)]"
                   style={{ background: th.headerBtnBg, borderColor: th.headerBtnBorder, color: th.headerBtnText }}>
                   <Download className="h-5 w-5" /><span className="hidden md:inline">Download</span>
                 </button>
@@ -263,7 +263,7 @@ export default function PurchaseDetailPage() {
               {/* Supplier */}
               <div className="rounded-2xl shadow-lg p-6 border transition-colors duration-500" style={{ background: th.cardBg, borderColor: th.cardBorder }}>
                 <h2 className="text-lg font-bold mb-4 flex items-center" style={{ color: th.textPrimary }}>
-                  <Users className="h-5 w-5 mr-2 text-[#E84545]" />Supplier Information
+                  <Users className="h-5 w-5 mr-2 text-[color:var(--autocity-accent)]" />Supplier Information
                 </h2>
                 <div className="space-y-3">
                   <div>
@@ -288,7 +288,7 @@ export default function PurchaseDetailPage() {
               {/* Items Table */}
               <div className="rounded-2xl shadow-lg p-6 border transition-colors duration-500" style={{ background: th.cardBg, borderColor: th.cardBorder }}>
                 <h2 className="text-lg font-bold mb-4 flex items-center" style={{ color: th.textPrimary }}>
-                  <Package className="h-5 w-5 mr-2 text-[#E84545]" />Purchase Items ({purchase.items.length})
+                  <Package className="h-5 w-5 mr-2 text-[color:var(--autocity-accent)]" />Purchase Items ({purchase.items.length})
                 </h2>
                 <div className="overflow-x-auto">
                   <table className="w-full">
@@ -329,11 +329,11 @@ export default function PurchaseDetailPage() {
                 <div className="rounded-2xl shadow-lg p-6 border transition-colors duration-500" style={{ background: th.cardBg, borderColor: th.cardBorder }}>
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-lg font-bold flex items-center" style={{ color: th.textPrimary }}>
-                      <History className="h-5 w-5 mr-2 text-[#E84545]" />Payment History ({payments.length})
+                      <History className="h-5 w-5 mr-2 text-[color:var(--autocity-accent)]" />Payment History ({payments.length})
                     </h2>
                     {payments.length > 3 && (
                       <button onClick={() => setShowPaymentHistory(true)}
-                        className="text-[#E84545] hover:text-[#cc3c3c] text-sm font-medium flex items-center gap-1 transition-colors">
+                        className="text-[color:var(--autocity-accent)] hover:text-[color:var(--autocity-accent-strong)] text-sm font-medium flex items-center gap-1 transition-colors">
                         View All<ChevronRight className="h-4 w-4" />
                       </button>
                     )}
@@ -364,7 +364,7 @@ export default function PurchaseDetailPage() {
               {purchase.notes && (
                 <div className="rounded-2xl shadow-lg p-6 border transition-colors duration-500" style={{ background: th.cardBg, borderColor: th.cardBorder }}>
                   <h2 className="text-lg font-bold mb-3 flex items-center" style={{ color: th.textPrimary }}>
-                    <FileText className="h-5 w-5 mr-2 text-[#E84545]" />Notes
+                    <FileText className="h-5 w-5 mr-2 text-[color:var(--autocity-accent)]" />Notes
                   </h2>
                   <p style={{ color: th.textSecondary }}>{purchase.notes}</p>
                 </div>
@@ -377,7 +377,7 @@ export default function PurchaseDetailPage() {
               {/* Financial Summary */}
               <div className="rounded-2xl shadow-lg p-6 border transition-colors duration-500" style={{ background: th.cardBg, borderColor: th.cardBorder }}>
                 <h2 className="text-lg font-bold mb-4 flex items-center" style={{ color: th.textPrimary }}>
-                  <DollarSign className="h-5 w-5 mr-2 text-[#E84545]" />Financial Summary
+                  <DollarSign className="h-5 w-5 mr-2 text-[color:var(--autocity-accent)]" />Financial Summary
                 </h2>
                 <div className="space-y-4">
                   {[
@@ -391,7 +391,7 @@ export default function PurchaseDetailPage() {
                   ))}
                   <div className="flex justify-between items-center py-3 border-t" style={{ borderColor: th.summaryTopBorder }}>
                     <span className="font-bold text-lg" style={{ color: th.textPrimary }}>Grand Total:</span>
-                    <span className="text-[#E84545] font-bold text-xl">{formatCurrency(purchase.grandTotal)}</span>
+                    <span className="text-[color:var(--autocity-accent)] font-bold text-xl">{formatCurrency(purchase.grandTotal)}</span>
                   </div>
                   <div className="flex justify-between items-center py-2 border-t pt-4" style={{ borderColor: th.summaryDivider }}>
                     <span style={{ color: th.textSecondary }}>Amount Paid:</span>
@@ -415,7 +415,7 @@ export default function PurchaseDetailPage() {
               {/* Payment Method */}
               <div className="rounded-2xl shadow-lg p-6 border transition-colors duration-500" style={{ background: th.cardBg, borderColor: th.cardBorder }}>
                 <h2 className="text-lg font-bold mb-4 flex items-center" style={{ color: th.textPrimary }}>
-                  <CreditCard className="h-5 w-5 mr-2 text-[#E84545]" />Payment Method
+                  <CreditCard className="h-5 w-5 mr-2 text-[color:var(--autocity-accent)]" />Payment Method
                 </h2>
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border"
                   style={{ background: th.pillBg, borderColor: th.pillBorder }}>
@@ -427,7 +427,7 @@ export default function PurchaseDetailPage() {
               {/* Metadata */}
               <div className="rounded-2xl shadow-lg p-6 border transition-colors duration-500" style={{ background: th.cardBg, borderColor: th.cardBorder }}>
                 <h2 className="text-lg font-bold mb-4 flex items-center" style={{ color: th.textPrimary }}>
-                  <Calendar className="h-5 w-5 mr-2 text-[#E84545]" />Details
+                  <Calendar className="h-5 w-5 mr-2 text-[color:var(--autocity-accent)]" />Details
                 </h2>
                 <div className="space-y-3 text-sm">
                   <div>
@@ -462,21 +462,21 @@ export default function PurchaseDetailPage() {
                 {/* Amount */}
                 <div>
                   <label htmlFor="payment-amount" className="block text-sm font-medium mb-2" style={{ color: th.textPrimary }}>
-                    Payment Amount <span className="text-[#E84545]">*</span>
+                    Payment Amount <span className="text-[color:var(--autocity-accent)]">*</span>
                   </label>
                   <input id="payment-amount" type="number" value={paymentForm.amount}
                     onChange={e => setPaymentForm({ ...paymentForm, amount: e.target.value })}
                     placeholder="0.00" max={purchase.balanceDue} step="0.01"
                     className={`w-full px-4 py-3 rounded-xl ${inputClass}`} style={inputStyle} />
                   <button onClick={() => setPaymentForm({ ...paymentForm, amount: purchase.balanceDue.toString() })}
-                    className="mt-2 text-[#E84545] text-sm hover:text-[#cc3c3c] transition-colors">
+                    className="mt-2 text-[color:var(--autocity-accent)] text-sm hover:text-[color:var(--autocity-accent-strong)] transition-colors">
                     Pay full amount
                   </button>
                 </div>
                 {/* Method */}
                 <div>
                   <label htmlFor="payment-method" className="block text-sm font-medium mb-2" style={{ color: th.textPrimary }}>
-                    Payment Method <span className="text-[#E84545]">*</span>
+                    Payment Method <span className="text-[color:var(--autocity-accent)]">*</span>
                   </label>
                   <select id="payment-method" value={paymentForm.paymentMethod} onChange={e => setPaymentForm({ ...paymentForm, paymentMethod: e.target.value })}
                     className={`w-full px-4 py-3 rounded-xl ${inputClass}`} style={inputStyle}>

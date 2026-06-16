@@ -59,12 +59,12 @@ export default function ExpenseDetailPage() {
   const th = {
     pageBg:           isDark ? '#050505'                                                    : '#f3f4f6',
     // Header
-    desktopHeaderBg:  isDark ? 'linear-gradient(135deg,#932222,#411010,#a20c0c)'           : 'linear-gradient(135deg,#fef2f2,#fee2e2,#fecaca)',
+    desktopHeaderBg:  isDark ? 'linear-gradient(135deg,var(--autocity-header-from-dark),var(--autocity-header-via-dark),var(--autocity-header-to-dark))'           : 'linear-gradient(135deg,var(--autocity-header-from-light),var(--autocity-header-via-light),var(--autocity-header-to-light))',
     desktopHeaderBorder: isDark ? 'rgba(255,255,255,0.05)'                                 : 'rgba(0,0,0,0.08)',
-    headerTitle:      isDark ? '#ffffff'                                                    : '#7f1d1d',
-    headerSub:        isDark ? 'rgba(255,255,255,0.80)'                                    : '#991b1b',
-    headerBackText:   isDark ? 'rgba(255,255,255,0.80)'                                    : '#991b1b',
-    headerIconBg:     isDark ? 'rgba(255,255,255,0.10)'                                    : 'rgba(127,29,29,0.10)',
+    headerTitle:      isDark ? '#ffffff'                                                    : 'var(--autocity-header-text-light)',
+    headerSub:        isDark ? 'rgba(255,255,255,0.80)'                                    : 'var(--autocity-header-sub-light)',
+    headerBackText:   isDark ? 'rgba(255,255,255,0.80)'                                    : 'var(--autocity-header-sub-light)',
+    headerIconBg:     isDark ? 'rgba(255,255,255,0.10)'                                    : 'var(--autocity-accent-10)',
     // Mobile header
     mobileHeaderBg:   isDark ? 'linear-gradient(135deg,#0A0A0A,#050505,#0A0A0A)'          : 'linear-gradient(135deg,#ffffff,#f9fafb,#ffffff)',
     mobileHeaderBorder: isDark ? 'rgba(255,255,255,0.05)'                                  : 'rgba(0,0,0,0.08)',
@@ -77,21 +77,21 @@ export default function ExpenseDetailPage() {
     // Cards
     cardBg:           isDark ? 'linear-gradient(135deg,#0A0A0A,#050505)'                   : 'linear-gradient(135deg,#ffffff,#f9fafb)',
     cardBorder:       isDark ? 'rgba(255,255,255,0.10)'                                    : 'rgba(0,0,0,0.08)',
-    cardBorderHover:  isDark ? 'rgba(232,69,69,0.30)'                                      : 'rgba(232,69,69,0.25)',
+    cardBorderHover:  isDark ? 'var(--autocity-accent-30)'                                      : 'var(--autocity-accent-25)',
     cardTitle:        isDark ? '#ffffff'                                                    : '#111827',
     // Inner items
     itemBg:           isDark ? 'rgba(255,255,255,0.05)'                                    : 'rgba(0,0,0,0.04)',
     itemBorder:       isDark ? 'rgba(255,255,255,0.10)'                                    : 'rgba(0,0,0,0.08)',
     // Stat cards
-    statIconBg:       isDark ? 'rgba(232,69,69,0.10)'                                      : 'rgba(232,69,69,0.08)',
+    statIconBg:       isDark ? 'var(--autocity-accent-10)'                                      : 'var(--autocity-accent-08)',
     statLabel:        isDark ? '#94a3b8'                                                    : '#6b7280',
     statValueDefault: isDark ? '#ffffff'                                                    : '#111827',
     statValueSecondary: isDark ? '#cbd5e1'                                                  : '#374151',
     // Alert
-    alertBg:          isDark ? 'rgba(232,69,69,0.10)'                                      : 'rgba(254,202,202,0.50)',
-    alertBorder:      isDark ? 'rgba(232,69,69,0.20)'                                      : 'rgba(220,38,38,0.20)',
-    alertTitle:       isDark ? '#ffffff'                                                    : '#7f1d1d',
-    alertSub:         isDark ? '#cbd5e1'                                                    : '#991b1b',
+    alertBg:          isDark ? 'var(--autocity-accent-10)'                                      : 'rgba(254,202,202,0.50)',
+    alertBorder:      isDark ? 'var(--autocity-accent-20)'                                      : 'rgba(220,38,38,0.20)',
+    alertTitle:       isDark ? '#ffffff'                                                    : 'var(--autocity-header-text-light)',
+    alertSub:         isDark ? '#cbd5e1'                                                    : 'var(--autocity-header-sub-light)',
     // Text
     textPrimary:      isDark ? '#ffffff'                                                    : '#111827',
     textSecondary:    isDark ? '#94a3b8'                                                    : '#6b7280',
@@ -101,9 +101,9 @@ export default function ExpenseDetailPage() {
     tableRowBorder:   isDark ? 'rgba(255,255,255,0.05)'                                    : 'rgba(0,0,0,0.05)',
     tableTotalBg:     isDark ? 'rgba(255,255,255,0.05)'                                    : 'rgba(0,0,0,0.04)',
     // Voucher banner
-    voucherBg:        isDark ? 'rgba(232,69,69,0.10)'                                      : 'rgba(254,202,202,0.30)',
-    voucherBorder:    isDark ? 'rgba(232,69,69,0.20)'                                      : 'rgba(220,38,38,0.20)',
-    voucherText:      isDark ? '#E84545'                                                    : '#b91c1c',
+    voucherBg:        isDark ? 'var(--autocity-accent-10)'                                      : 'rgba(254,202,202,0.30)',
+    voucherBorder:    isDark ? 'var(--autocity-accent-20)'                                      : 'rgba(220,38,38,0.20)',
+    voucherText:      isDark ? 'var(--autocity-accent)'                                                    : '#b91c1c',
     voucherSub:       isDark ? '#cbd5e1'                                                    : '#374151',
     // Actions panel
     actionsBorder:    isDark ? 'rgba(255,255,255,0.10)'                                    : 'rgba(0,0,0,0.08)',
@@ -219,7 +219,7 @@ export default function ExpenseDetailPage() {
       <MainLayout user={null} onLogout={handleLogout}>
         <div className="min-h-screen flex items-center justify-center transition-colors duration-500" style={{ background: th.pageBg }}>
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E84545] mx-auto mb-4" />
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[color:var(--autocity-accent)] mx-auto mb-4" />
             <p style={{ color: th.textSecondary }}>Loading expense details...</p>
           </div>
         </div>
@@ -232,10 +232,10 @@ export default function ExpenseDetailPage() {
       <MainLayout user={null} onLogout={handleLogout}>
         <div className="min-h-screen flex items-center justify-center transition-colors duration-500" style={{ background: th.pageBg }}>
           <div className="text-center">
-            <XCircle className="w-16 h-16 text-[#E84545] mx-auto mb-4" />
+            <XCircle className="w-16 h-16 text-[color:var(--autocity-accent)] mx-auto mb-4" />
             <p className="text-lg mb-4" style={{ color: th.textSecondary }}>Expense not found</p>
             <Link href="/autocityPro/expenses">
-              <button className="px-6 py-2.5 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-lg hover:opacity-90 transition-opacity inline-flex items-center space-x-2">
+              <button className="px-6 py-2.5 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-lg hover:opacity-90 transition-opacity inline-flex items-center space-x-2">
                 <ArrowLeft className="w-4 h-4" /><span>Back to Expenses</span>
               </button>
             </Link>
@@ -254,14 +254,14 @@ export default function ExpenseDetailPage() {
           <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-2 px-4 pointer-events-none">
             <div className="bg-black rounded-[28px] px-6 py-3 shadow-2xl border border-white/10 backdrop-blur-xl pointer-events-auto animate-in slide-in-from-top duration-500">
               <div className="flex items-center gap-3">
-                <Receipt className="h-3 w-3 text-[#E84545]" />
+                <Receipt className="h-3 w-3 text-[color:var(--autocity-accent)]" />
                 <span className="text-white text-xs font-semibold">{expense.expenseNumber}</span>
                 <div className="h-3 w-px bg-white/20" />
                 <span className="text-white text-xs font-medium">{formatCompactCurrency(expense.grandTotal)}</span>
                 <div className="h-3 w-px bg-white/20" />
                 {getStatusBadge(expense.status)}
                 <div className="h-3 w-px bg-white/20" />
-                {isDark ? <Moon className="h-3 w-3 text-[#E84545]" /> : <Sun className="h-3 w-3 text-[#E84545]" />}
+                {isDark ? <Moon className="h-3 w-3 text-[color:var(--autocity-accent)]" /> : <Sun className="h-3 w-3 text-[color:var(--autocity-accent)]" />}
               </div>
             </div>
           </div>
@@ -280,7 +280,7 @@ export default function ExpenseDetailPage() {
                 <div className="flex-1 min-w-0">
                   <h1 className="text-lg font-bold truncate flex items-center gap-1.5" style={{ color: th.mobileHeaderTitle }}>
                     Expense #{expense.expenseNumber}
-                    {isDark ? <Moon className="h-3.5 w-3.5 text-[#E84545]" /> : <Sun className="h-3.5 w-3.5 text-[#E84545]" />}
+                    {isDark ? <Moon className="h-3.5 w-3.5 text-[color:var(--autocity-accent)]" /> : <Sun className="h-3.5 w-3.5 text-[color:var(--autocity-accent)]" />}
                   </h1>
                   <p className="text-xs truncate" style={{ color: th.mobileHeaderSub }}>
                     {new Date(expense.expenseDate).toLocaleDateString()}
@@ -296,7 +296,7 @@ export default function ExpenseDetailPage() {
               {[
                 { label: 'Total', value: `QR ${expense.grandTotal.toLocaleString()}`, color: th.mobileHeaderTitle },
                 { label: 'Paid', value: `QR ${expense.amountPaid.toLocaleString()}`, color: '#4ade80' },
-                { label: 'Balance', value: `QR ${expense.balanceDue.toLocaleString()}`, color: '#E84545' },
+                { label: 'Balance', value: `QR ${expense.balanceDue.toLocaleString()}`, color: 'var(--autocity-accent)' },
               ].map(s => (
                 <div key={s.label}>
                   <p className="text-xs mb-1" style={{ color: th.mobileStatLabel }}>{s.label}</p>
@@ -321,7 +321,7 @@ export default function ExpenseDetailPage() {
                 <div className="text-right">
                   <h1 className="text-2xl font-bold flex items-center gap-2 justify-end" style={{ color: th.headerTitle }}>
                     Expense #{expense.expenseNumber}
-                    {isDark ? <Moon className="h-4 w-4 text-[#E84545]" /> : <Sun className="h-4 w-4 text-[#E84545]" />}
+                    {isDark ? <Moon className="h-4 w-4 text-[color:var(--autocity-accent)]" /> : <Sun className="h-4 w-4 text-[color:var(--autocity-accent)]" />}
                   </h1>
                   <p style={{ color: th.headerSub }}>
                     {new Date(expense.expenseDate).toLocaleDateString()} • {getCategoryLabel(expense.category)}
@@ -350,7 +350,7 @@ export default function ExpenseDetailPage() {
             {[
               { icon: Receipt, label: "Total Amount", value: formatCompactCurrency(expense.grandTotal), sub: `QR ${expense.grandTotal.toLocaleString()}`, color: th.statValueDefault },
               { icon: DollarSign, label: "Amount Paid", value: formatCompactCurrency(expense.amountPaid), sub: null, color: '#4ade80' },
-              { icon: TrendingDown, label: "Balance Due", value: formatCompactCurrency(expense.balanceDue), sub: null, color: '#E84545' },
+              { icon: TrendingDown, label: "Balance Due", value: formatCompactCurrency(expense.balanceDue), sub: null, color: 'var(--autocity-accent)' },
               { icon: Tag, label: "Category", value: getCategoryLabel(expense.category), sub: null, color: th.statValueSecondary },
             ].map((stat) => (
               <div key={stat.label} className="rounded-2xl p-4 active:scale-[0.98] transition-all border"
@@ -359,7 +359,7 @@ export default function ExpenseDetailPage() {
                 onMouseLeave={e => (e.currentTarget.style.borderColor = th.cardBorder)}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="p-2 rounded-xl" style={{ background: th.statIconBg }}>
-                    <stat.icon className="h-4 w-4 md:h-5 md:w-5 text-[#E84545]" />
+                    <stat.icon className="h-4 w-4 md:h-5 md:w-5 text-[color:var(--autocity-accent)]" />
                   </div>
                 </div>
                 <p className="text-xs mb-1" style={{ color: th.statLabel }}>{stat.label}</p>
@@ -371,10 +371,10 @@ export default function ExpenseDetailPage() {
 
           {/* Pending Balance Alert */}
           {expense.balanceDue > 0 && (
-            <div className="border-l-4 border-[#E84545] p-4 md:p-6 mb-6 rounded-xl active:scale-[0.98] transition-all"
+            <div className="border-l-4 border-[color:var(--autocity-accent)] p-4 md:p-6 mb-6 rounded-xl active:scale-[0.98] transition-all"
               style={{ background: th.alertBg, borderColor: th.alertBorder }}>
               <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 md:h-6 md:w-6 text-[#E84545] flex-shrink-0 mt-0.5" />
+                <AlertTriangle className="h-5 w-5 md:h-6 md:w-6 text-[color:var(--autocity-accent)] flex-shrink-0 mt-0.5" />
                 <div>
                   <h3 className="text-base md:text-lg font-semibold" style={{ color: th.alertTitle }}>
                     Outstanding Balance: QR {expense.balanceDue.toLocaleString()}
@@ -403,7 +403,7 @@ export default function ExpenseDetailPage() {
                           <p className="text-sm font-medium truncate" style={{ color: th.textPrimary }}>{item.description}</p>
                           <p className="text-xs mt-1" style={{ color: th.textSecondary }}>{item.accountCode} - {item.accountName}</p>
                         </div>
-                        <p className="text-sm font-semibold text-[#E84545] ml-2">QR {item.amount.toLocaleString()}</p>
+                        <p className="text-sm font-semibold text-[color:var(--autocity-accent)] ml-2">QR {item.amount.toLocaleString()}</p>
                       </div>
                       {item.notes && <p className="text-xs italic mt-2" style={{ color: th.textMuted }}>{item.notes}</p>}
                     </div>
@@ -414,7 +414,7 @@ export default function ExpenseDetailPage() {
               {/* Items - Desktop */}
               <div className="hidden md:block rounded-2xl p-6 border transition-colors duration-500" style={{ background: th.cardBg, borderColor: th.cardBorder }}>
                 <h2 className="text-lg font-semibold mb-4 flex items-center space-x-2" style={{ color: th.cardTitle }}>
-                  <Receipt className="w-5 h-5 text-[#E84545]" /><span>Expense Items</span>
+                  <Receipt className="w-5 h-5 text-[color:var(--autocity-accent)]" /><span>Expense Items</span>
                 </h2>
                 <div className="space-y-3">
                   {expense.items.map((item) => (
@@ -428,7 +428,7 @@ export default function ExpenseDetailPage() {
                           <p className="text-sm mt-1" style={{ color: th.textSecondary }}>{item.accountCode} - {item.accountName}</p>
                           {item.notes && <p className="text-sm italic mt-2" style={{ color: th.textMuted }}>{item.notes}</p>}
                         </div>
-                        <p className="text-lg font-semibold text-[#E84545]">QR {item.amount.toLocaleString()}</p>
+                        <p className="text-lg font-semibold text-[color:var(--autocity-accent)]">QR {item.amount.toLocaleString()}</p>
                       </div>
                     </div>
                   ))}
@@ -439,7 +439,7 @@ export default function ExpenseDetailPage() {
               {expense.isPostedToGL && voucher && (
                 <div className="rounded-2xl p-4 md:p-6 border transition-colors duration-500" style={{ background: th.cardBg, borderColor: th.cardBorder }}>
                   <h2 className="text-lg font-semibold mb-4 flex items-center space-x-2" style={{ color: th.cardTitle }}>
-                    <FileText className="w-5 h-5 text-[#E84545]" /><span>Accounting Entries</span>
+                    <FileText className="w-5 h-5 text-[color:var(--autocity-accent)]" /><span>Accounting Entries</span>
                   </h2>
                   <div className="mb-4 p-3 rounded-lg border" style={{ background: th.voucherBg, borderColor: th.voucherBorder }}>
                     <p className="text-sm" style={{ color: th.voucherText }}>
@@ -474,8 +474,8 @@ export default function ExpenseDetailPage() {
                         ))}
                         <tr style={{ background: th.tableTotalBg }}>
                           <td className="py-3 px-3 text-sm font-semibold" style={{ color: th.textSecondary }}>Total</td>
-                          <td className="py-3 px-3 text-right text-sm text-[#E84545]">QR {voucher.totalDebit.toLocaleString()}</td>
-                          <td className="py-3 px-3 text-right text-sm text-[#E84545]">QR {voucher.totalCredit.toLocaleString()}</td>
+                          <td className="py-3 px-3 text-right text-sm text-[color:var(--autocity-accent)]">QR {voucher.totalDebit.toLocaleString()}</td>
+                          <td className="py-3 px-3 text-right text-sm text-[color:var(--autocity-accent)]">QR {voucher.totalCredit.toLocaleString()}</td>
                         </tr>
                       </tbody>
                     </table>
@@ -489,7 +489,7 @@ export default function ExpenseDetailPage() {
               {/* Payment Info */}
               <div className="rounded-2xl p-4 md:p-6 border transition-colors duration-500" style={{ background: th.cardBg, borderColor: th.cardBorder }}>
                 <h2 className="text-lg font-semibold mb-4 flex items-center space-x-2" style={{ color: th.cardTitle }}>
-                  <CreditCard className="w-5 h-5 text-[#E84545]" /><span>Payment Info</span>
+                  <CreditCard className="w-5 h-5 text-[color:var(--autocity-accent)]" /><span>Payment Info</span>
                 </h2>
                 <div className="space-y-3 text-sm">
                   <div>
@@ -515,7 +515,7 @@ export default function ExpenseDetailPage() {
               {expense.vendorName && (
                 <div className="rounded-2xl p-4 md:p-6 border transition-colors duration-500" style={{ background: th.cardBg, borderColor: th.cardBorder }}>
                   <h2 className="text-lg font-semibold mb-4 flex items-center space-x-2" style={{ color: th.cardTitle }}>
-                    <Building className="w-5 h-5 text-[#E84545]" /><span>Vendor Info</span>
+                    <Building className="w-5 h-5 text-[color:var(--autocity-accent)]" /><span>Vendor Info</span>
                   </h2>
                   <div className="space-y-3 text-sm">
                     <div>
@@ -541,7 +541,7 @@ export default function ExpenseDetailPage() {
               {/* Audit Info */}
               <div className="rounded-2xl p-4 md:p-6 border transition-colors duration-500" style={{ background: th.cardBg, borderColor: th.cardBorder }}>
                 <h2 className="text-lg font-semibold mb-4 flex items-center space-x-2" style={{ color: th.cardTitle }}>
-                  <User className="w-5 h-5 text-[#E84545]" /><span>Audit Info</span>
+                  <User className="w-5 h-5 text-[color:var(--autocity-accent)]" /><span>Audit Info</span>
                 </h2>
                 <div className="space-y-3 text-sm">
                   <div>
@@ -569,7 +569,7 @@ export default function ExpenseDetailPage() {
               {expense.notes && (
                 <div className="rounded-2xl p-4 md:p-6 border transition-colors duration-500" style={{ background: th.cardBg, borderColor: th.cardBorder }}>
                   <h2 className="text-lg font-semibold mb-4 flex items-center space-x-2" style={{ color: th.cardTitle }}>
-                    <FileText className="w-5 h-5 text-[#E84545]" /><span>Notes</span>
+                    <FileText className="w-5 h-5 text-[color:var(--autocity-accent)]" /><span>Notes</span>
                   </h2>
                   <p className="text-sm whitespace-pre-wrap" style={{ color: th.textSecondary }}>{expense.notes}</p>
                 </div>
@@ -588,7 +588,7 @@ export default function ExpenseDetailPage() {
                   )}
                   {expense.status === "PENDING" && (
                     <button onClick={() => handleAction("pay")} disabled={actionLoading}
-                      className="w-full px-4 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center space-x-2">
+                      className="w-full px-4 py-3 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center space-x-2">
                       <DollarSign className="w-4 h-4" /><span>Pay Now</span>
                     </button>
                   )}
@@ -632,7 +632,7 @@ export default function ExpenseDetailPage() {
               )}
               {expense.status === "PENDING" && (
                 <button onClick={() => { handleAction("pay"); setShowMobileMenu(false); }}
-                  className="w-full p-4 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] rounded-xl text-white font-semibold hover:opacity-90 flex items-center justify-between active:scale-95 transition-all">
+                  className="w-full p-4 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] rounded-xl text-white font-semibold hover:opacity-90 flex items-center justify-between active:scale-95 transition-all">
                   <span>Pay Now</span><DollarSign className="h-5 w-5" />
                 </button>
               )}

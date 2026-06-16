@@ -54,16 +54,16 @@ function buildTheme(isDark: boolean) {
     // Page
     pageBg:               isDark ? "#050505"                                             : "#f3f4f6",
     // Desktop header
-    headerBgFrom:         isDark ? "#932222"                                             : "#fef2f2",
-    headerBgVia:          isDark ? "#411010"                                             : "#fee2e2",
-    headerBgTo:           isDark ? "#a20c0c"                                             : "#fecaca",
+    headerBgFrom:         isDark ? "var(--autocity-header-from-dark)"                                             : "var(--autocity-header-from-light)",
+    headerBgVia:          isDark ? "var(--autocity-header-via-dark)"                                             : "var(--autocity-header-via-light)",
+    headerBgTo:           isDark ? "var(--autocity-header-to-dark)"                                             : "var(--autocity-header-to-light)",
     headerBorder:         isDark ? "rgba(255,255,255,0.05)"                              : "rgba(0,0,0,0.06)",
-    headerTitle:          isDark ? "#ffffff"                                             : "#7f1d1d",
-    headerSub:            isDark ? "rgba(255,255,255,0.90)"                              : "#991b1b",
+    headerTitle:          isDark ? "#ffffff"                                             : "var(--autocity-header-text-light)",
+    headerSub:            isDark ? "rgba(255,255,255,0.90)"                              : "var(--autocity-header-sub-light)",
     headerStatBg:         isDark ? "rgba(255,255,255,0.20)"                              : "rgba(255,255,255,0.70)",
-    headerStatBorder:     isDark ? "rgba(255,255,255,0.10)"                              : "rgba(127,29,29,0.15)",
-    headerStatLabel:      isDark ? "rgba(255,255,255,0.80)"                              : "#991b1b",
-    headerStatValue:      isDark ? "#ffffff"                                             : "#7f1d1d",
+    headerStatBorder:     isDark ? "rgba(255,255,255,0.10)"                              : "var(--autocity-accent-15)",
+    headerStatLabel:      isDark ? "rgba(255,255,255,0.80)"                              : "var(--autocity-header-sub-light)",
+    headerStatValue:      isDark ? "#ffffff"                                             : "var(--autocity-header-text-light)",
     // Mobile header
     mobileHeaderBg:       isDark ? "linear-gradient(135deg,#0A0A0A,#050505,#0A0A0A)"    : "linear-gradient(135deg,#ffffff,#f9fafb,#ffffff)",
     mobileHeaderBorder:   isDark ? "rgba(255,255,255,0.05)"                              : "rgba(0,0,0,0.08)",
@@ -91,7 +91,7 @@ function buildTheme(isDark: boolean) {
     productItemBorder:    isDark ? "rgba(255,255,255,0.05)"                              : "rgba(0,0,0,0.08)",
     productItemName:      isDark ? "#ffffff"                                             : "#111827",
     productItemSku:       isDark ? "#6b7280"                                             : "#9ca3af",
-    productItemPrice:     "#E84545",
+    productItemPrice:     "var(--autocity-accent)",
     productItemStock:     isDark ? "#6b7280"                                             : "#9ca3af",
     // Cart
     cartItemBg:           isDark ? "#111111"                                             : "#f9fafb",
@@ -114,7 +114,7 @@ function buildTheme(isDark: boolean) {
     // Filter panel
     filterPanelBg:        isDark ? "#1e293b"                                             : "#ffffff",
     filterPanelBorder:    isDark ? "#334155"                                             : "rgba(0,0,0,0.10)",
-    filterTagBg:          isDark ? "rgba(232,69,69,0.20)"                                : "rgba(232,69,69,0.10)",
+    filterTagBg:          isDark ? "var(--autocity-accent-20)"                                : "var(--autocity-accent-10)",
     // Modal overlays
     modalOverlay:         isDark ? "rgba(0,0,0,0.70)"                                   : "rgba(0,0,0,0.50)",
     modalBg:              isDark ? "#0A0A0A"                                             : "#ffffff",
@@ -161,8 +161,8 @@ function buildTheme(isDark: boolean) {
     emptyText:            isDark ? "#9ca3af"                                             : "#6b7280",
     emptySubtext:         isDark ? "#6b7280"                                             : "#9ca3af",
     // Discount highlight
-    discountHighlightBg:  isDark ? "rgba(232,69,69,0.10)"                                : "rgba(232,69,69,0.07)",
-    discountHighlightBorder: isDark ? "rgba(232,69,69,0.30)"                            : "rgba(232,69,69,0.25)",
+    discountHighlightBg:  isDark ? "var(--autocity-accent-10)"                                : "var(--autocity-accent-07)",
+    discountHighlightBorder: isDark ? "var(--autocity-accent-30)"                            : "var(--autocity-accent-25)",
     // Mobile filter
     mobileFilterBg:       isDark ? "linear-gradient(180deg,#050505,#0A0A0A)"            : "linear-gradient(180deg,#ffffff,#f9fafb)",
     mobileFilterBorder:   isDark ? "rgba(255,255,255,0.10)"                              : "rgba(0,0,0,0.08)",
@@ -817,7 +817,7 @@ export default function NewSalePage() {
               style={{ background: th.islandBg, border: `1px solid ${th.islandBorder}` }}
             >
               <div className="flex items-center gap-3">
-                <ShoppingCart className="h-3 w-3 text-[#E84545]" />
+                <ShoppingCart className="h-3 w-3 text-[color:var(--autocity-accent)]" />
                 <span className="text-xs font-semibold" style={{ color: th.islandText }}>{cart.length}</span>
                 <div className="h-3 w-px" style={{ background: th.islandDivider }} />
                 <DollarSign className="h-3 w-3 text-green-400" />
@@ -831,7 +831,7 @@ export default function NewSalePage() {
                   </>
                 )}
                 <div className="h-3 w-px" style={{ background: th.islandDivider }} />
-                {isDark ? <Moon className="h-3 w-3 text-[#E84545]" /> : <Sun className="h-3 w-3 text-[#E84545]" />}
+                {isDark ? <Moon className="h-3 w-3 text-[color:var(--autocity-accent)]" /> : <Sun className="h-3 w-3 text-[color:var(--autocity-accent)]" />}
               </div>
             </div>
           </div>
@@ -907,8 +907,8 @@ export default function NewSalePage() {
                     className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs"
                     style={{
                       background: isDark ? "rgba(0,0,0,0.30)" : "rgba(255,255,255,0.60)",
-                      border: `1px solid ${isDark ? "rgba(255,255,255,0.15)" : "rgba(127,29,29,0.20)"}`,
-                      color: isDark ? "rgba(255,255,255,0.70)" : "#7f1d1d",
+                      border: `1px solid ${isDark ? "rgba(255,255,255,0.15)" : "var(--autocity-accent-20)"}`,
+                      color: isDark ? "rgba(255,255,255,0.70)" : "var(--autocity-header-text-light)",
                     }}
                   >
                     {isDark ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
@@ -952,7 +952,7 @@ export default function NewSalePage() {
                 {!searchTerm && frequentProducts.length > 0 && (
                   <div className="rounded-lg shadow-lg p-6" style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}>
                     <h2 className="text-lg font-semibold mb-4 flex items-center" style={{ color: th.cardTitle }}>
-                      <Star className="h-5 w-5 mr-2 text-[#E84545]" />
+                      <Star className="h-5 w-5 mr-2 text-[color:var(--autocity-accent)]" />
                       Frequent Products
                     </h2>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -972,26 +972,26 @@ export default function NewSalePage() {
                             if (e.key === "ArrowUp")
                               (document.querySelector('input[placeholder*="Search"]') as HTMLInputElement)?.focus();
                           }}
-                          className="p-4 rounded-lg cursor-pointer transition-all duration-200 hover:scale-[1.02] group focus:outline-none focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                          className="p-4 rounded-lg cursor-pointer transition-all duration-200 hover:scale-[1.02] group focus:outline-none focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                           style={{ background: th.productItemBg, border: `1px solid ${th.productItemBorder}` }}
-                          onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(232,69,69,0.50)")}
+                          onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--autocity-accent-50)")}
                           onMouseLeave={(e) => (e.currentTarget.style.borderColor = th.productItemBorder)}
                         >
                           <div className="flex justify-between items-start">
                             <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-sm truncate group-hover:text-[#E84545] transition-colors" style={{ color: th.productItemName }}>
+                              <h3 className="font-semibold text-sm truncate group-hover:text-[color:var(--autocity-accent)] transition-colors" style={{ color: th.productItemName }}>
                                 {product.name}
                               </h3>
                               <p className="text-xs truncate" style={{ color: th.productItemSku }}>{product.sku}</p>
                               {product.isVehicle && (
                                 <div className="flex items-center mt-1">
-                                  <Car className="h-3 w-3 text-[#E84545] mr-1" />
-                                  <span className="text-xs text-[#E84545] truncate">{product.carMake}</span>
+                                  <Car className="h-3 w-3 text-[color:var(--autocity-accent)] mr-1" />
+                                  <span className="text-xs text-[color:var(--autocity-accent)] truncate">{product.carMake}</span>
                                 </div>
                               )}
                             </div>
                             <div className="text-right ml-2">
-                              <p className="font-bold text-sm text-[#E84545]">QAR {product.sellingPrice}</p>
+                              <p className="font-bold text-sm text-[color:var(--autocity-accent)]">QAR {product.sellingPrice}</p>
                               <p className="text-xs" style={{ color: th.productItemStock }}>Stock: {product.currentStock}</p>
                             </div>
                           </div>
@@ -1018,7 +1018,7 @@ export default function NewSalePage() {
                           }
                         }}
                         placeholder="Search by name, SKU, barcode..."
-                        className="w-full pl-10 pr-4 py-3 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                        className="w-full pl-10 pr-4 py-3 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                         style={inputStyle}
                       />
                     </div>
@@ -1029,16 +1029,16 @@ export default function NewSalePage() {
                       className="flex items-center space-x-2 px-4 py-3 rounded-lg transition-colors"
                       style={{
                         background: (isMobile ? showMobileFilters : showDesktopFilters) || activeFilterCount > 0
-                          ? "rgba(232,69,69,0.20)" : "transparent",
+                          ? "var(--autocity-accent-20)" : "transparent",
                         border: `1px solid ${(isMobile ? showMobileFilters : showDesktopFilters) || activeFilterCount > 0
-                          ? "rgba(232,69,69,0.30)" : th.cardBorder}`,
+                          ? "var(--autocity-accent-30)" : th.cardBorder}`,
                         color: th.cardTitle,
                       }}
                     >
                       <Filter className="h-5 w-5" />
                       <span className="hidden md:inline">Filters</span>
                       {activeFilterCount > 0 && (
-                        <span className="px-2 py-0.5 bg-[#E84545] text-white text-xs rounded-full font-semibold">{activeFilterCount}</span>
+                        <span className="px-2 py-0.5 bg-[color:var(--autocity-accent)] text-white text-xs rounded-full font-semibold">{activeFilterCount}</span>
                       )}
                     </button>
 
@@ -1059,7 +1059,7 @@ export default function NewSalePage() {
                     {/* Add Labor */}
                     <button
                       onClick={() => setActiveOverlay('addLabor')}
-                      className="flex items-center space-x-2 px-4 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-lg hover:from-[#cc3c3c] hover:to-[#E84545] whitespace-nowrap transition-all shadow-lg hover:shadow-[#E84545]/30"
+                      className="flex items-center space-x-2 px-4 py-3 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-lg hover:from-[var(--autocity-accent-strong)] hover:to-[var(--autocity-accent)] whitespace-nowrap transition-all shadow-lg hover:shadow-[color:var(--autocity-accent-30)]"
                     >
                       <Wrench className="h-5 w-5" />
                       <span className="hidden md:inline">Add Labor</span>
@@ -1097,7 +1097,7 @@ export default function NewSalePage() {
                           <select
                             value={value}
                             onChange={(e) => onChange(e.target.value)}
-                            className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                            className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                             style={inputStyle}
                           >
                             {opts.map(([v, l]) => <option key={v} value={v} style={{ background: selectOptBg }}>{l}</option>)}
@@ -1110,8 +1110,8 @@ export default function NewSalePage() {
                           disabled={activeFilterCount === 0}
                           className="w-full px-4 py-2 border rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           style={{
-                            background: "rgba(232,69,69,0.10)",
-                            border: `1px solid rgba(232,69,69,0.30)`,
+                            background: "var(--autocity-accent-10)",
+                            border: `1px solid var(--autocity-accent-30)`,
                             color: th.cardTitle,
                           }}
                         >
@@ -1125,21 +1125,21 @@ export default function NewSalePage() {
                   {activeFilterCount > 0 && !showDesktopFilters && !isMobile && (
                     <div className="flex flex-wrap gap-2 mt-3">
                       {filterCategory !== "all" && (
-                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs text-white" style={{ background: "rgba(232,69,69,0.20)", border: "1px solid rgba(232,69,69,0.30)" }}>
+                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs text-white" style={{ background: "var(--autocity-accent-20)", border: "1px solid var(--autocity-accent-30)" }}>
                           Category: {categories.find((c) => c._id === filterCategory)?.name}
-                          <button onClick={() => setFilterCategory("all")} className="ml-1 hover:text-[#E84545]"><X className="h-3 w-3" /></button>
+                          <button onClick={() => setFilterCategory("all")} className="ml-1 hover:text-[color:var(--autocity-accent)]"><X className="h-3 w-3" /></button>
                         </span>
                       )}
                       {filterMake !== "all" && (
-                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs text-white" style={{ background: "rgba(232,69,69,0.20)", border: "1px solid rgba(232,69,69,0.30)" }}>
+                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs text-white" style={{ background: "var(--autocity-accent-20)", border: "1px solid var(--autocity-accent-30)" }}>
                           Make: {filterMake}
-                          <button onClick={() => setFilterMake("all")} className="ml-1 hover:text-[#E84545]"><X className="h-3 w-3" /></button>
+                          <button onClick={() => setFilterMake("all")} className="ml-1 hover:text-[color:var(--autocity-accent)]"><X className="h-3 w-3" /></button>
                         </span>
                       )}
                       {filterYear !== "all" && (
-                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs text-white" style={{ background: "rgba(232,69,69,0.20)", border: "1px solid rgba(232,69,69,0.30)" }}>
+                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs text-white" style={{ background: "var(--autocity-accent-20)", border: "1px solid var(--autocity-accent-30)" }}>
                           Year: {filterYear}
-                          <button onClick={() => setFilterYear("all")} className="ml-1 hover:text-[#E84545]"><X className="h-3 w-3" /></button>
+                          <button onClick={() => setFilterYear("all")} className="ml-1 hover:text-[color:var(--autocity-accent)]"><X className="h-3 w-3" /></button>
                         </span>
                       )}
                     </div>
@@ -1153,7 +1153,7 @@ export default function NewSalePage() {
                           {filteredProducts.length} product{filteredProducts.length !== 1 ? "s" : ""} found
                         </p>
                         {activeFilterCount > 0 && (
-                          <button onClick={clearFilters} className="text-xs text-[#E84545] hover:text-[#cc3c3c] transition-colors">
+                          <button onClick={clearFilters} className="text-xs text-[color:var(--autocity-accent)] hover:text-[color:var(--autocity-accent-strong)] transition-colors">
                             Clear all filters
                           </button>
                         )}
@@ -1182,14 +1182,14 @@ export default function NewSalePage() {
                                   else (document.querySelector('input[placeholder*="Search"]') as HTMLInputElement)?.focus();
                                 }
                               }}
-                              className="p-4 rounded-lg cursor-pointer transition-all group focus:outline-none focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                              className="p-4 rounded-lg cursor-pointer transition-all group focus:outline-none focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                               style={{ background: th.productItemBg, border: `1px solid ${th.productItemBorder}` }}
-                              onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(232,69,69,0.50)")}
+                              onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--autocity-accent-50)")}
                               onMouseLeave={(e) => (e.currentTarget.style.borderColor = th.productItemBorder)}
                             >
                               <div className="flex justify-between items-start">
                                 <div className="flex-1 min-w-0">
-                                  <h3 className="font-semibold group-hover:text-[#E84545] transition-colors truncate" style={{ color: th.productItemName }}>
+                                  <h3 className="font-semibold group-hover:text-[color:var(--autocity-accent)] transition-colors truncate" style={{ color: th.productItemName }}>
                                     {product.name}
                                   </h3>
                                   <div className="space-y-1 mt-1">
@@ -1199,8 +1199,8 @@ export default function NewSalePage() {
                                     {product.category?.name && <p className="text-xs truncate" style={{ color: th.emptySubtext }}>{product.category.name}</p>}
                                     {product.isVehicle && (
                                       <div className="flex items-center gap-1 flex-wrap">
-                                        <Car className="h-3 w-3 text-[#E84545]" />
-                                        <span className="text-xs text-[#E84545]">{product.carMake} {product.carModel}{product.variant && ` ${product.variant}`}</span>
+                                        <Car className="h-3 w-3 text-[color:var(--autocity-accent)]" />
+                                        <span className="text-xs text-[color:var(--autocity-accent)]">{product.carMake} {product.carModel}{product.variant && ` ${product.variant}`}</span>
                                         {(product.yearFrom || product.yearTo) && (
                                           <span className="text-xs" style={{ color: th.productItemSku }}>
                                             | {product.yearFrom && product.yearTo ? `${product.yearFrom}-${product.yearTo}` : product.yearFrom ? `${product.yearFrom}+` : `Up to ${product.yearTo}`}
@@ -1213,7 +1213,7 @@ export default function NewSalePage() {
                                   </div>
                                 </div>
                                 <div className="text-right ml-3 flex-shrink-0">
-                                  <p className="font-bold text-[#E84545] whitespace-nowrap">QAR {product.sellingPrice}</p>
+                                  <p className="font-bold text-[color:var(--autocity-accent)] whitespace-nowrap">QAR {product.sellingPrice}</p>
                                   <p className="text-xs" style={{ color: th.productItemStock }}>Stock: {product.currentStock}</p>
                                 </div>
                               </div>
@@ -1228,7 +1228,7 @@ export default function NewSalePage() {
                 {/* Cart */}
                 <div className="rounded-lg shadow-lg p-6" style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}>
                   <h2 className="text-xl font-bold mb-4 flex items-center" style={{ color: th.cardTitle }}>
-                    <ShoppingCart className="h-5 w-5 mr-2 text-[#E84545]" />
+                    <ShoppingCart className="h-5 w-5 mr-2 text-[color:var(--autocity-accent)]" />
                     Cart ({cart.length} items)
                   </h2>
                   <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
@@ -1244,7 +1244,7 @@ export default function NewSalePage() {
                           <div className="flex justify-between items-start mb-2">
                             <div>
                               <h3 className="font-semibold flex items-center" style={{ color: th.cartItemName }}>
-                                {item.isLabor && <Wrench className="h-4 w-4 mr-2 text-[#E84545]" />}
+                                {item.isLabor && <Wrench className="h-4 w-4 mr-2 text-[color:var(--autocity-accent)]" />}
                                 {item.productName}
                               </h3>
                               {item.isVehicle && (
@@ -1254,7 +1254,7 @@ export default function NewSalePage() {
                               )}
                               <p className="text-xs mt-1" style={{ color: th.cartItemSku }}>SKU: {item.sku}</p>
                             </div>
-                            <button onClick={() => removeFromCart(index)} className="text-[#E84545] hover:text-[#cc3c3c] transition-colors">
+                            <button onClick={() => removeFromCart(index)} className="text-[color:var(--autocity-accent)] hover:text-[color:var(--autocity-accent-strong)] transition-colors">
                               <Trash2 className="h-5 w-5" />
                             </button>
                           </div>
@@ -1264,20 +1264,20 @@ export default function NewSalePage() {
                               <div className="grid grid-cols-4 gap-2 mt-3">
                                 <input type="number" value={item.quantity} min="1" placeholder="Qty"
                                   onChange={(e) => updateCartItem(item.productId!, "quantity", parseFloat(e.target.value) || 1)}
-                                  className="px-3 py-2 rounded text-sm focus:ring-1 focus:ring-[#E84545] focus:border-transparent"
+                                  className="px-3 py-2 rounded text-sm focus:ring-1 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                                   style={inputStyle} />
                                 <input type="number" value={item.sellingPrice} min="0" placeholder="Price"
                                   onChange={(e) => updateCartItem(item.productId!, "sellingPrice", parseFloat(e.target.value) || 0)}
-                                  className="px-3 py-2 rounded text-sm focus:ring-1 focus:ring-[#E84545] focus:border-transparent"
+                                  className="px-3 py-2 rounded text-sm focus:ring-1 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                                   style={inputStyle} />
                                 <input type="number" value={item.discount} min="0"
                                   placeholder={item.discountType === "percentage" ? "%" : "QAR"}
                                   onChange={(e) => updateCartItem(item.productId!, "discount", parseFloat(e.target.value) || 0)}
-                                  className="px-3 py-2 rounded text-sm focus:ring-1 focus:ring-[#E84545] focus:border-transparent"
+                                  className="px-3 py-2 rounded text-sm focus:ring-1 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                                   style={inputStyle} />
                                 <button
                                   onClick={() => updateCartItem(item.productId!, "discountType", item.discountType === "percentage" ? "fixed" : "percentage")}
-                                  className="px-2 py-2 rounded text-xs flex items-center justify-center transition-colors hover:bg-[#E84545]/10"
+                                  className="px-2 py-2 rounded text-xs flex items-center justify-center transition-colors hover:bg-[color:var(--autocity-accent-10)]"
                                   style={inputStyle}
                                   title={`Switch to ${item.discountType === "percentage" ? "Fixed" : "Percentage"}`}
                                 >
@@ -1285,7 +1285,7 @@ export default function NewSalePage() {
                                 </button>
                               </div>
                               {item.discount > 0 && (
-                                <div className="mt-2 text-xs text-[#E84545]">
+                                <div className="mt-2 text-xs text-[color:var(--autocity-accent)]">
                                   Discount: {item.discountType === "percentage"
                                     ? `${item.discount}% (QAR ${((item.sellingPrice * item.quantity * item.discount) / 100).toFixed(2)})`
                                     : `QAR ${item.discount.toFixed(2)} (${((item.discount / (item.sellingPrice * item.quantity)) * 100).toFixed(1)}%)`}
@@ -1322,7 +1322,7 @@ export default function NewSalePage() {
                     <select
                       value={selectedCustomer?._id || ""}
                       onChange={(e) => setSelectedCustomer(customers.find((c) => c._id === e.target.value))}
-                      className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                      className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                       style={inputStyle}
                     >
                       <option value="" style={{ background: selectOptBg }}>Select Customer</option>
@@ -1344,7 +1344,7 @@ export default function NewSalePage() {
                   </div>
                   <button
                     onClick={() => setActiveOverlay('addCustomer')}
-                    className="w-full flex items-center justify-center space-x-2 px-3 py-3 border-2 border-dashed border-[#E84545]/50 text-[#E84545] rounded-lg hover:border-[#E84545] hover:bg-[#E84545]/10 transition-colors"
+                    className="w-full flex items-center justify-center space-x-2 px-3 py-3 border-2 border-dashed border-[color:var(--autocity-accent-50)] text-[color:var(--autocity-accent)] rounded-lg hover:border-[color:var(--autocity-accent)] hover:bg-[color:var(--autocity-accent-10)] transition-colors"
                   >
                     <Plus className="h-4 w-4" />
                     <span>Quick Add Customer (C)</span>
@@ -1361,13 +1361,13 @@ export default function NewSalePage() {
                       onChange={(e) => setOverallDiscount(parseFloat(e.target.value) || 0)}
                       placeholder="0"
                       min="0"
-                      className="flex-1 px-3 py-2 rounded-lg focus:ring-1 focus:ring-[#E84545] focus:border-transparent"
+                      className="flex-1 px-3 py-2 rounded-lg focus:ring-1 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                       style={inputStyle}
                     />
                     <select
                       value={overallDiscountType}
                       onChange={(e) => setOverallDiscountType(e.target.value as any)}
-                      className="px-3 py-2 rounded-lg focus:ring-1 focus:ring-[#E84545] focus:border-transparent"
+                      className="px-3 py-2 rounded-lg focus:ring-1 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                       style={inputStyle}
                     >
                       <option value="percentage" style={{ background: selectOptBg }}>%</option>
@@ -1376,7 +1376,7 @@ export default function NewSalePage() {
                   </div>
                   {overallDiscount > 0 && (
                     <div className="p-3 rounded-lg" style={{ background: th.discountHighlightBg, border: `1px solid ${th.discountHighlightBorder}` }}>
-                      <p className="text-sm text-[#E84545] font-medium">Discount: QAR {totals.overallDiscountAmount.toFixed(2)}</p>
+                      <p className="text-sm text-[color:var(--autocity-accent)] font-medium">Discount: QAR {totals.overallDiscountAmount.toFixed(2)}</p>
                       <p className="text-xs mt-1" style={{ color: th.cardSubtext }}>
                         {overallDiscountType === "percentage" ? `${overallDiscount}% off subtotal` : `Fixed discount of QAR ${overallDiscount}`}
                       </p>
@@ -1392,7 +1392,7 @@ export default function NewSalePage() {
                       <select
                         value={payment.method}
                         onChange={(e) => updatePayment(index, "method", e.target.value)}
-                        className="w-full px-3 py-2 mb-2 rounded text-sm focus:ring-1 focus:ring-[#E84545] focus:border-transparent"
+                        className="w-full px-3 py-2 mb-2 rounded text-sm focus:ring-1 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                         style={inputStyle}
                       >
                         {["cash", "card", "bank_transfer", "cheque"].map((m) => (
@@ -1406,7 +1406,7 @@ export default function NewSalePage() {
                         value={payment.amount}
                         onChange={(e) => updatePayment(index, "amount", parseFloat(e.target.value) || 0)}
                         placeholder="Amount"
-                        className="w-full px-3 py-2 rounded text-sm focus:ring-1 focus:ring-[#E84545] focus:border-transparent"
+                        className="w-full px-3 py-2 rounded text-sm focus:ring-1 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                         style={inputStyle}
                       />
                       {(payment.method === "bank_transfer" || payment.method === "cheque" || payment.reference) && (
@@ -1415,7 +1415,7 @@ export default function NewSalePage() {
                           value={payment.reference || ""}
                           onChange={(e) => updatePayment(index, "reference", e.target.value)}
                           placeholder="Reference / Cheque No."
-                          className="w-full px-3 py-2 mt-2 rounded text-sm focus:ring-1 focus:ring-[#E84545] focus:border-transparent"
+                          className="w-full px-3 py-2 mt-2 rounded text-sm focus:ring-1 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                           style={inputStyle}
                         />
                       )}
@@ -1423,9 +1423,9 @@ export default function NewSalePage() {
                   ))}
                   <button
                     onClick={() => setPayments([...payments, { id: `payment-${Date.now()}`, method: "cash", amount: 0 }])}
-                    className="w-full flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-colors hover:text-[#E84545]"
+                    className="w-full flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-colors hover:text-[color:var(--autocity-accent)]"
                     style={{ border: `1px dashed ${th.cardBorder}`, color: th.cardSubtext }}
-                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#E84545")}
+                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--autocity-accent)")}
                     onMouseLeave={(e) => (e.currentTarget.style.borderColor = th.cardBorder)}
                   >
                     <Plus className="h-4 w-4" />
@@ -1445,7 +1445,7 @@ export default function NewSalePage() {
                     ].filter((r) => r.show).map(({ label, value, red }) => (
                       <div key={label} className="flex justify-between py-2" style={{ borderBottom: `1px solid ${th.summaryDivider}` }}>
                         <span style={{ color: th.summaryLabel }}>{label}</span>
-                        <span style={{ color: red ? "#E84545" : th.summaryValue }}>{value}</span>
+                        <span style={{ color: red ? "var(--autocity-accent)" : th.summaryValue }}>{value}</span>
                       </div>
                     ))}
                     <div className="flex justify-between py-3 font-bold text-lg" style={{ borderTop: `1px solid ${th.summaryDivider}` }}>
@@ -1458,14 +1458,14 @@ export default function NewSalePage() {
                     </div>
                     <div className="flex justify-between py-2 font-semibold">
                       <span style={{ color: th.summaryBoldLabel }}>Balance:</span>
-                      <span className="text-[#E84545]">QAR {(totals.total - totals.totalPaid).toFixed(2)}</span>
+                      <span className="text-[color:var(--autocity-accent)]">QAR {(totals.total - totals.totalPaid).toFixed(2)}</span>
                     </div>
                   </div>
 
                   <button
                     onClick={handleSubmit}
                     disabled={loading || cart.length === 0 || !selectedCustomer}
-                    className="w-full mt-6 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-lg font-semibold hover:from-[#cc3c3c] hover:to-[#E84545] disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-[#E84545]/30"
+                    className="w-full mt-6 py-3 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-lg font-semibold hover:from-[var(--autocity-accent-strong)] hover:to-[var(--autocity-accent)] disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-[color:var(--autocity-accent-30)]"
                   >
                     {loading ? (
                       <span className="flex items-center justify-center">
@@ -1628,7 +1628,7 @@ export default function NewSalePage() {
                       <input type={type} value={(newCustomer as any)[key]}
                         onChange={(e) => setNewCustomer({ ...newCustomer, [key]: e.target.value })}
                         placeholder={ph}
-                        className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                        className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                         style={inputStyle} />
                     </div>
                   ))}
@@ -1636,7 +1636,7 @@ export default function NewSalePage() {
                     <label htmlFor="new-customer-address" className="block text-sm font-medium mb-1" style={{ color: th.modalSectionLabel }}>Address</label>
                     <textarea id="new-customer-address" value={newCustomer.address} onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
                       rows={2} placeholder="Customer address"
-                      className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                      className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                       style={inputStyle} />
                   </div>
                 </div>
@@ -1644,14 +1644,14 @@ export default function NewSalePage() {
                 {/* Vehicle section */}
                 <div className="pt-6" style={{ borderTop: `1px solid ${th.modalSectionBorder}` }}>
                   <h3 className="text-sm font-semibold mb-3 flex items-center" style={{ color: th.modalTitle }}>
-                    <Car className="h-4 w-4 mr-2 text-[#E84545]" />Vehicle Information (Optional)
+                    <Car className="h-4 w-4 mr-2 text-[color:var(--autocity-accent)]" />Vehicle Information (Optional)
                   </h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="col-span-2">
                       <label htmlFor="new-customer-reg" className="block text-sm font-medium mb-1" style={{ color: th.modalSectionLabel }}>Registration Number</label>
                       <input id="new-customer-reg" type="text" value={newCustomer.vehicleRegistrationNumber}
                         onChange={(e) => setNewCustomer({ ...newCustomer, vehicleRegistrationNumber: e.target.value.toUpperCase() })}
-                        placeholder="ABC-1234" className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent uppercase"
+                        placeholder="ABC-1234" className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent uppercase"
                         style={inputStyle} />
                     </div>
                     {[
@@ -1681,7 +1681,7 @@ export default function NewSalePage() {
                         <label className="block text-sm font-medium mb-1" style={{ color: th.modalSectionLabel }}>{label}</label>
                         <select value={(newCustomer as any)[key]} onChange={(e) => onChange(e.target.value)}
                           disabled={disabled}
-                          className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                           style={inputStyle}>
                           {opts.map(([v, l]) => <option key={v} value={v} style={{ background: selectOptBg }}>{l}</option>)}
                         </select>
@@ -1692,7 +1692,7 @@ export default function NewSalePage() {
                       <input id="new-customer-vin" type="text" value={newCustomer.vehicleVIN}
                         onChange={(e) => setNewCustomer({ ...newCustomer, vehicleVIN: e.target.value.toUpperCase() })}
                         placeholder="Vehicle Identification Number"
-                        className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent uppercase"
+                        className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent uppercase"
                         style={inputStyle} />
                     </div>
                   </div>
@@ -1705,7 +1705,7 @@ export default function NewSalePage() {
                     Cancel
                   </button>
                   <button onClick={handleAddCustomer}
-                    className="px-4 py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-lg hover:from-[#cc3c3c] hover:to-[#E84545] transition-all">
+                    className="px-4 py-2 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-lg hover:from-[var(--autocity-accent-strong)] hover:to-[var(--autocity-accent)] transition-all">
                     Add Customer
                   </button>
                 </div>
@@ -1720,7 +1720,7 @@ export default function NewSalePage() {
             <div className="rounded-lg shadow-2xl max-w-md w-full" style={{ background: th.modalBg, border: `1px solid ${th.modalBorder}` }}>
               <div className="flex justify-between items-center px-6 py-4 border-b" style={{ background: th.modalHeaderBg, borderColor: th.modalSectionBorder }}>
                 <h2 className="text-xl font-bold flex items-center" style={{ color: th.modalTitle }}>
-                  <Wrench className="h-5 w-5 mr-2 text-[#E84545]" />Add Labor Charge
+                  <Wrench className="h-5 w-5 mr-2 text-[color:var(--autocity-accent)]" />Add Labor Charge
                 </h2>
                 <button onClick={() => setActiveOverlay(null)} style={{ color: th.modalClose }}><X className="h-6 w-6" /></button>
               </div>
@@ -1730,7 +1730,7 @@ export default function NewSalePage() {
                   <input id="labor-desc" type="text" value={laborCharge.description}
                     onChange={(e) => setLaborCharge({ ...laborCharge, description: e.target.value })}
                     placeholder="e.g., Engine repair, Oil change"
-                    className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                    className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                     style={inputStyle} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -1742,7 +1742,7 @@ export default function NewSalePage() {
                       <label className="block text-sm font-medium mb-1" style={{ color: th.modalTitle }}>{label}</label>
                       <input type="number" value={(laborCharge as any)[key]} min={min} step={step}
                         onChange={(e) => setLaborCharge({ ...laborCharge, [key]: parseFloat(e.target.value) || 0 })}
-                        className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                        className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                         style={inputStyle} />
                     </div>
                   ))}
@@ -1751,7 +1751,7 @@ export default function NewSalePage() {
                   <label htmlFor="labor-tax" className="block text-sm font-medium mb-1" style={{ color: th.modalTitle }}>Tax Rate (%)</label>
                   <input id="labor-tax" type="number" value={laborCharge.taxRate} min="0"
                     onChange={(e) => setLaborCharge({ ...laborCharge, taxRate: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                    className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                     style={inputStyle} />
                 </div>
                 <div className="p-4 rounded-lg" style={{ background: th.customerCardBg, border: `1px solid ${th.customerCardBorder}` }}>
@@ -1772,7 +1772,7 @@ export default function NewSalePage() {
                     Cancel
                   </button>
                   <button onClick={handleAddLabor}
-                    className="px-4 py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-lg hover:from-[#cc3c3c] hover:to-[#E84545] transition-all">
+                    className="px-4 py-2 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-lg hover:from-[var(--autocity-accent-strong)] hover:to-[var(--autocity-accent)] transition-all">
                     Add Labor
                   </button>
                 </div>
@@ -1821,7 +1821,7 @@ export default function NewSalePage() {
                     Clear All
                   </button>
                   <button onClick={() => setActiveOverlay(null)}
-                    className="flex-1 px-4 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] rounded-xl text-white font-semibold active:scale-95 transition-all">
+                    className="flex-1 px-4 py-3 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] rounded-xl text-white font-semibold active:scale-95 transition-all">
                     Apply Filters
                   </button>
                 </div>

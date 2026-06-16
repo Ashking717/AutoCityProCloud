@@ -38,7 +38,7 @@ export default function ProductCard({ product, onEdit, onDelete, formatYearRange
       {/* Top row: name + stock */}
       <div className="flex justify-between items-start mb-3">
         <div className="flex items-start gap-2 flex-1 min-w-0">
-          {product.isVehicle && <Car className="h-4 w-4 text-[#E84545] flex-shrink-0 mt-0.5" />}
+          {product.isVehicle && <Car className="h-4 w-4 text-[color:var(--autocity-accent)] flex-shrink-0 mt-0.5" />}
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold truncate transition-colors" style={{ color: th.textPrimary }}>
               {product.name}
@@ -82,7 +82,7 @@ export default function ProductCard({ product, onEdit, onDelete, formatYearRange
         >
           <div className="text-xs space-y-1">
             <div className="flex items-center font-medium" style={{ color: th.textSecondary }}>
-              <Car className="h-3 w-3 mr-1 text-[#E84545]" />
+              <Car className="h-3 w-3 mr-1 text-[color:var(--autocity-accent)]" />
               <span>{product.carMake}</span>
               {product.carModel && <span className="ml-1">• {product.carModel}</span>}
             </div>
@@ -109,7 +109,7 @@ export default function ProductCard({ product, onEdit, onDelete, formatYearRange
         <div className="flex gap-2">
           <button
             onClick={e => { e.stopPropagation(); onEdit(product); }}
-            className="p-2 rounded-lg bg-[#E84545]/10 text-[#E84545] hover:bg-[#E84545]/20 active:scale-95 transition-all"
+            className="p-2 rounded-lg bg-[color:var(--autocity-accent-10)] text-[color:var(--autocity-accent)] hover:bg-[color:var(--autocity-accent-20)] active:scale-95 transition-all"
             title="Edit"
           >
             <Edit className="h-4 w-4" />

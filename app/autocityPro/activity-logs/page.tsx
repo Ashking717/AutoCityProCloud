@@ -85,15 +85,15 @@ export default function ActivityLogsPage() {
   const th = {
     pageBg:           isDark ? '#050505'                                              : '#f3f4f6',
     // Desktop header
-    headerBgFrom:     isDark ? '#932222'                                              : '#fef2f2',
-    headerBgVia:      isDark ? '#411010'                                              : '#fee2e2',
-    headerBgTo:       isDark ? '#a20c0c'                                              : '#fecaca',
+    headerBgFrom:     isDark ? 'var(--autocity-header-from-dark)'                                              : 'var(--autocity-header-from-light)',
+    headerBgVia:      isDark ? 'var(--autocity-header-via-dark)'                                              : 'var(--autocity-header-via-light)',
+    headerBgTo:       isDark ? 'var(--autocity-header-to-dark)'                                              : 'var(--autocity-header-to-light)',
     headerBorder:     isDark ? 'rgba(255,255,255,0.05)'                               : 'rgba(0,0,0,0.06)',
-    headerTitle:      isDark ? '#ffffff'                                              : '#7f1d1d',
-    headerSub:        isDark ? 'rgba(255,255,255,0.80)'                               : '#991b1b',
+    headerTitle:      isDark ? '#ffffff'                                              : 'var(--autocity-header-text-light)',
+    headerSub:        isDark ? 'rgba(255,255,255,0.80)'                               : 'var(--autocity-header-sub-light)',
     headerBtnBg:      isDark ? 'rgba(255,255,255,0.10)'                               : 'rgba(0,0,0,0.08)',
     headerBtnBorder:  isDark ? 'rgba(255,255,255,0.20)'                               : 'rgba(0,0,0,0.15)',
-    headerBtnText:    isDark ? '#ffffff'                                              : '#7f1d1d',
+    headerBtnText:    isDark ? '#ffffff'                                              : 'var(--autocity-header-text-light)',
     headerBtnHover:   isDark ? 'rgba(255,255,255,0.20)'                               : 'rgba(0,0,0,0.14)',
     // Mobile header
     mobileHeaderBg:   isDark ? 'linear-gradient(135deg,#0A0A0A,#050505,#0A0A0A)'     : 'linear-gradient(135deg,#ffffff,#f9fafb,#ffffff)',
@@ -324,7 +324,7 @@ export default function ActivityLogsPage() {
                         color: isDark ? 'rgba(255,255,255,0.70)' : '#374151',
                       }}
                     >
-                      {isDark ? <Moon className="h-3 w-3 text-[#E84545]" /> : <Sun className="h-3 w-3 text-[#E84545]" />}
+                      {isDark ? <Moon className="h-3 w-3 text-[color:var(--autocity-accent)]" /> : <Sun className="h-3 w-3 text-[color:var(--autocity-accent)]" />}
                     </div>
                   </div>
                   <p className="text-xs" style={{ color: th.mobileHeaderSub }}>{pagination.total} records</p>
@@ -348,7 +348,7 @@ export default function ActivityLogsPage() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                   placeholder="Search logs..."
-                  className="w-full pl-10 pr-4 py-2 rounded-xl text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent transition-colors duration-500"
+                  className="w-full pl-10 pr-4 py-2 rounded-xl text-sm focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent transition-colors duration-500"
                   style={{ background: th.mobileSearchBg, border: `1px solid ${th.mobileSearchBorder}`, color: th.mobileSearchText }}
                 />
               </div>
@@ -404,20 +404,20 @@ export default function ActivityLogsPage() {
           <div className="hidden md:block space-y-4 mb-6">
             <div className="flex gap-4">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-3 h-5 w-5 text-[#E84545]" />
+                <Search className="absolute left-3 top-3 h-5 w-5 text-[color:var(--autocity-accent)]" />
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                   placeholder="Search activity logs..."
-                  className="w-full pl-10 pr-4 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent transition-colors duration-500"
+                  className="w-full pl-10 pr-4 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent transition-colors duration-500"
                   style={inputStyle}
                 />
               </div>
               <button
                 onClick={handleSearch}
-                className="px-6 py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-lg hover:opacity-90 transition-opacity"
+                className="px-6 py-2 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-lg hover:opacity-90 transition-opacity"
               >
                 Search
               </button>
@@ -425,8 +425,8 @@ export default function ActivityLogsPage() {
                 onClick={() => setShowFilters(!showFilters)}
                 className="flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors"
                 style={{
-                  background: showFilters ? 'rgba(232,69,69,0.15)' : th.filterPanelBg,
-                  border: `1px solid ${showFilters ? 'rgba(232,69,69,0.30)' : th.filterPanelBorder}`,
+                  background: showFilters ? 'var(--autocity-accent-15)' : th.filterPanelBg,
+                  border: `1px solid ${showFilters ? 'var(--autocity-accent-30)' : th.filterPanelBorder}`,
                   color: th.filterInputText,
                 }}
               >
@@ -443,7 +443,7 @@ export default function ActivityLogsPage() {
                 <div>
                   <label htmlFor="logs-module" className="block text-sm font-medium mb-1" style={{ color: th.filterLabelText }}>Module</label>
                   <select id="logs-module" value={filterModule} onChange={(e) => setFilterModule(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent capitalize transition-colors duration-500"
+                    className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent capitalize transition-colors duration-500"
                     style={inputStyle}
                   >
                     {modules.map(mod => <option key={mod} value={mod} className="capitalize">{mod}</option>)}
@@ -452,7 +452,7 @@ export default function ActivityLogsPage() {
                 <div>
                   <label htmlFor="logs-action-type" className="block text-sm font-medium mb-1" style={{ color: th.filterLabelText }}>Action Type</label>
                   <select id="logs-action-type" value={filterActionType} onChange={(e) => setFilterActionType(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent capitalize transition-colors duration-500"
+                    className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent capitalize transition-colors duration-500"
                     style={inputStyle}
                   >
                     {actionTypes.map(type => <option key={type} value={type} className="capitalize">{type}</option>)}
@@ -461,14 +461,14 @@ export default function ActivityLogsPage() {
                 <div>
                   <label htmlFor="logs-start-date" className="block text-sm font-medium mb-1" style={{ color: th.filterLabelText }}>Start Date</label>
                   <input id="logs-start-date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent transition-colors duration-500"
+                    className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent transition-colors duration-500"
                     style={inputStyle}
                   />
                 </div>
                 <div>
                   <label htmlFor="logs-end-date" className="block text-sm font-medium mb-1" style={{ color: th.filterLabelText }}>End Date</label>
                   <input id="logs-end-date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent transition-colors duration-500"
+                    className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent transition-colors duration-500"
                     style={inputStyle}
                   />
                 </div>
@@ -476,9 +476,9 @@ export default function ActivityLogsPage() {
                   <button
                     onClick={clearFilters}
                     className="w-full px-4 py-2 rounded-lg transition-colors"
-                    style={{ background: 'rgba(232,69,69,0.10)', border: '1px solid rgba(232,69,69,0.30)', color: th.filterInputText }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(232,69,69,0.20)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'rgba(232,69,69,0.10)')}
+                    style={{ background: 'var(--autocity-accent-10)', border: '1px solid var(--autocity-accent-30)', color: th.filterInputText }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--autocity-accent-20)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'var(--autocity-accent-10)')}
                   >
                     Clear Filters
                   </button>
@@ -494,7 +494,7 @@ export default function ActivityLogsPage() {
           >
             {loading ? (
               <div className="p-8 text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E84545] mx-auto mb-4" />
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[color:var(--autocity-accent)] mx-auto mb-4" />
                 <p style={{ color: th.tableCellMuted }}>Loading activity logs...</p>
               </div>
             ) : (
@@ -574,7 +574,7 @@ export default function ActivityLogsPage() {
                         background: `linear-gradient(135deg,${th.mobileCardBgFrom},${th.mobileCardBgTo})`,
                         border: `1px solid ${th.mobileCardBorder}`,
                       }}
-                      onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(232,69,69,0.30)')}
+                      onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--autocity-accent-30)')}
                       onMouseLeave={e => (e.currentTarget.style.borderColor = th.mobileCardBorder)}
                     >
                       <div className="flex items-start justify-between mb-2">
@@ -694,7 +694,7 @@ export default function ActivityLogsPage() {
                 </button>
                 <button
                   onClick={() => setShowFilters(false)}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] rounded-xl text-white font-semibold active:scale-95 transition-all"
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] rounded-xl text-white font-semibold active:scale-95 transition-all"
                 >
                   Apply
                 </button>

@@ -333,7 +333,7 @@ export default function ContraVoucherPage() {
             <div className="bg-black rounded-[28px] px-6 py-3 shadow-2xl border border-white/10 backdrop-blur-xl pointer-events-auto animate-in slide-in-from-top duration-500">
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
-                  <ArrowLeftRight className="h-3 w-3 text-[#E84545]" />
+                  <ArrowLeftRight className="h-3 w-3 text-[color:var(--autocity-accent)]" />
                   <span className="text-white text-xs font-semibold">Contra</span>
                 </div>
                 <div className="h-3 w-px bg-white/20"></div>
@@ -349,8 +349,8 @@ export default function ContraVoucherPage() {
                     </>
                   ) : (
                     <>
-                      <AlertCircle className="h-3 w-3 text-[#E84545]" />
-                      <span className="text-[#E84545] text-xs font-medium">Unbalanced</span>
+                      <AlertCircle className="h-3 w-3 text-[color:var(--autocity-accent)]" />
+                      <span className="text-[color:var(--autocity-accent)] text-xs font-medium">Unbalanced</span>
                     </>
                   )}
                 </div>
@@ -380,7 +380,7 @@ export default function ContraVoucherPage() {
             <div className="flex items-center justify-between pt-3 border-t border-white/10">
               <div>
                 <p className="text-xs text-white/60 mb-1">Total Amount</p>
-                <p className="text-sm font-semibold text-[#E84545]">
+                <p className="text-sm font-semibold text-[color:var(--autocity-accent)]">
                   {formatCompactCurrency(totals.totalDebit)}
                 </p>
               </div>
@@ -396,7 +396,7 @@ export default function ContraVoucherPage() {
         </div>
 
         {/* Desktop Header */}
-        <div className="hidden md:block py-12 bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-lg">
+        <div className="hidden md:block py-12 bg-gradient-to-br from-[var(--autocity-header-from-dark)] via-[var(--autocity-header-via-dark)] to-[var(--autocity-header-to-dark)] border-b border-white/5 shadow-lg">
           <div className="px-8">
             <div className="flex justify-between items-center">
               <div className="flex items-center space-x-4">
@@ -435,47 +435,47 @@ export default function ContraVoucherPage() {
         <div className="px-4 md:px-8 pt-[180px] md:pt-6 pb-6">
           {/* Stats Cards - Mobile Optimized */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
-            <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 hover:border-[#E84545]/30 transition-all active:scale-[0.98]">
+            <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 hover:border-[color:var(--autocity-accent-30)] transition-all active:scale-[0.98]">
               <div className="flex items-center justify-between mb-2">
-                <div className="p-2 bg-[#E84545]/10 rounded-xl">
-                  <ArrowLeftRight className="h-4 w-4 md:h-5 md:w-5 text-[#E84545]" />
+                <div className="p-2 bg-[color:var(--autocity-accent-10)] rounded-xl">
+                  <ArrowLeftRight className="h-4 w-4 md:h-5 md:w-5 text-[color:var(--autocity-accent)]" />
                 </div>
               </div>
               <p className="text-xs text-slate-400 mb-1">Entries</p>
               <p className="text-lg md:text-xl font-bold text-white">{entries.length}</p>
             </div>
 
-            <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 hover:border-[#E84545]/30 transition-all active:scale-[0.98]">
+            <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 hover:border-[color:var(--autocity-accent-30)] transition-all active:scale-[0.98]">
               <div className="flex items-center justify-between mb-2">
-                <div className="p-2 bg-[#E84545]/10 rounded-xl">
-                  <DollarSign className="h-4 w-4 md:h-5 md:w-5 text-[#E84545]" />
+                <div className="p-2 bg-[color:var(--autocity-accent-10)] rounded-xl">
+                  <DollarSign className="h-4 w-4 md:h-5 md:w-5 text-[color:var(--autocity-accent)]" />
                 </div>
               </div>
               <p className="text-xs text-slate-400 mb-1">Total Debit</p>
-              <p className="text-lg md:text-xl font-bold text-[#E84545] truncate">
+              <p className="text-lg md:text-xl font-bold text-[color:var(--autocity-accent)] truncate">
                 {formatCompactCurrency(totals.totalDebit)}
               </p>
             </div>
 
-            <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 hover:border-[#E84545]/30 transition-all active:scale-[0.98]">
+            <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 hover:border-[color:var(--autocity-accent-30)] transition-all active:scale-[0.98]">
               <div className="flex items-center justify-between mb-2">
-                <div className="p-2 bg-[#E84545]/10 rounded-xl">
-                  <DollarSign className="h-4 w-4 md:h-5 md:w-5 text-[#E84545]" />
+                <div className="p-2 bg-[color:var(--autocity-accent-10)] rounded-xl">
+                  <DollarSign className="h-4 w-4 md:h-5 md:w-5 text-[color:var(--autocity-accent)]" />
                 </div>
               </div>
               <p className="text-xs text-slate-400 mb-1">Total Credit</p>
-              <p className="text-lg md:text-xl font-bold text-[#E84545] truncate">
+              <p className="text-lg md:text-xl font-bold text-[color:var(--autocity-accent)] truncate">
                 {formatCompactCurrency(totals.totalCredit)}
               </p>
             </div>
 
-            <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 hover:border-[#E84545]/30 transition-all active:scale-[0.98]">
+            <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-4 hover:border-[color:var(--autocity-accent-30)] transition-all active:scale-[0.98]">
               <div className="flex items-center justify-between mb-2">
-                <div className="p-2 bg-[#E84545]/10 rounded-xl">
+                <div className="p-2 bg-[color:var(--autocity-accent-10)] rounded-xl">
                   {isBalanced ? (
                     <div className="h-4 w-4 md:h-5 md:w-5 rounded-full bg-green-500"></div>
                   ) : (
-                    <AlertCircle className="h-4 w-4 md:h-5 md:w-5 text-[#E84545]" />
+                    <AlertCircle className="h-4 w-4 md:h-5 md:w-5 text-[color:var(--autocity-accent)]" />
                   )}
                 </div>
               </div>
@@ -490,10 +490,10 @@ export default function ContraVoucherPage() {
 
           {/* Quick Voucher Section */}
           {showQuickVoucher && (
-            <div className="bg-gradient-to-br from-[#E84545]/10 via-[#0A0A0A] to-[#050505] border border-[#E84545]/30 rounded-2xl p-6 mb-6">
+            <div className="bg-gradient-to-br from-[var(--autocity-accent-10)] via-[#0A0A0A] to-[#050505] border border-[color:var(--autocity-accent-30)] rounded-2xl p-6 mb-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-[#E84545] rounded-xl">
+                  <div className="p-2 bg-[color:var(--autocity-accent)] rounded-xl">
                     <Zap className="h-5 w-5 text-white" />
                   </div>
                   <div>
@@ -512,11 +512,11 @@ export default function ContraVoucherPage() {
                       onClick={() => setQuickVoucherType('withdrawal')}
                       className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
                         quickVoucherType === 'withdrawal'
-                          ? 'border-[#E84545] bg-[#E84545]/10'
+                          ? 'border-[color:var(--autocity-accent)] bg-[color:var(--autocity-accent-10)]'
                           : 'border-white/10 bg-white/5 hover:border-white/20'
                       }`}
                     >
-                      <Wallet className="h-5 w-5 text-[#E84545]" />
+                      <Wallet className="h-5 w-5 text-[color:var(--autocity-accent)]" />
                       <div className="text-left">
                         <p className="text-sm font-semibold text-white">Withdrawal</p>
                         <p className="text-xs text-slate-400">From Bank</p>
@@ -527,11 +527,11 @@ export default function ContraVoucherPage() {
                       onClick={() => setQuickVoucherType('deposit')}
                       className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
                         quickVoucherType === 'deposit'
-                          ? 'border-[#E84545] bg-[#E84545]/10'
+                          ? 'border-[color:var(--autocity-accent)] bg-[color:var(--autocity-accent-10)]'
                           : 'border-white/10 bg-white/5 hover:border-white/20'
                       }`}
                     >
-                      <Building2 className="h-5 w-5 text-[#E84545]" />
+                      <Building2 className="h-5 w-5 text-[color:var(--autocity-accent)]" />
                       <div className="text-left">
                         <p className="text-sm font-semibold text-white">Deposit</p>
                         <p className="text-xs text-slate-400">To Bank</p>
@@ -546,7 +546,7 @@ export default function ContraVoucherPage() {
                   <select
                     value={selectedBankAccount}
                     onChange={(e) => setSelectedBankAccount(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white"
+                    className="w-full px-3 py-2.5 bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent text-white"
                   >
                     <option value="" className="text-slate-800">Select Bank Account</option>
                     {cashBankAccounts
@@ -566,7 +566,7 @@ export default function ContraVoucherPage() {
                   <select
                     value={selectedCashAccount}
                     onChange={(e) => setSelectedCashAccount(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white"
+                    className="w-full px-3 py-2.5 bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent text-white"
                   >
                     <option value="" className="text-slate-800">Select Cash Account</option>
                     {cashBankAccounts
@@ -590,7 +590,7 @@ export default function ContraVoucherPage() {
                     min="0"
                     step="0.01"
                     placeholder="0.00"
-                    className="w-full px-3 py-2.5 bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white text-right text-lg font-semibold"
+                    className="w-full px-3 py-2.5 bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent text-white text-right text-lg font-semibold"
                   />
                   </label>
                 </div>
@@ -599,7 +599,7 @@ export default function ContraVoucherPage() {
                 <div className="flex items-end">
                   <button
                     onClick={handleQuickVoucher}
-                    className="w-full px-4 py-2.5 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-lg hover:opacity-90 transition-all active:scale-95 font-semibold"
+                    className="w-full px-4 py-2.5 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-lg hover:opacity-90 transition-all active:scale-95 font-semibold"
                   >
                     Create Quick Voucher
                   </button>
@@ -611,7 +611,7 @@ export default function ContraVoucherPage() {
           {!showQuickVoucher && (
             <button
               onClick={() => setShowQuickVoucher(true)}
-              className="w-full mb-6 px-4 py-3 bg-gradient-to-r from-[#E84545]/20 to-[#cc3c3c]/20 border border-[#E84545]/30 text-white rounded-xl hover:from-[#E84545]/30 hover:to-[#cc3c3c]/30 transition-all active:scale-95 flex items-center justify-center gap-2"
+              className="w-full mb-6 px-4 py-3 bg-gradient-to-r from-[var(--autocity-accent-20)] to-[var(--autocity-accent-20)] border border-[color:var(--autocity-accent-30)] text-white rounded-xl hover:from-[var(--autocity-accent)]/30 hover:to-[var(--autocity-accent-strong)]/30 transition-all active:scale-95 flex items-center justify-center gap-2"
             >
               <Zap className="h-5 w-5" />
               <span className="font-semibold">Show Quick Voucher</span>
@@ -624,12 +624,12 @@ export default function ContraVoucherPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">
-                  Date <span className="text-[#E84545]">*</span>
+                  Date <span className="text-[color:var(--autocity-accent)]">*</span>
                 <input
                   type="date"
                   value={formData.date}
                   onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white"
+                  className="w-full px-3 py-2.5 bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent text-white"
                 />
                 </label>
               </div>
@@ -641,20 +641,20 @@ export default function ContraVoucherPage() {
                   value={formData.referenceNumber}
                   onChange={(e) => setFormData({ ...formData, referenceNumber: e.target.value })}
                   placeholder="Optional"
-                  className="w-full px-3 py-2.5 bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white"
+                  className="w-full px-3 py-2.5 bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent text-white"
                 />
                 </label>
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">
-                  Narration <span className="text-[#E84545]">*</span>
+                  Narration <span className="text-[color:var(--autocity-accent)]">*</span>
                 <input
                   type="text"
                   value={formData.narration}
                   onChange={(e) => setFormData({ ...formData, narration: e.target.value })}
                   placeholder="e.g., Withdrawal from bank"
-                  className="w-full px-3 py-2.5 bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white"
+                  className="w-full px-3 py-2.5 bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent text-white"
                 />
                 </label>
               </div>
@@ -670,7 +670,7 @@ export default function ContraVoucherPage() {
               </div>
               <button
                 onClick={addEntry}
-                className="p-2 bg-[#E84545] text-white rounded-lg hover:bg-[#cc3c3c] active:scale-95 transition-all"
+                className="p-2 bg-[color:var(--autocity-accent)] text-white rounded-lg hover:bg-[color:var(--autocity-accent-strong)] active:scale-95 transition-all"
               >
                 <Plus className="h-5 w-5" />
               </button>
@@ -784,7 +784,7 @@ export default function ContraVoucherPage() {
               </div>
               <button
                 onClick={addEntry}
-                className="flex items-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-lg hover:opacity-90 transition-opacity active:scale-95"
+                className="flex items-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-lg hover:opacity-90 transition-opacity active:scale-95"
               >
                 <Plus className="h-5 w-5" />
                 <span>Add Entry</span>
@@ -809,7 +809,7 @@ export default function ContraVoucherPage() {
                         <select
                           value={entry.accountId}
                           onChange={(e) => updateEntry(index, 'accountId', e.target.value)}
-                          className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white"
+                          className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent text-white"
                         >
                           <option value="" className="text-slate-800">Select Account</option>
                           {cashBankAccounts.map(acc => (
@@ -825,7 +825,7 @@ export default function ContraVoucherPage() {
                           value={entry.narration}
                           onChange={(e) => updateEntry(index, 'narration', e.target.value)}
                           placeholder="Entry description"
-                          className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white"
+                          className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent text-white"
                         />
                       </td>
                       <td className="px-4 py-4">
@@ -835,7 +835,7 @@ export default function ContraVoucherPage() {
                           onChange={(e) => updateEntry(index, 'debit', e.target.value)}
                           min="0"
                           step="0.01"
-                          className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white text-right"
+                          className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent text-white text-right"
                           placeholder="0.00"
                         />
                       </td>
@@ -846,7 +846,7 @@ export default function ContraVoucherPage() {
                           onChange={(e) => updateEntry(index, 'credit', e.target.value)}
                           min="0"
                           step="0.01"
-                          className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent text-white text-right"
+                          className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent text-white text-right"
                           placeholder="0.00"
                         />
                       </td>
@@ -916,7 +916,7 @@ export default function ContraVoucherPage() {
             <button
               onClick={() => handleSubmit('posted')}
               disabled={loading || !isBalanced}
-              className="w-full md:w-auto flex items-center justify-center space-x-2 px-6 py-3.5 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl hover:opacity-90 disabled:opacity-50 transition-all active:scale-[0.98]"
+              className="w-full md:w-auto flex items-center justify-center space-x-2 px-6 py-3.5 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-xl hover:opacity-90 disabled:opacity-50 transition-all active:scale-[0.98]"
             >
               {loading ? (
                 <>

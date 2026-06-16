@@ -218,15 +218,15 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
 
   const th = {
     pageBg: isDark ? '#050505' : '#f3f4f6',
-    headerBgFrom: isDark ? '#932222' : '#fef2f2',
-    headerBgVia: isDark ? '#411010' : '#fee2e2',
-    headerBgTo: isDark ? '#a20c0c' : '#fecaca',
-    headerTitle: isDark ? '#ffffff' : '#7f1d1d',
-    headerSub: isDark ? 'rgba(255,255,255,0.80)' : '#991b1b',
+    headerBgFrom: isDark ? 'var(--autocity-header-from-dark)' : 'var(--autocity-header-from-light)',
+    headerBgVia: isDark ? 'var(--autocity-header-via-dark)' : 'var(--autocity-header-via-light)',
+    headerBgTo: isDark ? 'var(--autocity-header-to-dark)' : 'var(--autocity-header-to-light)',
+    headerTitle: isDark ? '#ffffff' : 'var(--autocity-header-text-light)',
+    headerSub: isDark ? 'rgba(255,255,255,0.80)' : 'var(--autocity-header-sub-light)',
     headerBorder: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)',
     headerBtnBg: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)',
     headerBtnBorder: isDark ? 'rgba(255,255,255,0.20)' : 'rgba(0,0,0,0.15)',
-    headerBtnText: isDark ? '#ffffff' : '#7f1d1d',
+    headerBtnText: isDark ? '#ffffff' : 'var(--autocity-header-text-light)',
     containerBg: isDark ? 'linear-gradient(135deg,#0A0A0A,#050505)' : '#ffffff',
     containerBorder: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)',
     cardBg: isDark ? 'rgba(10,10,10,0.50)' : 'rgba(255,255,255,0.80)',
@@ -244,8 +244,8 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
     secondaryText: isDark ? '#d1d5db' : '#374151',
     pillBg: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
     pillBorder: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)',
-    infoBg: isDark ? 'rgba(232,69,69,0.05)' : 'rgba(232,69,69,0.04)',
-    infoBorder: isDark ? 'rgba(232,69,69,0.15)' : 'rgba(232,69,69,0.12)',
+    infoBg: isDark ? 'var(--autocity-accent-05)' : 'var(--autocity-accent-04)',
+    infoBorder: isDark ? 'var(--autocity-accent-15)' : 'var(--autocity-accent-12)',
     mapRowBg: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
     mapRowBorder: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
   };
@@ -604,18 +604,18 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                   onClick={() => { setImportMode("fast"); setStep("upload"); }}
                   className="group text-left p-6 rounded-2xl border-2 transition-all hover:scale-[1.01] active:scale-[0.99]"
                   style={{
-                    background: isDark ? 'rgba(232,69,69,0.04)' : 'rgba(232,69,69,0.02)',
-                    borderColor: isDark ? 'rgba(232,69,69,0.20)' : 'rgba(232,69,69,0.15)',
+                    background: isDark ? 'var(--autocity-accent-04)' : 'var(--autocity-accent-02)',
+                    borderColor: isDark ? 'var(--autocity-accent-20)' : 'var(--autocity-accent-15)',
                   }}>
                   <div className="flex items-start gap-4">
-                    <div className="p-3 rounded-xl shrink-0" style={{ background: 'rgba(232,69,69,0.12)', border: '1px solid rgba(232,69,69,0.20)' }}>
-                      <Zap size={22} style={{ color: '#E84545' }} />
+                    <div className="p-3 rounded-xl shrink-0" style={{ background: 'var(--autocity-accent-12)', border: '1px solid var(--autocity-accent-20)' }}>
+                      <Zap size={22} style={{ color: 'var(--autocity-accent)' }} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="text-base font-bold" style={{ color: th.primaryText }}>Bulk Fast Entry</h3>
                         <span className="text-xs px-2 py-0.5 rounded-full font-medium"
-                          style={{ background: 'rgba(232,69,69,0.12)', color: '#E84545' }}>Recommended</span>
+                          style={{ background: 'var(--autocity-accent-12)', color: 'var(--autocity-accent)' }}>Recommended</span>
                       </div>
                       <p className="text-sm mb-4" style={{ color: th.mutedText }}>
                         Import brand new products with all details — prices, categories, car specs, stock levels, and more.
@@ -637,7 +637,7 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                       </div>
                     </div>
                   </div>
-                  <div className="mt-4 flex items-center gap-1.5 text-sm font-semibold" style={{ color: '#E84545' }}>
+                  <div className="mt-4 flex items-center gap-1.5 text-sm font-semibold" style={{ color: 'var(--autocity-accent)' }}>
                     Select this mode <ArrowRight size={14} />
                   </div>
                 </button>
@@ -688,7 +688,7 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
 
               {/* Info footer */}
               <div className="flex items-start gap-3 p-4 rounded-xl text-sm" style={{ background: th.infoBg, border: `1px solid ${th.infoBorder}` }}>
-                <Info size={15} className="mt-0.5 shrink-0" style={{ color: '#E84545' }} />
+                <Info size={15} className="mt-0.5 shrink-0" style={{ color: 'var(--autocity-accent)' }} />
                 <p style={{ color: th.mutedText }}>
                   Both modes use the same CSV/Excel file format. Download the template below if you don't have a file yet.
                   You can switch modes by going back to this screen.
@@ -697,7 +697,7 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
 
               <div className="flex justify-center">
                 <button onClick={downloadTemplate} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium active:scale-95 transition-all"
-                  style={{ background: 'rgba(232,69,69,0.08)', border: '1px solid rgba(232,69,69,0.25)', color: '#E84545' }}>
+                  style={{ background: 'var(--autocity-accent-08)', border: '1px solid var(--autocity-accent-25)', color: 'var(--autocity-accent)' }}>
                   <FileDown size={15} /> Download CSV Template
                 </button>
               </div>
@@ -715,9 +715,9 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                 </button>
                 <div className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg"
                   style={{
-                    background: importMode === "fast" ? 'rgba(232,69,69,0.08)' : 'rgba(59,130,246,0.08)',
-                    border: importMode === "fast" ? '1px solid rgba(232,69,69,0.20)' : '1px solid rgba(59,130,246,0.20)',
-                    color: importMode === "fast" ? '#E84545' : '#3b82f6',
+                    background: importMode === "fast" ? 'var(--autocity-accent-08)' : 'rgba(59,130,246,0.08)',
+                    border: importMode === "fast" ? '1px solid var(--autocity-accent-20)' : '1px solid rgba(59,130,246,0.20)',
+                    color: importMode === "fast" ? 'var(--autocity-accent)' : '#3b82f6',
                   }}>
                   {importMode === "fast" ? <Zap size={11} /> : <List size={11} />}
                   {importMode === "fast" ? "Fast Entry Mode" : "Stock Edit Mode"}
@@ -730,8 +730,8 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                 onDragLeave={() => setIsDragging(false)} onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
                 className="rounded-2xl border-2 border-dashed p-16 text-center cursor-pointer transition-all"
-                style={{ borderColor: isDragging ? '#E84545' : th.inputBorder, background: isDragging ? 'rgba(232,69,69,0.04)' : th.cardBg }}>
-                <Upload size={32} className="mx-auto mb-3" style={{ color: isDragging ? '#E84545' : th.faintText }} />
+                style={{ borderColor: isDragging ? 'var(--autocity-accent)' : th.inputBorder, background: isDragging ? 'var(--autocity-accent-04)' : th.cardBg }}>
+                <Upload size={32} className="mx-auto mb-3" style={{ color: isDragging ? 'var(--autocity-accent)' : th.faintText }} />
                 <p className="text-base font-semibold mb-1" style={{ color: th.primaryText }}>Drop your file here</p>
                 <p className="text-sm mb-1" style={{ color: th.mutedText }}>or click to browse</p>
                 <p className="text-xs" style={{ color: th.faintText }}>Supports .csv, .xlsx, .xls</p>
@@ -747,7 +747,7 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                   <p className="text-xs mb-3" style={{ color: th.mutedText }}>Download a pre-filled CSV with all supported columns and an example row.</p>
                   <button onClick={e => { e.stopPropagation(); downloadTemplate(); }}
                     className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium active:scale-95 transition-all"
-                    style={{ background: 'rgba(232,69,69,0.10)', border: '1px solid rgba(232,69,69,0.30)', color: '#E84545' }}>
+                    style={{ background: 'var(--autocity-accent-10)', border: '1px solid var(--autocity-accent-30)', color: 'var(--autocity-accent)' }}>
                     <Download size={13} /> Download Template
                   </button>
                 </div>
@@ -790,7 +790,7 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                       <ArrowRight size={14} style={{ color: th.faintText }} />
                       <select value={mapped}
                         onChange={e => setColumnMap(prev => ({ ...prev, [header]: e.target.value as ProductField | "" }))}
-                        className="w-full px-3 py-2 rounded-lg text-sm appearance-none focus:ring-2 focus:ring-[#E84545] focus:border-transparent transition-colors"
+                        className="w-full px-3 py-2 rounded-lg text-sm appearance-none focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent transition-colors"
                         style={inputStyle}>
                         <option value="">— Skip this column —</option>
                         {PRODUCT_FIELDS.map(f => <option key={f.key} value={f.key}>{f.label}{f.required ? " *" : ""}</option>)}
@@ -814,7 +814,7 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                 </button>
                 <button onClick={applyMapping} disabled={!hasMappedName}
                   className="px-5 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
-                  style={{ background: '#E84545', color: '#ffffff' }}>
+                  style={{ background: 'var(--autocity-accent)', color: '#ffffff' }}>
                   Preview & Validate →
                 </button>
               </div>
@@ -991,7 +991,7 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                 <>
                   {rows.some(r => r.categoryName && !r.categoryId) && (
                     <div className="flex items-start gap-3 p-4 rounded-xl text-sm" style={{ background: th.infoBg, border: `1px solid ${th.infoBorder}` }}>
-                      <Info size={15} className="mt-0.5 shrink-0" style={{ color: '#E84545' }} />
+                      <Info size={15} className="mt-0.5 shrink-0" style={{ color: 'var(--autocity-accent)' }} />
                       <p style={{ color: th.mutedText }}>
                         <strong style={{ color: th.secondaryText }}>New categories will be created automatically: </strong>
                         {[...new Set(rows.filter(r => r.categoryName && !r.categoryId).map(r => r.categoryName))].join(", ")}
@@ -1017,9 +1017,9 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                     <button key={f} onClick={() => setFilterStatus(f)}
                       className="px-4 py-2 rounded-xl text-sm font-medium transition-all capitalize active:scale-95"
                       style={{
-                        background: filterStatus === f ? '#E84545' : th.pillBg,
+                        background: filterStatus === f ? 'var(--autocity-accent)' : th.pillBg,
                         color: filterStatus === f ? '#ffffff' : th.mutedText,
-                        border: `1px solid ${filterStatus === f ? '#E84545' : th.pillBorder}`,
+                        border: `1px solid ${filterStatus === f ? 'var(--autocity-accent)' : th.pillBorder}`,
                       }}>
                       {f}{f !== "all" && ` (${f === "errors" ? stats.withErrors : f === "warnings" ? stats.withWarnings : stats.clean})`}
                     </button>
@@ -1115,7 +1115,7 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                     </button>
                     <button onClick={startImport} disabled={stats.valid === 0}
                       className="px-5 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95 disabled:opacity-40"
-                      style={{ background: '#E84545', color: '#ffffff' }}>
+                      style={{ background: 'var(--autocity-accent)', color: '#ffffff' }}>
                       Import {stats.valid} Product{stats.valid !== 1 ? "s" : ""}
                     </button>
                   </div>
@@ -1141,7 +1141,7 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
           {step === "importing" && (
             <>
               <div className="text-center py-4">
-                <Loader2 size={32} className="mx-auto mb-3 animate-spin" style={{ color: '#E84545' }} />
+                <Loader2 size={32} className="mx-auto mb-3 animate-spin" style={{ color: 'var(--autocity-accent)' }} />
                 <h2 className="text-lg font-bold mb-1" style={{ color: th.primaryText }}>Importing Products…</h2>
                 <p className="text-sm" style={{ color: th.mutedText }}>Creating products · logging inventory movements · posting to accounting ledger</p>
               </div>
@@ -1152,7 +1152,7 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                   <span style={{ color: th.primaryText }}>{importProgress.total > 0 ? Math.round((importProgress.done / importProgress.total) * 100) : 0}%</span>
                 </div>
                 <div className="h-2 rounded-full overflow-hidden" style={{ background: th.pillBg }}>
-                  <div className="h-full rounded-full transition-all duration-300" style={{ background: '#E84545', width: `${importProgress.total > 0 ? (importProgress.done / importProgress.total) * 100 : 0}%` }} />
+                  <div className="h-full rounded-full transition-all duration-300" style={{ background: 'var(--autocity-accent)', width: `${importProgress.total > 0 ? (importProgress.done / importProgress.total) * 100 : 0}%` }} />
                 </div>
               </div>
 
@@ -1177,7 +1177,7 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                   {rows.filter(r => r.errors.length === 0).map(row => (
                     <div key={row._rowIndex} className="flex items-center gap-3 px-4 py-2.5">
                       <div className="shrink-0">
-                        {row.status === "importing" ? <Loader2 size={14} className="animate-spin" style={{ color: '#E84545' }} />
+                        {row.status === "importing" ? <Loader2 size={14} className="animate-spin" style={{ color: 'var(--autocity-accent)' }} />
                           : row.status === "success" ? <CheckCircle2 size={14} style={{ color: '#4ade80' }} />
                             : row.status === "skipped" ? <span className="text-xs" style={{ color: th.faintText }}>–</span>
                               : row.status === "error" ? <XCircle size={14} style={{ color: '#f87171' }} />
@@ -1278,7 +1278,7 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
                   </button>
                   <button onClick={() => router.push("/autocityPro/products")}
                     className="px-6 py-2.5 rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity active:scale-95"
-                    style={{ background: 'linear-gradient(135deg, #E84545, #cc3c3c)', color: '#ffffff' }}>
+                    style={{ background: 'linear-gradient(135deg, var(--autocity-accent), var(--autocity-accent-strong))', color: '#ffffff' }}>
                     View Products →
                   </button>
                 </div>

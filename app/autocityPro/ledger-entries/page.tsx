@@ -395,7 +395,7 @@ export default function LedgerEntriesPage() {
             <div className="bg-black rounded-[28px] px-6 py-3 shadow-2xl border border-white/10 backdrop-blur-xl pointer-events-auto animate-in slide-in-from-top duration-500">
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
-                  <Receipt className="h-3 w-3 text-[#E84545]" />
+                  <Receipt className="h-3 w-3 text-[color:var(--autocity-accent)]" />
                   <span className="text-white text-xs font-semibold">
                     {statistics.entriesCount} entries
                   </span>
@@ -455,14 +455,14 @@ export default function LedgerEntriesPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                 placeholder="Search entries..."
-                className="w-full pl-10 pr-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/70 text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/70 text-sm focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
               />
             </div>
           </div>
         </div>
 
         {/* Desktop Header */}
-        <div className="hidden md:block py-12 bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-lg">
+        <div className="hidden md:block py-12 bg-gradient-to-br from-[var(--autocity-header-from-dark)] via-[var(--autocity-header-via-dark)] to-[var(--autocity-header-to-dark)] border-b border-white/5 shadow-lg">
           <div className="px-8">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-3">
@@ -629,7 +629,7 @@ export default function LedgerEntriesPage() {
             <div className="flex gap-3 mt-4">
               <button
                 onClick={handleSearch}
-                className="flex-1 px-4 py-2 bg-[#E84545] text-white rounded-lg hover:bg-[#cc3c3c] transition-all flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2 bg-[color:var(--autocity-accent)] text-white rounded-lg hover:bg-[color:var(--autocity-accent-strong)] transition-all flex items-center justify-center gap-2"
               >
                 <Search className="h-4 w-4" />
                 <span>Search</span>
@@ -646,7 +646,7 @@ export default function LedgerEntriesPage() {
           {/* Entries List */}
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E84545]"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[color:var(--autocity-accent)]"></div>
             </div>
           ) : entries.length === 0 ? (
             <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl p-8 text-center">
@@ -799,7 +799,7 @@ export default function LedgerEntriesPage() {
                             >
                               {entry.voucherType}
                             </span>
-                            <span className="text-sm font-medium text-[#E84545]">
+                            <span className="text-sm font-medium text-[color:var(--autocity-accent)]">
                               {entry.voucherNumber}
                             </span>
                             {entry.isReversal && (
@@ -835,7 +835,7 @@ export default function LedgerEntriesPage() {
                         <td className="px-6 py-4 text-xs text-slate-400">
                           {entry.referenceType || "-"}
                           {entry.referenceNumber && (
-                            <span className="block text-[#E84545]">
+                            <span className="block text-[color:var(--autocity-accent)]">
                               {entry.referenceNumber}
                             </span>
                           )}
@@ -850,7 +850,7 @@ export default function LedgerEntriesPage() {
               <div ref={observerTarget} className="py-12 min-h-[100px]">
                 {loadingMore && (
                   <div className="flex flex-col items-center justify-center gap-3">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#E84545]"></div>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[color:var(--autocity-accent)]"></div>
                     <p className="text-sm text-slate-400">Loading more entries...</p>
                   </div>
                 )}
@@ -971,7 +971,7 @@ export default function LedgerEntriesPage() {
                     setShowFilters(false);
                     handleSearch();
                   }}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] rounded-lg text-white font-semibold active:scale-95 transition-all"
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] rounded-lg text-white font-semibold active:scale-95 transition-all"
                 >
                   Apply
                 </button>

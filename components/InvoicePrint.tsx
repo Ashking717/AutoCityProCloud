@@ -1,7 +1,7 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element */
 import React, { useEffect, useCallback, useState } from "react";
-import Image from "next/image";
 
 interface InvoiceItem {
   name: string;
@@ -39,6 +39,12 @@ interface OutletUI {
   taxInfo?: {
     taxId?: string;
   };
+  branding?: {
+    logo?: { updatedAt?: string | Date };
+    seal?: { updatedAt?: string | Date };
+    logoUrl?: string;
+    sealUrl?: string;
+  };
   settings?: {
     currency: string;
     taxRate?: number;
@@ -66,6 +72,23 @@ interface InvoicePrintProps {
   outletId: string;
   customerId: string;
   onClose: () => void;
+}
+
+function getOutletBrandingImageUrl(
+  outletId: string,
+  branding: OutletUI["branding"] | undefined,
+  asset: "logo" | "seal",
+  fallback: string
+) {
+  const dbAsset = branding?.[asset];
+  const dbUpdatedAt = dbAsset?.updatedAt ? new Date(dbAsset.updatedAt).getTime() : null;
+
+  if (dbUpdatedAt) {
+    return `/api/outlets/${outletId}/branding/${asset}?v=${dbUpdatedAt}`;
+  }
+
+  const legacyUrl = asset === "logo" ? branding?.logoUrl : branding?.sealUrl;
+  return legacyUrl || fallback;
 }
 
 export default function InvoicePrint({
@@ -119,6 +142,8 @@ export default function InvoicePrint({
 
   const currency = outlet.settings?.currency || "QAR";
   const taxRate = outlet.settings?.taxRate || 0;
+  const logoUrl = getOutletBrandingImageUrl(outletId, outlet.branding, "logo", "/logo.png");
+  const sealUrl = getOutletBrandingImageUrl(outletId, outlet.branding, "seal", "/seal.png");
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4 print:p-0 print:bg-transparent">
@@ -162,12 +187,10 @@ export default function InvoicePrint({
             </div>
 
             <div className="relative w-32 h-32 rounded-full bg-gray-400 flex items-center justify-center overflow-hidden">
-              <Image
-                src="/logo.png"
+              <img
+                src={logoUrl}
                 alt="Logo"
-                fill
-                sizes="128px"
-                className="object-cover"
+                className="h-full w-full object-cover"
               />
             </div>
           </div>
@@ -334,7 +357,7 @@ export default function InvoicePrint({
 
           {/* Signature */}
           <div className="flex justify-end mr-30 mb-12">
-            <Image src="/seal.png" alt="Seal" width={160} height={160} className="rotate-[15deg] opacity-80" />
+            <img src={sealUrl} alt="Seal" className="h-40 w-40 rotate-[15deg] object-contain opacity-80" />
           </div>
 
           {/* Footer */}

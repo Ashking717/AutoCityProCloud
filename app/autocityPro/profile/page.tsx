@@ -35,7 +35,7 @@ const FieldCard = ({ label, children, th }: { label: string; children: React.Rea
   </div>
 );
 
-const SectionCard = ({ title, icon: Icon, iconColor = 'text-[#E84545]', children, action, th }: { title: string; icon: any; iconColor?: string; children: React.ReactNode; action?: React.ReactNode; th: any }) => (
+const SectionCard = ({ title, icon: Icon, iconColor = 'text-[color:var(--autocity-accent)]', children, action, th }: { title: string; icon: any; iconColor?: string; children: React.ReactNode; action?: React.ReactNode; th: any }) => (
   <div className="rounded-2xl p-4 md:p-6 shadow-xl transition-colors duration-500"
     style={{ background: `linear-gradient(135deg,${th.cardBgFrom},${th.cardBgTo})`, border: `1px solid ${th.cardBorder}` }}>
     <div className="flex items-center justify-between mb-4 md:mb-6">
@@ -73,16 +73,16 @@ export default function AdminProfilePage() {
     mobileBtnBg:      isDark ? 'rgba(255,255,255,0.05)'                               : 'rgba(0,0,0,0.05)',
     mobileBtnText:    isDark ? 'rgba(255,255,255,0.80)'                               : '#374151',
     // Desktop header
-    desktopHdrBgFrom: isDark ? '#932222'                                              : '#fef2f2',
-    desktopHdrBgVia:  isDark ? '#411010'                                              : '#fee2e2',
-    desktopHdrBgTo:   isDark ? '#a20c0c'                                              : '#fecaca',
+    desktopHdrBgFrom: isDark ? 'var(--autocity-header-from-dark)'                                              : 'var(--autocity-header-from-light)',
+    desktopHdrBgVia:  isDark ? 'var(--autocity-header-via-dark)'                                              : 'var(--autocity-header-via-light)',
+    desktopHdrBgTo:   isDark ? 'var(--autocity-header-to-dark)'                                              : 'var(--autocity-header-to-light)',
     desktopHdrBorder: isDark ? 'rgba(255,255,255,0.05)'                               : 'rgba(0,0,0,0.06)',
-    desktopHdrTitle:  isDark ? '#ffffff'                                              : '#7f1d1d',
-    desktopHdrSub:    isDark ? 'rgba(255,255,255,0.80)'                               : '#991b1b',
+    desktopHdrTitle:  isDark ? '#ffffff'                                              : 'var(--autocity-header-text-light)',
+    desktopHdrSub:    isDark ? 'rgba(255,255,255,0.80)'                               : 'var(--autocity-header-sub-light)',
     // Theme badge
     badgeBg:          isDark ? 'rgba(0,0,0,0.30)'                                    : 'rgba(255,255,255,0.60)',
-    badgeBorder:      isDark ? 'rgba(255,255,255,0.15)'                               : 'rgba(127,29,29,0.20)',
-    badgeText:        isDark ? 'rgba(255,255,255,0.70)'                               : '#7f1d1d',
+    badgeBorder:      isDark ? 'rgba(255,255,255,0.15)'                               : 'var(--autocity-accent-20)',
+    badgeText:        isDark ? 'rgba(255,255,255,0.70)'                               : 'var(--autocity-header-text-light)',
     // Cards
     cardBgFrom:       isDark ? '#0f172a'                                              : '#ffffff',
     cardBgTo:         isDark ? '#1e293b'                                              : '#f9fafb',
@@ -110,9 +110,9 @@ export default function AdminProfilePage() {
     // Password modal
     modalBg:          isDark ? '#0f172a'                                              : '#ffffff',
     modalBorder:      isDark ? '#334155'                                              : 'rgba(0,0,0,0.10)',
-    modalHdrBg:       isDark ? 'rgba(127,29,29,0.30)'                                 : '#fef2f2',
+    modalHdrBg:       isDark ? 'var(--autocity-accent-30)'                                 : 'var(--autocity-header-from-light)',
     modalHdrBorder:   isDark ? '#334155'                                              : 'rgba(0,0,0,0.06)',
-    modalHdrTitle:    isDark ? '#ffffff'                                              : '#7f1d1d',
+    modalHdrTitle:    isDark ? '#ffffff'                                              : 'var(--autocity-header-text-light)',
     modalLabel:       isDark ? '#d1d5db'                                              : '#374151',
     modalInputBg:     isDark ? '#1e293b'                                              : '#f9fafb',
     modalInputBorder: isDark ? '#334155'                                              : 'rgba(0,0,0,0.10)',
@@ -180,7 +180,7 @@ export default function AdminProfilePage() {
 
   const handleLogout = async () => { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); window.location.href = '/autocityPro/login'; };
 
-  const inputCls = "w-full px-3 py-2 md:px-4 md:py-2.5 text-sm rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent outline-none transition-colors duration-500";
+  const inputCls = "w-full px-3 py-2 md:px-4 md:py-2.5 text-sm rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent outline-none transition-colors duration-500";
   const inputStyle = { background: th.inputBg, border: `1px solid ${th.inputBorder}`, color: th.inputText };
   const modalInputCls = "w-full px-3 py-2 md:px-4 md:py-2.5 text-sm rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none pr-12 transition-colors duration-500";
   const modalInputStyle = { background: th.modalInputBg, border: `1px solid ${th.modalInputBorder}`, color: th.modalInputText };
@@ -190,7 +190,7 @@ export default function AdminProfilePage() {
     <MainLayout user={user} onLogout={handleLogout}>
       <div className="min-h-screen flex items-center justify-center transition-colors duration-500" style={{ background: th.pageBg }}>
         <div className="text-center">
-          <div className="w-12 h-12 md:w-16 md:h-16 border-4 border-[#E84545] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <div className="w-12 h-12 md:w-16 md:h-16 border-4 border-[color:var(--autocity-accent)] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-sm md:text-base" style={{ color: th.loadingText }}>Loading profile...</p>
         </div>
       </div>
@@ -262,14 +262,14 @@ export default function AdminProfilePage() {
               <div className="lg:col-span-1">
                 <div className="rounded-2xl p-6 text-center shadow-xl active:scale-[0.98] transition-all"
                   style={{ background: `linear-gradient(135deg,${th.cardBgFrom},${th.cardBgTo})`, border: `1px solid ${th.cardBorder}` }}>
-                  <div className="w-24 h-24 md:w-32 md:h-32 mx-auto mb-4 bg-gradient-to-br from-[#E84545] to-[#cc3c3c] rounded-full flex items-center justify-center shadow-lg">
+                  <div className="w-24 h-24 md:w-32 md:h-32 mx-auto mb-4 bg-gradient-to-br from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] rounded-full flex items-center justify-center shadow-lg">
                     <User className="w-12 h-12 md:w-16 md:h-16 text-white" />
                   </div>
                   <h2 className="text-lg md:text-xl font-bold mb-1" style={{ color: th.cardTitle }}>{user.firstName} {user.lastName}</h2>
                   <p className="text-sm mb-4" style={{ color: th.cardSub }}>@{user.username}</p>
-                  <div className="inline-flex items-center space-x-2 px-3 py-1.5 bg-[#E84545]/10 border border-[#E84545]/30 rounded-full mb-6">
-                    <Shield className="w-4 h-4 text-[#E84545]" />
-                    <span className="text-xs md:text-sm font-medium text-[#E84545] uppercase">{user.role}</span>
+                  <div className="inline-flex items-center space-x-2 px-3 py-1.5 bg-[color:var(--autocity-accent-10)] border border-[color:var(--autocity-accent-30)] rounded-full mb-6">
+                    <Shield className="w-4 h-4 text-[color:var(--autocity-accent)]" />
+                    <span className="text-xs md:text-sm font-medium text-[color:var(--autocity-accent)] uppercase">{user.role}</span>
                   </div>
                   <div className="flex items-center justify-center space-x-2 text-sm">
                     <CheckCircle className="w-4 h-4 text-green-400" />
@@ -285,7 +285,7 @@ export default function AdminProfilePage() {
                 <SectionCard th={th} title="Personal Information" icon={User}
                   action={!editMode && (
                     <button onClick={() => setEditMode(true)}
-                      className="px-3 py-1.5 md:px-4 md:py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] hover:opacity-90 text-white rounded-lg flex items-center space-x-2 transition-all text-sm active:scale-95">
+                      className="px-3 py-1.5 md:px-4 md:py-2 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] hover:opacity-90 text-white rounded-lg flex items-center space-x-2 transition-all text-sm active:scale-95">
                       <Edit2 className="w-3 h-3 md:w-4 md:h-4" /><span className="hidden sm:inline">Edit Profile</span><span className="sm:hidden">Edit</span>
                     </button>
                   )}>

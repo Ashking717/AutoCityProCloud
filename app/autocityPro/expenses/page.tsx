@@ -57,10 +57,10 @@ export default function ExpensesPage() {
   const th = {
     pageBg:           isDark ? '#050505'                                                    : '#f3f4f6',
     // Desktop header
-    desktopHeaderBg:  isDark ? 'linear-gradient(135deg,#932222,#411010,#a20c0c)'           : 'linear-gradient(135deg,#fef2f2,#fee2e2,#fecaca)',
+    desktopHeaderBg:  isDark ? 'linear-gradient(135deg,var(--autocity-header-from-dark),var(--autocity-header-via-dark),var(--autocity-header-to-dark))'           : 'linear-gradient(135deg,var(--autocity-header-from-light),var(--autocity-header-via-light),var(--autocity-header-to-light))',
     desktopHeaderBorder: isDark ? 'rgba(255,255,255,0.05)'                                 : 'rgba(0,0,0,0.08)',
-    desktopHeaderTitle: isDark ? '#ffffff'                                                  : '#7f1d1d',
-    desktopHeaderSub: isDark ? 'rgba(255,255,255,0.80)'                                    : '#991b1b',
+    desktopHeaderTitle: isDark ? '#ffffff'                                                  : 'var(--autocity-header-text-light)',
+    desktopHeaderSub: isDark ? 'rgba(255,255,255,0.80)'                                    : 'var(--autocity-header-sub-light)',
     // Mobile header
     mobileHeaderBg:   isDark ? 'linear-gradient(135deg,#0A0A0A,#050505,#0A0A0A)'          : 'linear-gradient(135deg,#ffffff,#f9fafb,#ffffff)',
     mobileHeaderBorder: isDark ? 'rgba(255,255,255,0.05)'                                  : 'rgba(0,0,0,0.08)',
@@ -74,22 +74,22 @@ export default function ExpensesPage() {
     mobileSearchText: isDark ? '#ffffff'                                                    : '#111827',
     mobileSearchPH:   isDark ? 'rgba(255,255,255,0.70)'                                    : '#9ca3af',
     // Desktop header buttons
-    desktopBtnBg:     isDark ? 'rgba(255,255,255,0.10)'                                    : 'rgba(127,29,29,0.10)',
-    desktopBtnBorder: isDark ? 'rgba(255,255,255,0.20)'                                    : 'rgba(127,29,29,0.25)',
-    desktopBtnText:   isDark ? '#ffffff'                                                    : '#7f1d1d',
+    desktopBtnBg:     isDark ? 'rgba(255,255,255,0.10)'                                    : 'var(--autocity-accent-10)',
+    desktopBtnBorder: isDark ? 'rgba(255,255,255,0.20)'                                    : 'var(--autocity-accent-25)',
+    desktopBtnText:   isDark ? '#ffffff'                                                    : 'var(--autocity-header-text-light)',
     // Cards
     cardBg:           isDark ? 'linear-gradient(135deg,#0A0A0A,#050505)'                   : 'linear-gradient(135deg,#ffffff,#f9fafb)',
     cardBorder:       isDark ? 'rgba(255,255,255,0.10)'                                    : 'rgba(0,0,0,0.08)',
-    cardBorderHover:  isDark ? 'rgba(232,69,69,0.30)'                                      : 'rgba(232,69,69,0.25)',
+    cardBorderHover:  isDark ? 'var(--autocity-accent-30)'                                      : 'var(--autocity-accent-25)',
     // Stat cards inner
-    statIconBg:       isDark ? 'rgba(232,69,69,0.10)'                                      : 'rgba(232,69,69,0.08)',
+    statIconBg:       isDark ? 'var(--autocity-accent-10)'                                      : 'var(--autocity-accent-08)',
     statLabel:        isDark ? '#94a3b8'                                                    : '#6b7280',
     statValueWhite:   isDark ? '#ffffff'                                                    : '#111827',
     // Alert banner
-    alertBg:          isDark ? 'rgba(232,69,69,0.10)'                                      : 'rgba(254,202,202,0.50)',
-    alertBorder:      isDark ? 'rgba(232,69,69,0.20)'                                      : 'rgba(220,38,38,0.20)',
-    alertText:        isDark ? '#ffffff'                                                    : '#7f1d1d',
-    alertSub:         isDark ? '#cbd5e1'                                                    : '#991b1b',
+    alertBg:          isDark ? 'var(--autocity-accent-10)'                                      : 'rgba(254,202,202,0.50)',
+    alertBorder:      isDark ? 'var(--autocity-accent-20)'                                      : 'rgba(220,38,38,0.20)',
+    alertText:        isDark ? '#ffffff'                                                    : 'var(--autocity-header-text-light)',
+    alertSub:         isDark ? '#cbd5e1'                                                    : 'var(--autocity-header-sub-light)',
     // Filter panel
     filterBg:         isDark ? 'linear-gradient(135deg,#0A0A0A,#050505)'                   : 'linear-gradient(135deg,#ffffff,#f9fafb)',
     filterBorder:     isDark ? 'rgba(255,255,255,0.10)'                                    : 'rgba(0,0,0,0.08)',
@@ -133,7 +133,7 @@ export default function ExpensesPage() {
   };
 
   const inputStyle = { background: th.inputBg, border: `1px solid ${th.inputBorder}`, color: th.inputText };
-  const inputClass = "focus:ring-2 focus:ring-[#E84545] focus:border-transparent";
+  const inputClass = "focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent";
 
   useEffect(() => {
     fetchUser(); fetchExpenses();
@@ -246,7 +246,7 @@ export default function ExpensesPage() {
             <div className="bg-black rounded-[28px] px-6 py-3 shadow-2xl border border-white/10 backdrop-blur-xl pointer-events-auto animate-in slide-in-from-top duration-500">
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
-                  <Receipt className="h-3 w-3 text-[#E84545]" />
+                  <Receipt className="h-3 w-3 text-[color:var(--autocity-accent)]" />
                   <span className="text-white text-xs font-semibold">{formatCompactCurrency(summary.total)}</span>
                 </div>
                 <div className="h-3 w-px bg-white/20" />
@@ -255,13 +255,13 @@ export default function ExpensesPage() {
                   <>
                     <div className="h-3 w-px bg-white/20" />
                     <div className="flex items-center gap-1">
-                      <AlertTriangle className="h-3 w-3 text-[#E84545]" />
-                      <span className="text-[#E84545] text-xs font-medium">{summary.pending}</span>
+                      <AlertTriangle className="h-3 w-3 text-[color:var(--autocity-accent)]" />
+                      <span className="text-[color:var(--autocity-accent)] text-xs font-medium">{summary.pending}</span>
                     </div>
                   </>
                 )}
                 <div className="h-3 w-px bg-white/20" />
-                {isDark ? <Moon className="h-3 w-3 text-[#E84545]" /> : <Sun className="h-3 w-3 text-[#E84545]" />}
+                {isDark ? <Moon className="h-3 w-3 text-[color:var(--autocity-accent)]" /> : <Sun className="h-3 w-3 text-[color:var(--autocity-accent)]" />}
               </div>
             </div>
           </div>
@@ -280,7 +280,7 @@ export default function ExpensesPage() {
                 <div>
                   <h1 className="text-xl font-bold flex items-center gap-1.5" style={{ color: th.mobileHeaderTitle }}>
                     Expenses
-                    {isDark ? <Moon className="h-3.5 w-3.5 text-[#E84545]" /> : <Sun className="h-3.5 w-3.5 text-[#E84545]" />}
+                    {isDark ? <Moon className="h-3.5 w-3.5 text-[color:var(--autocity-accent)]" /> : <Sun className="h-3.5 w-3.5 text-[color:var(--autocity-accent)]" />}
                   </h1>
                   <p className="text-xs" style={{ color: th.mobileHeaderSub }}>{filteredExpenses.length} records</p>
                 </div>
@@ -328,7 +328,7 @@ export default function ExpensesPage() {
                   <Download className="h-4 w-4 group-hover:scale-110 transition-transform" /><span>Export CSV</span>
                 </button>
                 <button onClick={() => setShowCreateModal(true)}
-                  className="flex items-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] border border-[#E84545]/30 text-white rounded-lg hover:opacity-90 transition-all group">
+                  className="flex items-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] border border-[color:var(--autocity-accent-30)] text-white rounded-lg hover:opacity-90 transition-all group">
                   <Plus className="h-4 w-4 group-hover:scale-110 transition-transform" /><span>Record Expense</span>
                 </button>
               </div>
@@ -342,8 +342,8 @@ export default function ExpensesPage() {
             {[
               { icon: Receipt, label: "Total Expenses", value: formatCompactCurrency(summary.total), valueColor: th.statValueWhite },
               { icon: DollarSign, label: "Total Paid", value: formatCompactCurrency(summary.paid), valueColor: '#4ade80' },
-              { icon: TrendingDown, label: "Outstanding", value: formatCompactCurrency(summary.outstanding), valueColor: '#E84545' },
-              { icon: AlertTriangle, label: "Pending", value: summary.pending, valueColor: '#E84545' },
+              { icon: TrendingDown, label: "Outstanding", value: formatCompactCurrency(summary.outstanding), valueColor: 'var(--autocity-accent)' },
+              { icon: AlertTriangle, label: "Pending", value: summary.pending, valueColor: 'var(--autocity-accent)' },
             ].map((stat, i) => (
               <div key={stat.label} className="rounded-2xl p-4 active:scale-[0.98] transition-all border"
                 style={{ background: th.cardBg, borderColor: th.cardBorder }}
@@ -351,7 +351,7 @@ export default function ExpensesPage() {
                 onMouseLeave={e => (e.currentTarget.style.borderColor = th.cardBorder)}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="p-2 rounded-xl" style={{ background: th.statIconBg }}>
-                    <stat.icon className="h-4 w-4 md:h-5 md:w-5 text-[#E84545]" />
+                    <stat.icon className="h-4 w-4 md:h-5 md:w-5 text-[color:var(--autocity-accent)]" />
                   </div>
                 </div>
                 <p className="text-xs mb-1" style={{ color: th.statLabel }}>{stat.label}</p>
@@ -362,10 +362,10 @@ export default function ExpensesPage() {
 
           {/* Pending Alert */}
           {summary.pending > 0 && (
-            <div className="border-l-4 border-[#E84545] p-4 md:p-6 mb-6 rounded-xl active:scale-[0.98] transition-all"
+            <div className="border-l-4 border-[color:var(--autocity-accent)] p-4 md:p-6 mb-6 rounded-xl active:scale-[0.98] transition-all"
               style={{ background: th.alertBg, borderColor: th.alertBorder }}>
               <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 md:h-6 md:w-6 text-[#E84545] flex-shrink-0 mt-0.5" />
+                <AlertTriangle className="h-5 w-5 md:h-6 md:w-6 text-[color:var(--autocity-accent)] flex-shrink-0 mt-0.5" />
                 <div>
                   <h3 className="text-base md:text-lg font-semibold" style={{ color: th.alertText }}>
                     {summary.pending} pending expenses
@@ -433,14 +433,14 @@ export default function ExpensesPage() {
 
             {loading ? (
               <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#E84545]" />
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[color:var(--autocity-accent)]" />
               </div>
             ) : filteredExpenses.length === 0 ? (
               <div className="text-center py-12">
                 <Receipt className="h-16 w-16 mx-auto mb-4" style={{ color: th.emptyIcon }} />
                 <p className="text-lg font-medium" style={{ color: th.emptyText }}>No expenses found</p>
                 <button onClick={() => setShowCreateModal(true)}
-                  className="mt-4 px-6 py-2.5 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-lg hover:opacity-90 transition-opacity inline-flex items-center space-x-2">
+                  className="mt-4 px-6 py-2.5 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-lg hover:opacity-90 transition-opacity inline-flex items-center space-x-2">
                   <Plus className="w-4 h-4" /><span>Record First Expense</span>
                 </button>
               </div>
@@ -459,7 +459,7 @@ export default function ExpensesPage() {
                         <div className="flex justify-between items-start mb-3">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
-                              <CatIcon className="h-3 w-3 text-[#E84545]" />
+                              <CatIcon className="h-3 w-3 text-[color:var(--autocity-accent)]" />
                               <p className="text-sm font-semibold truncate" style={{ color: th.mobileItemText }}>{expense.expenseNumber}</p>
                             </div>
                             <p className="text-xs" style={{ color: th.mobileItemLabel }}>{new Date(expense.expenseDate).toLocaleDateString()}</p>
@@ -483,7 +483,7 @@ export default function ExpensesPage() {
                           </div>
                           <div>
                             <span className="text-[10px] uppercase block mb-1" style={{ color: th.mobileItemLabel }}>Balance</span>
-                            <p className="text-sm font-semibold text-[#E84545]">QR {expense.balanceDue?.toLocaleString()}</p>
+                            <p className="text-sm font-semibold text-[color:var(--autocity-accent)]">QR {expense.balanceDue?.toLocaleString()}</p>
                           </div>
                           <div className="flex items-end justify-end">
                             <Link href={`/autocityPro/expenses/${expense._id}`}>
@@ -528,7 +528,7 @@ export default function ExpensesPage() {
                             <td className="px-6 py-4">
                               <div className="flex items-center space-x-2">
                                 <div className="p-1.5 rounded" style={{ background: th.mobileBtnBg }}>
-                                  <CatIcon className="w-4 h-4 text-[#E84545]" />
+                                  <CatIcon className="w-4 h-4 text-[color:var(--autocity-accent)]" />
                                 </div>
                                 <span style={{ color: th.tableCellText }}>{cfg.label}</span>
                               </div>
@@ -607,7 +607,7 @@ export default function ExpensesPage() {
                   className="flex-1 px-4 py-3 rounded-lg transition-colors active:scale-95 border"
                   style={{ background: th.modalItemBg, borderColor: th.modalItemBorder, color: th.modalItemText }}>Clear</button>
                 <button onClick={() => { fetchExpenses(); setShowFilters(false); }}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] rounded-lg text-white font-semibold active:scale-95 transition-all">Apply</button>
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] rounded-lg text-white font-semibold active:scale-95 transition-all">Apply</button>
               </div>
             </div>
           </div>

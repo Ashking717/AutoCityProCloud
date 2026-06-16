@@ -236,7 +236,7 @@ export default function NewJournalVoucherPage() {
     <MainLayout user={user} onLogout={handleLogout}>
       <div className="min-h-screen bg-[#050505]">
         {/* Header */}
-        <div className="bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-lg">
+        <div className="bg-gradient-to-br from-[var(--autocity-header-from-dark)] via-[var(--autocity-header-via-dark)] to-[var(--autocity-header-to-dark)] border-b border-white/5 shadow-lg">
           <div className="px-4 md:px-8 py-6 md:py-12">
             <div className="flex items-center gap-4 mb-4">
               <button
@@ -257,7 +257,7 @@ export default function NewJournalVoucherPage() {
           {/* Voucher Details Card */}
           <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl shadow-xl p-6 mb-6">
             <div className="flex items-center gap-2 mb-6">
-              <FileText className="h-5 w-5 text-[#E84545]" />
+              <FileText className="h-5 w-5 text-[color:var(--autocity-accent)]" />
               <h2 className="text-xl font-bold text-white">Voucher Details</h2>
             </div>
 
@@ -273,7 +273,7 @@ export default function NewJournalVoucherPage() {
                     type="date"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="w-full pl-10 pr-3 py-2.5 bg-[#050505] border border-white/10 rounded-lg text-white focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                    className="w-full pl-10 pr-3 py-2.5 bg-[#050505] border border-white/10 rounded-lg text-white focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                   />
                 </div>
               </div>
@@ -288,7 +288,7 @@ export default function NewJournalVoucherPage() {
                   value={referenceNumber}
                   onChange={(e) => setReferenceNumber(e.target.value)}
                   placeholder="Optional reference"
-                  className="w-full px-3 py-2.5 bg-[#050505] border border-white/10 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                  className="w-full px-3 py-2.5 bg-[#050505] border border-white/10 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                 />
               </div>
 
@@ -316,7 +316,7 @@ export default function NewJournalVoucherPage() {
                 onChange={(e) => setNarration(e.target.value)}
                 placeholder="Enter voucher narration..."
                 rows={3}
-                className="w-full px-3 py-2.5 bg-[#050505] border border-white/10 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-[#E84545] focus:border-transparent resize-none"
+                className="w-full px-3 py-2.5 bg-[#050505] border border-white/10 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent resize-none"
               />
             </div>
           </div>
@@ -325,12 +325,12 @@ export default function NewJournalVoucherPage() {
           <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl shadow-xl p-6 mb-6">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
-                <BookOpen className="h-5 w-5 text-[#E84545]" />
+                <BookOpen className="h-5 w-5 text-[color:var(--autocity-accent)]" />
                 <h2 className="text-xl font-bold text-white">Journal Entries</h2>
               </div>
               <button
                 onClick={addEntry}
-                className="flex items-center gap-2 px-4 py-2 bg-[#E84545] hover:bg-[#cc3c3c] text-white rounded-lg transition-all active:scale-95"
+                className="flex items-center gap-2 px-4 py-2 bg-[color:var(--autocity-accent)] hover:bg-[color:var(--autocity-accent-strong)] text-white rounded-lg transition-all active:scale-95"
               >
                 <Plus className="h-4 w-4" />
                 <span className="hidden md:inline">Add Entry</span>
@@ -339,7 +339,7 @@ export default function NewJournalVoucherPage() {
 
             {loadingAccounts ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-[#E84545]" />
+                <Loader2 className="h-8 w-8 animate-spin text-[color:var(--autocity-accent)]" />
               </div>
             ) : (
               <div className="space-y-4">
@@ -371,7 +371,7 @@ export default function NewJournalVoucherPage() {
                           id={`journal-account-${entry.id}`}
                           value={entry.accountId}
                           onChange={(e) => updateEntry(entry.id, 'accountId', e.target.value)}
-                          className="w-full px-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                          className="w-full px-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white text-sm focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                         >
                           <option value="">Select account...</option>
                           {accounts.map((account) => (
@@ -396,7 +396,7 @@ export default function NewJournalVoucherPage() {
                             value={entry.debit || ''}
                             onChange={(e) => updateEntry(entry.id, 'debit', parseFloat(e.target.value) || 0)}
                             placeholder="0.00"
-                            className="w-full pl-9 pr-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                            className="w-full pl-9 pr-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white text-sm focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                           />
                         </div>
                       </div>
@@ -415,7 +415,7 @@ export default function NewJournalVoucherPage() {
                             value={entry.credit || ''}
                             onChange={(e) => updateEntry(entry.id, 'credit', parseFloat(e.target.value) || 0)}
                             placeholder="0.00"
-                            className="w-full pl-9 pr-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                            className="w-full pl-9 pr-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white text-sm focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                           />
                         </div>
                       </div>
@@ -430,7 +430,7 @@ export default function NewJournalVoucherPage() {
                           value={entry.narration}
                           onChange={(e) => updateEntry(entry.id, 'narration', e.target.value)}
                           placeholder="Optional"
-                          className="w-full px-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white text-sm placeholder-slate-500 focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                          className="w-full px-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white text-sm placeholder-slate-500 focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                         />
                       </div>
                     </div>
@@ -502,7 +502,7 @@ export default function NewJournalVoucherPage() {
             <button
               onClick={() => handleSubmit('posted')}
               disabled={loading || !isBalanced}
-              className="px-6 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] hover:from-[#cc3c3c] hover:to-[#E84545] text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="px-6 py-3 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] hover:from-[var(--autocity-accent-strong)] hover:to-[var(--autocity-accent)] text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? (
                 <Loader2 className="h-5 w-5 animate-spin" />

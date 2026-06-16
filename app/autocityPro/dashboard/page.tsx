@@ -189,7 +189,7 @@ const DashboardDynamicIsland = ({ th, stats, isDark, formatCompactCurrency }: {
         </div>
         <div className="h-3 w-px" style={{ background: th.islandDivider }} />
         <div className="flex items-center gap-1.5">
-          <Zap className="h-3 w-3 text-[#E84545]" />
+          <Zap className="h-3 w-3 text-[color:var(--autocity-accent)]" />
           <span className="text-xs font-semibold" style={{ color: th.islandText }}>{formatCompactCurrency(stats.todaySales)}</span>
         </div>
         {stats.lowStockItems > 0 && (
@@ -203,8 +203,8 @@ const DashboardDynamicIsland = ({ th, stats, isDark, formatCompactCurrency }: {
         )}
         <div className="h-3 w-px" style={{ background: th.islandDivider }} />
         {isDark
-          ? <Moon className="h-3 w-3 text-[#E84545]" />
-          : <Sun  className="h-3 w-3 text-[#E84545]" />}
+          ? <Moon className="h-3 w-3 text-[color:var(--autocity-accent)]" />
+          : <Sun  className="h-3 w-3 text-[color:var(--autocity-accent)]" />}
       </div>
     </div>
   </div>
@@ -247,7 +247,7 @@ const DashboardMobileHeader = ({ isLoading = false, th, router, user, period, se
               style={{
                 background: th.periodBtnBg,
                 border: `1px solid ${th.periodBtnBorder}`,
-                color: '#E84545',
+                color: 'var(--autocity-accent)',
               }}
             >
               <span>{period.charAt(0).toUpperCase() + period.slice(1)}</span>
@@ -312,13 +312,13 @@ export default function DashboardPage() {
     pageBg:          isDark ? '#050505'                              : '#f3f4f6',
     // Page/section header
     speedoNeddle:    isDark ? 'white'                                : 'black',
-    headerBgFrom:    isDark ? '#932222'                              : '#fef2f2',
-    headerBgVia:     isDark ? '#411010'                              : '#fee2e2',
-    headerBgTo:      isDark ? '#a20c0c'                              : '#fecaca',
+    headerBgFrom:    isDark ? 'var(--autocity-header-from-dark)'                              : 'var(--autocity-header-from-light)',
+    headerBgVia:     isDark ? 'var(--autocity-header-via-dark)'                              : 'var(--autocity-header-via-light)',
+    headerBgTo:      isDark ? 'var(--autocity-header-to-dark)'                              : 'var(--autocity-header-to-light)',
     headerBorder:    isDark ? 'rgba(255,255,255,0.05)'               : 'rgba(0,0,0,0.06)',
-    headerTitle:     isDark ? '#ffffff'                              : '#7f1d1d',
-    headerSubText:   isDark ? 'rgba(255,255,255,0.9)'                : '#991b1b',
-    headerAccent:    '#E84545',
+    headerTitle:     isDark ? '#ffffff'                              : 'var(--autocity-header-text-light)',
+    headerSubText:   isDark ? 'rgba(255,255,255,0.9)'                : 'var(--autocity-header-sub-light)',
+    headerAccent:    'var(--autocity-accent)',
     // Period toggle bar
     toggleBarBg:     isDark ? 'rgba(10,10,10,0.50)'                  : 'rgba(255,255,255,0.80)',
     toggleBarBorder: isDark ? 'rgba(255,255,255,0.05)'               : 'rgba(0,0,0,0.08)',
@@ -327,14 +327,14 @@ export default function DashboardPage() {
     // Icon button (refresh etc.)
     iconBtnBg:       isDark ? 'rgba(10,10,10,0.50)'                  : 'rgba(255,255,255,0.80)',
     iconBtnBorder:   isDark ? 'rgba(255,255,255,0.05)'               : 'rgba(0,0,0,0.08)',
-    iconBtnHoverBorder: 'rgba(232,69,69,0.30)',
+    iconBtnHoverBorder: 'var(--autocity-accent-30)',
     iconBtnIcon:     isDark ? '#9ca3af'                              : '#6b7280',
     // Stat cards
     cardBgFrom:      isDark ? '#0A0A0A'                              : '#ffffff',
     cardBgTo:        isDark ? '#050505'                              : '#f9fafb',
     cardBorder:      isDark ? 'rgba(255,255,255,0.10)'               : 'rgba(0,0,0,0.08)',
-    cardHoverBorder: 'rgba(232,69,69,0.30)',
-    cardHoverShadow: 'rgba(232,69,69,0.05)',
+    cardHoverBorder: 'var(--autocity-accent-30)',
+    cardHoverShadow: 'var(--autocity-accent-05)',
     cardTitle:       isDark ? '#9ca3af'                              : '#6b7280',
     cardValue:       isDark ? '#ffffff'                              : '#111827',
     cardDivider:     isDark ? 'rgba(255,255,255,0.05)'               : 'rgba(0,0,0,0.06)',
@@ -353,7 +353,7 @@ export default function DashboardPage() {
     activityRowBg:   isDark ? 'rgba(10,10,10,0.50)'                  : 'rgba(0,0,0,0.03)',
     activityRowHover: isDark ? '#0A0A0A'                             : 'rgba(0,0,0,0.06)',
     activityRowBorder: isDark ? 'rgba(255,255,255,0.05)'             : 'rgba(0,0,0,0.06)',
-    activityRowHoverBorder: 'rgba(232,69,69,0.20)',
+    activityRowHoverBorder: 'var(--autocity-accent-20)',
     activityText:    isDark ? '#e5e7eb'                              : '#111827',
     activityMeta:    isDark ? '#6b7280'                              : '#9ca3af',
     panelTitle:      isDark ? '#ffffff'                              : '#111827',
@@ -377,8 +377,8 @@ export default function DashboardPage() {
     mobileHeaderSub:   isDark ? 'rgba(255,255,255,0.60)'             : '#6b7280',
     mobileHeaderBtnBg: isDark ? 'rgba(255,255,255,0.05)'             : 'rgba(0,0,0,0.05)',
     mobileHeaderBtnText: isDark ? 'rgba(255,255,255,0.80)'           : '#374151',
-    periodBtnBg:     isDark ? 'rgba(232,69,69,0.10)'                 : 'rgba(232,69,69,0.08)',
-    periodBtnBorder: isDark ? 'rgba(232,69,69,0.20)'                 : 'rgba(232,69,69,0.25)',
+    periodBtnBg:     isDark ? 'var(--autocity-accent-10)'                 : 'var(--autocity-accent-08)',
+    periodBtnBorder: isDark ? 'var(--autocity-accent-20)'                 : 'var(--autocity-accent-25)',
     timeText:        isDark ? 'rgba(255,255,255,0.40)'                : '#9ca3af',
     // Mobile filter / menu modal
     modalBg:         isDark
@@ -403,7 +403,7 @@ export default function DashboardPage() {
     errorSubText:    isDark ? '#9ca3af'                              : '#6b7280',
     // Scrollbar (injected via style tag)
     scrollTrack:     isDark ? '#0A0A0A'                              : '#f1f5f9',
-    scrollThumb:     isDark ? '#E84545'                              : 'rgba(232,69,69,0.6)',
+    scrollThumb:     isDark ? 'var(--autocity-accent)'                              : 'var(--autocity-accent-60)',
   };
 
   // Update current time every minute
@@ -491,7 +491,7 @@ export default function DashboardPage() {
 
   const getActivityIcon = (type: string) => {
     switch (type) {
-      case 'order':     return <ShoppingCart className="h-4 w-4 text-[#E84545]" />;
+      case 'order':     return <ShoppingCart className="h-4 w-4 text-[color:var(--autocity-accent)]" />;
       case 'inventory': return <Package      className="h-4 w-4 text-blue-400" />;
       case 'payment':   return <CreditCard   className="h-4 w-4 text-green-400" />;
       case 'customer':  return <Users        className="h-4 w-4 text-yellow-400" />;
@@ -557,14 +557,14 @@ if (loading && !dashboardData) {
             <div className="px-8 relative z-10">
               <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3" style={{ color: th.headerTitle }}>
                 <div className="relative">
-                  <Gauge className="h-8 w-8 text-[#E84545]" />
+                  <Gauge className="h-8 w-8 text-[color:var(--autocity-accent)]" />
                   {/* Fake speedometer needle revving */}
                   <div className="absolute top-[20%] left-[50%] w-[2px] h-[12px]  origin-bottom -translate-x-1/2 -translate-y-full rounded-t-full" style={{ animation: 'rev-needle 3s ease-in-out infinite', background: isDark ? 'white' : 'black' }} />
                 </div>
                 Dashboard
               </h1>
               <p className="mt-2 flex items-center gap-2 font-medium" style={{ color: th.headerSubText }}>
-                <span className="w-2 h-2 rounded-full bg-[#E84545] animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-[color:var(--autocity-accent)] animate-pulse" />
                 Revving up your metrics...
               </p>
             </div>
@@ -576,7 +576,7 @@ if (loading && !dashboardData) {
             <div className="flex flex-col items-center justify-center py-10 mb-8 rounded-3xl border border-white/5 backdrop-blur-md" 
               style={{ background: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.4)' }}>
               
-              <div className="relative w-full max-w-md h-16 mb-4 overflow-hidden border-b-4 border-[#E84545]/20">
+              <div className="relative w-full max-w-md h-16 mb-4 overflow-hidden border-b-4 border-[color:var(--autocity-accent-20)]">
                 {/* Dashed Road Line */}
                 <div className="absolute bottom-1 w-[200%] h-0.5 bg-transparent" style={{
                   backgroundImage: `linear-gradient(90deg, ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} 50%, transparent 50%)`,
@@ -586,7 +586,7 @@ if (loading && !dashboardData) {
                 
                 {/* Moving Car */}
                 <div className="absolute bottom-2 left-0" style={{ animation: 'drive 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite' }}>
-                  <Car className="h-8 w-8 text-[#E84545] drop-shadow-[0_0_8px_rgba(232,69,69,0.8)]" />
+                  <Car className="h-8 w-8 text-[color:var(--autocity-accent)] drop-shadow-[0_0_8px_var(--autocity-accent-70)]" />
                   {/* Tail lights blur */}
                   <div className="absolute top-1/2 -left-4 w-6 h-2 bg-red-500/50 blur-sm rounded-full" />
                 </div>
@@ -615,12 +615,12 @@ if (loading && !dashboardData) {
           className="text-center max-w-md w-full p-8 rounded-2xl shadow-2xl"
           style={{ background: th.errorBg, border: `1px solid ${th.errorBorder}` }}
         >
-          <AlertCircle className="h-16 w-16 text-[#E84545] mx-auto mb-4" />
+          <AlertCircle className="h-16 w-16 text-[color:var(--autocity-accent)] mx-auto mb-4" />
           <h2 className="text-2xl font-bold mb-2" style={{ color: th.errorText }}>Unable to Load Dashboard</h2>
           <p className="mb-6" style={{ color: th.errorSubText }}>{error}</p>
           <button
             onClick={() => fetchDashboardData()}
-            className="px-6 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-lg"
+            className="px-6 py-3 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-lg"
           >
             Try Again
           </button>
@@ -634,7 +634,7 @@ if (loading && !dashboardData) {
       title: "Today's Sales", mobileTitle: 'Today',
       value: formatCompactCurrency(stats.todaySales),
       icon: DollarSign,
-      gradient: 'from-[#E84545] to-[#cc3c3c]',
+      gradient: 'from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)]',
       change: formatPercentage(percentageChanges.todayVsYesterday.sales),
       changePositive: percentageChanges.todayVsYesterday.sales >= 0,
       description: 'vs yesterday', alert: false,
@@ -643,7 +643,7 @@ if (loading && !dashboardData) {
       title: `${period.charAt(0).toUpperCase() + period.slice(1)} Revenue`, mobileTitle: 'Revenue',
       value: formatCompactCurrency(stats.monthSales),
       icon: TrendingUp,
-      gradient: 'from-[#E84545] to-[#cc3c3c]',
+      gradient: 'from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)]',
       change: formatPercentage(percentageChanges.salesChange),
       changePositive: percentageChanges.salesChange >= 0,
       description: `vs last ${period}`, alert: false,
@@ -715,7 +715,7 @@ if (loading && !dashboardData) {
                     onClick={() => handlePeriodChange(option.value)}
                     className="p-4 rounded-2xl text-left transition-all active:scale-95"
                     style={period === option.value
-                      ? { background: 'linear-gradient(135deg, #E84545, #cc3c3c)', color: '#ffffff', boxShadow: '0 8px 24px rgba(232,69,69,0.20)' }
+                      ? { background: 'linear-gradient(135deg, var(--autocity-accent), var(--autocity-accent-strong))', color: '#ffffff', boxShadow: '0 8px 24px var(--autocity-accent-20)' }
                       : { background: th.periodCardInactiveBg, color: th.periodCardInactiveText, border: `1px solid ${th.periodCardInactiveBorder}` }
                     }
                   >
@@ -742,7 +742,7 @@ if (loading && !dashboardData) {
                   className="text-3xl font-bold tracking-tight flex items-center gap-3"
                   style={{ color: th.headerTitle }}
                 >
-                  <Gauge className="h-8 w-8 text-[#E84545]" />
+                  <Gauge className="h-8 w-8 text-[color:var(--autocity-accent)]" />
                   Dashboard
                 </h1>
                 <div className="flex items-center gap-2 mt-2">
@@ -751,7 +751,7 @@ if (loading && !dashboardData) {
                     <span className="font-semibold" style={{ color: th.headerAccent }}>{user?.firstName}!</span>
                   </p>
                   {lastUpdated && (
-                    <span className="flex items-center gap-1 text-xs" style={{ color: isDark ? 'rgba(255,255,255,0.60)' : '#991b1b' }}>
+                    <span className="flex items-center gap-1 text-xs" style={{ color: isDark ? 'rgba(255,255,255,0.60)' : 'var(--autocity-header-sub-light)' }}>
                       <Clock className="h-3 w-3" />
                       {formatDateTime(lastUpdated)} ({getTimezoneOffset()})
                     </span>
@@ -775,7 +775,7 @@ if (loading && !dashboardData) {
                       onClick={() => handlePeriodChange(option.value)}
                       className="px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200"
                       style={period === option.value
-                        ? { background: 'linear-gradient(135deg, #E84545, #cc3c3c)', color: '#ffffff', boxShadow: '0 4px 12px rgba(232,69,69,0.20)' }
+                        ? { background: 'linear-gradient(135deg, var(--autocity-accent), var(--autocity-accent-strong))', color: '#ffffff', boxShadow: '0 4px 12px var(--autocity-accent-20)' }
                         : { color: th.toggleInactiveText }
                       }
                       onMouseEnter={e => {
@@ -840,7 +840,7 @@ if (loading && !dashboardData) {
                       <stat.icon className="h-4 w-4 text-white" />
                     </div>
                     {stat.alert && (
-                      <div className="animate-pulse h-2 w-2 rounded-full bg-[#E84545] shadow-lg shadow-[#E84545]/50" />
+                      <div className="animate-pulse h-2 w-2 rounded-full bg-[color:var(--autocity-accent)] shadow-lg shadow-[color:var(--autocity-accent-50)]" />
                     )}
                   </div>
                   <h3 className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 md:hidden"
@@ -885,7 +885,7 @@ if (loading && !dashboardData) {
             <h2 className="text-base md:text-lg font-bold mb-4 flex items-center"
               style={{ color: th.panelTitle }}
             >
-              <Activity className="h-4 w-4 md:h-5 md:w-5 mr-2 text-[#E84545]" />
+              <Activity className="h-4 w-4 md:h-5 md:w-5 mr-2 text-[color:var(--autocity-accent)]" />
               Performance
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
@@ -913,8 +913,8 @@ if (loading && !dashboardData) {
                 {
                   label: 'Avg Order',
                   value: formatCompactCurrency(stats.averageOrderValue),
-                  valueColor: '#E84545',
-                  barColor: 'linear-gradient(90deg,#E84545,#cc3c3c)',
+                  valueColor: 'var(--autocity-accent)',
+                  barColor: 'linear-gradient(90deg,var(--autocity-accent),var(--autocity-accent-strong))',
                   barWidth: Math.min(stats.averageOrderValue / 5000 * 100, 100),
                 },
               ].map((row, i) => (
@@ -979,7 +979,7 @@ if (loading && !dashboardData) {
               }}
             >
               <h2 className="text-sm md:text-lg font-bold mb-4 flex items-center" style={{ color: th.panelTitle }}>
-                <Activity className="h-4 w-4 md:h-5 md:w-5 mr-2 text-[#E84545]" />
+                <Activity className="h-4 w-4 md:h-5 md:w-5 mr-2 text-[color:var(--autocity-accent)]" />
                 Recent Activity
               </h2>
               <div className="space-y-2 md:space-y-3">
@@ -1035,7 +1035,7 @@ if (loading && !dashboardData) {
               <div className="space-y-2 md:space-y-3">
                 <button
                   onClick={() => router.push('/autocityPro/sales/new')}
-                  className="w-full p-3 md:p-4 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] rounded-xl text-white font-semibold hover:from-[#d63d3d] hover:to-[#b53535] transition-all flex items-center justify-between shadow-lg active:scale-[0.98]"
+                  className="w-full p-3 md:p-4 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] rounded-xl text-white font-semibold hover:from-[#d63d3d] hover:to-[#b53535] transition-all flex items-center justify-between shadow-lg active:scale-[0.98]"
                 >
                   <span className="text-sm">New Sale</span>
                   <ShoppingCart className="h-4 w-4 md:h-5 md:w-5" />
@@ -1056,7 +1056,7 @@ if (loading && !dashboardData) {
                     }}
                     onMouseEnter={e => {
                       (e.currentTarget as HTMLButtonElement).style.background = th.qaSecHoverBg;
-                      (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(232,69,69,0.20)';
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--autocity-accent-20)';
                     }}
                     onMouseLeave={e => {
                       (e.currentTarget as HTMLButtonElement).style.background = th.qaSecBg;

@@ -97,7 +97,7 @@ export default function CreateExpenseForm({ onClose, onSuccess }: CreateExpenseF
     border: `1px solid ${th.inputBorder}`,
     color: th.inputText,
   };
-  const inputClass = "w-full px-4 py-2.5 rounded-lg focus:ring-2 focus:ring-[#E84545] outline-none";
+  const inputClass = "w-full px-4 py-2.5 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] outline-none";
 
   useEffect(() => { fetchAccounts(); }, []);
 
@@ -158,7 +158,7 @@ export default function CreateExpenseForm({ onClose, onSuccess }: CreateExpenseF
           style={{ background: th.headerBg, borderColor: th.headerBorder }}>
           <h3 className="text-xl font-semibold flex items-center gap-2" style={{ color: th.title }}>
             Record New Expense
-            {isDark ? <Moon className="h-4 w-4 text-[#E84545]" /> : <Sun className="h-4 w-4 text-[#E84545]" />}
+            {isDark ? <Moon className="h-4 w-4 text-[color:var(--autocity-accent)]" /> : <Sun className="h-4 w-4 text-[color:var(--autocity-accent)]" />}
           </h3>
           <button onClick={onClose} className="p-2 rounded-lg transition-colors"
             style={{ background: th.closeBg, color: th.closeText }}
@@ -229,7 +229,7 @@ export default function CreateExpenseForm({ onClose, onSuccess }: CreateExpenseF
                 Expense Items <span className="text-red-400">*</span>
               </span>
               <button type="button" onClick={addItem}
-                className="px-3 py-1.5 bg-[#E84545] hover:bg-[#cc3c3c] text-white rounded-lg text-sm flex items-center space-x-1 transition-colors">
+                className="px-3 py-1.5 bg-[color:var(--autocity-accent)] hover:bg-[color:var(--autocity-accent-strong)] text-white rounded-lg text-sm flex items-center space-x-1 transition-colors">
                 <Plus className="w-4 h-4" /><span>Add Item</span>
               </button>
             </div>
@@ -249,10 +249,10 @@ export default function CreateExpenseForm({ onClose, onSuccess }: CreateExpenseF
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <input type="text" value={item.description}
                     onChange={e => updateItem(index, 'description', e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-[#E84545] outline-none"
+                    className="w-full px-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-[color:var(--autocity-accent)] outline-none"
                     style={inputStyle} placeholder="Description (e.g., Electricity Bill - Dec 2024)" required />
                   <select value={item.accountId} onChange={e => updateItem(index, 'accountId', e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-[#E84545] outline-none"
+                    className="w-full px-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-[color:var(--autocity-accent)] outline-none"
                     style={inputStyle} required>
                     <option value="">Select expense account</option>
                     {expenseAccounts.map(a => <option key={a._id} value={a._id}>{a.code} - {a.name}</option>)}
@@ -261,11 +261,11 @@ export default function CreateExpenseForm({ onClose, onSuccess }: CreateExpenseF
                 <div className="grid grid-cols-2 gap-3">
                   <input type="number" step="0.01" value={item.amount}
                     onChange={e => updateItem(index, 'amount', Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-[#E84545] outline-none"
+                    className="w-full px-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-[color:var(--autocity-accent)] outline-none"
                     style={inputStyle} placeholder="Amount" required />
                   <input type="text" value={item.notes}
                     onChange={e => updateItem(index, 'notes', e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-[#E84545] outline-none"
+                    className="w-full px-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-[color:var(--autocity-accent)] outline-none"
                     style={inputStyle} placeholder="Notes (optional)" />
                 </div>
               </div>
@@ -277,14 +277,14 @@ export default function CreateExpenseForm({ onClose, onSuccess }: CreateExpenseF
             <label className="flex items-center space-x-2 cursor-pointer">
               <input type="checkbox" checked={formData.isRecurring}
                 onChange={e => setFormData({ ...formData, isRecurring: e.target.checked })}
-                className="w-4 h-4 text-[#E84545] rounded focus:ring-[#E84545]"
+                className="w-4 h-4 text-[color:var(--autocity-accent)] rounded focus:ring-[color:var(--autocity-accent)]"
                 style={{ background: th.checkboxBg, borderColor: th.checkboxBorder }} />
               <span className="text-sm" style={{ color: th.label }}>Recurring Expense</span>
             </label>
             {formData.isRecurring && (
               <select value={formData.recurringFrequency}
                 onChange={e => setFormData({ ...formData, recurringFrequency: e.target.value })}
-                className="px-3 py-1.5 rounded-lg text-sm focus:ring-2 focus:ring-[#E84545] outline-none"
+                className="px-3 py-1.5 rounded-lg text-sm focus:ring-2 focus:ring-[color:var(--autocity-accent)] outline-none"
                 style={inputStyle}>
                 {['WEEKLY','MONTHLY','QUARTERLY','YEARLY'].map(f => <option key={f} value={f}>{f.charAt(0) + f.slice(1).toLowerCase()}</option>)}
               </select>
@@ -295,7 +295,7 @@ export default function CreateExpenseForm({ onClose, onSuccess }: CreateExpenseF
           <div>
             <label htmlFor="expense-notes" className="block text-sm font-medium mb-2" style={{ color: th.label }}>Notes</label>
             <textarea id="expense-notes" value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })}
-              rows={3} className="w-full px-4 py-2.5 rounded-lg focus:ring-2 focus:ring-[#E84545] outline-none resize-none"
+              rows={3} className="w-full px-4 py-2.5 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] outline-none resize-none"
               style={inputStyle} placeholder="Additional notes or comments..." />
           </div>
 
@@ -317,7 +317,7 @@ export default function CreateExpenseForm({ onClose, onSuccess }: CreateExpenseF
               Cancel
             </button>
             <button type="submit" disabled={loading}
-              className="px-6 py-2.5 bg-[#E84545] hover:bg-[#cc3c3c] text-white rounded-lg font-medium disabled:opacity-50 flex items-center space-x-2 transition-colors">
+              className="px-6 py-2.5 bg-[color:var(--autocity-accent)] hover:bg-[color:var(--autocity-accent-strong)] text-white rounded-lg font-medium disabled:opacity-50 flex items-center space-x-2 transition-colors">
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               <span>{loading ? 'Creating...' : 'Create Expense'}</span>
             </button>

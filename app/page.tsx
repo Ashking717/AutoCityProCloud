@@ -509,8 +509,8 @@ const styles = `
     z-index: 1;
   }
   .dash-panel:hover {
-    border-color: rgba(232, 69, 69, 0.3);
-    box-shadow: inset 0 1px 0 0 rgba(232, 69, 69, 0.2), 0 0 30px -5px rgba(232, 69, 69, 0.1);
+    border-color: var(--autocity-accent-30);
+    box-shadow: inset 0 1px 0 0 var(--autocity-accent-20), 0 0 30px -5px var(--autocity-accent-10);
   }
 
   .input-tech {
@@ -535,8 +535,8 @@ const styles = `
   }
   .btn-system:hover {
     border-color: var(--accent-primary);
-    background: rgba(232, 69, 69, 0.05);
-    box-shadow: 0 0 15px rgba(232, 69, 69, 0.2), inset 0 0 10px rgba(232, 69, 69, 0.1);
+    background: var(--autocity-accent-05);
+    box-shadow: 0 0 15px var(--autocity-accent-20), inset 0 0 10px var(--autocity-accent-10);
     color: var(--accent-primary);
   }
   

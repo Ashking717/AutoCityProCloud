@@ -98,9 +98,16 @@ export async function PATCH(request: NextRequest) {
 
     // Get outlet info
     let outletName = null;
+    let outletLogoUrl = null;
     if (user.outletId) {
       const outlet = await Outlet.findById(user.outletId);
       outletName = outlet?.name || null;
+      const logoUpdatedAt = outlet?.branding?.logo?.updatedAt
+        ? new Date(outlet.branding.logo.updatedAt).getTime()
+        : null;
+      outletLogoUrl = logoUpdatedAt
+        ? `/api/outlets/${user.outletId}/branding/logo?v=${logoUpdatedAt}`
+        : outlet?.branding?.logoUrl || null;
     }
 
     // Activity Log
@@ -126,6 +133,7 @@ export async function PATCH(request: NextRequest) {
         role: user.role,
         outletId: user.outletId || null,
         outletName: outletName,
+        outletLogoUrl: outletLogoUrl,
         phone: user.phone,
         isActive: user.isActive,
       },

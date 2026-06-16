@@ -117,7 +117,7 @@ export default function CustomerLedgerPage() {
             <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-2 px-4 pointer-events-none">
               <div className="bg-black rounded-[28px] px-6 py-3 shadow-2xl border border-white/10 backdrop-blur-xl pointer-events-auto animate-in slide-in-from-top duration-500">
                 <div className="flex items-center gap-3">
-                  <Users className="h-3 w-3 text-[#E84545]" />
+                  <Users className="h-3 w-3 text-[color:var(--autocity-accent)]" />
                   <span className="text-white text-xs font-semibold">{customers.length}</span>
                   <div className="h-3 w-px bg-white/20"></div>
                   <span className="text-white/80 text-xs">Customers</span>
@@ -147,7 +147,7 @@ export default function CustomerLedgerPage() {
           </div>
 
           {/* Desktop Header */}
-          <div className="hidden md:block py-4 md:py-5 bg-gradient-to-r from-red-900 via-[#541515] to-[#4d0b0b] border border-[#E84545]/30 shadow-lg overflow-hidden relative">
+          <div className="hidden md:block py-4 md:py-5 bg-gradient-to-r from-[var(--autocity-header-from-dark)] via-[var(--autocity-header-via-dark)] to-[var(--autocity-header-to-dark)] border border-[color:var(--autocity-accent-30)] shadow-lg overflow-hidden relative">
             <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSIjRjg0NTQ1IiBmaWxsLW9wYWNpdHk9IjAuMSIgZmlsbC1ydWxlPSJldmVub2RkIj48Y2lyY2xlIGN4PSIzIiBjeT0iMyIgcj0iMyIvPjxjaXJjbGUgY3g9IjEzIiBjeT0iMTMiIHI9IjMiLz48L2c+PC9zdmc+')] opacity-20"></div>
             
             <div className="px-8 relative z-10">
@@ -177,7 +177,7 @@ export default function CustomerLedgerPage() {
             <div className="md:hidden space-y-3">
               {loading ? (
                 <div className="text-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E84545] mx-auto mb-4"></div>
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[color:var(--autocity-accent)] mx-auto mb-4"></div>
                   <p className="text-white/60">Loading customers...</p>
                 </div>
               ) : customers.length === 0 ? (
@@ -200,7 +200,7 @@ export default function CustomerLedgerPage() {
                         <p className="text-sm font-semibold text-white truncate">{customer.name}</p>
                         <p className="text-xs text-white/60">{customer.phone}</p>
                       </div>
-                      <ArrowRight className="h-5 w-5 text-[#E84545] flex-shrink-0" />
+                      <ArrowRight className="h-5 w-5 text-[color:var(--autocity-accent)] flex-shrink-0" />
                     </div>
                     <div className="grid grid-cols-3 gap-2 text-xs">
                       <div>
@@ -268,7 +268,7 @@ export default function CustomerLedgerPage() {
                         <td className="px-6 py-4 text-right">
                           <button
                             onClick={() => fetchLedger(customer._id)}
-                            className="inline-flex items-center space-x-1 text-[#E84545] hover:text-[#cc3c3c] transition-colors"
+                            className="inline-flex items-center space-x-1 text-[color:var(--autocity-accent)] hover:text-[color:var(--autocity-accent-strong)] transition-colors"
                           >
                             <span>View Ledger</span>
                             <ArrowRight className="h-4 w-4" />
@@ -297,7 +297,7 @@ export default function CustomerLedgerPage() {
           <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-2 px-4 pointer-events-none">
             <div className="bg-black rounded-[28px] px-6 py-3 shadow-2xl border border-white/10 backdrop-blur-xl pointer-events-auto animate-in slide-in-from-top duration-500">
               <div className="flex items-center gap-3">
-                <User className="h-3 w-3 text-[#E84545]" />
+                <User className="h-3 w-3 text-[color:var(--autocity-accent)]" />
                 <span className="text-white text-xs font-semibold">{ledgerData.summary.salesCount}</span>
                 <div className="h-3 w-px bg-white/20"></div>
                 <span className={`text-xs font-medium ${ledgerData.summary.closingBalance > 0 ? 'text-red-400' : 'text-green-400'}`}>
@@ -337,20 +337,20 @@ export default function CustomerLedgerPage() {
                 type="date"
                 value={dateRange.fromDate}
                 onChange={(e) => setDateRange({ ...dateRange, fromDate: e.target.value })}
-                className="px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white text-xs focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                className="px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white text-xs focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
               />
               <input
                 type="date"
                 value={dateRange.toDate}
                 onChange={(e) => setDateRange({ ...dateRange, toDate: e.target.value })}
-                className="px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white text-xs focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                className="px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white text-xs focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
               />
             </div>
 
             <button
               onClick={() => fetchLedger(selectedCustomer._id)}
               disabled={loading}
-              className="w-full px-4 py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl font-medium disabled:opacity-50 text-sm active:scale-95 transition-all"
+              className="w-full px-4 py-2 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-xl font-medium disabled:opacity-50 text-sm active:scale-95 transition-all"
             >
               Generate
             </button>
@@ -358,7 +358,7 @@ export default function CustomerLedgerPage() {
         </div>
 
         {/* Desktop Header */}
-        <div className="hidden md:block py-4 md:py-12 bg-gradient-to-r from-red-900 via-[#541515] to-[#4d0b0b] border border-[#E84545]/30 shadow-lg overflow-hidden ">
+        <div className="hidden md:block py-4 md:py-12 bg-gradient-to-r from-[var(--autocity-header-from-dark)] via-[var(--autocity-header-via-dark)] to-[var(--autocity-header-to-dark)] border border-[color:var(--autocity-accent-30)] shadow-lg overflow-hidden ">
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSIjRjg0NTQ1IiBmaWxsLW9wYWNpdHk9IjAuMSIgZmlsbC1ydWxlPSJldmVub2RkIj48Y2lyY2xlIGN4PSIzIiBjeT0iMyIgcj0iMyIvPjxjaXJjbGUgY3g9IjEzIiBjeT0iMTMiIHI9IjMiLz48L2c+PC9zdmc+')] opacity-20"></div>
           
           <div className="px-8 relative z-10">
@@ -393,7 +393,7 @@ export default function CustomerLedgerPage() {
                   type="date"
                   value={dateRange.fromDate}
                   onChange={(e) => setDateRange({ ...dateRange, fromDate: e.target.value })}
-                  className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg text-white focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                  className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg text-white focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                 />
               </div>
               <div>
@@ -403,14 +403,14 @@ export default function CustomerLedgerPage() {
                   type="date"
                   value={dateRange.toDate}
                   onChange={(e) => setDateRange({ ...dateRange, toDate: e.target.value })}
-                  className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg text-white focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                  className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg text-white focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                 />
               </div>
               <div className="flex items-end">
                 <button
                   onClick={() => fetchLedger(selectedCustomer._id)}
                   disabled={loading}
-                  className="w-full px-4 py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-lg hover:opacity-90 disabled:opacity-50 transition-all"
+                  className="w-full px-4 py-2 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-lg hover:opacity-90 disabled:opacity-50 transition-all"
                 >
                   Generate Report
                 </button>
@@ -445,7 +445,7 @@ export default function CustomerLedgerPage() {
                 </div>
                 <div className="bg-[#0A0A0A] rounded-xl shadow-lg border border-white/5 p-3 md:p-4 active:scale-[0.98] transition-all">
                   <p className="text-xs md:text-sm text-white/60 mb-1">Transactions</p>
-                  <p className="text-lg md:text-xl font-bold text-[#E84545]">{ledgerData.summary.salesCount}</p>
+                  <p className="text-lg md:text-xl font-bold text-[color:var(--autocity-accent)]">{ledgerData.summary.salesCount}</p>
                 </div>
               </div>
 
@@ -490,7 +490,7 @@ export default function CustomerLedgerPage() {
 
               {/* Ledger Entries - Desktop Table View */}
               <div className="hidden md:block bg-[#0A0A0A] rounded-xl shadow-lg border border-white/5 overflow-hidden">
-                <div className="px-6 py-4 bg-gradient-to-r from-[#E84545] to-[#cc3c3c]">
+                <div className="px-6 py-4 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)]">
                   <h2 className="text-xl font-bold text-white">Ledger Entries</h2>
                 </div>
                 <table className="min-w-full divide-y divide-white/5">

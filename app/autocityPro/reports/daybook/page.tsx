@@ -89,7 +89,7 @@ export default function DaybookPage() {
       <MainLayout user={user} onLogout={handleLogout}>
         <div className="flex items-center justify-center min-h-screen bg-[#050505]">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 md:h-16 md:w-16 border-b-4 border-[#E84545] mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 md:h-16 md:w-16 border-b-4 border-[color:var(--autocity-accent)] mx-auto mb-4"></div>
             <p className="text-white">Generating daybook...</p>
           </div>
         </div>
@@ -117,7 +117,7 @@ export default function DaybookPage() {
             <div className="bg-black rounded-[28px] px-6 py-3 shadow-2xl border border-white/10 backdrop-blur-xl pointer-events-auto animate-in slide-in-from-top duration-500">
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
-                  <FileText className="h-3 w-3 text-[#E84545]" />
+                  <FileText className="h-3 w-3 text-[color:var(--autocity-accent)]" />
                   <span className="text-white text-xs font-semibold">{summary.totalTransactions}</span>
                 </div>
                 <div className="h-3 w-px bg-white/20"></div>
@@ -172,12 +172,12 @@ export default function DaybookPage() {
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="flex-1 px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white text-xs focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                className="flex-1 px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white text-xs focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
               />
               <button
                 onClick={fetchReport}
                 disabled={loading}
-                className="px-4 py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl font-medium disabled:opacity-50 text-sm active:scale-95 transition-all"
+                className="px-4 py-2 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-xl font-medium disabled:opacity-50 text-sm active:scale-95 transition-all"
               >
                 Generate
               </button>
@@ -186,7 +186,7 @@ export default function DaybookPage() {
         </div>
 
         {/* Desktop Header */}
-        <div className="hidden md:block py-4 md:py-12 bg-gradient-to-r from-red-900 via-[#541515] to-[#4d0b0b] border border-[#E84545]/30 shadow-lg overflow-hidden relative">
+        <div className="hidden md:block py-4 md:py-12 bg-gradient-to-r from-[var(--autocity-header-from-dark)] via-[var(--autocity-header-via-dark)] to-[var(--autocity-header-to-dark)] border border-[color:var(--autocity-accent-30)] shadow-lg overflow-hidden relative">
           {/* Background Pattern */}
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSIjRjg0NTQ1IiBmaWxsLW9wYWNpdHk9IjAuMSIgZmlsbC1ydWxlPSJldmVub2RkIj48Y2lyY2xlIGN4PSIzIiBjeT0iMyIgcj0iMyIvPjxjaXJjbGUgY3g9IjEzIiBjeT0iMTMiIHI9IjMiLz48L2c+PC9zdmc+')] opacity-20"></div>
           
@@ -222,14 +222,14 @@ export default function DaybookPage() {
                   type="date"
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
-                  className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg text-white focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                  className="w-full px-3 py-2 bg-[#111111] border border-white/5 rounded-lg text-white focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                 />
               </div>
               <div className="flex items-end">
                 <button
                   onClick={fetchReport}
                   disabled={loading}
-                  className="w-full px-4 py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-lg hover:opacity-90 disabled:opacity-50 transition-all"
+                  className="w-full px-4 py-2 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-lg hover:opacity-90 disabled:opacity-50 transition-all"
                 >
                   Generate Report
                 </button>
@@ -285,8 +285,8 @@ export default function DaybookPage() {
             {/* Net Balance */}
             <div className="bg-[#0A0A0A] rounded-2xl shadow-lg border border-white/5 p-4 md:p-6 active:scale-[0.98] transition-all">
               <div className="flex items-start justify-between mb-2">
-                <div className="bg-[#E84545]/10 p-2 md:p-3 rounded-xl">
-                  <DollarSign className="h-4 w-4 md:h-6 md:w-6 text-[#E84545]" />
+                <div className="bg-[color:var(--autocity-accent-10)] p-2 md:p-3 rounded-xl">
+                  <DollarSign className="h-4 w-4 md:h-6 md:w-6 text-[color:var(--autocity-accent)]" />
                 </div>
               </div>
               <p className="text-xs md:text-sm text-white/60 mb-1">Net Balance</p>
@@ -298,8 +298,8 @@ export default function DaybookPage() {
             {/* Transactions */}
             <div className="bg-[#0A0A0A] rounded-2xl shadow-lg border border-white/5 p-4 md:p-6 active:scale-[0.98] transition-all">
               <div className="flex items-start justify-between mb-2">
-                <div className="bg-[#E84545]/10 p-2 md:p-3 rounded-xl">
-                  <FileText className="h-4 w-4 md:h-6 md:w-6 text-[#E84545]" />
+                <div className="bg-[color:var(--autocity-accent-10)] p-2 md:p-3 rounded-xl">
+                  <FileText className="h-4 w-4 md:h-6 md:w-6 text-[color:var(--autocity-accent)]" />
                 </div>
               </div>
               <p className="text-xs md:text-sm text-white/60 mb-1">Transactions</p>
@@ -313,7 +313,7 @@ export default function DaybookPage() {
           {/* Daybook Entries */}
           <div className="bg-[#0A0A0A] rounded-2xl shadow-lg border border-white/5 overflow-hidden">
             {/* Table Header */}
-            <div className="px-4 md:px-6 py-3 md:py-4 bg-gradient-to-r from-[#E84545] to-[#cc3c3c]">
+            <div className="px-4 md:px-6 py-3 md:py-4 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)]">
               <h2 className="text-base md:text-xl font-bold text-white">Daily Transactions</h2>
               <p className="text-xs md:text-sm text-white/90 mt-1">
                 {new Date(reportData.date).toLocaleDateString('en-US', { 

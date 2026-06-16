@@ -79,15 +79,15 @@ export default function VouchersPage() {
   // ── Theme tokens ───────────────────────────────────────────────────────────
   const th = {
     pageBg:             isDark ? '#050505'                                              : '#f3f4f6',
-    headerBgFrom:       isDark ? '#932222'                                              : '#fef2f2',
-    headerBgVia:        isDark ? '#411010'                                              : '#fee2e2',
-    headerBgTo:         isDark ? '#a20c0c'                                              : '#fecaca',
+    headerBgFrom:       isDark ? 'var(--autocity-header-from-dark)'                                              : 'var(--autocity-header-from-light)',
+    headerBgVia:        isDark ? 'var(--autocity-header-via-dark)'                                              : 'var(--autocity-header-via-light)',
+    headerBgTo:         isDark ? 'var(--autocity-header-to-dark)'                                              : 'var(--autocity-header-to-light)',
     headerBorder:       isDark ? 'rgba(255,255,255,0.05)'                               : 'rgba(0,0,0,0.06)',
-    headerTitle:        isDark ? '#ffffff'                                              : '#7f1d1d',
-    headerSub:          isDark ? 'rgba(255,255,255,0.80)'                               : '#991b1b',
-    headerBtnBg:        isDark ? 'rgba(255,255,255,0.10)'                               : 'rgba(127,29,29,0.10)',
-    headerBtnBorder:    isDark ? 'rgba(255,255,255,0.20)'                               : 'rgba(127,29,29,0.20)',
-    headerBtnText:      isDark ? '#ffffff'                                              : '#7f1d1d',
+    headerTitle:        isDark ? '#ffffff'                                              : 'var(--autocity-header-text-light)',
+    headerSub:          isDark ? 'rgba(255,255,255,0.80)'                               : 'var(--autocity-header-sub-light)',
+    headerBtnBg:        isDark ? 'rgba(255,255,255,0.10)'                               : 'var(--autocity-accent-10)',
+    headerBtnBorder:    isDark ? 'rgba(255,255,255,0.20)'                               : 'var(--autocity-accent-20)',
+    headerBtnText:      isDark ? '#ffffff'                                              : 'var(--autocity-header-text-light)',
     mobileHeaderBg:     isDark ? 'linear-gradient(135deg,#0A0A0A,#050505,#0A0A0A)'     : 'linear-gradient(135deg,#ffffff,#f9fafb,#ffffff)',
     mobileHeaderBorder: isDark ? 'rgba(255,255,255,0.05)'                               : 'rgba(0,0,0,0.08)',
     mobileHeaderTitle:  isDark ? '#ffffff'                                              : '#111827',
@@ -105,7 +105,7 @@ export default function VouchersPage() {
     filterIcon:         isDark ? '#6b7280'                                              : '#9ca3af',
     cardBg:             isDark ? '#0A0A0A'                                              : '#ffffff',
     cardBorder:         isDark ? 'rgba(255,255,255,0.05)'                               : 'rgba(0,0,0,0.08)',
-    cardHoverBorder:    isDark ? 'rgba(232,69,69,0.30)'                                 : 'rgba(232,69,69,0.40)',
+    cardHoverBorder:    isDark ? 'var(--autocity-accent-30)'                                 : 'var(--autocity-accent-40)',
     cardTitle:          isDark ? '#ffffff'                                              : '#111827',
     cardSubtext:        isDark ? '#9ca3af'                                              : '#6b7280',
     cardMuted:          isDark ? '#6b7280'                                              : '#9ca3af',
@@ -328,8 +328,8 @@ export default function VouchersPage() {
   const getSortIcon = (key: string) => {
     if (sortConfig.key !== key) return null;
     return sortConfig.direction === 'asc'
-      ? <SortAsc className="h-3 w-3 ml-1 text-[#E84545]" />
-      : <SortDesc className="h-3 w-3 ml-1 text-[#E84545]" />;
+      ? <SortAsc className="h-3 w-3 ml-1 text-[color:var(--autocity-accent)]" />
+      : <SortDesc className="h-3 w-3 ml-1 text-[color:var(--autocity-accent)]" />;
   };
   
   return (
@@ -342,7 +342,7 @@ export default function VouchersPage() {
             <div className="bg-black rounded-[28px] px-6 py-3 shadow-2xl border border-white/10 backdrop-blur-xl pointer-events-auto animate-in slide-in-from-top duration-500">
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
-                  <FileText className="h-3 w-3 text-[#E84545]" />
+                  <FileText className="h-3 w-3 text-[color:var(--autocity-accent)]" />
                   <span className="text-white text-xs font-semibold">{vouchers.length} loaded</span>
                 </div>
                 {hasMore && !loading && (
@@ -352,7 +352,7 @@ export default function VouchersPage() {
                   </>
                 )}
                 <div className="h-3 w-px bg-white/20"></div>
-                {isDark ? <Moon className="h-3 w-3 text-[#E84545]" /> : <Sun className="h-3 w-3 text-[#E84545]" />}
+                {isDark ? <Moon className="h-3 w-3 text-[color:var(--autocity-accent)]" /> : <Sun className="h-3 w-3 text-[color:var(--autocity-accent)]" />}
               </div>
             </div>
           </div>
@@ -511,7 +511,7 @@ export default function VouchersPage() {
           <div className="md:hidden">
             {loading && vouchers.length === 0 ? (
               <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E84545]"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[color:var(--autocity-accent)]"></div>
               </div>
             ) : sortedVouchers.length === 0 ? (
               <div className="rounded-2xl p-8 text-center transition-colors"
@@ -522,7 +522,7 @@ export default function VouchersPage() {
                 {(filterType !== 'all' || filterStatus !== 'all' || searchTerm) && (
                   <button onClick={clearFilters}
                     className="mt-4 px-4 py-2 text-white text-sm font-semibold rounded-lg"
-                    style={{ background: 'linear-gradient(to right,#E84545,#cc3c3c)' }}>
+                    style={{ background: 'linear-gradient(to right,var(--autocity-accent),var(--autocity-accent-strong))' }}>
                     Clear Filters
                   </button>
                 )}
@@ -576,7 +576,7 @@ export default function VouchersPage() {
                 {loadingMore && (
                   <div className="flex justify-center py-6">
                     <div className="flex items-center gap-2" style={{ color: th.cardMuted }}>
-                      <Loader2 className="h-5 w-5 animate-spin text-[#E84545]" />
+                      <Loader2 className="h-5 w-5 animate-spin text-[color:var(--autocity-accent)]" />
                       <span className="text-sm">Loading more...</span>
                     </div>
                   </div>
@@ -621,7 +621,7 @@ export default function VouchersPage() {
                 {loading && vouchers.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-6 py-12 text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#E84545] mx-auto mb-2"></div>
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[color:var(--autocity-accent)] mx-auto mb-2"></div>
                       <p style={{ color: th.emptyText }}>Loading vouchers...</p>
                     </td>
                   </tr>
@@ -633,7 +633,7 @@ export default function VouchersPage() {
                       {(filterType !== 'all' || filterStatus !== 'all' || searchTerm) && (
                         <button onClick={clearFilters}
                           className="mt-4 px-4 py-2 text-white text-sm font-semibold rounded-lg"
-                          style={{ background: 'linear-gradient(to right,#E84545,#cc3c3c)' }}>
+                          style={{ background: 'linear-gradient(to right,var(--autocity-accent),var(--autocity-accent-strong))' }}>
                           Clear filters
                         </button>
                       )}
@@ -646,7 +646,7 @@ export default function VouchersPage() {
                       onMouseEnter={el => (el.currentTarget.style.background = th.tableRowHover)}
                       onMouseLeave={el => (el.currentTarget.style.background = 'transparent')}>
                       <td className="px-6 py-4">
-                        <p className="text-sm font-medium text-[#E84545]">{voucher.voucherNumber}</p>
+                        <p className="text-sm font-medium text-[color:var(--autocity-accent)]">{voucher.voucherNumber}</p>
                         {voucher.referenceNumber && (
                           <p className="text-xs mt-0.5" style={{ color: th.cardMuted }}>Ref: {voucher.referenceNumber}</p>
                         )}
@@ -690,7 +690,7 @@ export default function VouchersPage() {
                               </button>
                               <button onClick={e => { e.stopPropagation(); handleDeleteVoucher(voucher._id, voucher.voucherNumber); }}
                                 className="p-2 rounded-lg transition-all"
-                                style={{ background: th.actionBtnBg, border: `1px solid ${th.actionBtnBorder}`, color: '#E84545' }}>
+                                style={{ background: th.actionBtnBg, border: `1px solid ${th.actionBtnBorder}`, color: 'var(--autocity-accent)' }}>
                                 <Trash2 className="h-4 w-4" />
                               </button>
                             </>
@@ -706,7 +706,7 @@ export default function VouchersPage() {
             {loadingMore && (
               <div className="flex justify-center py-6" style={{ borderTop: `1px solid ${th.tableBorder}` }}>
                 <div className="flex items-center gap-2" style={{ color: th.cardMuted }}>
-                  <Loader2 className="h-5 w-5 animate-spin text-[#E84545]" />
+                  <Loader2 className="h-5 w-5 animate-spin text-[color:var(--autocity-accent)]" />
                   <span className="text-sm">Loading more vouchers...</span>
                 </div>
               </div>
@@ -758,7 +758,7 @@ export default function VouchersPage() {
                 </button>
                 <button onClick={() => setShowFilters(false)}
                   className="flex-1 px-4 py-3 rounded-xl text-white font-semibold"
-                  style={{ background: 'linear-gradient(to right,#E84545,#cc3c3c)' }}>
+                  style={{ background: 'linear-gradient(to right,var(--autocity-accent),var(--autocity-accent-strong))' }}>
                   Apply
                 </button>
               </div>

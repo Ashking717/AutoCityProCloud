@@ -89,16 +89,17 @@ export default function CategoriesPage() {
   // ── Theme tokens ──────────────────────────────────────────────────────────
   const th = {
     pageBg:            isDark ? '#0f172a'                                             : '#f3f4f6',
-    headerBgFrom:      isDark ? '#4f46e5'                                             : '#eef2ff',
-    headerBgTo:        isDark ? '#7c3aed'                                             : '#ede9fe',
-    headerTitle:       isDark ? '#ffffff'                                             : '#3730a3',
-    headerSub:         isDark ? 'rgba(199,210,254,0.90)'                              : '#4338ca',
-    headerBtnBg:       isDark ? '#ffffff'                                             : '#1e1b4b',
+    headerBgFrom:      isDark ? 'var(--autocity-header-from-dark)'                    : 'var(--autocity-header-from-light)',
+    headerBgVia:       isDark ? 'var(--autocity-header-via-dark)'                     : 'var(--autocity-header-via-light)',
+    headerBgTo:        isDark ? 'var(--autocity-header-to-dark)'                      : 'var(--autocity-header-to-light)',
+    headerTitle:       isDark ? '#ffffff'                                             : 'var(--autocity-header-text-light)',
+    headerSub:         isDark ? 'rgba(255,255,255,0.80)'                              : 'var(--autocity-header-sub-light)',
+    headerBtnBg:       isDark ? '#ffffff'                                             : 'var(--autocity-accent)',
     headerBtnText:     isDark ? '#1e293b'                                             : '#ffffff',
-    headerBtnHover:    isDark ? '#e2e8f0'                                             : '#312e81',
+    headerBtnHover:    isDark ? '#e2e8f0'                                             : 'var(--autocity-accent-strong)',
     badgeBg:           isDark ? 'rgba(0,0,0,0.25)'                                   : 'rgba(255,255,255,0.60)',
-    badgeBorder:       isDark ? 'rgba(255,255,255,0.15)'                              : 'rgba(67,56,202,0.20)',
-    badgeText:         isDark ? 'rgba(199,210,254,0.80)'                              : '#4338ca',
+    badgeBorder:       isDark ? 'rgba(255,255,255,0.15)'                              : 'var(--autocity-accent-20)',
+    badgeText:         isDark ? 'rgba(255,255,255,0.80)'                              : 'var(--autocity-header-sub-light)',
     contentBg:         isDark ? '#1e293b'                                             : '#ffffff',
     contentBorder:     isDark ? '#334155'                                             : 'rgba(0,0,0,0.08)',
     searchBg:          isDark ? '#0f172a'                                             : '#f9fafb',
@@ -220,7 +221,7 @@ export default function CategoriesPage() {
 
         {/* ── Header ───────────────────────────────────────────────────────── */}
         <div className="transition-colors duration-500"
-          style={{ background: `linear-gradient(135deg,${th.headerBgFrom},${th.headerBgTo})` }}>
+          style={{ background: `linear-gradient(135deg,${th.headerBgFrom},${th.headerBgVia},${th.headerBgTo})` }}>
           <div className="p-8">
             <div className="flex justify-between items-center">
               <div>

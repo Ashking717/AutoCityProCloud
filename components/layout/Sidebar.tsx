@@ -20,6 +20,7 @@ import {
   List,
   Lock,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   Keyboard,
   X,
@@ -41,6 +42,8 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 interface SidebarProps {
   user: any;
   onLogout: () => void;
+  desktopCollapsed?: boolean;
+  onToggleDesktopCollapse?: () => void;
   className?: string;
 }
 
@@ -157,27 +160,27 @@ function buildThemeTokens(isDark: boolean) {
   return {
     sidebarBg:        isDark ? "#050505"                        : "#ffffff",
     sidebarBorder:    isDark ? "rgba(255,255,255,0.05)"         : "rgba(0,0,0,0.07)",
-    headerFrom:       isDark ? "#932222"                        : "#fef2f2",
-    headerVia:        isDark ? "#411010"                        : "#fee2e2",
-    headerTo:         isDark ? "#a20c0c"                        : "#fecaca",
-    shortcutText:     isDark ? "rgba(255,255,255,0.9)"          : "#7f1d1d",
-    shortcutBg:       isDark ? "rgba(232,69,69,0.10)"           : "rgba(232,69,69,0.08)",
-    shortcutBgHover:  isDark ? "rgba(232,69,69,0.20)"           : "rgba(232,69,69,0.14)",
-    shortcutBorder:   isDark ? "rgba(232,69,69,0.20)"           : "rgba(232,69,69,0.30)",
+    headerFrom:       isDark ? "var(--autocity-header-from-dark)" : "var(--autocity-header-from-light)",
+    headerVia:        isDark ? "var(--autocity-header-via-dark)"  : "var(--autocity-header-via-light)",
+    headerTo:         isDark ? "var(--autocity-header-to-dark)"   : "var(--autocity-header-to-light)",
+    shortcutText:     isDark ? "rgba(255,255,255,0.9)"          : "var(--autocity-header-text-light)",
+    shortcutBg:       isDark ? "var(--autocity-accent-10)"      : "var(--autocity-accent-08)",
+    shortcutBgHover:  isDark ? "var(--autocity-accent-20)"      : "var(--autocity-accent-14)",
+    shortcutBorder:   isDark ? "var(--autocity-accent-20)"      : "var(--autocity-accent-30)",
     profileBg:        isDark ? "#0A0A0A"                        : "#f9fafb",
     profileHover:     isDark ? "rgba(255,255,255,0.05)"         : "rgba(0,0,0,0.04)",
     nameColor:        isDark ? "#ffffff"                        : "#111827",
     roleColor:        isDark ? "#9ca3af"                        : "#6b7280",
     chevronColor:     isDark ? "#4b5563"                        : "#9ca3af",
-    msgActiveBg:      isDark ? "rgba(232,69,69,0.20)"           : "rgba(232,69,69,0.10)",
+    msgActiveBg:      isDark ? "var(--autocity-accent-20)"      : "var(--autocity-accent-10)",
     msgInactiveBg:    isDark ? "rgba(255,255,255,0.05)"         : "rgba(0,0,0,0.04)",
     msgText:          isDark ? "#d1d5db"                        : "#374151",
     sectionLabel:     isDark ? "#9ca3af"                        : "#6b7280",
     sectionHover:     isDark ? "rgba(255,255,255,0.05)"         : "rgba(0,0,0,0.04)",
     navItemText:      isDark ? "#d1d5db"                        : "#374151",
     navItemHoverBg:   isDark ? "rgba(255,255,255,0.05)"         : "rgba(0,0,0,0.04)",
-    navItemActiveBg:  isDark ? "rgba(232,69,69,0.20)"           : "rgba(232,69,69,0.10)",
-    navItemActiveRing: isDark ? "rgba(232,69,69,0.30)"          : "rgba(232,69,69,0.25)",
+    navItemActiveBg:  isDark ? "var(--autocity-accent-20)"      : "var(--autocity-accent-10)",
+    navItemActiveRing: isDark ? "var(--autocity-accent-30)"     : "var(--autocity-accent-25)",
     iconInactive:     isDark ? "#9ca3af"                        : "#6b7280",
     logoutStripBg:    isDark
       ? "linear-gradient(135deg,rgba(255,255,255,0.04) 0%,rgba(255,255,255,0.01) 100%)"
@@ -200,7 +203,7 @@ function buildThemeTokens(isDark: boolean) {
     overlayMenuBorder: isDark ? "rgba(255,255,255,0.10)"        : "rgba(0,0,0,0.08)",
     overlayItemBg:     isDark ? "rgba(255,255,255,0.05)"        : "rgba(0,0,0,0.04)",
     overlayItemHover:  isDark ? "rgba(255,255,255,0.10)"        : "rgba(0,0,0,0.07)",
-    overlayItemActiveBg: isDark ? "rgba(232,69,69,0.20)"        : "rgba(232,69,69,0.10)",
+    overlayItemActiveBg: isDark ? "var(--autocity-accent-20)"   : "var(--autocity-accent-10)",
     overlayText:       isDark ? "#d1d5db"                       : "#374151",
     overlayRole:       isDark ? "#9ca3af"                       : "#6b7280",
     modalBg:           isDark ? "#050505"                       : "#ffffff",
@@ -214,8 +217,8 @@ function buildThemeTokens(isDark: boolean) {
     modalFooterBg:     isDark ? "rgba(0,0,0,0.50)"             : "rgba(0,0,0,0.03)",
     modalSubText:      isDark ? "#6b7280"                       : "#9ca3af",
     scrollTrack:       isDark ? "rgba(10,10,10,0.3)"            : "rgba(240,240,240,0.8)",
-    scrollThumb:       isDark ? "rgba(232,69,69,0.3)"           : "rgba(232,69,69,0.25)",
-    scrollThumbHover:  isDark ? "rgba(232,69,69,0.5)"           : "rgba(232,69,69,0.45)",
+    scrollThumb:       isDark ? "var(--autocity-accent-30)"     : "var(--autocity-accent-25)",
+    scrollThumbHover:  isDark ? "var(--autocity-accent-50)"     : "var(--autocity-accent-45)",
   };
 }
 
@@ -235,43 +238,156 @@ function formatOutletName(name: string) {
     .replace(/\b[a-z]/g, (char) => char.toUpperCase());
 }
 
+function getOutletLogoUrl(user: any) {
+  if (user?.role === "SUPERADMIN") return "";
+  return user?.outletLogoUrl || user?.outletBranding?.logoUrl || user?.branding?.logoUrl || "";
+}
+
 function SidebarHeader({
   user,
   isDark,
   isDayTime,
   th,
+  desktopCollapsed,
+  onToggleDesktopCollapse,
   onShowHelp,
 }: {
   user: any;
   isDark: boolean;
   isDayTime: boolean;
   th: ThemeTokens;
+  desktopCollapsed: boolean;
+  onToggleDesktopCollapse?: () => void;
   onShowHelp: () => void;
 }) {
   const outletName = user?.role === "SUPERADMIN" ? "" : formatOutletName(user?.outletName || "");
+  const outletLogoUrl = getOutletLogoUrl(user);
 
   return (
     <div
-      className="p-6 border-b transition-colors duration-500"
+      className={`relative h-[var(--autocity-desktop-header-height)] border-b transition-all duration-500 ${desktopCollapsed ? "p-2" : "p-5"}`}
       style={{
         background: `linear-gradient(135deg, ${th.headerFrom}, ${th.headerVia}, ${th.headerTo})`,
         borderColor: th.sidebarBorder,
       }}
     >
-      <div className="flex items-start space-x-3 mb-4 min-w-0">
-        <div className="flex-1 min-w-0">
+      <button
+        onClick={onToggleDesktopCollapse}
+        className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border transition-all hover:scale-105"
+        style={{
+          background: isDark ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.7)",
+          color: isDark ? "rgba(255,255,255,0.82)" : "var(--autocity-header-text-light)",
+          borderColor: isDark ? "rgba(255,255,255,0.15)" : "var(--autocity-accent-20)",
+        }}
+        title={desktopCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        aria-label={desktopCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+      >
+        {desktopCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+      </button>
+
+      {desktopCollapsed ? (
+        <div className="flex flex-col items-center gap-1.5 pt-7">
+          {(outletLogoUrl || outletName) && (
+            <div
+              className="h-10 w-10 overflow-hidden rounded-2xl border shadow-lg"
+              style={{
+                background: isDark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.72)",
+                borderColor: isDark ? "rgba(255,255,255,0.18)" : "var(--autocity-accent-20)",
+              }}
+              title={outletName}
+            >
+              {outletLogoUrl ? (
+                <img
+                  src={outletLogoUrl}
+                  alt={`${outletName || "Outlet"} logo`}
+                  className="h-full w-full object-contain p-1.5"
+                />
+              ) : (
+                <div
+                  className="flex h-full w-full items-center justify-center text-sm font-black"
+                  style={{ color: isDark ? "#ffffff" : "var(--autocity-header-text-light)" }}
+                >
+                  {outletName.slice(0, 2).toUpperCase()}
+                </div>
+              )}
+            </div>
+          )}
+          <div
+            className="flex h-7 w-7 items-center justify-center rounded-full border"
+            style={{
+              background: isDark ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.6)",
+              color: isDark ? "rgba(255,255,255,0.7)" : "var(--autocity-header-text-light)",
+              borderColor: isDark ? "rgba(255,255,255,0.15)" : "var(--autocity-accent-20)",
+            }}
+            title={isDayTime ? "Light theme (day)" : "Dark theme (night)"}
+          >
+            {isDark ? <Moon className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5" />}
+          </div>
+          <button
+            onClick={onShowHelp}
+            className="flex h-8 w-8 items-center justify-center rounded-xl border transition-all hover:scale-105"
+            style={{
+              color: th.shortcutText,
+              background: th.shortcutBg,
+              borderColor: th.shortcutBorder,
+            }}
+            title="Keyboard Shortcuts"
+            aria-label="Keyboard Shortcuts"
+          >
+            <Keyboard className="h-4 w-4" />
+          </button>
+        </div>
+      ) : (
+        <>
+      <div
+        className="absolute right-14 top-4 flex shrink-0 items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-all duration-500"
+        style={{
+          background: isDark ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.6)",
+          color:      isDark ? "rgba(255,255,255,0.7)" : "var(--autocity-header-text-light)",
+          border:     `1px solid ${isDark ? "rgba(255,255,255,0.15)" : "var(--autocity-accent-20)"}`,
+        }}
+        title={isDayTime ? "Light theme (day)" : "Dark theme (night)"}
+      >
+        {isDark
+          ? <Moon className="h-3 w-3" />
+          : <Sun  className="h-3 w-3" />}
+      </div>
+
+      <div className="flex items-start gap-3 mb-4 min-w-0 pr-10">
+        {(outletLogoUrl || outletName) && (
+          <div
+            className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl border shadow-lg"
+            style={{
+              background: isDark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.72)",
+              borderColor: isDark ? "rgba(255,255,255,0.18)" : "var(--autocity-accent-20)",
+            }}
+          >
+            {outletLogoUrl ? (
+              <img
+                src={outletLogoUrl}
+                alt={`${outletName || "Outlet"} logo`}
+                className="h-full w-full object-contain p-1.5"
+              />
+            ) : (
+              <div
+                className="flex h-full w-full items-center justify-center text-base font-black"
+                style={{ color: isDark ? "#ffffff" : "var(--autocity-header-text-light)" }}
+              >
+                {outletName.slice(0, 2).toUpperCase()}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex-1 min-w-0 self-center">
           {outletName && (
             <div className="min-w-0">
               <h2
-                className="text-[17px] font-semibold leading-[1.12]"
+                className="text-[19px] font-semibold leading-[1.08] whitespace-normal break-normal"
                 style={{
-                  color: isDark ? "#ffffff" : "#7f1d1d",
-                  display: "-webkit-box",
+                  color: isDark ? "#ffffff" : "var(--autocity-header-text-light)",
                   letterSpacing: "-0.035em",
-                  overflow: "hidden",
-                  overflowWrap: "anywhere",
-                  WebkitBoxOrient: "vertical",
-                  WebkitLineClamp: 2,
+                  overflowWrap: "break-word",
                 }}
                 title={outletName}
               >
@@ -279,19 +395,6 @@ function SidebarHeader({
               </h2>
             </div>
           )}
-        </div>
-        <div
-          className="flex shrink-0 items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-all duration-500"
-          style={{
-            background: isDark ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.6)",
-            color:      isDark ? "rgba(255,255,255,0.7)" : "#7f1d1d",
-            border:     `1px solid ${isDark ? "rgba(255,255,255,0.15)" : "rgba(127,29,29,0.2)"}`,
-          }}
-          title={isDayTime ? "Light theme (day)" : "Dark theme (night)"}
-        >
-          {isDark
-            ? <Moon className="h-3 w-3" />
-            : <Sun  className="h-3 w-3" />}
         </div>
       </div>
 
@@ -323,6 +426,8 @@ function SidebarHeader({
           ?
         </kbd>
       </button>
+        </>
+      )}
     </div>
   );
 }
@@ -334,6 +439,7 @@ function UserProfileSection({
   th,
   hasMessagesAccess,
   unreadCount,
+  desktopCollapsed,
   onNavigate,
 }: {
   user: any;
@@ -342,24 +448,26 @@ function UserProfileSection({
   th: ThemeTokens;
   hasMessagesAccess: boolean;
   unreadCount: number;
+  desktopCollapsed: boolean;
   onNavigate: (href: string) => void;
 }) {
   return (
     <div
-      className="p-4 border-b transition-colors duration-500"
+      className={`${desktopCollapsed ? "p-2" : "p-4"} border-b transition-all duration-500`}
       style={{ background: th.profileBg, borderColor: th.sidebarBorder }}
     >
       <button
         onClick={() => onNavigate("/autocityPro/profile")}
-        className="w-full flex items-center space-x-3 text-left rounded-xl p-3 transition-all duration-200 group"
+        className={`w-full flex items-center ${desktopCollapsed ? "justify-center p-2" : "space-x-3 p-3 text-left"} rounded-xl transition-all duration-200 group`}
         style={{ background: "transparent" }}
         onMouseEnter={e => (e.currentTarget.style.background = th.profileHover)}
         onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+        title={`${user.firstName || ""} ${user.lastName || ""}`.trim() || "Profile"}
       >
         <div className="relative">
           <div className="w-11 h-11 rounded-xl flex items-center justify-center shadow-lg ring-2 transition-all"
             style={{
-              background: "linear-gradient(135deg, #E84545, #cc3c3c)",
+              background: "linear-gradient(135deg, var(--autocity-accent), var(--autocity-accent-strong))",
               
             }}
           >
@@ -371,21 +479,25 @@ function UserProfileSection({
             style={{ borderColor: th.profileBg }}
           />
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold truncate transition-colors" style={{ color: th.nameColor }}>
-            {user.firstName} {user.lastName}
-          </p>
-          <p className="text-xs truncate font-medium" style={{ color: th.roleColor }}>{user.role}</p>
-        </div>
-        <ChevronRight className="h-4 w-4 group-hover:text-[#E84545] group-hover:translate-x-0.5 transition-all"
-          style={{ color: th.chevronColor }}
-        />
+        {!desktopCollapsed && (
+          <>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold truncate transition-colors" style={{ color: th.nameColor }}>
+                {user.firstName} {user.lastName}
+              </p>
+              <p className="text-xs truncate font-medium" style={{ color: th.roleColor }}>{user.role}</p>
+            </div>
+            <ChevronRight className="h-4 w-4 group-hover:text-[color:var(--autocity-accent)] group-hover:translate-x-0.5 transition-all"
+              style={{ color: th.chevronColor }}
+            />
+          </>
+        )}
       </button>
 
       {hasMessagesAccess && (
         <button
           onClick={() => onNavigate("/autocityPro/messages")}
-          className="w-full flex items-center justify-between mt-3 px-3 py-2.5 text-sm rounded-xl transition-all duration-200 group"
+          className={`relative w-full flex items-center ${desktopCollapsed ? "justify-center mt-2 p-2" : "justify-between mt-3 px-3 py-2.5"} text-sm rounded-xl transition-all duration-200 group`}
           style={{
             background: pathname === "/autocityPro/messages" ? th.msgActiveBg : th.msgInactiveBg,
             color: pathname === "/autocityPro/messages" ? (isDark ? "#ffffff" : "#111827") : th.msgText,
@@ -393,16 +505,17 @@ function UserProfileSection({
               ? `0 0 0 1px ${th.navItemActiveRing}`
               : "none",
           }}
+          title="Chat+"
         >
-          <div className="flex items-center space-x-3">
+          <div className={`flex items-center ${desktopCollapsed ? "" : "space-x-3"}`}>
             <MessageCircle
               className="h-5 w-5 transition-all"
-              style={{ color: pathname === "/autocityPro/messages" ? "#E84545" : th.iconInactive }}
+              style={{ color: pathname === "/autocityPro/messages" ? "var(--autocity-accent)" : th.iconInactive }}
             />
-            <span className="font-medium">Chat+</span>
+            {!desktopCollapsed && <span className="font-medium">Chat+</span>}
           </div>
           {unreadCount > 0 && (
-            <span className="px-2 py-0.5 text-xs font-bold bg-[#E84545] text-white rounded-full animate-pulse">
+            <span className={`${desktopCollapsed ? "absolute translate-x-3 -translate-y-3 px-1.5" : "px-2"} py-0.5 text-xs font-bold bg-[color:var(--autocity-accent)] text-white rounded-full animate-pulse`}>
               {unreadCount > 99 ? "99+" : unreadCount}
             </span>
           )}
@@ -417,6 +530,7 @@ function NavigationMenu({
   pathname,
   isDark,
   th,
+  desktopCollapsed,
   collapsedSections,
   onToggleSection,
   onNavigate,
@@ -425,10 +539,53 @@ function NavigationMenu({
   pathname: string;
   isDark: boolean;
   th: ThemeTokens;
+  desktopCollapsed: boolean;
   collapsedSections: Set<string>;
   onToggleSection: (title: string) => void;
   onNavigate: (href: string) => void;
 }) {
+  if (desktopCollapsed) {
+    const items = navigation.flatMap((section) => section.items);
+
+    return (
+      <nav className="flex-1 py-3 px-2 overflow-y-auto custom-scrollbar">
+        <div className="space-y-1">
+          {items.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <button
+                key={item.href}
+                onClick={() => onNavigate(item.href)}
+                title={item.name}
+                aria-label={item.name}
+                className="relative flex h-11 w-full items-center justify-center rounded-xl transition-all duration-200 group"
+                style={{
+                  background: isActive ? th.navItemActiveBg : "transparent",
+                  color: isActive ? (isDark ? "#ffffff" : "#111827") : th.navItemText,
+                  boxShadow: isActive ? `0 0 0 1px ${th.navItemActiveRing}` : "none",
+                }}
+                onMouseEnter={e => {
+                  if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = th.navItemHoverBg;
+                }}
+                onMouseLeave={e => {
+                  if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                }}
+              >
+                {isActive && (
+                  <div className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-gradient-to-b from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)]" />
+                )}
+                <item.icon
+                  className="h-5 w-5 flex-shrink-0 transition-all duration-200 group-hover:scale-110"
+                  style={{ color: isActive ? "var(--autocity-accent)" : th.iconInactive }}
+                />
+              </button>
+            );
+          })}
+        </div>
+      </nav>
+    );
+  }
+
   return (
     <nav className="flex-1 py-4 px-2 overflow-y-auto custom-scrollbar">
       {navigation.map((section) => {
@@ -443,7 +600,7 @@ function NavigationMenu({
               onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
             >
               <span className="flex items-center space-x-2">
-                <div className="w-1 h-1 rounded-full bg-[#E84545]" />
+                <div className="w-1 h-1 rounded-full bg-[color:var(--autocity-accent)]" />
                 <span>{section.title}</span>
               </span>
               {isCollapsed
@@ -472,12 +629,12 @@ function NavigationMenu({
                     }}
                   >
                     {isActive && (
-                      <div className="absolute left-0 top-0 w-1 h-full bg-gradient-to-b from-[#E84545] to-[#cc3c3c] rounded-r-full" />
+                      <div className="absolute left-0 top-0 w-1 h-full bg-gradient-to-b from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] rounded-r-full" />
                     )}
                     <div className="flex items-center space-x-3 relative z-10">
                       <item.icon
                         className="h-5 w-5 flex-shrink-0 transition-all duration-200"
-                        style={{ color: isActive ? "#E84545" : th.iconInactive }}
+                        style={{ color: isActive ? "var(--autocity-accent)" : th.iconInactive }}
                       />
                       <span className={`font-medium ${isActive ? "font-semibold" : ""}`}>{item.name}</span>
                     </div>
@@ -502,14 +659,16 @@ function LogoutStrip({
   isDark,
   th,
   onLogout,
+  desktopCollapsed,
 }: {
   isDark: boolean;
   th: ThemeTokens;
   onLogout: () => void;
+  desktopCollapsed: boolean;
 }) {
   return (
     <div
-      className="p-4 relative overflow-hidden transition-colors duration-500"
+      className={`${desktopCollapsed ? "p-2" : "p-4"} relative overflow-hidden transition-colors duration-500`}
       style={{
         background: th.logoutStripBg,
         backdropFilter: "blur(10px)",
@@ -526,7 +685,7 @@ function LogoutStrip({
       />
       <button
         onClick={onLogout}
-        className="w-full flex items-center space-x-3 px-4 py-3 text-sm rounded-xl transition-all duration-300 group relative overflow-hidden"
+        className={`w-full flex items-center ${desktopCollapsed ? "justify-center px-0 py-3" : "space-x-3 px-4 py-3"} text-sm rounded-xl transition-all duration-300 group relative overflow-hidden`}
         style={{
           background: th.logoutBtnBg,
           border: `1px solid ${th.logoutBtnBorder}`,
@@ -535,9 +694,9 @@ function LogoutStrip({
         }}
         onMouseEnter={e => {
           const el = e.currentTarget as HTMLButtonElement;
-          el.style.background = "rgba(232,69,69,0.12)";
-          el.style.border = "1px solid rgba(232,69,69,0.25)";
-          el.style.boxShadow = "0 4px 20px rgba(232,69,69,0.15), inset 0 1px 0 rgba(255,255,255,0.08)";
+          el.style.background = "var(--autocity-accent-12)";
+          el.style.border = "1px solid var(--autocity-accent-25)";
+          el.style.boxShadow = "0 4px 20px var(--autocity-accent-15), inset 0 1px 0 rgba(255,255,255,0.08)";
           el.style.color = isDark ? "#ffffff" : "#111827";
         }}
         onMouseLeave={e => {
@@ -548,21 +707,25 @@ function LogoutStrip({
           el.style.color = th.logoutText;
         }}
       >
-        <LogOut className="h-5 w-5 transition-colors duration-200 group-hover:text-[#E84545]"
+        <LogOut className="h-5 w-5 transition-colors duration-200 group-hover:text-[color:var(--autocity-accent)]"
           style={{ color: th.iconInactive }}
         />
-        <span className="font-medium">Logout</span>
-        <kbd
-          className="ml-auto px-2 py-1 rounded text-xs font-mono transition-all duration-200 group-hover:text-[#E84545]"
-          style={{
-            background: th.logoutKbdBg,
-            border: `1px solid ${th.logoutKbdBorder}`,
-            backdropFilter: "blur(4px)",
-            color: th.modalKbdText,
-          }}
-        >
-          Ctrl+Q
-        </kbd>
+        {!desktopCollapsed && (
+          <>
+            <span className="font-medium">Logout</span>
+            <kbd
+              className="ml-auto px-2 py-1 rounded text-xs font-mono transition-all duration-200 group-hover:text-[color:var(--autocity-accent)]"
+              style={{
+                background: th.logoutKbdBg,
+                border: `1px solid ${th.logoutKbdBorder}`,
+                backdropFilter: "blur(4px)",
+                color: th.modalKbdText,
+              }}
+            >
+              Ctrl+Q
+            </kbd>
+          </>
+        )}
       </button>
     </div>
   );
@@ -625,23 +788,23 @@ function MobileBottomBar({
                 <div
                   className="p-2 rounded-2xl transition-all duration-200 relative"
                   style={isActive ? {
-                    background: "rgba(232,69,69,0.18)",
-                    boxShadow: "0 2px 12px rgba(232,69,69,0.25), inset 0 1px 0 rgba(255,255,255,0.1)",
-                    border: "1px solid rgba(232,69,69,0.25)",
+                    background: "var(--autocity-accent-18)",
+                    boxShadow: "0 2px 12px var(--autocity-accent-25), inset 0 1px 0 rgba(255,255,255,0.1)",
+                    border: "1px solid var(--autocity-accent-25)",
                   } : { background: "transparent", border: "1px solid transparent" }}
                 >
                   {isActive && (
                     <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
                   )}
                   <item.icon
-                    className={`h-6 w-6 transition-colors duration-200 ${isActive ? "text-red-400" : ""}`}
-                    style={{ color: isActive ? undefined : th.mobileIconInactive }}
+                    className="h-6 w-6 transition-colors duration-200"
+                    style={{ color: isActive ? "var(--autocity-accent)" : th.mobileIconInactive }}
                     strokeWidth={isActive ? 2.5 : 2}
                   />
                 </div>
                 <span
-                  className={`text-[10px] font-medium mt-0.5 transition-colors duration-200 ${isActive ? "text-red-400" : ""}`}
-                  style={{ color: isActive ? undefined : th.mobileLabelInactive }}
+                  className="text-[10px] font-medium mt-0.5 transition-colors duration-200"
+                  style={{ color: isActive ? "var(--autocity-accent)" : th.mobileLabelInactive }}
                 >
                   {item.name}
                 </span>
@@ -661,25 +824,25 @@ function MobileBottomBar({
                     <div
                       className="p-2 rounded-2xl transition-all duration-200 relative"
                       style={isActive ? {
-                        background: "rgba(232,69,69,0.18)",
-                        boxShadow: "0 2px 12px rgba(232,69,69,0.25), inset 0 1px 0 rgba(255,255,255,0.1)",
-                        border: "1px solid rgba(232,69,69,0.25)",
+                        background: "var(--autocity-accent-18)",
+                        boxShadow: "0 2px 12px var(--autocity-accent-25), inset 0 1px 0 rgba(255,255,255,0.1)",
+                        border: "1px solid var(--autocity-accent-25)",
                       } : { background: "transparent", border: "1px solid transparent" }}
                     >
                       {isActive && (
                         <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
                       )}
                       <MessageCircle
-                        className={`h-6 w-6 transition-colors duration-200 ${isActive ? "text-red-400" : ""}`}
-                        style={{ color: isActive ? undefined : th.mobileIconInactive }}
+                        className="h-6 w-6 transition-colors duration-200"
+                        style={{ color: isActive ? "var(--autocity-accent)" : th.mobileIconInactive }}
                         strokeWidth={isActive ? 2.5 : 2}
                       />
                       {unreadCount > 0 && (
                         <span
                           className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center text-white text-[10px] font-bold rounded-full px-1"
                           style={{
-                            background: "linear-gradient(135deg,#E84545,#cc3c3c)",
-                            boxShadow: "0 2px 8px rgba(232,69,69,0.5)",
+                            background: "linear-gradient(135deg,var(--autocity-accent),var(--autocity-accent-strong))",
+                            boxShadow: "0 2px 8px var(--autocity-accent-50)",
                           }}
                         >
                           {unreadCount > 99 ? "99+" : unreadCount}
@@ -687,8 +850,8 @@ function MobileBottomBar({
                       )}
                     </div>
                     <span
-                      className={`text-[10px] font-medium mt-0.5 transition-colors duration-200 ${isActive ? "text-red-400" : ""}`}
-                      style={{ color: isActive ? undefined : th.mobileLabelInactive }}
+                      className="text-[10px] font-medium mt-0.5 transition-colors duration-200"
+                      style={{ color: isActive ? "var(--autocity-accent)" : th.mobileLabelInactive }}
                     >
                       Chat+
                     </span>
@@ -742,6 +905,9 @@ function MobileMenuOverlay({
   onShowHelp: () => void;
   onLogout: () => void;
 }) {
+  const outletName = user?.role === "SUPERADMIN" ? "" : formatOutletName(user?.outletName || "");
+  const outletLogoUrl = getOutletLogoUrl(user);
+
   return (
     <div
       role="button"
@@ -767,14 +933,42 @@ function MobileMenuOverlay({
           className="flex items-center justify-between p-4 border-b flex-shrink-0"
           style={{
             borderColor: th.overlayMenuBorder,
-            background: isDark ? "rgba(232,69,69,0.05)" : "rgba(232,69,69,0.04)",
+            background: isDark ? "var(--autocity-accent-05)" : "var(--autocity-accent-04)",
           }}
         >
           <div className="flex items-center space-x-3">
-            <div className="p-2 rounded-xl" style={{ background: "rgba(232,69,69,0.10)" }}>
-              <Grid3x3 className="h-5 w-5 text-[#E84545]" />
+            {(outletLogoUrl || outletName) ? (
+              <div
+                className="h-11 w-11 shrink-0 overflow-hidden rounded-2xl border shadow-sm"
+                style={{
+                  background: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.72)",
+                  borderColor: isDark ? "rgba(255,255,255,0.16)" : "var(--autocity-accent-20)",
+                }}
+              >
+                {outletLogoUrl ? (
+                  <img
+                    src={outletLogoUrl}
+                    alt={`${outletName || "Outlet"} logo`}
+                    className="h-full w-full object-contain p-1.5"
+                  />
+                ) : (
+                  <div
+                    className="flex h-full w-full items-center justify-center text-sm font-black"
+                    style={{ color: isDark ? "#ffffff" : "var(--autocity-header-text-light)" }}
+                  >
+                    {outletName.slice(0, 2).toUpperCase()}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-2 rounded-xl" style={{ background: "var(--autocity-accent-10)" }}>
+                <Grid3x3 className="h-5 w-5 text-[color:var(--autocity-accent)]" />
+              </div>
+            )}
+            <div className="min-w-0">
+              <h3 className="text-lg font-bold leading-tight whitespace-normal break-words">{outletName || "All Pages"}</h3>
+              {outletName && <p className="text-xs font-medium" style={{ color: th.overlayRole }}>All Pages</p>}
             </div>
-            <h3 className="text-lg font-bold">All Pages</h3>
           </div>
           <button
             onClick={onClose}
@@ -796,7 +990,7 @@ function MobileMenuOverlay({
             >
               <div className="relative">
                 <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg"
-                  style={{ background: "linear-gradient(135deg,#E84545,#cc3c3c)" }}
+                  style={{ background: "linear-gradient(135deg,var(--autocity-accent),var(--autocity-accent-strong))" }}
                 >
                   <span className="text-base font-bold text-white">{user.firstName?.[0]}{user.lastName?.[0]}</span>
                 </div>
@@ -823,17 +1017,17 @@ function MobileMenuOverlay({
               >
                 <div className="flex items-center space-x-3">
                   <div className="p-2 rounded-lg"
-                    style={{ background: pathname === "/autocityPro/messages" ? "rgba(232,69,69,0.20)" : th.overlayItemBg }}
+                    style={{ background: pathname === "/autocityPro/messages" ? "var(--autocity-accent-20)" : th.overlayItemBg }}
                   >
                     <MessageCircle
                       className="h-5 w-5"
-                      style={{ color: pathname === "/autocityPro/messages" ? "#E84545" : th.iconInactive }}
+                      style={{ color: pathname === "/autocityPro/messages" ? "var(--autocity-accent)" : th.iconInactive }}
                     />
                   </div>
                   <span className="font-medium">Chat+</span>
                 </div>
                 {unreadCount > 0 && (
-                  <span className="px-2 py-0.5 text-xs font-bold bg-[#E84545] text-white rounded-full animate-pulse">
+                  <span className="px-2 py-0.5 text-xs font-bold bg-[color:var(--autocity-accent)] text-white rounded-full animate-pulse">
                     {unreadCount > 99 ? "99+" : unreadCount}
                   </span>
                 )}
@@ -846,7 +1040,7 @@ function MobileMenuOverlay({
           {navigation.map((section) => (
             <div key={section.title} className="mb-4">
               <div className="flex items-center space-x-2 px-3 py-2 mb-2">
-                <div className="w-1 h-1 rounded-full bg-[#E84545]" />
+                <div className="w-1 h-1 rounded-full bg-[color:var(--autocity-accent)]" />
                 <h4 className="text-xs font-bold uppercase tracking-wider" style={{ color: th.sectionLabel }}>
                   {section.title}
                 </h4>
@@ -866,15 +1060,15 @@ function MobileMenuOverlay({
                       }}
                     >
                       <div className="p-2 rounded-lg"
-                        style={{ background: isActive ? "rgba(232,69,69,0.20)" : th.overlayItemBg }}
+                        style={{ background: isActive ? "var(--autocity-accent-20)" : th.overlayItemBg }}
                       >
                         <item.icon
                           className="h-5 w-5"
-                          style={{ color: isActive ? "#E84545" : th.iconInactive }}
+                          style={{ color: isActive ? "var(--autocity-accent)" : th.iconInactive }}
                         />
                       </div>
                       <span className="font-medium">{item.name}</span>
-                      {isActive && <div className="ml-auto w-2 h-2 bg-[#E84545] rounded-full" />}
+                      {isActive && <div className="ml-auto w-2 h-2 bg-[color:var(--autocity-accent)] rounded-full" />}
                     </button>
                   );
                 })}
@@ -894,8 +1088,8 @@ function MobileMenuOverlay({
           </button>
           <button
             onClick={onLogout}
-            className="w-full flex items-center justify-center space-x-2 py-3 text-sm rounded-xl text-[#E84545] mt-2 transition-all touch-manipulation"
-            style={{ background: "rgba(232,69,69,0.10)" }}
+            className="w-full flex items-center justify-center space-x-2 py-3 text-sm rounded-xl text-[color:var(--autocity-accent)] mt-2 transition-all touch-manipulation"
+            style={{ background: "var(--autocity-accent-10)" }}
           >
             <LogOut className="h-5 w-5" />
             <span className="font-medium">Logout</span>
@@ -929,12 +1123,12 @@ function KeyboardShortcutsModal({
           className="flex items-center justify-between p-6 border-b"
           style={{
             borderColor: th.modalBorder,
-            background: isDark ? "rgba(232,69,69,0.05)" : "rgba(232,69,69,0.03)",
+            background: isDark ? "var(--autocity-accent-05)" : "var(--autocity-accent-03)",
           }}
         >
           <div className="flex items-center space-x-3">
-            <div className="p-2 rounded-xl" style={{ background: "rgba(232,69,69,0.10)" }}>
-              <Keyboard className="h-5 w-5 text-[#E84545]" />
+            <div className="p-2 rounded-xl" style={{ background: "var(--autocity-accent-10)" }}>
+              <Keyboard className="h-5 w-5 text-[color:var(--autocity-accent)]" />
             </div>
             <div>
               <h3 className="text-xl font-bold">Keyboard Shortcuts</h3>
@@ -1068,7 +1262,12 @@ function KeyboardShortcutsModal({
   );
 }
 
-export default function Sidebar({ user, onLogout }: SidebarProps) {
+export default function Sidebar({
+  user,
+  onLogout,
+  desktopCollapsed = false,
+  onToggleDesktopCollapse,
+}: SidebarProps) {
   const pathname = usePathname();
   const router   = useRouter();
   const isDark   = useTimeBasedTheme();
@@ -1209,7 +1408,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
   return (
     <>
       <div
-        className="hidden md:flex w-64 h-screen fixed left-0 top-0 overflow-y-auto flex-col z-40 shadow-2xl transition-colors duration-500"
+        className="hidden md:flex h-screen fixed left-0 top-0 w-[var(--autocity-desktop-sidebar-width)] overflow-y-auto flex-col z-40 shadow-2xl transition-[width,background-color,border-color] duration-300"
         style={{
           background: th.sidebarBg,
           color: isDark ? "#ffffff" : "#111827",
@@ -1221,6 +1420,8 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           isDark={isDark}
           isDayTime={isDayTime}
           th={th}
+          desktopCollapsed={desktopCollapsed}
+          onToggleDesktopCollapse={onToggleDesktopCollapse}
           onShowHelp={() => setActiveOverlay('help')}
         />
         {user && (
@@ -1231,6 +1432,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
             th={th}
             hasMessagesAccess={hasMessagesAccess}
             unreadCount={unreadCount}
+            desktopCollapsed={desktopCollapsed}
             onNavigate={(href) => router.push(href)}
           />
         )}
@@ -1239,11 +1441,17 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           pathname={pathname}
           isDark={isDark}
           th={th}
+          desktopCollapsed={desktopCollapsed}
           collapsedSections={collapsedSections}
           onToggleSection={toggleSection}
           onNavigate={(href) => router.push(href)}
         />
-        <LogoutStrip isDark={isDark} th={th} onLogout={onLogout} />
+        <LogoutStrip
+          isDark={isDark}
+          th={th}
+          onLogout={onLogout}
+          desktopCollapsed={desktopCollapsed}
+        />
       </div>
 
       <MobileBottomBar

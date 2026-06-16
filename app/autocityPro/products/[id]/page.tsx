@@ -356,7 +356,7 @@ export default function ProductDetailPage() {
     return (
       <div className="flex items-center justify-center h-screen bg-[#050505]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-white/10 border-t-[#E84545] mx-auto"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-white/10 border-t-[color:var(--autocity-accent)] mx-auto"></div>
           <p className="mt-4 text-white text-lg font-medium">
             Loading product details...
           </p>
@@ -379,7 +379,7 @@ export default function ProductDetailPage() {
             </p>
             <button
               onClick={() => router.push("/autocityPro/products")}
-              className="px-6 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] rounded-xl text-white font-semibold hover:opacity-90 transition-opacity"
+              className="px-6 py-3 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] rounded-xl text-white font-semibold hover:opacity-90 transition-opacity"
             >
               Back to Products
             </button>
@@ -451,7 +451,7 @@ export default function ProductDetailPage() {
         </div>
 
         {/* Desktop Header */}
-        <div className="hidden md:block py-12 bg-gradient-to-br from-[#932222] via-[#411010] to-[#a20c0c] border-b border-white/5 shadow-xl">
+        <div className="hidden md:block py-12 bg-gradient-to-br from-[var(--autocity-header-from-dark)] via-[var(--autocity-header-via-dark)] to-[var(--autocity-header-to-dark)] border-b border-white/5 shadow-xl">
           <div className="px-8">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-4">
@@ -478,7 +478,7 @@ export default function ProductDetailPage() {
                     {product.isVehicle && (
                       <>
                         <span className="text-white/40">•</span>
-                        <Car className="h-3 w-3 text-[#E84545]" />
+                        <Car className="h-3 w-3 text-[color:var(--autocity-accent)]" />
                         <span className="text-white/80 text-sm">Vehicle</span>
                       </>
                     )}
@@ -507,7 +507,7 @@ export default function ProductDetailPage() {
               onClick={() => setActiveTab("details")}
               className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === "details"
-                  ? "border-[#E84545] text-white"
+                  ? "border-[color:var(--autocity-accent)] text-white"
                   : "border-transparent text-gray-400 hover:text-white"
               }`}
             >
@@ -518,7 +518,7 @@ export default function ProductDetailPage() {
               onClick={() => setActiveTab("stock")}
               className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === "stock"
-                  ? "border-[#E84545] text-white"
+                  ? "border-[color:var(--autocity-accent)] text-white"
                   : "border-transparent text-gray-400 hover:text-white"
               }`}
             >
@@ -529,7 +529,7 @@ export default function ProductDetailPage() {
               onClick={() => setActiveTab("sales")}
               className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === "sales"
-                  ? "border-[#E84545] text-white"
+                  ? "border-[color:var(--autocity-accent)] text-white"
                   : "border-transparent text-gray-400 hover:text-white"
               }`}
             >
@@ -550,7 +550,7 @@ export default function ProductDetailPage() {
                         {product.name}
                       </h2>
                       {product.isVehicle && (
-                        <Car className="h-4 w-4 text-[#E84545]" />
+                        <Car className="h-4 w-4 text-[color:var(--autocity-accent)]" />
                       )}
                     </div>
                     <p className="text-gray-400 text-sm">
@@ -603,7 +603,7 @@ export default function ProductDetailPage() {
                       <div>
                         <p className="text-xs text-gray-500">Category</p>
                         <div className="flex items-center gap-2 mt-1">
-                          <Tag className="h-3 w-3 text-[#E84545]" />
+                          <Tag className="h-3 w-3 text-[color:var(--autocity-accent)]" />
                           <span className="text-white">
                             {product.category?.name || "Uncategorized"}
                           </span>
@@ -617,9 +617,9 @@ export default function ProductDetailPage() {
 
                     {/* Vehicle Details */}
                     {product.isVehicle && (
-                      <div className="bg-[#E84545]/5 border border-[#E84545]/10 rounded-xl p-4 space-y-3">
+                      <div className="bg-[color:var(--autocity-accent-05)] border border-[color:var(--autocity-accent-10)] rounded-xl p-4 space-y-3">
                         <div className="flex items-center gap-2 mb-2">
-                          <Car className="h-4 w-4 text-[#E84545]" />
+                          <Car className="h-4 w-4 text-[color:var(--autocity-accent)]" />
                           <h3 className="font-semibold text-white">
                             Vehicle Details
                           </h3>
@@ -770,9 +770,9 @@ export default function ProductDetailPage() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <button
                   onClick={() => router.push(`/autocityPro/products/${productId}/edit`)}
-                  className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-xl p-4 hover:border-[#E84545]/30 transition-all group"
+                  className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-xl p-4 hover:border-[color:var(--autocity-accent-30)] transition-all group"
                 >
-                  <Edit className="h-5 w-5 text-[#E84545] mb-2 group-hover:scale-110 transition-transform" />
+                  <Edit className="h-5 w-5 text-[color:var(--autocity-accent)] mb-2 group-hover:scale-110 transition-transform" />
                   <p className="text-sm font-medium text-white">Edit Product</p>
                 </button>
                 <button
@@ -868,7 +868,7 @@ export default function ProductDetailPage() {
                   <button
                     onClick={handleAdjustStock}
                     disabled={stockAdjustment.quantity <= 0}
-                    className="px-4 py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Update Stock
                   </button>
@@ -889,7 +889,7 @@ export default function ProductDetailPage() {
                   {loadingStockHistory ? (
                     <div className="p-6 text-center text-gray-400">
                       <div className="flex justify-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#E84545] border-t-transparent"></div>
+                        <div className="animate-spin rounded-full h-8 w-8 border-2 border-[color:var(--autocity-accent)] border-t-transparent"></div>
                       </div>
                       <p className="mt-2">Loading stock history...</p>
                     </div>
@@ -1002,7 +1002,7 @@ export default function ProductDetailPage() {
                 {loadingSaleHistory ? (
                   <div className="p-6 text-center text-gray-400">
                     <div className="flex justify-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#E84545] border-t-transparent"></div>
+                      <div className="animate-spin rounded-full h-8 w-8 border-2 border-[color:var(--autocity-accent)] border-t-transparent"></div>
                     </div>
                     <p className="mt-2">Loading sales history...</p>
                   </div>
@@ -1072,7 +1072,7 @@ export default function ProductDetailPage() {
                     router.push(`/autocityPro/products/${productId}/edit`);
                     setShowMobileMenu(false);
                   }}
-                  className="w-full p-4 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] rounded-2xl text-white font-semibold hover:from-[#d63d3d] hover:to-[#b53535] transition-all flex items-center justify-between shadow-lg active:scale-95"
+                  className="w-full p-4 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] rounded-2xl text-white font-semibold hover:from-[#d63d3d] hover:to-[#b53535] transition-all flex items-center justify-between shadow-lg active:scale-95"
                 >
                   <span>Edit Product</span>
                   <Edit className="h-5 w-5" />
@@ -1168,7 +1168,7 @@ export default function ProductDetailPage() {
                 onClick={() => setActiveTab("details")}
                 className={`flex flex-col items-center p-2 rounded-xl transition-all ${
                   activeTab === "details"
-                    ? "bg-[#E84545]/20 text-[#E84545]"
+                    ? "bg-[color:var(--autocity-accent-20)] text-[color:var(--autocity-accent)]"
                     : "text-gray-400"
                 }`}
               >
@@ -1179,7 +1179,7 @@ export default function ProductDetailPage() {
                 onClick={() => setActiveTab("stock")}
                 className={`flex flex-col items-center p-2 rounded-xl transition-all ${
                   activeTab === "stock"
-                    ? "bg-[#E84545]/20 text-[#E84545]"
+                    ? "bg-[color:var(--autocity-accent-20)] text-[color:var(--autocity-accent)]"
                     : "text-gray-400"
                 }`}
               >
@@ -1190,7 +1190,7 @@ export default function ProductDetailPage() {
                 onClick={() => setActiveTab("sales")}
                 className={`flex flex-col items-center p-2 rounded-xl transition-all ${
                   activeTab === "sales"
-                    ? "bg-[#E84545]/20 text-[#E84545]"
+                    ? "bg-[color:var(--autocity-accent-20)] text-[color:var(--autocity-accent)]"
                     : "text-gray-400"
                 }`}
               >

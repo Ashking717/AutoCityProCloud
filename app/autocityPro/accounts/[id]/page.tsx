@@ -48,15 +48,15 @@ export default function AccountDetailPage() {
   // ── Theme tokens ────────────────────────────────────────────────────────────
   const th = {
     pageBg:             isDark ? '#050505'                                              : '#f3f4f6',
-    headerBgFrom:       isDark ? '#932222'                                              : '#fef2f2',
-    headerBgVia:        isDark ? '#411010'                                              : '#fee2e2',
-    headerBgTo:         isDark ? '#a20c0c'                                              : '#fecaca',
+    headerBgFrom:       isDark ? 'var(--autocity-header-from-dark)'                                              : 'var(--autocity-header-from-light)',
+    headerBgVia:        isDark ? 'var(--autocity-header-via-dark)'                                              : 'var(--autocity-header-via-light)',
+    headerBgTo:         isDark ? 'var(--autocity-header-to-dark)'                                              : 'var(--autocity-header-to-light)',
     headerBorder:       isDark ? 'rgba(255,255,255,0.05)'                               : 'rgba(0,0,0,0.06)',
-    headerTitle:        isDark ? '#ffffff'                                              : '#7f1d1d',
-    headerSub:          isDark ? 'rgba(255,255,255,0.80)'                               : '#991b1b',
-    headerBtnBg:        isDark ? 'rgba(255,255,255,0.10)'                               : 'rgba(127,29,29,0.10)',
-    headerBtnBorder:    isDark ? 'rgba(255,255,255,0.20)'                               : 'rgba(127,29,29,0.20)',
-    headerBtnText:      isDark ? '#ffffff'                                              : '#7f1d1d',
+    headerTitle:        isDark ? '#ffffff'                                              : 'var(--autocity-header-text-light)',
+    headerSub:          isDark ? 'rgba(255,255,255,0.80)'                               : 'var(--autocity-header-sub-light)',
+    headerBtnBg:        isDark ? 'rgba(255,255,255,0.10)'                               : 'var(--autocity-accent-10)',
+    headerBtnBorder:    isDark ? 'rgba(255,255,255,0.20)'                               : 'var(--autocity-accent-20)',
+    headerBtnText:      isDark ? '#ffffff'                                              : 'var(--autocity-header-text-light)',
     mobileHeaderBg:     isDark ? 'linear-gradient(135deg,#0A0A0A,#050505,#0A0A0A)'     : 'linear-gradient(135deg,#ffffff,#f9fafb,#ffffff)',
     mobileHeaderBorder: isDark ? 'rgba(255,255,255,0.05)'                               : 'rgba(0,0,0,0.08)',
     mobileHeaderTitle:  isDark ? '#ffffff'                                              : '#111827',
@@ -65,7 +65,7 @@ export default function AccountDetailPage() {
     mobileBtnText:      isDark ? 'rgba(255,255,255,0.80)'                               : '#374151',
     cardBg:             isDark ? '#0A0A0A'                                              : '#ffffff',
     cardBorder:         isDark ? 'rgba(255,255,255,0.06)'                               : 'rgba(0,0,0,0.08)',
-    cardHoverBorder:    isDark ? 'rgba(232,69,69,0.40)'                                 : 'rgba(232,69,69,0.40)',
+    cardHoverBorder:    isDark ? 'var(--autocity-accent-40)'                                 : 'var(--autocity-accent-40)',
     cardTitle:          isDark ? '#ffffff'                                              : '#111827',
     cardSubtext:        isDark ? '#9ca3af'                                              : '#6b7280',
     cardMuted:          isDark ? '#6b7280'                                              : '#9ca3af',
@@ -231,7 +231,7 @@ export default function AccountDetailPage() {
       <MainLayout user={user} onLogout={handleLogout}>
         <div className="min-h-screen flex items-center justify-center transition-colors duration-500" style={{ background: th.pageBg }}>
           <div className="text-center">
-            <RefreshCw className="h-16 w-16 animate-spin text-[#E84545] mx-auto mb-4" />
+            <RefreshCw className="h-16 w-16 animate-spin text-[color:var(--autocity-accent)] mx-auto mb-4" />
             <p style={{ color: th.cardMuted }}>Loading account...</p>
           </div>
         </div>
@@ -248,7 +248,7 @@ export default function AccountDetailPage() {
             <h2 className="text-2xl font-bold mb-2" style={{ color: th.cardTitle }}>Account Not Found</h2>
             <button onClick={() => router.push('/autocityPro/accounts')}
               className="mt-4 px-4 py-2 text-white rounded-lg"
-              style={{ background: 'linear-gradient(to right,#E84545,#cc3c3c)' }}>
+              style={{ background: 'linear-gradient(to right,var(--autocity-accent),var(--autocity-accent-strong))' }}>
               Back to Accounts
             </button>
           </div>
@@ -273,16 +273,16 @@ export default function AccountDetailPage() {
             <div className="bg-black rounded-[28px] px-6 py-3 shadow-2xl border border-white/10 backdrop-blur-xl pointer-events-auto animate-in slide-in-from-top duration-500">
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
-                  <Wallet className="h-3 w-3 text-[#E84545]" />
+                  <Wallet className="h-3 w-3 text-[color:var(--autocity-accent)]" />
                   <span className="text-white text-xs font-semibold">{accountCode}</span>
                 </div>
                 <div className="h-3 w-px bg-white/20" />
                 <div className="flex items-center gap-1.5">
                   {getAccountTypeIcon(accountType)}
-                  <span className="text-[#E84545] text-xs font-medium capitalize">{accountType}</span>
+                  <span className="text-[color:var(--autocity-accent)] text-xs font-medium capitalize">{accountType}</span>
                 </div>
                 <div className="h-3 w-px bg-white/20" />
-                {isDark ? <Moon className="h-3 w-3 text-[#E84545]" /> : <Sun className="h-3 w-3 text-[#E84545]" />}
+                {isDark ? <Moon className="h-3 w-3 text-[color:var(--autocity-accent)]" /> : <Sun className="h-3 w-3 text-[color:var(--autocity-accent)]" />}
               </div>
             </div>
           </div>
@@ -359,7 +359,7 @@ export default function AccountDetailPage() {
                       </button>
                       <button onClick={handleDelete}
                         className="flex items-center gap-2 px-4 py-2.5 text-white rounded-lg transition-all"
-                        style={{ background: 'linear-gradient(to right,#E84545,#cc3c3c)' }}>
+                        style={{ background: 'linear-gradient(to right,var(--autocity-accent),var(--autocity-accent-strong))' }}>
                         <Trash2 className="h-4 w-4" />Delete
                       </button>
                     </>
@@ -376,7 +376,7 @@ export default function AccountDetailPage() {
                   </button>
                   <button onClick={handleUpdate} disabled={saving}
                     className="flex items-center gap-2 px-4 py-2.5 text-white rounded-lg transition-all disabled:opacity-50"
-                    style={{ background: 'linear-gradient(to right,#E84545,#cc3c3c)' }}>
+                    style={{ background: 'linear-gradient(to right,var(--autocity-accent),var(--autocity-accent-strong))' }}>
                     <Save className="h-4 w-4" />{saving ? 'Saving...' : 'Save Changes'}
                   </button>
                 </div>
@@ -404,7 +404,7 @@ export default function AccountDetailPage() {
                           <label className="block text-sm font-medium mb-1" style={{ color: th.labelText }}>{f.label}</label>
                           <input type={f.type} value={(formData as any)[f.key]}
                             onChange={e => setFormData({ ...formData, [f.key]: e.target.value })}
-                            className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545] focus:border-transparent"
+                            className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                             style={inputStyle} />
                         </div>
                       ))}
@@ -414,7 +414,7 @@ export default function AccountDetailPage() {
                         <label className="block text-sm font-medium mb-1" style={{ color: th.labelText }}>Account Type *
                         <select value={formData.accountType}
                           onChange={e => setFormData({ ...formData, accountType: e.target.value as any, accountSubType: '', accountGroup: '' })}
-                          className="w-full px-3 py-2 rounded-lg appearance-none focus:ring-2 focus:ring-[#E84545]"
+                          className="w-full px-3 py-2 rounded-lg appearance-none focus:ring-2 focus:ring-[color:var(--autocity-accent)]"
                           style={inputStyle}>
                           {['asset','liability','equity','revenue','expense'].map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>)}
                         </select>
@@ -423,7 +423,7 @@ export default function AccountDetailPage() {
                       <div>
                         <label className="block text-sm font-medium mb-1" style={{ color: th.labelText }}>Sub Type
                         <select value={formData.accountSubType} onChange={e => setFormData({ ...formData, accountSubType: e.target.value })}
-                          className="w-full px-3 py-2 rounded-lg appearance-none focus:ring-2 focus:ring-[#E84545]"
+                          className="w-full px-3 py-2 rounded-lg appearance-none focus:ring-2 focus:ring-[color:var(--autocity-accent)]"
                           style={inputStyle}>
                           <option value="">Select Sub Type</option>
                           {(accountSubTypes[formData.accountType] || []).map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
@@ -433,7 +433,7 @@ export default function AccountDetailPage() {
                       <div>
                         <label className="block text-sm font-medium mb-1" style={{ color: th.labelText }}>Account Group *
                         <select value={formData.accountGroup} onChange={e => setFormData({ ...formData, accountGroup: e.target.value })}
-                          className="w-full px-3 py-2 rounded-lg appearance-none focus:ring-2 focus:ring-[#E84545]"
+                          className="w-full px-3 py-2 rounded-lg appearance-none focus:ring-2 focus:ring-[color:var(--autocity-accent)]"
                           style={inputStyle}>
                           <option value="">Select Group</option>
                           {(accountGroups[formData.accountType] || []).map(g => <option key={g} value={g}>{g}</option>)}
@@ -445,7 +445,7 @@ export default function AccountDetailPage() {
                       <label className="block text-sm font-medium mb-1" style={{ color: th.labelText }}>Opening Balance
                       <input type="number" value={formData.openingBalance} step="0.01"
                         onChange={e => setFormData({ ...formData, openingBalance: parseFloat(e.target.value) || 0 })}
-                        className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545]"
+                        className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)]"
                         style={inputStyle} />
                       </label>
                     </div>
@@ -453,7 +453,7 @@ export default function AccountDetailPage() {
                       <label className="block text-sm font-medium mb-1" style={{ color: th.labelText }}>Description
                       <textarea value={formData.description} rows={4}
                         onChange={e => setFormData({ ...formData, description: e.target.value })}
-                        className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[#E84545]"
+                        className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)]"
                         style={inputStyle} placeholder="Optional description" />
                       </label>
                     </div>
@@ -523,7 +523,7 @@ export default function AccountDetailPage() {
                   <div className="flex justify-between items-center mb-4">
                     <h2 className="text-xl font-bold" style={{ color: th.cardTitle }}>Recent Transactions</h2>
                     <button onClick={() => router.push(`/autocityPro/ledgers?account=${accountId}`)}
-                      className="text-sm flex items-center gap-1 text-[#E84545] hover:text-[#cc3c3c]">
+                      className="text-sm flex items-center gap-1 text-[color:var(--autocity-accent)] hover:text-[color:var(--autocity-accent-strong)]">
                       <span>View All</span><History className="h-4 w-4" />
                     </button>
                   </div>
@@ -653,7 +653,7 @@ export default function AccountDetailPage() {
                   </button>
                   <button onClick={() => { handleDelete(); setShowMobileMenu(false); }}
                     className="w-full p-4 rounded-xl font-semibold flex items-center justify-between active:scale-95 transition-all"
-                    style={{ background: 'rgba(232,69,69,0.10)', border: '1px solid rgba(232,69,69,0.20)', color: '#E84545' }}>
+                    style={{ background: 'var(--autocity-accent-10)', border: '1px solid var(--autocity-accent-20)', color: 'var(--autocity-accent)' }}>
                     <span>Delete Account</span><Trash2 className="h-5 w-5" />
                   </button>
                 </>

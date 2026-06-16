@@ -80,7 +80,7 @@ export default function AIProviderTab({ isDark, outletId }: Props) {
   const t = {
     cardBg:        isDark ? '#000'                   : '#fff',
     cardBorder:    isDark ? '#1f2937'                : 'rgba(0,0,0,0.08)',
-    cardHover:     isDark ? '#E84545'                : 'rgba(232,69,69,0.4)',
+    cardHover:     isDark ? 'var(--autocity-accent)'                : 'var(--autocity-accent-40)',
     title:         isDark ? '#fff'                   : '#111827',
     sub:           isDark ? '#6b7280'                : '#9ca3af',
     divider:       isDark ? '#1f2937'                : 'rgba(0,0,0,0.06)',
@@ -89,15 +89,15 @@ export default function AIProviderTab({ isDark, outletId }: Props) {
     inputText:     isDark ? '#fff'                   : '#111827',
     hint:          isDark ? '#64748b'                : '#9ca3af',
     label:         isDark ? '#d1d5db'                : '#374151',
-    bannerBg:      isDark ? 'rgba(232,69,69,0.06)'   : 'rgba(232,69,69,0.04)',
-    bannerBorder:  isDark ? 'rgba(232,69,69,0.18)'   : 'rgba(232,69,69,0.15)',
+    bannerBg:      isDark ? 'var(--autocity-accent-06)'   : 'var(--autocity-accent-04)',
+    bannerBorder:  isDark ? 'var(--autocity-accent-18)'   : 'var(--autocity-accent-15)',
     bannerText:    isDark ? '#fca5a5'                : '#b91c1c',
     modalBg:       isDark ? '#000'                   : '#fff',
     modalBorder:   isDark ? '#1f2937'                : 'rgba(0,0,0,0.10)',
     cancelBorder:  isDark ? '#374151'                : 'rgba(0,0,0,0.12)',
     cancelText:    isDark ? '#d1d5db'                : '#374151',
-    iconBg:        isDark ? 'rgba(232,69,69,0.15)'   : 'rgba(232,69,69,0.08)',
-    iconBorder:    isDark ? 'rgba(232,69,69,0.30)'   : 'rgba(232,69,69,0.20)',
+    iconBg:        isDark ? 'var(--autocity-accent-15)'   : 'var(--autocity-accent-08)',
+    iconBorder:    isDark ? 'var(--autocity-accent-30)'   : 'var(--autocity-accent-20)',
     emptyIcon:     isDark ? '#374151'                : '#d1d5db',
     dropdownBg:    isDark ? '#0a0a0a'                : '#fff',
     dropdownBorder:isDark ? '#1f2937'                : 'rgba(0,0,0,0.10)',
@@ -193,7 +193,7 @@ export default function AIProviderTab({ isDark, outletId }: Props) {
     finally { setDeleting(null); }
   };
 
-  const inputCls   = 'w-full px-4 py-3 rounded-lg focus:border-[#E84545] focus:ring-2 focus:ring-red-900/30 transition-all outline-none';
+  const inputCls   = 'w-full px-4 py-3 rounded-lg focus:border-[color:var(--autocity-accent)] focus:ring-2 focus:ring-red-900/30 transition-all outline-none';
   const inputStyle = { background: t.inputBg, border: `1px solid ${t.inputBorder}`, color: t.inputText };
 
   return (
@@ -202,7 +202,7 @@ export default function AIProviderTab({ isDark, outletId }: Props) {
       {/* How-to banner */}
       <div className="rounded-xl p-4 flex items-start gap-3"
         style={{ background: t.bannerBg, border: `1px solid ${t.bannerBorder}` }}>
-        <Zap className="h-5 w-5 flex-shrink-0 mt-0.5 text-[#E84545]" />
+        <Zap className="h-5 w-5 flex-shrink-0 mt-0.5 text-[color:var(--autocity-accent)]" />
         <div>
           <p className="text-sm font-semibold mb-1" style={{ color: t.title }}>AI Provider Key Management</p>
           <ol className="text-xs space-y-1" style={{ color: t.bannerText }}>
@@ -217,14 +217,14 @@ export default function AIProviderTab({ isDark, outletId }: Props) {
       {/* Add button */}
       <div className="flex justify-end">
         <button onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-[#E84545] text-white rounded-lg hover:bg-[#cc3c3c] transition-all font-semibold text-sm group">
+          className="flex items-center gap-2 px-4 py-2.5 bg-[color:var(--autocity-accent)] text-white rounded-lg hover:bg-[color:var(--autocity-accent-strong)] transition-all font-semibold text-sm group">
           <Plus className="h-4 w-4 group-hover:scale-110 transition-transform" />Add Provider
         </button>
       </div>
 
       {loading && (
         <div className="flex items-center justify-center py-12">
-          <RefreshCw className="h-8 w-8 animate-spin text-[#E84545]" />
+          <RefreshCw className="h-8 w-8 animate-spin text-[color:var(--autocity-accent)]" />
         </div>
       )}
 
@@ -233,14 +233,14 @@ export default function AIProviderTab({ isDark, outletId }: Props) {
           style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}` }}>
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
             style={{ background: t.iconBg, border: `1px solid ${t.iconBorder}` }}>
-            <Key className="h-8 w-8 text-[#E84545]" />
+            <Key className="h-8 w-8 text-[color:var(--autocity-accent)]" />
           </div>
           <p className="text-lg font-semibold mb-2" style={{ color: t.title }}>No AI provider configured</p>
           <p className="text-sm mb-6" style={{ color: t.sub }}>
             Add an OpenAI or Anthropic key to power the AI assistant, OCR, and voice features.
           </p>
           <button onClick={() => setShowModal(true)}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#E84545] text-white rounded-lg hover:bg-[#cc3c3c] transition-all font-semibold">
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-[color:var(--autocity-accent)] text-white rounded-lg hover:bg-[color:var(--autocity-accent-strong)] transition-all font-semibold">
             <Plus className="h-4 w-4" />Add Provider
           </button>
         </div>
@@ -288,7 +288,7 @@ export default function AIProviderTab({ isDark, outletId }: Props) {
                     {meta.keyPrefix}••••••••••••••••••••••••••••••••
                   </span>
                   <span className="text-[10px] px-1.5 py-0.5 rounded"
-                    style={{ background: 'rgba(232,69,69,0.12)', color: '#E84545' }}>secured</span>
+                    style={{ background: 'var(--autocity-accent-12)', color: 'var(--autocity-accent)' }}>secured</span>
                 </div>
 
                 {/* ── Widget enable/disable toggle ─────────────────────── */}
@@ -366,7 +366,7 @@ export default function AIProviderTab({ isDark, outletId }: Props) {
           <div className="rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden"
             style={{ background: t.modalBg, border: `1px solid ${t.modalBorder}` }}>
 
-            <div className="flex justify-between items-center px-6 py-5 bg-gradient-to-r from-[#932222] via-[#411010] to-[#a20c0c]">
+            <div className="flex justify-between items-center px-6 py-5 bg-gradient-to-r from-[var(--autocity-header-from-dark)] via-[var(--autocity-header-via-dark)] to-[var(--autocity-header-to-dark)]">
               <div className="flex items-center gap-3">
                 <div className="bg-white/20 p-2 rounded-lg"><Key className="h-6 w-6 text-white" /></div>
                 <div>
@@ -443,7 +443,7 @@ export default function AIProviderTab({ isDark, outletId }: Props) {
                   <p className="text-xs" style={{ color: t.hint }}>
                     Get your key from{' '}
                     <a href={PROVIDERS[form.provider].docsUrl} target="_blank" rel="noreferrer"
-                      className="underline hover:text-[#E84545] transition-colors">
+                      className="underline hover:text-[color:var(--autocity-accent)] transition-colors">
                       {PROVIDERS[form.provider].name} dashboard
                     </a>.
                   </p>
@@ -505,7 +505,7 @@ export default function AIProviderTab({ isDark, outletId }: Props) {
                   className="px-5 py-2.5 rounded-lg font-medium transition-all"
                   style={{ border: `1px solid ${t.cancelBorder}`, color: t.cancelText }}>Cancel</button>
                 <button onClick={handleSave} disabled={saving || !form.apiKey || testResult === 'fail'}
-                  className="px-5 py-2.5 bg-[#E84545] text-white rounded-lg hover:bg-[#cc3c3c] transition-all font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                  className="px-5 py-2.5 bg-[color:var(--autocity-accent)] text-white rounded-lg hover:bg-[color:var(--autocity-accent-strong)] transition-all font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
                   {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Key className="h-4 w-4" />}
                   {saving ? 'Saving…' : 'Save Provider'}
                 </button>

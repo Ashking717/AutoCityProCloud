@@ -1,5 +1,13 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
+export interface IOutletBrandingAsset {
+  data?: Buffer;
+  contentType?: string;
+  filename?: string;
+  size?: number;
+  updatedAt?: Date;
+}
+
 export interface IOutlet extends Document {
   name: string;
   code: string;
@@ -18,6 +26,12 @@ export interface IOutlet extends Document {
   taxInfo: {
     taxId: string;
     gstNumber?: string;
+  };
+  branding?: {
+    logo?: IOutletBrandingAsset;
+    seal?: IOutletBrandingAsset;
+    logoUrl?: string;
+    sealUrl?: string;
   };
   settings: {
     currency: string;
@@ -58,6 +72,24 @@ const OutletSchema = new Schema<IOutlet>(
     taxInfo: {
       taxId: { type: String, },
       gstNumber: String,
+    },
+    branding: {
+      logo: {
+        data: { type: Buffer, select: false },
+        contentType: { type: String, trim: true },
+        filename: { type: String, trim: true },
+        size: { type: Number },
+        updatedAt: { type: Date },
+      },
+      seal: {
+        data: { type: Buffer, select: false },
+        contentType: { type: String, trim: true },
+        filename: { type: String, trim: true },
+        size: { type: Number },
+        updatedAt: { type: Date },
+      },
+      logoUrl: { type: String, trim: true },
+      sealUrl: { type: String, trim: true },
     },
     settings: {
       currency: { type: String, default: 'QAR' },

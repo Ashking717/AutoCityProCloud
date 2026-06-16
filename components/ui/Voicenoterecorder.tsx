@@ -259,7 +259,7 @@ export default function VoiceNoteRecorder({
       {/* Header */}
       <div className="flex items-center justify-between">
         <label className="text-sm font-medium text-white flex items-center gap-2">
-          <Volume2 className="h-4 w-4 text-[#E84545]" />
+          <Volume2 className="h-4 w-4 text-[color:var(--autocity-accent)]" />
           {label}
         </label>
         {voiceNotes.length > 0 && (
@@ -289,7 +289,7 @@ export default function VoiceNoteRecorder({
                 ? "bg-red-500/20 text-red-400 border border-red-500/40"
                 : voiceNotes.length >= maxNotes
                 ? "bg-white/5 text-gray-600 border border-white/5 cursor-not-allowed"
-                : "bg-[#111111] border border-white/5 text-white hover:border-[#E84545]/40 hover:text-[#E84545] active:scale-95"
+                : "bg-[#111111] border border-white/5 text-white hover:border-[color:var(--autocity-accent-40)] hover:text-[color:var(--autocity-accent)] active:scale-95"
             } disabled:opacity-50`}
           >
             {isUploading ? (
@@ -346,7 +346,7 @@ export default function VoiceNoteRecorder({
               <button
                 type="button"
                 onClick={() => togglePlay(index, entry.url)}
-                className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-[#E84545]/20 text-[#E84545] hover:bg-[#E84545]/30 active:scale-95 transition-all"
+                className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-[color:var(--autocity-accent-20)] text-[color:var(--autocity-accent)] hover:bg-[color:var(--autocity-accent-30)] active:scale-95 transition-all"
               >
                 {playingIndex === index ? (
                   <Pause className="h-3.5 w-3.5" />
@@ -372,7 +372,7 @@ export default function VoiceNoteRecorder({
                 {/* Progress bar */}
                 <div className="h-1 bg-white/10 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-[#E84545] to-[#ff6b6b] rounded-full transition-all duration-100"
+                    className="h-full bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] rounded-full transition-all duration-100"
                     style={{ width: `${audioProgress[index] ?? 0}%` }}
                   />
                 </div>

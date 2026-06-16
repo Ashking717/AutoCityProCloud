@@ -52,15 +52,15 @@ export default function JobDetailPage() {
   const th = {
     pageBg:            isDark ? "#050505"                                               : "#f3f4f6",
     // Desktop header
-    headerBgFrom:      isDark ? "#932222"                                               : "#fef2f2",
-    headerBgVia:       isDark ? "#411010"                                               : "#fee2e2",
-    headerBgTo:        isDark ? "#a20c0c"                                               : "#fecaca",
+    headerBgFrom:      isDark ? "var(--autocity-header-from-dark)"                                               : "var(--autocity-header-from-light)",
+    headerBgVia:       isDark ? "var(--autocity-header-via-dark)"                                               : "var(--autocity-header-via-light)",
+    headerBgTo:        isDark ? "var(--autocity-header-to-dark)"                                               : "var(--autocity-header-to-light)",
     headerBorder:      isDark ? "rgba(255,255,255,0.05)"                                : "rgba(0,0,0,0.06)",
-    headerTitle:       isDark ? "#ffffff"                                               : "#7f1d1d",
-    headerSub:         isDark ? "rgba(255,255,255,0.80)"                                : "#991b1b",
-    headerBtnBg:       isDark ? "rgba(255,255,255,0.10)"                                : "rgba(127,29,29,0.10)",
-    headerBtnText:     isDark ? "#ffffff"                                               : "#7f1d1d",
-    headerBtnHover:    isDark ? "rgba(255,255,255,0.20)"                                : "rgba(127,29,29,0.20)",
+    headerTitle:       isDark ? "#ffffff"                                               : "var(--autocity-header-text-light)",
+    headerSub:         isDark ? "rgba(255,255,255,0.80)"                                : "var(--autocity-header-sub-light)",
+    headerBtnBg:       isDark ? "rgba(255,255,255,0.10)"                                : "var(--autocity-accent-10)",
+    headerBtnText:     isDark ? "#ffffff"                                               : "var(--autocity-header-text-light)",
+    headerBtnHover:    isDark ? "rgba(255,255,255,0.20)"                                : "var(--autocity-accent-20)",
     headerDeleteBg:    isDark ? "rgba(239,68,68,0.20)"                                  : "rgba(239,68,68,0.10)",
     headerDeleteText:  isDark ? "#fca5a5"                                               : "#dc2626",
     // Mobile header
@@ -223,7 +223,7 @@ export default function JobDetailPage() {
     <MainLayout user={user} onLogout={handleLogout}>
       <div className="flex items-center justify-center min-h-screen transition-colors duration-500" style={{ background: th.pageBg }}>
         <div className="text-center">
-          <RefreshCw className="h-8 w-8 text-[#E84545] animate-spin mx-auto mb-3" />
+          <RefreshCw className="h-8 w-8 text-[color:var(--autocity-accent)] animate-spin mx-auto mb-3" />
           <p style={{ color: th.cardSubtext }}>Loading job...</p>
         </div>
       </div>
@@ -266,7 +266,7 @@ export default function JobDetailPage() {
                 <button
                   onClick={() => router.push(`/autocityPro/jobs/${jobId}/edit`)}
                   className="p-2 rounded-xl active:scale-95 transition-all text-white"
-                  style={{ background: "#E84545" }}>
+                  style={{ background: "var(--autocity-accent)" }}>
                   <Edit className="h-4 w-4" />
                 </button>
               )}
@@ -371,7 +371,7 @@ export default function JobDetailPage() {
               {job.description && (
                 <div className="rounded-xl p-4 md:p-6 transition-colors duration-500" style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}>
                   <h2 className="text-lg font-bold mb-3 flex items-center gap-2" style={{ color: th.cardTitle }}>
-                    <FileText className="h-5 w-5 text-[#E84545]" />Description
+                    <FileText className="h-5 w-5 text-[color:var(--autocity-accent)]" />Description
                   </h2>
                   <p className="whitespace-pre-wrap" style={{ color: th.cardSubtext }}>{job.description}</p>
                 </div>
@@ -380,14 +380,14 @@ export default function JobDetailPage() {
               {/* Items */}
               <div className="rounded-xl p-4 md:p-6 transition-colors duration-500" style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}>
                 <h2 className="text-lg font-bold mb-4 flex items-center gap-2" style={{ color: th.cardTitle }}>
-                  <Package className="h-5 w-5 text-[#E84545]" />Items ({job.items.length})
+                  <Package className="h-5 w-5 text-[color:var(--autocity-accent)]" />Items ({job.items.length})
                 </h2>
                 <div className="space-y-3">
                   {job.items.map((item) => (
                     <div key={`${item.sku}-${item.name}`} className="rounded-lg p-3 md:p-4" style={{ background: th.itemBg, border: `1px solid ${th.itemBorder}` }}>
                       <div className="flex-1">
                         <h3 className="font-semibold text-sm md:text-base flex items-center gap-2" style={{ color: th.itemTitle }}>
-                          {item.isLabor && <Wrench className="h-4 w-4 text-[#E84545]" />}
+                          {item.isLabor && <Wrench className="h-4 w-4 text-[color:var(--autocity-accent)]" />}
                           {item.name}
                         </h3>
                         <p className="text-xs mt-1" style={{ color: th.itemMuted }}>SKU: {item.sku}</p>
@@ -442,7 +442,7 @@ export default function JobDetailPage() {
               {/* Customer */}
               <div className="rounded-xl p-4 md:p-6 transition-colors duration-500" style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}>
                 <h2 className="text-lg font-bold mb-4 flex items-center gap-2" style={{ color: th.cardTitle }}>
-                  <User className="h-5 w-5 text-[#E84545]" />Customer
+                  <User className="h-5 w-5 text-[color:var(--autocity-accent)]" />Customer
                 </h2>
                 <div>
                   <p className="text-sm" style={{ color: th.cardMuted }}>Name:</p>
@@ -454,10 +454,10 @@ export default function JobDetailPage() {
               {job.vehicleRegistrationNumber && (
                 <div className="rounded-xl p-4 md:p-6 transition-colors duration-500" style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}>
                   <h2 className="text-lg font-bold mb-4 flex items-center gap-2" style={{ color: th.cardTitle }}>
-                    <Car className="h-5 w-5 text-[#E84545]" />Vehicle
+                    <Car className="h-5 w-5 text-[color:var(--autocity-accent)]" />Vehicle
                   </h2>
                   <div className="space-y-2 text-sm">
-                    <div><p style={{ color: th.cardMuted }}>Registration:</p><p className="font-mono font-bold text-[#E84545]">{job.vehicleRegistrationNumber}</p></div>
+                    <div><p style={{ color: th.cardMuted }}>Registration:</p><p className="font-mono font-bold text-[color:var(--autocity-accent)]">{job.vehicleRegistrationNumber}</p></div>
                     {job.vehicleMake && <div><p style={{ color: th.cardMuted }}>Make & Model:</p><p style={{ color: th.cardTitle }}>{job.vehicleMake} {job.vehicleModel}</p></div>}
                     {job.vehicleYear && <div><p style={{ color: th.cardMuted }}>Year:</p><p style={{ color: th.cardTitle }}>{job.vehicleYear}</p></div>}
                     {job.vehicleColor && <div><p style={{ color: th.cardMuted }}>Color:</p><p style={{ color: th.cardTitle }}>{job.vehicleColor}</p></div>}
@@ -483,7 +483,7 @@ export default function JobDetailPage() {
               {/* Dates */}
               <div className="rounded-xl p-4 md:p-6 transition-colors duration-500" style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}>
                 <h2 className="text-lg font-bold mb-4 flex items-center gap-2" style={{ color: th.cardTitle }}>
-                  <Calendar className="h-5 w-5 text-[#E84545]" />Dates
+                  <Calendar className="h-5 w-5 text-[color:var(--autocity-accent)]" />Dates
                 </h2>
                 <div className="space-y-3 text-sm">
                   <div><p style={{ color: th.cardMuted }}>Created:</p><p style={{ color: th.cardTitle }}>{new Date(job.createdAt).toLocaleString()}</p></div>

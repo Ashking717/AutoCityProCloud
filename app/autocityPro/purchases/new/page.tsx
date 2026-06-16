@@ -136,14 +136,14 @@ export default function NewPurchasePage() {
   // ── Theme tokens ──────────────────────────────────────────────────────────
   const th = {
     pageBg:           isDark ? '#050505'                                                    : '#f3f4f6',
-    desktopHeaderBg:  isDark ? 'linear-gradient(135deg,#932222,#411010,#a20c0c)'           : 'linear-gradient(135deg,#fef2f2,#fee2e2,#fecaca)',
+    desktopHeaderBg:  isDark ? 'linear-gradient(135deg,var(--autocity-header-from-dark),var(--autocity-header-via-dark),var(--autocity-header-to-dark))'           : 'linear-gradient(135deg,var(--autocity-header-from-light),var(--autocity-header-via-light),var(--autocity-header-to-light))',
     desktopHeaderBorder: isDark ? 'rgba(255,255,255,0.05)'                                 : 'rgba(0,0,0,0.08)',
-    headerTitle:      isDark ? '#ffffff'                                                    : '#7f1d1d',
-    headerSub:        isDark ? 'rgba(255,255,255,0.90)'                                    : '#991b1b',
+    headerTitle:      isDark ? '#ffffff'                                                    : 'var(--autocity-header-text-light)',
+    headerSub:        isDark ? 'rgba(255,255,255,0.90)'                                    : 'var(--autocity-header-sub-light)',
     headerStatBg:     isDark ? 'rgba(10,10,10,0.50)'                                       : 'rgba(255,255,255,0.60)',
-    headerStatBorder: isDark ? 'rgba(255,255,255,0.10)'                                    : 'rgba(127,29,29,0.20)',
-    headerStatLabel:  isDark ? 'rgba(255,255,255,0.60)'                                    : '#991b1b',
-    headerStatValue:  isDark ? '#ffffff'                                                    : '#7f1d1d',
+    headerStatBorder: isDark ? 'rgba(255,255,255,0.10)'                                    : 'var(--autocity-accent-20)',
+    headerStatLabel:  isDark ? 'rgba(255,255,255,0.60)'                                    : 'var(--autocity-header-sub-light)',
+    headerStatValue:  isDark ? '#ffffff'                                                    : 'var(--autocity-header-text-light)',
     mobileHeaderBg:   isDark ? 'linear-gradient(135deg,#0A0A0A,#050505,#0A0A0A)'          : 'linear-gradient(135deg,#ffffff,#f9fafb,#ffffff)',
     mobileHeaderBorder: isDark ? 'rgba(255,255,255,0.05)'                                  : 'rgba(0,0,0,0.08)',
     mobileHeaderTitle: isDark ? '#ffffff'                                                   : '#111827',
@@ -152,7 +152,7 @@ export default function NewPurchasePage() {
     mobileBtnText:    isDark ? 'rgba(255,255,255,0.80)'                                    : '#374151',
     cardBg:           isDark ? 'linear-gradient(135deg,#0A0A0A,#050505)'                   : 'linear-gradient(135deg,#ffffff,#f9fafb)',
     cardBorder:       isDark ? 'rgba(255,255,255,0.10)'                                    : 'rgba(0,0,0,0.08)',
-    cardBorderHover:  isDark ? 'rgba(232,69,69,0.30)'                                      : 'rgba(232,69,69,0.25)',
+    cardBorderHover:  isDark ? 'var(--autocity-accent-30)'                                      : 'var(--autocity-accent-25)',
     itemBg:           isDark ? 'rgba(255,255,255,0.05)'                                    : 'rgba(0,0,0,0.04)',
     itemBorder:       isDark ? 'rgba(255,255,255,0.10)'                                    : 'rgba(0,0,0,0.08)',
     textPrimary:      isDark ? '#ffffff'                                                    : '#111827',
@@ -186,7 +186,7 @@ export default function NewPurchasePage() {
     border: `1px solid ${th.inputBorder}`,
     color: th.inputText,
   };
-  const inputClass = "focus:outline-none focus:ring-2 focus:ring-[#E84545]/50 focus:border-[#E84545]/50";
+  const inputClass = "focus:outline-none focus:ring-2 focus:ring-[color:var(--autocity-accent)]/50 focus:border-[color:var(--autocity-accent-50)]";
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -468,7 +468,7 @@ export default function NewPurchasePage() {
                 <div>
                   <h1 className="text-xl font-bold flex items-center gap-1.5" style={{ color: th.mobileHeaderTitle }}>
                     New Purchase
-                    {isDark ? <Moon className="h-3.5 w-3.5 text-[#E84545]" /> : <Sun className="h-3.5 w-3.5 text-[#E84545]" />}
+                    {isDark ? <Moon className="h-3.5 w-3.5 text-[color:var(--autocity-accent)]" /> : <Sun className="h-3.5 w-3.5 text-[color:var(--autocity-accent)]" />}
                   </h1>
                   <p className="text-xs" style={{ color: th.mobileHeaderSub }}>{cart.length} items • {products.length} products</p>
                 </div>
@@ -477,11 +477,11 @@ export default function NewPurchasePage() {
                 {/* OCR scan button */}
                 <button onClick={() => setShowOCR(true)}
                   className="p-2 rounded-xl active:scale-95 transition-all"
-                  style={{ background: "rgba(232,69,69,0.10)", color: "#E84545" }}
+                  style={{ background: "var(--autocity-accent-10)", color: "var(--autocity-accent)" }}
                   title="Scan Invoice">
                   <ScanLine className="h-5 w-5" />
                 </button>
-                <button onClick={() => setShowCart(true)} className="relative p-2 rounded-lg bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white shadow-lg active:scale-95 transition-all">
+                <button onClick={() => setShowCart(true)} className="relative p-2 rounded-lg bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white shadow-lg active:scale-95 transition-all">
                   <ShoppingCart className="h-5 w-5" />
                   {cart.length > 0 && (
                     <span className="absolute -top-1 -right-1 h-5 w-5 bg-green-500 rounded-full text-xs font-bold flex items-center justify-center">{cart.length}</span>
@@ -499,9 +499,9 @@ export default function NewPurchasePage() {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3" style={{ color: th.headerTitle }}>
-                  <ShoppingCart className="h-8 w-8 text-[#E84545]" />
+                  <ShoppingCart className="h-8 w-8 text-[color:var(--autocity-accent)]" />
                   New Purchase
-                  {isDark ? <Moon className="h-5 w-5 text-[#E84545]" /> : <Sun className="h-5 w-5 text-[#E84545]" />}
+                  {isDark ? <Moon className="h-5 w-5 text-[color:var(--autocity-accent)]" /> : <Sun className="h-5 w-5 text-[color:var(--autocity-accent)]" />}
                 </h1>
                 <p className="mt-2" style={{ color: th.headerSub }}>Create a new purchase order • {products.length} products available</p>
               </div>
@@ -511,9 +511,9 @@ export default function NewPurchasePage() {
                   onClick={() => setShowOCR(true)}
                   className="flex items-center gap-2 px-5 py-3 rounded-xl font-semibold text-sm transition-all active:scale-95 shadow-lg hover:opacity-90"
                   style={{
-                    background: "linear-gradient(135deg,rgba(232,69,69,0.18),rgba(232,69,69,0.08))",
-                    border: "1px solid rgba(232,69,69,0.40)",
-                    color: "#E84545",
+                    background: "linear-gradient(135deg,var(--autocity-accent-18),var(--autocity-accent-08))",
+                    border: "1px solid var(--autocity-accent-40)",
+                    color: "var(--autocity-accent)",
                     backdropFilter: "blur(8px)",
                   }}
                 >
@@ -522,7 +522,7 @@ export default function NewPurchasePage() {
                 </button>
                 {[
                   { label: 'Cart Items', value: cart.length, valueClass: '' },
-                  { label: 'Total Amount', value: formatCurrency(totals.total), valueClass: 'text-[#E84545]' },
+                  { label: 'Total Amount', value: formatCurrency(totals.total), valueClass: 'text-[color:var(--autocity-accent)]' },
                 ].map(stat => (
                   <div key={stat.label} className="backdrop-blur-sm rounded-xl px-6 py-3 border"
                     style={{ background: th.headerStatBg, borderColor: th.headerStatBorder }}>
@@ -546,7 +546,7 @@ export default function NewPurchasePage() {
               <div className="rounded-2xl shadow-lg p-4 md:p-6 border transition-colors duration-500" style={{ background: th.cardBg, borderColor: th.cardBorder }}>
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-bold flex items-center" style={{ color: th.textPrimary }}>
-                    <Search className="h-5 w-5 mr-2 text-[#E84545]" />
+                    <Search className="h-5 w-5 mr-2 text-[color:var(--autocity-accent)]" />
                     Search Products
                     {productsLoading && <span className="ml-3 text-xs animate-pulse" style={{ color: th.textSecondary }}>Loading...</span>}
                   </h2>
@@ -554,14 +554,14 @@ export default function NewPurchasePage() {
                     <button
                       onClick={() => setShowOCR(true)}
                       className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 border"
-                      style={{ background: "rgba(232,69,69,0.07)", borderColor: "rgba(232,69,69,0.25)", color: "#E84545" }}
+                      style={{ background: "var(--autocity-accent-07)", borderColor: "var(--autocity-accent-25)", color: "var(--autocity-accent)" }}
                       title="Scan invoice to auto-fill cart"
                     >
                       <ScanLine className="h-4 w-4" />
                       <span className="hidden sm:inline">Scan</span>
                     </button>
                     <button onClick={async () => { await fetchNextSKU(); setShowAddProduct(true); }}
-                      className="flex items-center gap-2 px-3 py-2 bg-[#E84545]/10 border border-[#E84545]/30 text-[#E84545] rounded-lg hover:bg-[#E84545]/20 transition-all text-sm font-medium">
+                      className="flex items-center gap-2 px-3 py-2 bg-[color:var(--autocity-accent-10)] border border-[color:var(--autocity-accent-30)] text-[color:var(--autocity-accent)] rounded-lg hover:bg-[color:var(--autocity-accent-20)] transition-all text-sm font-medium">
                       <Plus className="h-4 w-4" /><span className="hidden sm:inline">Add Product</span>
                     </button>
                   </div>
@@ -585,7 +585,7 @@ export default function NewPurchasePage() {
                         <Search className="h-12 w-12 mx-auto mb-3" style={{ color: th.emptyIcon }} />
                         <p style={{ color: th.textSecondary }}>No products found for "{searchTerm}"</p>
                         <button onClick={async () => { await fetchNextSKU(); setShowAddProduct(true); }}
-                          className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-[#E84545]/10 border border-[#E84545]/30 text-[#E84545] rounded-lg hover:bg-[#E84545]/20 transition-all text-sm font-medium">
+                          className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-[color:var(--autocity-accent-10)] border border-[color:var(--autocity-accent-30)] text-[color:var(--autocity-accent)] rounded-lg hover:bg-[color:var(--autocity-accent-20)] transition-all text-sm font-medium">
                           <Plus className="h-4 w-4" />Create New Product
                         </button>
                       </div>
@@ -611,7 +611,7 @@ export default function NewPurchasePage() {
                               {(product.yearFrom || product.yearTo) && <p className="text-[11px]" style={{ color: th.textSecondary }}>Years: {product.yearFrom || "—"} – {product.yearTo || "—"}</p>}
                             </div>
                             <div className="flex items-center justify-between pt-2 mt-2 border-t" style={{ borderColor: th.divider }}>
-                              <span className="text-[#E84545] font-bold">{formatCurrency(product.costPrice || product.sellingPrice)}</span>
+                              <span className="text-[color:var(--autocity-accent)] font-bold">{formatCurrency(product.costPrice || product.sellingPrice)}</span>
                               <span className="text-xs" style={{ color: th.textMuted }}>Stock: {product.currentStock}</span>
                             </div>
                           </div>
@@ -638,7 +638,7 @@ export default function NewPurchasePage() {
               {/* Desktop Cart */}
               <div className="hidden md:block rounded-2xl shadow-lg p-6 border transition-colors duration-500" style={{ background: th.cardBg, borderColor: th.cardBorder }}>
                 <h2 className="text-lg font-bold mb-4 flex items-center" style={{ color: th.textPrimary }}>
-                  <ShoppingCart className="h-5 w-5 mr-2 text-[#E84545]" />Cart ({cart.length} items)
+                  <ShoppingCart className="h-5 w-5 mr-2 text-[color:var(--autocity-accent)]" />Cart ({cart.length} items)
                 </h2>
                 <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
                   {cart.length === 0 ? (
@@ -696,7 +696,7 @@ export default function NewPurchasePage() {
               {/* Supplier */}
               <div className="rounded-2xl shadow-lg p-4 md:p-6 border transition-colors duration-500" style={{ background: th.cardBg, borderColor: th.cardBorder }}>
                 <h2 className="text-lg font-bold mb-4 flex items-center" style={{ color: th.textPrimary }}>
-                  <Users className="h-5 w-5 mr-2 text-[#E84545]" />Supplier
+                  <Users className="h-5 w-5 mr-2 text-[color:var(--autocity-accent)]" />Supplier
                 </h2>
                 <select value={selectedSupplier?._id ? String(selectedSupplier._id) : ""}
                   onChange={e => setSelectedSupplier(suppliers.find(s => s && s._id && String(s._id) === e.target.value) || null)}
@@ -714,7 +714,7 @@ export default function NewPurchasePage() {
                   </div>
                 )}
                 <button onClick={() => setShowAddSupplier(true)}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-[#E84545]/30 text-[#E84545] rounded-xl hover:border-[#E84545]/50 hover:bg-[#E84545]/5 transition-all active:scale-95">
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-[color:var(--autocity-accent-30)] text-[color:var(--autocity-accent)] rounded-xl hover:border-[color:var(--autocity-accent-50)] hover:bg-[color:var(--autocity-accent-05)] transition-all active:scale-95">
                   <Plus className="h-4 w-4" /><span className="font-medium">Quick Add Supplier</span>
                 </button>
               </div>
@@ -722,7 +722,7 @@ export default function NewPurchasePage() {
               {/* Payment */}
               <div className="rounded-2xl shadow-lg p-4 md:p-6 border transition-colors duration-500" style={{ background: th.cardBg, borderColor: th.cardBorder }}>
                 <h2 className="text-lg font-bold mb-4 flex items-center" style={{ color: th.textPrimary }}>
-                  <CreditCard className="h-5 w-5 mr-2 text-[#E84545]" />Payment
+                  <CreditCard className="h-5 w-5 mr-2 text-[color:var(--autocity-accent)]" />Payment
                 </h2>
                 <div className="space-y-3">
                   <div>
@@ -745,7 +745,7 @@ export default function NewPurchasePage() {
                         className={`w-full px-4 py-3 rounded-xl ${inputClass}`} style={inputStyle} />
                       {amountPaid < totals.total && totals.total > 0 && (
                         <button onClick={() => setAmountPaid(totals.total)}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 bg-[#E84545]/10 border border-[#E84545]/20 text-[#E84545] rounded-lg text-xs font-medium hover:bg-[#E84545]/20 transition-all">
+                          className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 bg-[color:var(--autocity-accent-10)] border border-[color:var(--autocity-accent-20)] text-[color:var(--autocity-accent)] rounded-lg text-xs font-medium hover:bg-[color:var(--autocity-accent-20)] transition-all">
                           Pay Full
                         </button>
                       )}
@@ -758,7 +758,7 @@ export default function NewPurchasePage() {
               {/* Summary */}
               <div className="rounded-2xl shadow-lg p-4 md:p-6 border transition-colors duration-500" style={{ background: th.cardBg, borderColor: th.cardBorder }}>
                 <h2 className="text-lg font-bold mb-4 flex items-center" style={{ color: th.textPrimary }}>
-                  <Calculator className="h-5 w-5 mr-2 text-[#E84545]" />Summary
+                  <Calculator className="h-5 w-5 mr-2 text-[color:var(--autocity-accent)]" />Summary
                 </h2>
                 <PaymentWarning total={totals.total} paymentMethod={paymentMethod} amountPaid={amountPaid} formatCurrency={formatCurrency} />
                 <div className="space-y-3">
@@ -773,7 +773,7 @@ export default function NewPurchasePage() {
                   ))}
                   <div className="flex justify-between items-center py-3 border-t" style={{ borderColor: th.summaryTopBorder }}>
                     <span className="font-bold text-lg" style={{ color: th.textPrimary }}>Total:</span>
-                    <span className="text-[#E84545] font-bold text-xl">{formatCurrency(totals.total)}</span>
+                    <span className="text-[color:var(--autocity-accent)] font-bold text-xl">{formatCurrency(totals.total)}</span>
                   </div>
                   <div className="flex justify-between items-center py-2 border-t" style={{ borderColor: th.summaryRowBorder }}>
                     <span style={{ color: th.textSecondary }}>Paid:</span>
@@ -787,7 +787,7 @@ export default function NewPurchasePage() {
                   </div>
                 </div>
                 <button onClick={handleSubmit} disabled={loading || cart.length === 0 || !selectedSupplier}
-                  className="w-full mt-6 py-3 md:py-4 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg active:scale-95">
+                  className="w-full mt-6 py-3 md:py-4 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-xl font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg active:scale-95">
                   {loading
                     ? <span className="flex items-center justify-center gap-2"><div className="animate-spin rounded-full h-5 w-5 border-2 border-white/30 border-t-white" />Processing...</span>
                     : <span className="flex items-center justify-center gap-2"><CheckCircle className="h-5 w-5" />Complete Purchase</span>
@@ -824,7 +824,7 @@ export default function NewPurchasePage() {
             <div className="rounded-2xl shadow-2xl max-w-md w-full border" style={{ background: th.modalBg, borderColor: th.modalBorder }}>
               <div className="flex justify-between items-center px-4 md:px-6 py-4 border-b" style={{ borderColor: th.divider }}>
                 <h2 className="text-lg md:text-xl font-bold flex items-center gap-2" style={{ color: th.modalTitle }}>
-                  <Package className="h-5 w-5 text-[#E84545]" />Quick Add Category
+                  <Package className="h-5 w-5 text-[color:var(--autocity-accent)]" />Quick Add Category
                 </h2>
                 <button onClick={() => { setShowQuickAddCategory(false); setNewCategoryName(""); }}
                   className="p-2 rounded-xl active:scale-95 transition-all" style={{ background: th.modalCloseBg, color: th.modalCloseText }}>
@@ -844,7 +844,7 @@ export default function NewPurchasePage() {
                   <button onClick={() => { setShowQuickAddCategory(false); setNewCategoryName(""); }}
                     className="px-4 py-2 rounded-xl transition-colors active:scale-95 border" style={{ borderColor: th.dividerStrong, color: th.textSecondary }}>Cancel</button>
                   <button onClick={handleQuickAddCategory}
-                    className="px-4 py-2 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl hover:opacity-90 transition-opacity active:scale-95">Add Category</button>
+                    className="px-4 py-2 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-xl hover:opacity-90 transition-opacity active:scale-95">Add Category</button>
                 </div>
               </div>
             </div>
@@ -858,7 +858,7 @@ export default function NewPurchasePage() {
               style={{ background: th.modalBg, borderColor: th.modalBorder }}>
               <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: th.divider }}>
                 <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: th.modalTitle }}>
-                  <ShoppingCart className="h-5 w-5 text-[#E84545]" />Cart ({cart.length})
+                  <ShoppingCart className="h-5 w-5 text-[color:var(--autocity-accent)]" />Cart ({cart.length})
                 </h2>
                 <button onClick={() => setShowCart(false)} className="p-2 rounded-xl active:scale-95 transition-all"
                   style={{ background: th.modalCloseBg, color: th.modalCloseText }}><X className="h-5 w-5" /></button>
@@ -951,10 +951,10 @@ export default function NewPurchasePage() {
                 <div className="border-t p-4 backdrop-blur-xl" style={{ borderColor: th.cartBottomBorder, background: th.cartBottomBg }}>
                   <div className="flex items-center justify-between mb-3">
                     <span style={{ color: th.textSecondary }}>Total Amount:</span>
-                    <span className="text-[#E84545] font-bold text-xl">{formatCurrency(totals.total)}</span>
+                    <span className="text-[color:var(--autocity-accent)] font-bold text-xl">{formatCurrency(totals.total)}</span>
                   </div>
                   <button onClick={() => { setShowCart(false); setShowPayment(true); }}
-                    className="w-full py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl font-semibold active:scale-95 transition-all shadow-lg">
+                    className="w-full py-3 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-xl font-semibold active:scale-95 transition-all shadow-lg">
                     Proceed to Payment
                   </button>
                 </div>
@@ -989,7 +989,7 @@ export default function NewPurchasePage() {
                     </div>
                   )}
                   <button onClick={() => { setShowPayment(false); setShowAddSupplier(true); }}
-                    className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed border-[#E84545]/30 text-[#E84545] rounded-xl hover:border-[#E84545]/50 active:scale-95 transition-all">
+                    className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed border-[color:var(--autocity-accent-30)] text-[color:var(--autocity-accent)] rounded-xl hover:border-[color:var(--autocity-accent-50)] active:scale-95 transition-all">
                     <Plus className="h-4 w-4" /><span className="text-sm font-medium">Add New Supplier</span>
                   </button>
                 </div>
@@ -1027,7 +1027,7 @@ export default function NewPurchasePage() {
                       </div>
                     ))}
                     <div className="flex justify-between pt-2 border-t font-semibold" style={{ borderColor: th.dividerStrong }}>
-                      <span style={{ color: th.textPrimary }}>Total:</span><span className="text-[#E84545]">{formatCurrency(totals.total)}</span>
+                      <span style={{ color: th.textPrimary }}>Total:</span><span className="text-[color:var(--autocity-accent)]">{formatCurrency(totals.total)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span style={{ color: th.textSecondary }}>Paid:</span><span className="text-green-400">{formatCurrency(totals.totalPaid)}</span>
@@ -1045,7 +1045,7 @@ export default function NewPurchasePage() {
                     className="px-4 py-3 rounded-xl font-medium active:scale-95 transition-all border"
                     style={{ background: th.modalCloseBg, borderColor: th.dividerStrong, color: th.textSecondary }}>Back</button>
                   <button onClick={handleSubmit} disabled={loading || cart.length === 0 || !selectedSupplier}
-                    className="px-4 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl font-semibold hover:opacity-90 disabled:opacity-50 transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2">
+                    className="px-4 py-3 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-xl font-semibold hover:opacity-90 disabled:opacity-50 transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2">
                     {loading
                       ? <><div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white" />Processing...</>
                       : <><CheckCircle className="h-4 w-4" />Complete</>
@@ -1079,7 +1079,7 @@ export default function NewPurchasePage() {
                   ].map(f => (
                     <div key={f.key} className={f.span ? 'md:col-span-2' : ''}>
                       <label className="block text-sm font-medium mb-2" style={{ color: th.textPrimary }}>
-                        {f.label}{f.required && <span className="text-[#E84545]"> *</span>}
+                        {f.label}{f.required && <span className="text-[color:var(--autocity-accent)]"> *</span>}
                       </label>
                       <input type={f.type}
                         value={(newSupplier as any)[f.key]}
@@ -1098,7 +1098,7 @@ export default function NewPurchasePage() {
                     className="flex-1 px-4 py-3 rounded-xl font-medium active:scale-95 transition-all border"
                     style={{ borderColor: th.dividerStrong, color: th.textSecondary }}>Cancel</button>
                   <button onClick={handleAddSupplier}
-                    className="flex-1 px-4 py-3 bg-gradient-to-r from-[#E84545] to-[#cc3c3c] text-white rounded-xl hover:opacity-90 transition-all font-semibold shadow-lg active:scale-95">
+                    className="flex-1 px-4 py-3 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-xl hover:opacity-90 transition-all font-semibold shadow-lg active:scale-95">
                     Add Supplier
                   </button>
                 </div>

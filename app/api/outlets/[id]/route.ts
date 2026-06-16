@@ -75,6 +75,7 @@ export async function PATCH(
       'address',
       'contact',
       'taxInfo',
+      'branding',
       'settings',
     ];
 

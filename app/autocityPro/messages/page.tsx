@@ -720,7 +720,7 @@ export default function MessagesPage() {
                   <input
                     type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
                     placeholder="Search users..."
-                    className="w-full pl-9 pr-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-[#E84545] focus:border-transparent outline-none transition-colors duration-500"
+                    className="w-full pl-9 pr-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent outline-none transition-colors duration-500"
                     style={{ background: th.searchBg, border: `1px solid ${th.searchBorder}`, color: th.searchText, fontSize: "16px" }}
                   />
                 </div>
@@ -752,8 +752,8 @@ export default function MessagesPage() {
                   onMouseEnter={e => (e.currentTarget.style.background = th.convHover)}
                   onMouseLeave={e => (e.currentTarget.style.background = selectedUser?._id === u._id ? th.convActive : "transparent")}
                 >
-                  <div className="w-11 h-11 md:w-12 md:h-12 rounded-full bg-[#E84545]/20 flex items-center justify-center border border-[#E84545]/30 flex-shrink-0">
-                    <span className="text-[#E84545] font-semibold text-sm md:text-base">{u.firstName?.[0]}{u.lastName?.[0]}</span>
+                  <div className="w-11 h-11 md:w-12 md:h-12 rounded-full bg-[color:var(--autocity-accent-20)] flex items-center justify-center border border-[color:var(--autocity-accent-30)] flex-shrink-0">
+                    <span className="text-[color:var(--autocity-accent)] font-semibold text-sm md:text-base">{u.firstName?.[0]}{u.lastName?.[0]}</span>
                   </div>
                   <div className="flex-1 text-left min-w-0">
                     {conv ? (
@@ -761,7 +761,7 @@ export default function MessagesPage() {
                         <div className="flex items-center justify-between mb-1">
                           <p className="font-medium truncate text-sm md:text-base transition-colors" style={{ color: th.convName }}>{u.firstName} {u.lastName}</p>
                           {conv.unreadCount > 0 && (
-                            <span className="ml-2 px-2 py-0.5 bg-[#E84545] text-white text-xs rounded-full flex-shrink-0 min-w-[1.25rem] text-center">{conv.unreadCount}</span>
+                            <span className="ml-2 px-2 py-0.5 bg-[color:var(--autocity-accent)] text-white text-xs rounded-full flex-shrink-0 min-w-[1.25rem] text-center">{conv.unreadCount}</span>
                           )}
                         </div>
                         <p className="text-xs md:text-sm truncate transition-colors" style={{ color: th.convSub }}>
@@ -807,8 +807,8 @@ export default function MessagesPage() {
                     >
                       <ArrowLeft className="h-5 w-5" />
                     </button>
-                    <div className="w-9 h-9 rounded-full bg-[#E84545]/20 flex items-center justify-center border border-[#E84545]/30">
-                      <span className="text-[#E84545] font-semibold text-sm">{selectedUser.firstName?.[0]}{selectedUser.lastName?.[0]}</span>
+                    <div className="w-9 h-9 rounded-full bg-[color:var(--autocity-accent-20)] flex items-center justify-center border border-[color:var(--autocity-accent-30)]">
+                      <span className="text-[color:var(--autocity-accent)] font-semibold text-sm">{selectedUser.firstName?.[0]}{selectedUser.lastName?.[0]}</span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate transition-colors" style={{ color: th.chatName }}>{selectedUser.firstName} {selectedUser.lastName}</p>
@@ -927,14 +927,14 @@ export default function MessagesPage() {
                           onMouseLeave={e => (e.currentTarget.style.color = th.iconMuted)}>
                           <Trash2 className="h-[22px] w-[22px]" />
                         </button>
-                        <div className="flex-1 flex items-center gap-2.5 rounded-full px-4 py-2.5 overflow-hidden border border-[#E84545]/30 transition-colors"
+                        <div className="flex-1 flex items-center gap-2.5 rounded-full px-4 py-2.5 overflow-hidden border border-[color:var(--autocity-accent-30)] transition-colors"
                           style={{ background: th.holdingBg }}>
                           <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse flex-shrink-0" />
                           <span className="text-[15px] font-mono tabular-nums flex-shrink-0" style={{ color: th.inputText }}>
                             {formatAudioTime(voiceRecorder.duration)}
                           </span>
                           <div className="flex-1 min-w-0"><LiveWaveform isRecording={true} /></div>
-                          <Lock className="h-3.5 w-3.5 text-[#E84545] flex-shrink-0" />
+                          <Lock className="h-3.5 w-3.5 text-[color:var(--autocity-accent)] flex-shrink-0" />
                         </div>
                         <button onClick={handleLockedSend}
                           className="flex-shrink-0 w-10 h-10 flex items-center justify-center active:scale-90 touch-manipulation transition-transform"
@@ -1001,7 +1001,7 @@ export default function MessagesPage() {
                                 onKeyPress={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
                                 placeholder="Type a message"
                                 className="flex-1 bg-transparent outline-none py-2.5 text-[15px] min-w-0 transition-colors"
-                                style={{ color: th.inputText, caretColor: '#E84545', fontSize: "16px" }}
+                                style={{ color: th.inputText, caretColor: 'var(--autocity-accent)', fontSize: "16px" }}
                               />
                             </div>
 
@@ -1013,7 +1013,7 @@ export default function MessagesPage() {
                               </button>
                             ) : (
                               <button onPointerDown={handleMicPointerDown}
-                                className="flex-shrink-0 w-10 h-10 flex items-center justify-center active:text-[#E84545] active:scale-110 transition-all select-none ml-6 mr-8"
+                                className="flex-shrink-0 w-10 h-10 flex items-center justify-center active:text-[color:var(--autocity-accent)] active:scale-110 transition-all select-none ml-6 mr-8"
                                 style={{ color: th.iconMuted, touchAction: "none", userSelect: "none", cursor: "pointer" }}>
                                 <Mic className="h-[28px] w-[28px]" strokeWidth={1.8} />
                               </button>

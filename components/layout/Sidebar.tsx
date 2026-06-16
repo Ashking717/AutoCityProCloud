@@ -223,6 +223,18 @@ type ThemeTokens = ReturnType<typeof buildThemeTokens>;
 type NavItem = { name: string; icon: any; href: string; roles: string[] };
 type NavSection = { title: string; items: NavItem[] };
 
+function formatOutletName(name: string) {
+  const trimmed = name.trim();
+  const hasLetters = /[A-Za-z]/.test(trimmed);
+  const isAllCaps = hasLetters && trimmed === trimmed.toUpperCase();
+
+  if (!isAllCaps) return trimmed;
+
+  return trimmed
+    .toLowerCase()
+    .replace(/\b[a-z]/g, (char) => char.toUpperCase());
+}
+
 function SidebarHeader({
   user,
   isDark,
@@ -236,7 +248,7 @@ function SidebarHeader({
   th: ThemeTokens;
   onShowHelp: () => void;
 }) {
-  const outletName = user?.role === "SUPERADMIN" ? "" : user?.outletName || "";
+  const outletName = user?.role === "SUPERADMIN" ? "" : formatOutletName(user?.outletName || "");
 
   return (
     <div
@@ -246,20 +258,30 @@ function SidebarHeader({
         borderColor: th.sidebarBorder,
       }}
     >
-      <div className="flex items-center space-x-3 mb-4">
-        <div className="flex-1">
+      <div className="flex items-start space-x-3 mb-4 min-w-0">
+        <div className="flex-1 min-w-0">
           {outletName && (
-            <h2
-              className="text-xl font-bold tracking-tight truncate"
-              style={{ color: isDark ? "#ffffff" : "#7f1d1d" }}
-              title={outletName}
-            >
-              {outletName}
-            </h2>
+            <div className="min-w-0">
+              <h2
+                className="text-[17px] font-semibold leading-[1.12]"
+                style={{
+                  color: isDark ? "#ffffff" : "#7f1d1d",
+                  display: "-webkit-box",
+                  letterSpacing: "-0.035em",
+                  overflow: "hidden",
+                  overflowWrap: "anywhere",
+                  WebkitBoxOrient: "vertical",
+                  WebkitLineClamp: 2,
+                }}
+                title={outletName}
+              >
+                {outletName}
+              </h2>
+            </div>
           )}
         </div>
         <div
-          className="flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-all duration-500"
+          className="flex shrink-0 items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-all duration-500"
           style={{
             background: isDark ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.6)",
             color:      isDark ? "rgba(255,255,255,0.7)" : "#7f1d1d",

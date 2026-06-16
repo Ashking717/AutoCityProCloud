@@ -6,7 +6,7 @@ import { UserRole } from '@/lib/types/roles';
 
 type BrandingAssetKey = 'logo' | 'seal';
 
-const MAX_BRANDING_IMAGE_SIZE = 2 * 1024 * 1024;
+const MAX_BRANDING_IMAGE_SIZE = 4 * 1024 * 1024;
 
 function isBrandingAssetKey(value: FormDataEntryValue | string | null): value is BrandingAssetKey {
   return value === 'logo' || value === 'seal';

@@ -1,6 +1,10 @@
 "use client";
-import { useRouter } from "next/navigation";
-import { Car, Edit, Trash2 } from "lucide-react";
+import {
+  useRouter } from "next/navigation";
+import { Car,
+  Edit,
+  Trash2,
+} from "lucide-react";
 
 interface ProductCardProps {
   product: any;

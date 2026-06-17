@@ -1,27 +1,35 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
+import {
+  useState,
+  useEffect } from 'react';
+import { useRouter,
+  useParams } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import { 
-  Wallet, ArrowLeft, Edit2, Trash2, Save, X,
-  TrendingUp, TrendingDown, RefreshCw, FileText,
-  Eye, FileDown, Calculator, BarChart3, Receipt,
-  Plus, MoreVertical, ChevronLeft, AlertCircle,
-  History, Sun, Moon,
+  Wallet,
+  ArrowLeft,
+  Edit2,
+  Trash2,
+  Save,
+  X,
+  TrendingUp,
+  TrendingDown,
+  RefreshCw,
+  FileText,
+  Eye,
+  FileDown,
+  Calculator,
+  BarChart3,
+  Receipt,
+  Plus,
+  MoreVertical,
+  ChevronLeft,
+  AlertCircle,
+  History,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => { const h = new Date().getHours(); setIsDark(h < 6 || h >= 18); };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
-}
 
 export default function AccountDetailPage() {
   const router = useRouter();
@@ -281,8 +289,6 @@ export default function AccountDetailPage() {
                   {getAccountTypeIcon(accountType)}
                   <span className="text-[color:var(--autocity-accent)] text-xs font-medium capitalize">{accountType}</span>
                 </div>
-                <div className="h-3 w-px bg-white/20" />
-                {isDark ? <Moon className="h-3 w-3 text-[color:var(--autocity-accent)]" /> : <Sun className="h-3 w-3 text-[color:var(--autocity-accent)]" />}
               </div>
             </div>
           </div>

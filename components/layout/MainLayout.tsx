@@ -1,5 +1,6 @@
 'use client';
 
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
 import { CSSProperties, ReactNode, useEffect, useState } from 'react';
 import Sidebar from './Sidebar';
 import { useActivityTracker } from '@/hooks/useActivityTracker';
@@ -9,20 +10,6 @@ interface MainLayoutProps {
   children:  ReactNode;
   user:      any;
   onLogout:  () => void;
-}
-
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => {
-      const hour = new Date().getHours();
-      setIsDark(hour < 6 || hour >= 18);
-    };
-    check();
-    const id = setInterval(check, 60000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
 }
 
 export default function MainLayout({ children, user, onLogout }: MainLayoutProps) {

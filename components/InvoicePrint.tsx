@@ -78,7 +78,7 @@ function getOutletBrandingImageUrl(
   outletId: string,
   branding: OutletUI["branding"] | undefined,
   asset: "logo" | "seal",
-  fallback: string
+  fallback = ""
 ) {
   const dbAsset = branding?.[asset];
   const dbUpdatedAt = dbAsset?.updatedAt ? new Date(dbAsset.updatedAt).getTime() : null;
@@ -143,7 +143,7 @@ export default function InvoicePrint({
   const currency = outlet.settings?.currency || "QAR";
   const taxRate = outlet.settings?.taxRate || 0;
   const logoUrl = getOutletBrandingImageUrl(outletId, outlet.branding, "logo", "/logo.png");
-  const sealUrl = getOutletBrandingImageUrl(outletId, outlet.branding, "seal", "/seal.png");
+  const sealUrl = getOutletBrandingImageUrl(outletId, outlet.branding, "seal");
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4 print:p-0 print:bg-transparent">
@@ -356,9 +356,11 @@ export default function InvoicePrint({
           </div>
 
           {/* Signature */}
-          <div className="flex justify-end mr-30 mb-12">
-            <img src={sealUrl} alt="Seal" className="h-40 w-40 rotate-[15deg] object-contain opacity-80" />
-          </div>
+          {sealUrl && (
+            <div className="flex justify-end mr-30 mb-12">
+              <img src={sealUrl} alt="Seal" className="h-40 w-40 rotate-[15deg] object-contain opacity-80" />
+            </div>
+          )}
 
           {/* Footer */}
           <div className="text-sm leading-relaxed">

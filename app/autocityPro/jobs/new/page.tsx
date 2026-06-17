@@ -1,28 +1,32 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
+import {
+  useState,
+  useEffect,
+  useRef } from "react";
 import { useRouter } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import {
-  Search, Plus, Trash2, Car, User, Wrench, X, Calendar, FileText,
-  ChevronLeft, MoreVertical, UserCog, Clock, Sun, Moon,
+  Search,
+  Plus,
+  Trash2,
+  Car,
+  User,
+  Wrench,
+  X,
+  Calendar,
+  FileText,
+  ChevronLeft,
+  MoreVertical,
+  UserCog,
+  Clock,
 } from "lucide-react";
 import { carMakesModels, carYears, CarMake } from "@/lib/data/carData";
 import toast from "react-hot-toast";
 import VoiceNoteRecorder, { type VoiceNoteEntry } from "@/components/ui/Voicenoterecorder";
 
 // ─── Time-based theme hook ────────────────────────────────────────────────────
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => { const h = new Date().getHours(); setIsDark(h < 6 || h >= 18); };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
-}
-
 interface ICustomer {
   _id: string; name: string; phone: string; email: string;
   vehicleRegistrationNumber?: string; vehicleMake?: string; vehicleModel?: string;
@@ -315,10 +319,6 @@ export default function NewJobPage() {
                   <h1 className="text-3xl font-bold flex items-center gap-2" style={{ color: th.headerTitle }}>
                     <Wrench className="h-7 w-7" />Create New Job
                   </h1>
-                  <div className="flex items-center gap-1 px-2 py-1 rounded-full text-xs"
-                    style={{ background: isDark ? "rgba(0,0,0,0.30)" : "rgba(255,255,255,0.60)", border: `1px solid ${isDark ? "rgba(255,255,255,0.15)" : "var(--autocity-accent-20)"}`, color: isDark ? "rgba(255,255,255,0.70)" : "var(--autocity-header-text-light)" }}>
-                    {isDark ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
-                  </div>
                 </div>
                 <p className="mt-1" style={{ color: th.headerSub }}>Create a new service job or work order</p>
               </div>

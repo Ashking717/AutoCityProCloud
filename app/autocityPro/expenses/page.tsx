@@ -1,31 +1,43 @@
 // File: app/autocityPro/expenses/page.tsx - WITH TIME-BASED LIGHT/DARK THEME
 "use client";
 
-import { useState, useEffect } from "react";
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
+
+import {
+  useState,
+  useEffect } from "react";
 import { useRouter } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import CreateExpenseForm from "@/components/expenses/CreateExpenseForm";
 import {
-  Plus, Receipt, Search, Filter, Calendar, DollarSign, Loader2,
-  Trash2, Edit, Eye, Zap, Home, Users, Wrench, Megaphone, FileText,
-  ChevronLeft, MoreVertical, X, Download, AlertTriangle, TrendingDown,
-  RefreshCw, Sun, Moon,
+  Plus,
+  Receipt,
+  Search,
+  Filter,
+  Calendar,
+  DollarSign,
+  Loader2,
+  Trash2,
+  Edit,
+  Eye,
+  Zap,
+  Home,
+  Users,
+  Wrench,
+  Megaphone,
+  FileText,
+  ChevronLeft,
+  MoreVertical,
+  X,
+  Download,
+  AlertTriangle,
+  TrendingDown,
+  RefreshCw,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import Link from "next/link";
 
 // ─── Time-based theme hook ────────────────────────────────────────────────────
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => { const h = new Date().getHours(); setIsDark(h < 6 || h >= 18); };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
-}
-
 const EXPENSE_CATEGORIES = [
   { value: "UTILITY", label: "Utility Bills", icon: Zap, color: "yellow" },
   { value: "RENT", label: "Rent", icon: Home, color: "purple" },
@@ -260,8 +272,6 @@ export default function ExpensesPage() {
                     </div>
                   </>
                 )}
-                <div className="h-3 w-px bg-white/20" />
-                {isDark ? <Moon className="h-3 w-3 text-[color:var(--autocity-accent)]" /> : <Sun className="h-3 w-3 text-[color:var(--autocity-accent)]" />}
               </div>
             </div>
           </div>
@@ -280,7 +290,7 @@ export default function ExpensesPage() {
                 <div>
                   <h1 className="text-xl font-bold flex items-center gap-1.5" style={{ color: th.mobileHeaderTitle }}>
                     Expenses
-                    {isDark ? <Moon className="h-3.5 w-3.5 text-[color:var(--autocity-accent)]" /> : <Sun className="h-3.5 w-3.5 text-[color:var(--autocity-accent)]" />}
+                    
                   </h1>
                   <p className="text-xs" style={{ color: th.mobileHeaderSub }}>{filteredExpenses.length} records</p>
                 </div>

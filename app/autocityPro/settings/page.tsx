@@ -1,31 +1,61 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import {
+  APPEARANCE_MODE_CHANGE_EVENT,
+  APPEARANCE_MODE_STORAGE_KEY,
+  APPEARANCE_MODES,
+  useAppearanceMode,
+  type AppearanceMode,
+} from "@/lib/theme/appearanceMode";
+import {
+  useState,
+  useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
-import { UserRole, UserRoleType } from '@/lib/types/roles';
+import { UserRole,
+  UserRoleType } from '@/lib/types/roles';
 import { useActivityTracker } from '@/hooks/useActivityTracker';
 import {
-  Settings as SettingsIcon, Users, Building2, Plus, Trash2, X, Shield,
-  Mail, Phone, MapPin, MoreVertical, RefreshCw, Search, UserPlus, Store,
-  Clock, Wifi, WifiOff, Sun, Moon, Bot, Eye, EyeOff, CheckCircle2,
-  AlertCircle, Copy, ExternalLink, Zap, ToggleLeft, ToggleRight,
-  SendHorizonal, Key, FileImage, Stamp, Upload, Palette,
+  Settings as SettingsIcon,
+  Users,
+  Building2,
+  Plus,
+  Trash2,
+  X,
+  Shield,
+  Mail,
+  Phone,
+  MapPin,
+  MoreVertical,
+  RefreshCw,
+  Search,
+  UserPlus,
+  Store,
+  Clock,
+  Wifi,
+  WifiOff,
+  Bot,
+  Eye,
+  EyeOff,
+  CheckCircle2,
+  AlertCircle,
+  Copy,
+  ExternalLink,
+  Zap,
+  ToggleLeft,
+  ToggleRight,
+  SendHorizonal,
+  Key,
+  FileImage,
+  Stamp,
+  Upload,
+  Palette,
+  Sun,
+  Moon,
+  Monitor,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AIProviderTab from '@/components/settings/AIProviderTab';
 import { isVisualThemeKey, VISUAL_THEMES, VISUAL_THEME_STORAGE_KEY, type VisualThemeKey } from '@/lib/theme/visualThemes';
-
-// ─── Time-based theme hook ────────────────────────────────────────────────────
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => { const h = new Date().getHours(); setIsDark(h < 6 || h >= 18); };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
-}
 
 interface OnlineUser {
   _id: string; firstName: string; lastName: string; email: string;
@@ -42,7 +72,7 @@ interface BotConfig {
 }
 
 export default function SettingsPage() {
-  const isDark = useTimeBasedTheme();
+  const { mode: appearanceMode, isDark } = useAppearanceMode();
 
   const [user, setUser]                     = useState<any>(null);
   const [activeTab, setActiveTab]           = useState('users');
@@ -351,6 +381,12 @@ export default function SettingsPage() {
     toast.success(`${VISUAL_THEMES.find(item => item.key === theme)?.name || 'Theme'} applied`);
   };
 
+  const handleAppearanceModeChange = (mode: AppearanceMode) => {
+    window.localStorage.setItem(APPEARANCE_MODE_STORAGE_KEY, mode);
+    window.dispatchEvent(new CustomEvent(APPEARANCE_MODE_CHANGE_EVENT, { detail: { mode } }));
+    toast.success(`${APPEARANCE_MODES.find(item => item.key === mode)?.name || 'Appearance'} mode applied`);
+  };
+
   const selectedBrandingOutlet = outlets.find(o => String(o._id) === String(selectedBrandingOutletId));
 
   const getBrandingPreviewUrl = (
@@ -520,10 +556,6 @@ export default function SettingsPage() {
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-xl font-bold" style={{ color: th.mobileHdrTitle }}>Settings</h1>
-                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs"
-                    style={{ background: th.badgeBg, border: `1px solid ${th.badgeBorder}`, color: th.badgeText }}>
-                    {isDark ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
-                  </div>
                 </div>
                 <p className="text-xs" style={{ color: th.mobileHdrSub }}>
                   {activeTab === 'users'   && <>{filteredUsers.length} users · <span className="inline-flex items-center"><span className="w-1.5 h-1.5 bg-emerald-400 rounded-full mr-1 animate-pulse" />{onlineCount} online</span></>}
@@ -608,10 +640,6 @@ export default function SettingsPage() {
                 <div>
                   <div className="flex items-center gap-3">
                     <h1 className="text-3xl font-bold" style={{ color: th.headerTitle }}>Settings</h1>
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium"
-                      style={{ background: th.badgeBg, border: `1px solid ${th.badgeBorder}`, color: th.badgeText }}>
-                      {isDark ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
-                    </div>
                   </div>
                   <p className="mt-1" style={{ color: th.headerSub }}>
                     Manage users, outlets and integrations
@@ -931,13 +959,68 @@ export default function SettingsPage() {
                 style={{ background: th.filterBg, border: `1px solid ${th.filterBorder}` }}>
                 <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: th.tableCellPrimary }}>
                   <Palette className="h-5 w-5" style={{ color: 'var(--autocity-accent)' }} />
-                  Visual Theme Templates
+                  Theme Settings
                 </h2>
                 <p className="text-sm mt-1" style={{ color: th.tableCellSecondary }}>
-                  Switch the app accent colors without changing layout or data. The selection is saved on this device.
+                  Switch appearance mode and accent colors without changing layout or data. These selections are saved on this device.
                 </p>
               </div>
 
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-base font-bold" style={{ color: th.tableCellPrimary }}>Day & Night Mode</h3>
+                  <p className="text-sm mt-1" style={{ color: th.tableCellSecondary }}>
+                    Choose automatic time-based mode, or keep the app fixed in light or dark mode.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {APPEARANCE_MODES.map(mode => {
+                    const active = appearanceMode === mode.key;
+                    const ModeIcon = mode.key === 'auto' ? Monitor : mode.key === 'light' ? Sun : Moon;
+                    return (
+                      <button
+                        key={mode.key}
+                        type="button"
+                        onClick={() => handleAppearanceModeChange(mode.key)}
+                        className="text-left rounded-2xl p-5 transition-all active:scale-[0.99]"
+                        style={{
+                          background: `linear-gradient(135deg,${th.outletCardBgFrom},${th.outletCardBgTo})`,
+                          border: `1px solid ${active ? 'var(--autocity-accent)' : th.outletCardBorder}`,
+                          boxShadow: active ? '0 0 0 3px var(--autocity-accent-20)' : 'none',
+                        }}
+                      >
+                        <div className="flex items-start justify-between gap-3 mb-4">
+                          <div
+                            className="h-11 w-11 rounded-xl flex items-center justify-center"
+                            style={{
+                              background: active ? 'var(--autocity-accent-10)' : th.outletIconBg,
+                              border: `1px solid ${active ? 'var(--autocity-accent-30)' : th.outletIconBorder}`,
+                              color: 'var(--autocity-accent)',
+                            }}
+                          >
+                            <ModeIcon className="h-5 w-5" />
+                          </div>
+                          {active && (
+                            <span className="px-3 py-1 text-xs font-semibold rounded-full text-white" style={{ background: 'var(--autocity-accent)' }}>
+                              Active
+                            </span>
+                          )}
+                        </div>
+                        <h4 className="text-lg font-bold" style={{ color: th.outletCardTitle }}>{mode.name}</h4>
+                        <p className="text-sm mt-1" style={{ color: th.outletCardSub }}>{mode.description}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-base font-bold" style={{ color: th.tableCellPrimary }}>Visual Theme Templates</h3>
+                  <p className="text-sm mt-1" style={{ color: th.tableCellSecondary }}>
+                    Choose the accent palette used across headers, buttons, cards, and highlights.
+                  </p>
+                </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {VISUAL_THEMES.map(theme => {
                   const active = selectedTheme === theme.key;
@@ -982,6 +1065,7 @@ export default function SettingsPage() {
                     </button>
                   );
                 })}
+              </div>
               </div>
             </div>
           )}

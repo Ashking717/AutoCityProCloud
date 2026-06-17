@@ -1,14 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import {
+  useState,
+  useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import { 
-  Download, 
-  Printer, 
-  DollarSign, 
-  TrendingUp, 
-  Users, 
+  Download,
+  Printer,
+  DollarSign,
+  TrendingUp,
+  Users,
   Package,
   ChevronLeft,
   MoreVertical,

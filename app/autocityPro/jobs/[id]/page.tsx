@@ -1,28 +1,34 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
+import {
+  useState,
+  useEffect } from "react";
+import { useRouter,
+  useParams } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import {
-  ChevronLeft, Edit, Trash2, User, Car, Calendar, FileText,
-  Wrench, Clock, CheckCircle, XCircle, AlertCircle, ArrowRight,
-  Package, UserCog, RefreshCw, Sun, Moon,
+  ChevronLeft,
+  Edit,
+  Trash2,
+  User,
+  Car,
+  Calendar,
+  FileText,
+  Wrench,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  ArrowRight,
+  Package,
+  UserCog,
+  RefreshCw,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import VoiceNoteRecorder, { type VoiceNoteEntry } from "@/components/ui/Voicenoterecorder";
 
 // ─── Time-based theme hook ────────────────────────────────────────────────────
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => { const h = new Date().getHours(); setIsDark(h < 6 || h >= 18); };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
-}
-
 interface IJob {
   _id: string; jobNumber: string; customerId: any; customerName: string;
   vehicleRegistrationNumber?: string; vehicleMake?: string; vehicleModel?: string;

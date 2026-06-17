@@ -1,5 +1,13 @@
 'use client';
-import { useEffect, useState, useRef, useCallback, lazy, Suspense } from 'react';
+
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
+import {
+  useEffect,
+  useState,
+  useRef,
+  useCallback,
+  lazy,
+  Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import {
@@ -31,8 +39,6 @@ import {
   FileDown,
   Bell,
   Zap,
-  Sun,
-  Moon,
   CarFront,
   Gauge,
   Car,
@@ -121,20 +127,6 @@ const defaultSalesTrend: SalesTrend = { labels: [], data: [], profits: [] };
 
 // ─── Time-based theme hook ────────────────────────────────────────────────────
 // Dark: 6 PM (18:00) → 6 AM (06:00)  |  Light: 6 AM → 6 PM  — matches Sidebar & HomePage
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => {
-      const hour = new Date().getHours();
-      setIsDark(hour < 6 || hour >= 18);
-    };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
-}
-
 // ✅ OPTIMIZATION: Skeleton component — theme-aware
 const StatCardSkeleton = ({ isDark }: { isDark: boolean }) => (
   <div
@@ -200,12 +192,7 @@ const DashboardDynamicIsland = ({ th, stats, isDark, formatCompactCurrency }: {
               <span className="text-xs font-medium text-orange-400">{stats.lowStockItems}</span>
             </div>
           </>
-        )}
-        <div className="h-3 w-px" style={{ background: th.islandDivider }} />
-        {isDark
-          ? <Moon className="h-3 w-3 text-[color:var(--autocity-accent)]" />
-          : <Sun  className="h-3 w-3 text-[color:var(--autocity-accent)]" />}
-      </div>
+        )}</div>
     </div>
   </div>
 );

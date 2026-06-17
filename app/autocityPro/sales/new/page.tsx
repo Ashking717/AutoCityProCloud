@@ -1,7 +1,11 @@
 // app/autocityPro/sales/new/page.tsx - WITH TIME-BASED THEME
 "use client";
 
-import { useState, useEffect } from "react";
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
+
+import {
+  useState,
+  useEffect } from "react";
 import { useRouter } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import {
@@ -19,35 +23,22 @@ import {
   Filter,
   Briefcase,
   CheckCircle,
-  Sun,
-  Moon,
 } from "lucide-react";
 import {
   carMakesModels,
   carColors,
   carYears,
   CarMake,
-} from "@/lib/data/carData";
+  } from "@/lib/data/carData";
 import toast from "react-hot-toast";
 import InvoicePrint from "@/components/InvoicePrint";
-import { ChevronLeft, MoreVertical, DollarSign } from "lucide-react";
+import { ChevronLeft,
+  MoreVertical,
+  DollarSign,
+} from "lucide-react";
 import { useRef } from "react";
 
 // ─── Time-based theme hook ────────────────────────────────────────────────────
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => {
-      const hour = new Date().getHours();
-      setIsDark(hour < 6 || hour >= 18);
-    };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
-}
-
 // ─── Theme token builder ──────────────────────────────────────────────────────
 function buildTheme(isDark: boolean) {
   return {
@@ -829,10 +820,7 @@ export default function NewSalePage() {
                     <div className="h-3 w-px" style={{ background: th.islandDivider }} />
                     <User className="h-3 w-3 text-blue-400" />
                   </>
-                )}
-                <div className="h-3 w-px" style={{ background: th.islandDivider }} />
-                {isDark ? <Moon className="h-3 w-3 text-[color:var(--autocity-accent)]" /> : <Sun className="h-3 w-3 text-[color:var(--autocity-accent)]" />}
-              </div>
+                )}</div>
             </div>
           </div>
         )}
@@ -911,7 +899,7 @@ export default function NewSalePage() {
                       color: isDark ? "rgba(255,255,255,0.70)" : "var(--autocity-header-text-light)",
                     }}
                   >
-                    {isDark ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
+                    
                     <span>{isDark ? "Night" : "Day"} mode</span>
                   </div> */}
                 </div>

@@ -1,20 +1,22 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import {
+  useState,
+  useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import { 
-  Download, 
-  Printer, 
-  Activity, 
-  Loader2, 
-  ChevronLeft, 
-  TrendingUp, 
+  Download,
+  Printer,
+  Activity,
+  Loader2,
+  ChevronLeft,
+  TrendingUp,
   TrendingDown,
   MoreVertical,
   X,
   DollarSign,
-  Droplet
+  Droplet,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 

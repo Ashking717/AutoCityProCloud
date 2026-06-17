@@ -82,11 +82,50 @@ html, body {
   --autocity-accent-70: rgba(245, 183, 0, 0.70);
 }
 
+:root[data-visual-theme="orange"] {
+  --autocity-accent: #fb923c;
+  --autocity-accent-strong: #f97316;
+  --autocity-accent-rgb: 251 146 60;
+  --autocity-accent-strong-rgb: 249 115 22;
+  --autocity-header-from-dark: #c2410c;
+  --autocity-header-via-dark: #7c2d12;
+  --autocity-header-to-dark: #ea580c;
+  --autocity-header-from-light: #fff7ed;
+  --autocity-header-via-light: #ffedd5;
+  --autocity-header-to-light: #fed7aa;
+  --autocity-header-text-light: #7c2d12;
+  --autocity-header-sub-light: #9a3412;
+  --autocity-accent-02: rgba(251, 146, 60, 0.02);
+  --autocity-accent-03: rgba(251, 146, 60, 0.03);
+  --autocity-accent-04: rgba(251, 146, 60, 0.04);
+  --autocity-accent-05: rgba(251, 146, 60, 0.05);
+  --autocity-accent-06: rgba(251, 146, 60, 0.06);
+  --autocity-accent-07: rgba(251, 146, 60, 0.07);
+  --autocity-accent-08: rgba(251, 146, 60, 0.08);
+  --autocity-accent-10: rgba(251, 146, 60, 0.10);
+  --autocity-accent-12: rgba(251, 146, 60, 0.12);
+  --autocity-accent-14: rgba(251, 146, 60, 0.14);
+  --autocity-accent-15: rgba(251, 146, 60, 0.15);
+  --autocity-accent-18: rgba(251, 146, 60, 0.18);
+  --autocity-accent-20: rgba(251, 146, 60, 0.20);
+  --autocity-accent-25: rgba(251, 146, 60, 0.25);
+  --autocity-accent-30: rgba(251, 146, 60, 0.30);
+  --autocity-accent-35: rgba(251, 146, 60, 0.35);
+  --autocity-accent-40: rgba(251, 146, 60, 0.40);
+  --autocity-accent-45: rgba(251, 146, 60, 0.45);
+  --autocity-accent-50: rgba(251, 146, 60, 0.50);
+  --autocity-accent-60: rgba(251, 146, 60, 0.60);
+  --autocity-accent-70: rgba(251, 146, 60, 0.70);
+}
+
 @media (min-width: 768px) {
   .autocity-fixed-page-header,
   [data-autocity-main] > div > div[class*="shadow"]:not([class*="rounded"]):not([class~="md:hidden"])[class*="border-b"],
   [data-autocity-main] [class~="hidden"][class~="md:block"][class*="shadow"]:not([class*="rounded"])[class*="border-b"],
   [data-autocity-main] [class~="hidden"][class~="md:block"][class*="shadow"]:not([class*="rounded"])[class*="bg-gradient-to-"] {
+    position: sticky;
+    top: 0;
+    z-index: 35;
     display: flex !important;
     flex-direction: column;
     justify-content: center;

@@ -1,28 +1,30 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
+import {
+  useState,
+  useEffect,
+  useRef } from "react";
+import { useRouter,
+  useParams } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import {
-  Search, Plus, Trash2, Wrench, X, Calendar, FileText,
-  ChevronLeft, Save, UserCog, Sun, Moon,
+  Search,
+  Plus,
+  Trash2,
+  Wrench,
+  X,
+  Calendar,
+  FileText,
+  ChevronLeft,
+  Save,
+  UserCog,
 } from "lucide-react";
 import { carMakesModels, carYears, CarMake } from "@/lib/data/carData";
 import toast from "react-hot-toast";
 import VoiceNoteRecorder, { type VoiceNoteEntry } from "@/components/ui/Voicenoterecorder";
 
 // ─── Time-based theme hook ────────────────────────────────────────────────────
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => { const h = new Date().getHours(); setIsDark(h < 6 || h >= 18); };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
-}
-
 interface JobItem {
   productId?: string; productName: string; sku: string; isLabor?: boolean; unit: string;
   quantity: number; estimatedPrice: number; actualPrice?: number; discount: number;

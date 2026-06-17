@@ -1,26 +1,30 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
+import {
+  useState,
+  useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import {
-  User, Mail, Building, Shield, Lock, Edit2, Save, X,
-  Eye, EyeOff, CheckCircle, AlertCircle, Loader2, ChevronLeft, Sun, Moon,
+  User,
+  Mail,
+  Building,
+  Shield,
+  Lock,
+  Edit2,
+  Save,
+  X,
+  Eye,
+  EyeOff,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+  ChevronLeft,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 
 // ─── Time-based theme hook ────────────────────────────────────────────────────
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => { const h = new Date().getHours(); setIsDark(h < 6 || h >= 18); };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
-}
-
 interface UserProfile {
   id: string; email: string; username: string; firstName: string;
   lastName: string; role: string; outletId: string | null;
@@ -225,10 +229,6 @@ export default function AdminProfilePage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <h1 className="text-xl font-bold" style={{ color: th.mobileHdrTitle }}>My Profile</h1>
-                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs"
-                      style={{ background: th.badgeBg, border: `1px solid ${th.badgeBorder}`, color: th.badgeText }}>
-                      {isDark ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
-                    </div>
                   </div>
                   <p className="text-xs" style={{ color: th.mobileHdrSub }}>@{user.username}</p>
                 </div>

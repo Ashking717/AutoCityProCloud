@@ -1,29 +1,33 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
+import {
+  useState,
+  useEffect,
+  useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import {
-  Package, AlertTriangle, TrendingDown, TrendingUp, Filter, X,
-  MoreVertical, ChevronLeft, FileDown, Search, Zap, RefreshCw,
-  Car, Palette, Calendar, Loader2, Sun, Moon,
+  Package,
+  AlertTriangle,
+  TrendingDown,
+  TrendingUp,
+  Filter,
+  X,
+  MoreVertical,
+  ChevronLeft,
+  FileDown,
+  Search,
+  Zap,
+  RefreshCw,
+  Car,
+  Palette,
+  Calendar,
+  Loader2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 // ─── Time-based theme hook ────────────────────────────────────────────────────
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => {
-      const hour = new Date().getHours();
-      setIsDark(hour < 6 || hour >= 18);
-    };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
-}
-
 export default function StockPage() {
   const router   = useRouter();
   const isDark   = useTimeBasedTheme();
@@ -302,10 +306,7 @@ export default function StockPage() {
                     <AlertTriangle className="h-3 w-3 text-orange-500" />
                     <span className="text-xs font-medium text-orange-400">{globalStats.lowStockCount}</span>
                   </>
-                )}
-                <div className="h-3 w-px" style={{ background: th.islandDivider }} />
-                {isDark ? <Moon className="h-3 w-3 text-[color:var(--autocity-accent)]" /> : <Sun className="h-3 w-3 text-[color:var(--autocity-accent)]" />}
-              </div>
+                )}</div>
             </div>
           </div>
         )}
@@ -362,10 +363,6 @@ export default function StockPage() {
               <div>
                 <div className="flex items-center gap-3">
                   <h1 className="text-3xl font-bold" style={{ color: th.headerTitle }}>Stock Management</h1>
-                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium"
-                    style={{ background: isDark ? 'rgba(0,0,0,0.30)' : 'rgba(255,255,255,0.60)', border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'var(--autocity-accent-20)'}`, color: isDark ? 'rgba(255,255,255,0.70)' : 'var(--autocity-header-text-light)' }}>
-                    {isDark ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
-                  </div>
                 </div>
                 <p className="mt-1" style={{ color: th.headerSub }}>
                   {products.length} of {totalProducts} products loaded{hasMoreProducts && ' • Scroll to load more'}

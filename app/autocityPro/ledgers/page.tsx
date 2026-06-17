@@ -1,27 +1,29 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
+import {
+  useState,
+  useEffect } from "react";
 import { useRouter } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import {
-  BookOpen, Search, Filter, ChevronLeft, RefreshCw, FileDown,
-  X, Sun, Moon, TrendingUp, TrendingDown, ArrowLeftRight,
-  BarChart3, Calendar, Eye,
+  BookOpen,
+  Search,
+  Filter,
+  ChevronLeft,
+  RefreshCw,
+  FileDown,
+  X,
+  TrendingUp,
+  TrendingDown,
+  ArrowLeftRight,
+  BarChart3,
+  Calendar,
+  Eye,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
 // ─── Time-based theme hook ────────────────────────────────────────────────────
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => { const h = new Date().getHours(); setIsDark(h < 6 || h >= 18); };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
-}
-
 interface IAccount {
   _id: string; code: string; name: string;
   type: "asset" | "liability" | "equity" | "revenue" | "expense";
@@ -247,7 +249,7 @@ const fmt = (n: any) =>
                   </h1>
                   <p className="text-xs flex items-center gap-1" style={{ color: th.mobileHeaderSub }}>
                     {view === "accounts" ? `${filteredAccounts.length} accounts` : view === "ledger" ? selectedAccount?.code : ""}
-                    {isDark ? <Moon className="h-3 w-3 inline ml-1 text-[color:var(--autocity-accent)]" /> : <Sun className="h-3 w-3 inline ml-1 text-[color:var(--autocity-accent)]" />}
+                    
                   </p>
                 </div>
               </div>

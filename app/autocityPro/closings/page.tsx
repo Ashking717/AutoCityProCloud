@@ -1,29 +1,40 @@
 "use client";
 
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import ClosingPreview from "@/components/closings/ClosingPreview";
 import {
-  Calendar, Lock, CheckCircle, XCircle, FileText, TrendingUp, DollarSign,
-  BookOpen, AlertTriangle, Eye, Download, RefreshCw, MoreVertical, Filter, X,
-  BarChart3, Clock, Wallet, ArrowUpRight, Zap, Search, Receipt, TrendingDown,
-  Database, Shield, Sun, Moon,
+  Calendar,
+  Lock,
+  CheckCircle,
+  XCircle,
+  FileText,
+  TrendingUp,
+  DollarSign,
+  BookOpen,
+  AlertTriangle,
+  Eye,
+  Download,
+  RefreshCw,
+  MoreVertical,
+  Filter,
+  X,
+  BarChart3,
+  Clock,
+  Wallet,
+  ArrowUpRight,
+  Zap,
+  Search,
+  Receipt,
+  TrendingDown,
+  Database,
+  Shield,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
 // ─── Time-based theme hook ────────────────────────────────────────────────────
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => { const h = new Date().getHours(); setIsDark(h < 6 || h >= 18); };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
-}
-
 interface ClosingData {
   _id: string; closingType: "day" | "month"; closingDate: string;
   periodStart: string; periodEnd: string; status: "closed" | "locked" | "pending";
@@ -297,6 +308,12 @@ export default function ClosingsPage() {
 
   const modalInputCls = "w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-red-500/20 transition-all font-medium";
   const modalInputStyle = { background: th.modalInputBg, border: `1px solid ${th.modalInputBorder}`, color: th.modalInputText };
+  const summaryStats = [
+    { icon:Calendar, iconBg:'bg-red-500/10', iconText:'text-red-400', accent:'from-red-500/5', label:'Total Closings',  value:summary.totalClosings.toString(), meta:null, valueClass:'text-white' },
+    { icon:DollarSign, iconBg:'bg-blue-500/10', iconText:'text-blue-400', accent:'from-blue-500/5', label:'Total Revenue', value:summary.totalRevenue.toLocaleString('en-QA',{minimumFractionDigits:0,maximumFractionDigits:0}), meta:'QAR', valueClass:'text-white' },
+    { icon:TrendingUp,  iconBg:'bg-emerald-500/10', iconText:'text-emerald-400', accent:'from-emerald-500/5', label:'Total Net Profit', value:summary.totalProfit.toLocaleString('en-QA',{minimumFractionDigits:0,maximumFractionDigits:0}), meta:'QAR', valueClass:summary.totalProfit>=0?'text-emerald-400':'text-red-400' },
+    { icon:BarChart3,  iconBg:'bg-purple-500/10', iconText:'text-purple-400', accent:'from-purple-500/5', label:'Avg Net Profit',   value:summary.avgProfit.toLocaleString('en-QA',{minimumFractionDigits:0,maximumFractionDigits:0}), meta:'QAR per period', valueClass:summary.avgProfit>=0?'text-purple-400':'text-red-400' },
+  ];
 
   return (
     <MainLayout user={user} onLogout={handleLogout}>
@@ -338,7 +355,7 @@ export default function ClosingsPage() {
           }} />
           <div className="relative px-8 py-11">
             <div className="max-w-7xl mx-auto">
-              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8">
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
                 <div className="flex items-center gap-5">
                   <div className="relative">
                     <div className="absolute inset-0 blur-xl rounded-2xl" style={{ background: th.desktopIconGlow }} />
@@ -371,37 +388,32 @@ export default function ClosingsPage() {
                 </div>
               </div>
 
-              {/* Summary Stats */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                  { icon:Calendar, iconBg:'bg-red-500/10', iconText:'text-red-400', accent:'from-red-500/5', label:'Total Closings',  value:summary.totalClosings.toString(), meta:null, valueClass:'text-white' },
-                  { icon:DollarSign, iconBg:'bg-blue-500/10', iconText:'text-blue-400', accent:'from-blue-500/5', label:'Total Revenue', value:summary.totalRevenue.toLocaleString('en-QA',{minimumFractionDigits:0,maximumFractionDigits:0}), meta:'QAR', valueClass:'text-white' },
-                  { icon:TrendingUp,  iconBg:'bg-emerald-500/10', iconText:'text-emerald-400', accent:'from-emerald-500/5', label:'Total Net Profit', value:summary.totalProfit.toLocaleString('en-QA',{minimumFractionDigits:0,maximumFractionDigits:0}), meta:'QAR', valueClass:summary.totalProfit>=0?'text-emerald-400':'text-red-400' },
-                  { icon:BarChart3,  iconBg:'bg-purple-500/10', iconText:'text-purple-400', accent:'from-purple-500/5', label:'Avg Net Profit',   value:summary.avgProfit.toLocaleString('en-QA',{minimumFractionDigits:0,maximumFractionDigits:0}), meta:'QAR per period', valueClass:summary.avgProfit>=0?'text-purple-400':'text-red-400' },
-                ].map((s, i) => (
-                  <div key={s.label} className="group relative overflow-hidden rounded-2xl transition-all duration-300"
-                    style={{ background: th.statCardBg, border: `1px solid ${th.statCardBorder}` }}
-                    onMouseEnter={e => (e.currentTarget.style.borderColor = th.statCardHoverBorder)}
-                    onMouseLeave={e => (e.currentTarget.style.borderColor = th.statCardBorder)}>
-                    <div className={`absolute inset-0 bg-gradient-to-br ${s.accent} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
-                    <div className="relative p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className={`p-2.5 ${s.iconBg} rounded-lg`}><s.icon className={`h-5 w-5 ${s.iconText}`} /></div>
-                        <ArrowUpRight className={`h-4 w-4 ${s.iconText}`} />
-                      </div>
-                      <p className="text-xs font-medium uppercase tracking-wider mb-1" style={{ color: th.statLabelText }}>{s.label}</p>
-                      <p className={`text-3xl font-bold tracking-tight ${s.valueClass}`}>{s.value}</p>
-                      {s.meta && <p className="text-xs mt-1" style={{ color: th.statMetaText }}>{s.meta}</p>}
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
         </div>
 
         <div className="px-4 md:px-8 pt-[140px] md:pt-8 pb-8">
           <div className="max-w-7xl mx-auto">
+            {/* Summary Stats */}
+            <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              {summaryStats.map((s) => (
+                <div key={s.label} className="group relative overflow-hidden rounded-2xl transition-all duration-300"
+                  style={{ background: th.statCardBg, border: `1px solid ${th.statCardBorder}` }}
+                  onMouseEnter={e => (e.currentTarget.style.borderColor = th.statCardHoverBorder)}
+                  onMouseLeave={e => (e.currentTarget.style.borderColor = th.statCardBorder)}>
+                  <div className={`absolute inset-0 bg-gradient-to-br ${s.accent} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+                  <div className="relative p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className={`p-2.5 ${s.iconBg} rounded-lg`}><s.icon className={`h-5 w-5 ${s.iconText}`} /></div>
+                      <ArrowUpRight className={`h-4 w-4 ${s.iconText}`} />
+                    </div>
+                    <p className="text-xs font-medium uppercase tracking-wider mb-1" style={{ color: th.statLabelText }}>{s.label}</p>
+                    <p className={`text-3xl font-bold tracking-tight ${s.valueClass}`}>{s.value}</p>
+                    {s.meta && <p className="text-xs mt-1" style={{ color: th.statMetaText }}>{s.meta}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
 
             {/* Desktop Filters */}
             <div className="hidden md:block mb-8">

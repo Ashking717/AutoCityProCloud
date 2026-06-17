@@ -1,26 +1,31 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
+import {
+  useState,
+  useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import {
-  TrendingUp, Scale, DollarSign, ShoppingCart, Package, Users,
-  FileText, Calendar, Activity, BarChart3, ChevronLeft, Download,
-  Clock, Zap, TrendingDown, AlertCircle, Sun, Moon,
+  TrendingUp,
+  Scale,
+  DollarSign,
+  ShoppingCart,
+  Package,
+  Users,
+  FileText,
+  Calendar,
+  Activity,
+  BarChart3,
+  ChevronLeft,
+  Download,
+  Clock,
+  Zap,
+  TrendingDown,
+  AlertCircle,
 } from 'lucide-react';
 
 // ─── Time-based theme hook ────────────────────────────────────────────────────
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => { const h = new Date().getHours(); setIsDark(h < 6 || h >= 18); };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
-}
-
 export default function ReportsPage() {
   const router = useRouter();
   const isDark = useTimeBasedTheme();
@@ -143,10 +148,7 @@ export default function ReportsPage() {
                 <div className="flex items-center gap-1.5">
                   <FileText className="h-3 w-3 text-blue-400" />
                   <span className="text-xs font-medium" style={{ color: th.islandText }}>Reports</span>
-                </div>
-                <div className="h-3 w-px" style={{ background: th.islandDivider }} />
-                {isDark ? <Moon className="h-3 w-3 text-[color:var(--autocity-accent)]" /> : <Sun className="h-3 w-3 text-[color:var(--autocity-accent)]" />}
-              </div>
+                </div></div>
             </div>
           </div>
         )}
@@ -183,10 +185,6 @@ export default function ReportsPage() {
               <div>
                 <div className="flex items-center gap-3">
                   <h1 className="text-3xl font-bold" style={{ color: th.desktopHdrTitle }}>Financial Reports</h1>
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
-                    style={{ background: th.badgeBg, border: `1px solid ${th.badgeBorder}`, color: th.badgeText }}>
-                    {isDark ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
-                  </div>
                 </div>
                 <p className="mt-1" style={{ color: th.desktopHdrSub }}>Comprehensive business insights and analytics</p>
               </div>

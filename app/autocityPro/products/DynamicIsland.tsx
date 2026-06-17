@@ -1,6 +1,11 @@
 "use client";
-import { useState, useEffect } from "react";
-import { Box, Zap, AlertCircle } from "lucide-react";
+import {
+  useState,
+  useEffect } from "react";
+import { Box,
+  Zap,
+  AlertCircle,
+} from "lucide-react";
 
 interface DynamicIslandProps {
   totalProducts: number;

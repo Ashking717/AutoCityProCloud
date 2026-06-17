@@ -1,5 +1,9 @@
 'use client';
-import { useState, useEffect } from "react";
+
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
+import {
+  useState,
+  useEffect } from "react";
 import { useRouter } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import {
@@ -21,26 +25,10 @@ import {
   Eye,
   Clock,
   MoreVertical,
-  Sun,
-  Moon,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
 // ─── Time-based theme hook ────────────────────────────────────────────────────
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => {
-      const hour = new Date().getHours();
-      setIsDark(hour < 6 || hour >= 18);
-    };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
-}
-
 interface ActivityLog {
   _id: string;
   userId: string;
@@ -316,16 +304,6 @@ export default function ActivityLogsPage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <h1 className="text-xl font-bold" style={{ color: th.mobileHeaderTitle }}>Activity Logs</h1>
-                    <div
-                      className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs"
-                      style={{
-                        background: isDark ? 'rgba(0,0,0,0.30)' : 'rgba(255,255,255,0.70)',
-                        border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'}`,
-                        color: isDark ? 'rgba(255,255,255,0.70)' : '#374151',
-                      }}
-                    >
-                      {isDark ? <Moon className="h-3 w-3 text-[color:var(--autocity-accent)]" /> : <Sun className="h-3 w-3 text-[color:var(--autocity-accent)]" />}
-                    </div>
                   </div>
                   <p className="text-xs" style={{ color: th.mobileHeaderSub }}>{pagination.total} records</p>
                 </div>

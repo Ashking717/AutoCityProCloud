@@ -1,5 +1,6 @@
 "use client";
 
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
@@ -11,17 +12,6 @@ import {
 import toast from "react-hot-toast";
 
 // ─── Time-based theme (copied from ProductsClient) ───────────────────────────
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => { const h = new Date().getHours(); setIsDark(h < 6 || h >= 18); };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
-}
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ImportRow {
   _rowIndex: number;

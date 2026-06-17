@@ -1,27 +1,25 @@
 'use client';
 
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
-import { Lock, User, Mail, Eye, EyeOff, ArrowLeft, Globe, Sun, Moon, Shield } from 'lucide-react';
+import {
+  Lock,
+  User,
+  Mail,
+  Eye,
+  EyeOff,
+  ArrowLeft,
+  Globe,
+  Shield,
+} from 'lucide-react';
 
 // ─── Time-based theme hook ────────────────────────────────────────────────────
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => { const h = new Date().getHours(); setIsDark(h < 6 || h >= 18); };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
-}
-
 const content = {
   en: {
-    title: 'AutoCity ', subtitle: 'Portal', signIn: 'Sign In',
-    signInDesc: 'Access ', identifier: 'Username or Email',
+    title: 'Secure Access', subtitle: 'Staff Login', signIn: 'Sign In',
+    signInDesc: 'Access your workspace', identifier: 'Username or Email',
     identifierPlaceholder: 'username or email', password: 'Password',
     passwordPlaceholder: '••••••••', rememberMe: 'Remember me',
     forgotPassword: 'Forgot password?', signInButton: 'Sign In',
@@ -35,8 +33,8 @@ const content = {
     spamNote: "If you don't see the email, check your spam folder.", backToLogin: 'Back to Login',
   },
   ar: {
-    title: 'اوتو سيتي برو', subtitle: 'بوابة العمليات الداخلية', signIn: 'تسجيل الدخول',
-    signInDesc: 'الوصول إلى لوحة تحكم الموظفين', identifier: 'اسم المستخدم أو البريد الإلكتروني',
+    title: 'دخول آمن', subtitle: 'تسجيل دخول الموظفين', signIn: 'تسجيل الدخول',
+    signInDesc: 'الوصول إلى مساحة العمل', identifier: 'اسم المستخدم أو البريد الإلكتروني',
     identifierPlaceholder: 'اسم المستخدم أو البريد الإلكتروني', password: 'كلمة المرور',
     passwordPlaceholder: '••••••••', rememberMe: 'تذكرني', forgotPassword: 'نسيت كلمة المرور؟',
     signInButton: 'تسجيل الدخول', signingIn: 'جاري تسجيل الدخول...',
@@ -306,12 +304,7 @@ export default function LoginPage() {
       )}
 
       {/* Unified Top Navigation Bar */}
-      <div className={`absolute top-0 left-0 right-0 p-4 sm:p-6 flex items-center justify-between z-50 ${isRTL ? 'flex-row-reverse' : 'flex-row'}`}>
-        {/* Theme Indicator */}
-        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-[var(--bg-panel)] border border-[var(--panel-border)] text-[var(--text-muted)] transition-all duration-500 shadow-sm backdrop-blur-sm">
-          {isDark ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-        </div>
-
+      <div className={`absolute top-0 left-0 right-0 p-4 sm:p-6 flex items-center justify-end z-50 ${isRTL ? 'flex-row-reverse' : 'flex-row'}`}>
         {/* Language Toggle */}
         <button onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
           className="flex items-center gap-2 px-5 py-2.5 btn-system bg-[var(--bg-panel)] border border-[var(--panel-border)] text-[var(--text-primary)] hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)] transition-all shadow-sm backdrop-blur-sm">
@@ -328,9 +321,9 @@ export default function LoginPage() {
           
           {/* Left Text Column */}
           <div className={`text-center ${isRTL ? 'lg:text-right' : 'lg:text-left'} space-y-8 flex flex-col items-center ${isRTL ? 'lg:items-end' : 'lg:items-start'}`}>
-            <Link href="/" className="inline-block hover:opacity-80 transition-opacity">
-              <Image src="/login.png" alt="Auto City Qatar" width={300} height={150} className="object-contain" priority />
-            </Link>
+            <div className="inline-flex h-32 w-32 items-center justify-center rounded-[32px] border border-[var(--panel-border)] bg-[var(--bg-panel)] shadow-sm backdrop-blur-sm">
+              <Shield className="h-14 w-14 text-[var(--accent-primary)] opacity-85" />
+            </div>
             
             <div className={`flex flex-col items-center ${isRTL ? 'lg:items-end' : 'lg:items-start'}`}>
               <div className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full border border-[var(--panel-border)] bg-[var(--bg-panel)] mb-6">
@@ -379,9 +372,9 @@ export default function LoginPage() {
         {/* Mobile Layout */}
         <div className="lg:hidden flex flex-col items-center w-full">
           <div className="text-center mb-10 flex flex-col items-center">
-            <Link href="/" className="inline-block mb-8 hover:opacity-80 transition-opacity">
-              <Image src="/login.png" alt="Auto City Qatar" width={240} height={120} className="object-contain" priority />
-            </Link>
+            <div className="mb-8 inline-flex h-24 w-24 items-center justify-center rounded-[28px] border border-[var(--panel-border)] bg-[var(--bg-panel)] shadow-sm backdrop-blur-sm">
+              <Shield className="h-11 w-11 text-[var(--accent-primary)] opacity-85" />
+            </div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[var(--panel-border)] bg-[var(--bg-panel)] mb-4">
               <span className="metric-dot"></span>
               <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--accent-primary)]">{t.title}</span>

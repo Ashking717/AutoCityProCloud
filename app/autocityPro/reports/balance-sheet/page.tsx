@@ -1,16 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import {
+  useState,
+  useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import { 
-  Download, 
-  Printer, 
-  BarChart3, 
-  Loader2, 
-  ChevronLeft, 
-  AlertCircle, 
-  CheckCircle, 
+  Download,
+  Printer,
+  BarChart3,
+  Loader2,
+  ChevronLeft,
+  AlertCircle,
+  CheckCircle,
   Bug,
   MoreVertical,
   X,
@@ -19,7 +21,7 @@ import {
   TrendingUp,
   TrendingDown,
   AlertTriangle,
-  DollarSign
+  DollarSign,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 

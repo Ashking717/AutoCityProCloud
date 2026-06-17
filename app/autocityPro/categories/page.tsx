@@ -1,25 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
+import {
+  useState,
+  useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
-import { Search, Plus, Edit, Trash2, X, FolderOpen, Sun, Moon } from 'lucide-react';
+import { Search,
+  Plus,
+  Edit,
+  Trash2,
+  X,
+  FolderOpen,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 
 // ─── Time-based theme hook ────────────────────────────────────────────────────
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => {
-      const hour = new Date().getHours();
-      setIsDark(hour < 6 || hour >= 18);
-    };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
-}
-
 const CategoryModal = ({ title, onSubmit, onClose, submitLabel, th, formData, setFormData, submitting, modalInputStyle }: {
   title: string; onSubmit: (e: React.FormEvent) => void;
   onClose: () => void; submitLabel: string; th: any;

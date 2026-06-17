@@ -1,10 +1,31 @@
 // app/autocityPro/vouchers/[id]/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import {
+  useState,
+  useEffect } from 'react';
+import { useParams,
+  useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
-import { ArrowLeft, DollarSign, Calendar, FileText, CheckCircle, XCircle, Printer, Edit, Trash2, MoreVertical, X, ChevronLeft, Clock, User, CreditCard, Download, Share2, Eye } from 'lucide-react';
+import { ArrowLeft,
+  DollarSign,
+  Calendar,
+  FileText,
+  CheckCircle,
+  XCircle,
+  Printer,
+  Edit,
+  Trash2,
+  MoreVertical,
+  X,
+  ChevronLeft,
+  Clock,
+  User,
+  CreditCard,
+  Download,
+  Share2,
+  Eye,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function VoucherViewPage() {

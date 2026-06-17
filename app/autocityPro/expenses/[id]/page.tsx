@@ -1,30 +1,47 @@
 // Expense Detail Page - expense/[id]/page.tsx - WITH TIME-BASED LIGHT/DARK THEME
 "use client";
 
-import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
+
 import {
-  ArrowLeft, Calendar, User, CreditCard, FileText, Tag, Receipt,
-  CheckCircle, XCircle, Clock, DollarSign, Building, Phone, Mail,
-  Edit, Trash2, RotateCcw, ChevronLeft, MoreVertical, X, Download,
-  AlertTriangle, TrendingDown, RefreshCw, ArrowUpRight, Printer, Share2, Sun, Moon,
+  useState,
+  useEffect } from "react";
+import { useParams,
+  useRouter } from "next/navigation";
+import {
+  ArrowLeft,
+  Calendar,
+  User,
+  CreditCard,
+  FileText,
+  Tag,
+  Receipt,
+  CheckCircle,
+  XCircle,
+  Clock,
+  DollarSign,
+  Building,
+  Phone,
+  Mail,
+  Edit,
+  Trash2,
+  RotateCcw,
+  ChevronLeft,
+  MoreVertical,
+  X,
+  Download,
+  AlertTriangle,
+  TrendingDown,
+  RefreshCw,
+  ArrowUpRight,
+  Printer,
+  Share2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import Link from "next/link";
 import MainLayout from "@/components/layout/MainLayout";
 
 // ─── Time-based theme hook ────────────────────────────────────────────────────
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => { const h = new Date().getHours(); setIsDark(h < 6 || h >= 18); };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
-}
-
 interface ExpenseItem { description: string; accountId: string; accountName: string; accountCode: string; amount: number; notes?: string; }
 interface Expense {
   _id: string; expenseNumber: string; expenseDate: string; category: string;
@@ -260,8 +277,6 @@ export default function ExpenseDetailPage() {
                 <span className="text-white text-xs font-medium">{formatCompactCurrency(expense.grandTotal)}</span>
                 <div className="h-3 w-px bg-white/20" />
                 {getStatusBadge(expense.status)}
-                <div className="h-3 w-px bg-white/20" />
-                {isDark ? <Moon className="h-3 w-3 text-[color:var(--autocity-accent)]" /> : <Sun className="h-3 w-3 text-[color:var(--autocity-accent)]" />}
               </div>
             </div>
           </div>
@@ -280,7 +295,7 @@ export default function ExpenseDetailPage() {
                 <div className="flex-1 min-w-0">
                   <h1 className="text-lg font-bold truncate flex items-center gap-1.5" style={{ color: th.mobileHeaderTitle }}>
                     Expense #{expense.expenseNumber}
-                    {isDark ? <Moon className="h-3.5 w-3.5 text-[color:var(--autocity-accent)]" /> : <Sun className="h-3.5 w-3.5 text-[color:var(--autocity-accent)]" />}
+                    
                   </h1>
                   <p className="text-xs truncate" style={{ color: th.mobileHeaderSub }}>
                     {new Date(expense.expenseDate).toLocaleDateString()}
@@ -321,7 +336,7 @@ export default function ExpenseDetailPage() {
                 <div className="text-right">
                   <h1 className="text-2xl font-bold flex items-center gap-2 justify-end" style={{ color: th.headerTitle }}>
                     Expense #{expense.expenseNumber}
-                    {isDark ? <Moon className="h-4 w-4 text-[color:var(--autocity-accent)]" /> : <Sun className="h-4 w-4 text-[color:var(--autocity-accent)]" />}
+                    
                   </h1>
                   <p style={{ color: th.headerSub }}>
                     {new Date(expense.expenseDate).toLocaleDateString()} • {getCategoryLabel(expense.category)}

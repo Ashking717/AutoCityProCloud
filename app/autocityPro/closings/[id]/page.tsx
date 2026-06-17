@@ -1,13 +1,38 @@
 // app/autocityPro/closings/[id]/page.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import {
+  useEffect,
+  useState } from 'react';
+import { useParams,
+  useRouter } from 'next/navigation';
 import { 
-  ArrowLeft, Download, Printer, CheckCircle, XCircle, DollarSign, 
-  TrendingUp, TrendingDown, Package, Receipt, CreditCard, Wallet, 
-  Lock, Clock, FileText, BarChart3, BookOpen, Zap, ArrowUpRight, 
-  ArrowDownRight, Info, AlertCircle, Database, Shield, Percent, Calendar
+  ArrowLeft,
+  Download,
+  Printer,
+  CheckCircle,
+  XCircle,
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  Package,
+  Receipt,
+  CreditCard,
+  Wallet,
+  Lock,
+  Clock,
+  FileText,
+  BarChart3,
+  BookOpen,
+  Zap,
+  ArrowUpRight,
+  ArrowDownRight,
+  Info,
+  AlertCircle,
+  Database,
+  Shield,
+  Percent,
+  Calendar,
 } from 'lucide-react';
 import { generateClosingPDF } from '@/lib/utils/closingPdfGenerator';
 import MainLayout from '@/components/layout/MainLayout';

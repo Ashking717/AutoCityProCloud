@@ -1,23 +1,10 @@
 "use client";
 
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
 import { useState, useEffect } from "react";
 import Image from "next/image";
 
 // Match the time-based logic from landing page
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => {
-      const h = new Date().getHours();
-      setIsDark(h < 6 || h >= 18);
-    };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
-}
-
 export default function LoadingScreen({
   onComplete,
 }: {

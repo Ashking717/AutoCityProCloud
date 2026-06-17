@@ -1,27 +1,39 @@
 "use client";
-import { useState, useEffect, useRef, useCallback } from "react";
+
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback } from "react";
 import { useRouter } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import {
-  ChevronLeft, Upload, FileSpreadsheet, AlertTriangle, CheckCircle2,
-  ChevronDown, ChevronUp, Download, Loader2, RefreshCw, Info,
-  ArrowRight, XCircle, Check, AlertCircle, X, FileDown, Package,
-  Zap, List, AlertOctagon,
+  ChevronLeft,
+  Upload,
+  FileSpreadsheet,
+  AlertTriangle,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Download,
+  Loader2,
+  RefreshCw,
+  Info,
+  ArrowRight,
+  XCircle,
+  Check,
+  AlertCircle,
+  X,
+  FileDown,
+  Package,
+  Zap,
+  List,
+  AlertOctagon,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
 // ─── Time-based theme ────────────────────────────────────────────────────────
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => { const h = new Date().getHours(); setIsDark(h < 6 || h >= 18); };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
-}
-
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface ImportRow {
   _rowIndex: number;

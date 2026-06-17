@@ -1,3 +1,4 @@
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
 import { Package } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -12,20 +13,6 @@ interface Props {
   products: TopProduct[];
   isMobile: boolean;
   formatCurrency: (amount: number) => string;
-}
-
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => {
-      const hour = new Date().getHours();
-      setIsDark(hour < 6 || hour >= 18);
-    };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
 }
 
 export default function TopProductsChart({ products, isMobile, formatCurrency }: Props) {

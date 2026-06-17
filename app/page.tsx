@@ -1,5 +1,6 @@
 'use client';
 
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -8,17 +9,6 @@ import { Wrench, Shield, ArrowRight, Phone, Mail, MapPin, ChevronDown, Clock, Di
 import LoadingScreen from './LoadingScreen';
 
 // ─── Time-based theme hook ────────────────────────────────────────────────────
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => { const h = new Date().getHours(); setIsDark(h < 6 || h >= 18); };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
-}
-
 // Types
 type MediaType = 'video' | 'image';
 

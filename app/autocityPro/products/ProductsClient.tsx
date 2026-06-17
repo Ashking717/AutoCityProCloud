@@ -1,29 +1,39 @@
 "use client";
-import { useState, useEffect, useRef, useTransition } from "react";
+
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
+import {
+  useState,
+  useEffect,
+  useRef,
+  useTransition } from "react";
 import { useRouter } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import AddProductModal from "@/components/products/AddProductModal";
 import EditProductModal from "@/components/products/EditProductModal";
 
-import { Search, Plus, Edit, Trash2, Package, Car, X, Filter, Eye, Tag,
-  FileDown, ChevronLeft, MoreVertical, AlertCircle, Zap, Box, File,
+import { Search,
+  Plus,
+  Edit,
+  Trash2,
+  Package,
+  Car,
+  X,
+  Filter,
+  Eye,
+  Tag,
+  FileDown,
+  ChevronLeft,
+  MoreVertical,
+  AlertCircle,
+  Zap,
+  Box,
+  File,
   FileSpreadsheet,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import ProductCard from "./ProductCard";
 import DynamicIsland from "./DynamicIsland";
 import useKeyboardShortcuts from "./useKeyboardShortcuts";
-
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => { const h = new Date().getHours(); setIsDark(h < 6 || h >= 18); };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
-}
 
 interface ProductsClientProps {
   initialUser: any;

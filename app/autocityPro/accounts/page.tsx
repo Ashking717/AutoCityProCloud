@@ -1,26 +1,34 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
+import {
+  useState,
+  useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import {
-  Wallet, Search, Plus, Edit2, Trash2, X, Eye, Calculator, RefreshCw,
-  Filter, MoreVertical, FileDown, TrendingUp, TrendingDown,
-  DollarSign, CreditCard, BarChart3, AlertCircle, SortAsc, SortDesc,
-  Sun, Moon,
+  Wallet,
+  Search,
+  Plus,
+  Edit2,
+  Trash2,
+  X,
+  Eye,
+  Calculator,
+  RefreshCw,
+  Filter,
+  MoreVertical,
+  FileDown,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  CreditCard,
+  BarChart3,
+  AlertCircle,
+  SortAsc,
+  SortDesc,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => { const h = new Date().getHours(); setIsDark(h < 6 || h >= 18); };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
-}
 
 export default function AccountsPage() {
   const router = useRouter();

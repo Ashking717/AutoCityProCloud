@@ -1,6 +1,11 @@
 // app/autocityPro/purchases/page.tsx - WITH TIME-BASED LIGHT/DARK THEME
 'use client';
-import { useState, useEffect, useMemo } from 'react';
+
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
+import {
+  useState,
+  useEffect,
+  useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import {
@@ -38,26 +43,10 @@ import {
   Wallet,
   Receipt,
   Building2,
-  Sun,
-  Moon,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 // ─── Time-based theme hook ────────────────────────────────────────────────────
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => {
-      const hour = new Date().getHours();
-      setIsDark(hour < 6 || hour >= 18);
-    };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
-}
-
 interface User {
   id: string;
   firstName: string;
@@ -464,7 +453,7 @@ export default function PurchasesPage() {
                   <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: th.mobileHeaderTitle }}>
                     <ShoppingCart className="h-5 w-5 text-[color:var(--autocity-accent)]" />
                     Purchases
-                    {isDark ? <Moon className="h-3.5 w-3.5 text-[color:var(--autocity-accent)] ml-1" /> : <Sun className="h-3.5 w-3.5 text-[color:var(--autocity-accent)] ml-1" />}
+                    
                   </h1>
                   <p className="text-xs" style={{ color: th.mobileHeaderSub }}>
                     {filteredAndSortedPurchases.length} {paymentStatusFilter === 'unpaid' ? 'unpaid' : 'total'} • {formatCompactCurrency(stats.totalAmount)}
@@ -568,7 +557,7 @@ export default function PurchasesPage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <h1 className="text-3xl font-bold tracking-tight" style={{ color: th.headerTitle }}>Purchase Management</h1>
-                    {isDark ? <Moon className="h-4 w-4 text-[color:var(--autocity-accent)]" /> : <Sun className="h-4 w-4 text-[color:var(--autocity-accent)]" />}
+                    
                   </div>
                   <p className="mt-1" style={{ color: th.headerSub }}>Track and manage all your purchase orders</p>
                 </div>

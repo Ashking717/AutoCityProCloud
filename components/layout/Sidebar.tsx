@@ -1,6 +1,9 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
+import {
+  usePathname,
+  useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -34,8 +37,6 @@ import {
   ChevronUp,
   MessageCircle,
   Briefcase,
-  Sun,
-  Moon,
 } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 
@@ -140,22 +141,6 @@ const buildKeyMap = (router: ReturnType<typeof useRouter>, onLogout: () => void)
   "Alt+N": () => router.push("/autocityPro/sales/new"),
 });
 
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-
-  useEffect(() => {
-    const check = () => {
-      const hour = new Date().getHours();
-      setIsDark(hour < 6 || hour >= 18);
-    };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-
-  return isDark;
-}
-
 function buildThemeTokens(isDark: boolean) {
   return {
     sidebarBg:        isDark ? "#050505"                        : "#ffffff",
@@ -246,7 +231,6 @@ function getOutletLogoUrl(user: any) {
 function SidebarHeader({
   user,
   isDark,
-  isDayTime,
   th,
   desktopCollapsed,
   onToggleDesktopCollapse,
@@ -254,7 +238,6 @@ function SidebarHeader({
 }: {
   user: any;
   isDark: boolean;
-  isDayTime: boolean;
   th: ThemeTokens;
   desktopCollapsed: boolean;
   onToggleDesktopCollapse?: () => void;
@@ -267,7 +250,7 @@ function SidebarHeader({
     <div
       className={`relative h-[var(--autocity-desktop-header-height)] border-b transition-all duration-500 ${desktopCollapsed ? "p-2" : "p-5"}`}
       style={{
-        background: `linear-gradient(135deg, ${th.headerFrom}, ${th.headerVia}, ${th.headerTo})`,
+        background: `linear-gradient(135deg, ${th.headerTo}, ${th.headerVia}, ${th.headerFrom})`,
         borderColor: th.sidebarBorder,
       }}
     >
@@ -289,7 +272,7 @@ function SidebarHeader({
         <div className="flex flex-col items-center gap-1.5 pt-7">
           {(outletLogoUrl || outletName) && (
             <div
-              className="h-10 w-10 overflow-hidden rounded-2xl border shadow-lg"
+              className="h-11 w-11 overflow-hidden rounded-2xl border shadow-lg"
               style={{
                 background: isDark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.72)",
                 borderColor: isDark ? "rgba(255,255,255,0.18)" : "var(--autocity-accent-20)",
@@ -300,7 +283,7 @@ function SidebarHeader({
                 <img
                   src={outletLogoUrl}
                   alt={`${outletName || "Outlet"} logo`}
-                  className="h-full w-full object-contain p-1.5"
+                  className="h-full w-full object-contain p-0.5"
                 />
               ) : (
                 <div
@@ -312,17 +295,6 @@ function SidebarHeader({
               )}
             </div>
           )}
-          <div
-            className="flex h-7 w-7 items-center justify-center rounded-full border"
-            style={{
-              background: isDark ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.6)",
-              color: isDark ? "rgba(255,255,255,0.7)" : "var(--autocity-header-text-light)",
-              borderColor: isDark ? "rgba(255,255,255,0.15)" : "var(--autocity-accent-20)",
-            }}
-            title={isDayTime ? "Light theme (day)" : "Dark theme (night)"}
-          >
-            {isDark ? <Moon className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5" />}
-          </div>
           <button
             onClick={onShowHelp}
             className="flex h-8 w-8 items-center justify-center rounded-xl border transition-all hover:scale-105"
@@ -339,24 +311,10 @@ function SidebarHeader({
         </div>
       ) : (
         <>
-      <div
-        className="absolute right-14 top-4 flex shrink-0 items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-all duration-500"
-        style={{
-          background: isDark ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.6)",
-          color:      isDark ? "rgba(255,255,255,0.7)" : "var(--autocity-header-text-light)",
-          border:     `1px solid ${isDark ? "rgba(255,255,255,0.15)" : "var(--autocity-accent-20)"}`,
-        }}
-        title={isDayTime ? "Light theme (day)" : "Dark theme (night)"}
-      >
-        {isDark
-          ? <Moon className="h-3 w-3" />
-          : <Sun  className="h-3 w-3" />}
-      </div>
-
       <div className="flex items-start gap-3 mb-4 min-w-0 pr-10">
         {(outletLogoUrl || outletName) && (
           <div
-            className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl border shadow-lg"
+            className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl border shadow-lg"
             style={{
               background: isDark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.72)",
               borderColor: isDark ? "rgba(255,255,255,0.18)" : "var(--autocity-accent-20)",
@@ -366,7 +324,7 @@ function SidebarHeader({
               <img
                 src={outletLogoUrl}
                 alt={`${outletName || "Outlet"} logo`}
-                className="h-full w-full object-contain p-1.5"
+                className="h-full w-full object-contain p-0.5"
               />
             ) : (
               <div
@@ -949,7 +907,7 @@ function MobileMenuOverlay({
                   <img
                     src={outletLogoUrl}
                     alt={`${outletName || "Outlet"} logo`}
-                    className="h-full w-full object-contain p-1.5"
+                    className="h-full w-full object-contain p-0.5"
                   />
                 ) : (
                   <div
@@ -1402,9 +1360,6 @@ export default function Sidebar({
 
   const th = buildThemeTokens(isDark);
 
-  const themeHour = new Date().getHours();
-  const isDayTime = themeHour >= 6 && themeHour < 18;
-
   return (
     <>
       <div
@@ -1418,7 +1373,6 @@ export default function Sidebar({
         <SidebarHeader
           user={user}
           isDark={isDark}
-          isDayTime={isDayTime}
           th={th}
           desktopCollapsed={desktopCollapsed}
           onToggleDesktopCollapse={onToggleDesktopCollapse}

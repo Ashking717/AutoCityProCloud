@@ -1,7 +1,12 @@
 // File: app/autocityPro/purchases/new/page.tsx - WITH TIME-BASED LIGHT/DARK THEME + OCR SCANNER
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
+
+import {
+  useState,
+  useEffect,
+  useMemo } from "react";
 import { useRouter } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import AddProductModal from "@/components/products/AddProductModal";
@@ -21,27 +26,11 @@ import {
   Edit2,
   Save,
   Calculator,
-  Sun,
-  Moon,
   ScanLine,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
 // ─── Time-based theme hook ────────────────────────────────────────────────────
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => {
-      const hour = new Date().getHours();
-      setIsDark(hour < 6 || hour >= 18);
-    };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
-}
-
 interface CartItem {
   productId: string;
   productName: string;
@@ -468,7 +457,7 @@ export default function NewPurchasePage() {
                 <div>
                   <h1 className="text-xl font-bold flex items-center gap-1.5" style={{ color: th.mobileHeaderTitle }}>
                     New Purchase
-                    {isDark ? <Moon className="h-3.5 w-3.5 text-[color:var(--autocity-accent)]" /> : <Sun className="h-3.5 w-3.5 text-[color:var(--autocity-accent)]" />}
+                    
                   </h1>
                   <p className="text-xs" style={{ color: th.mobileHeaderSub }}>{cart.length} items • {products.length} products</p>
                 </div>
@@ -501,7 +490,7 @@ export default function NewPurchasePage() {
                 <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3" style={{ color: th.headerTitle }}>
                   <ShoppingCart className="h-8 w-8 text-[color:var(--autocity-accent)]" />
                   New Purchase
-                  {isDark ? <Moon className="h-5 w-5 text-[color:var(--autocity-accent)]" /> : <Sun className="h-5 w-5 text-[color:var(--autocity-accent)]" />}
+                  
                 </h1>
                 <p className="mt-2" style={{ color: th.headerSub }}>Create a new purchase order • {products.length} products available</p>
               </div>

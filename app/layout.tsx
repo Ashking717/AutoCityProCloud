@@ -225,7 +225,7 @@ export default function RootLayout({
             __html: `
               try {
                 var theme = window.localStorage.getItem('autocity-visual-theme');
-                document.documentElement.dataset.visualTheme = theme === 'yellow' ? 'yellow' : 'original';
+                document.documentElement.dataset.visualTheme = theme === 'yellow' || theme === 'orange' ? theme : 'original';
               } catch (_) {
                 document.documentElement.dataset.visualTheme = 'original';
               }

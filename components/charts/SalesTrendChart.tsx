@@ -1,3 +1,4 @@
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
 import dynamic from 'next/dynamic';
 import {
   Chart as ChartJS,
@@ -37,20 +38,6 @@ interface Props {
   period: string;
   isMobile: boolean;
   formatCurrency: (amount: number) => string;
-}
-
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => {
-      const hour = new Date().getHours();
-      setIsDark(hour < 6 || hour >= 18);
-    };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
 }
 
 export default function SalesTrendChart({ data, period, isMobile, formatCurrency }: Props) {

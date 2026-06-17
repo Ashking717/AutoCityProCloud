@@ -1,29 +1,40 @@
 "use client";
-// app/autocityPro/messages/page.tsx
-"use client";
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
+// app/autocityPro/messages/page.tsx
+
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import { useVoiceRecorder } from "@/hooks/useVoiceRecorder";
 import {
-  MessageCircle, Send, Mic, X, Play, Pause, Trash2, Search, Check,
-  CheckCheck, ArrowLeft, Download, RefreshCw, ChevronDown, ChevronUp,
-  ChevronLeft, Copy, Camera, Lock,
+  MessageCircle,
+  Send,
+  Mic,
+  X,
+  Play,
+  Pause,
+  Trash2,
+  Search,
+  Check,
+  CheckCheck,
+  ArrowLeft,
+  Download,
+  RefreshCw,
+  ChevronDown,
+  ChevronUp,
+  ChevronLeft,
+  Copy,
+  Camera,
+  Lock,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
 // ─── Time-based theme ────────────────────────────────────────────────────────
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => { const h = new Date().getHours(); setIsDark(h < 6 || h >= 18); };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
-}
-
 // ─── Wallpapers ───────────────────────────────────────────────────────────────
 // Dark wallpaper (original — night)
 const WALLPAPER_DARK = `url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='380' height='380'><rect width='380' height='380' fill='%230D1117'/><g stroke='rgba(255,255,255,0.11)' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'><path d='M20,48 A18,18 0 0,1 56,48'/><rect x='15' y='48' width='9' height='14' rx='3'/><rect x='52' y='48' width='9' height='14' rx='3'/><polygon points='200,18 203,26 212,26 205,31 208,39 200,34 192,39 195,31 188,26 197,26'/><path d='M318,68 C318,58 306,54 306,64 C306,54 294,58 294,68 C294,76 306,85 306,85 C306,85 318,76 318,68 Z'/><path d='M85,148 L85,168 M85,168 A5,5 0 1,1 75,168 A5,5 0 0,1 85,168'/><path d='M85,148 L99,145 L99,155 L85,158'/><path d='M290,115 L265,155 L315,155 Z'/><path d='M271,150 A30,30 0 0,1 309,150'/><circle cx='285' cy='138' r='3' fill='rgba(255,255,255,0.11)'/><circle cx='298' cy='143' r='2.5' fill='rgba(255,255,255,0.11)'/><path d='M34,258 L34,280 Q34,286 40,286 L60,286 Q66,286 66,280 L66,258 Z'/><path d='M66,263 Q76,263 76,270 Q76,277 66,277'/><path d='M40,258 Q43,250 50,250 Q57,250 60,258'/><circle cx='170' cy='70' r='2.5' fill='rgba(255,255,255,0.11)' stroke='none'/><circle cx='145' cy='315' r='2' fill='rgba(255,255,255,0.11)' stroke='none'/><circle cx='340' cy='170' r='2.5' fill='rgba(255,255,255,0.11)' stroke='none'/><circle cx='230' cy='240' r='2' fill='rgba(255,255,255,0.11)' stroke='none'/><circle cx='100' cy='330' r='2' fill='rgba(255,255,255,0.11)' stroke='none'/><circle cx='345' cy='235' r='5'/><ellipse cx='345' cy='222' rx='4' ry='7'/><ellipse cx='358' cy='235' rx='7' ry='4'/><ellipse cx='345' cy='248' rx='4' ry='7'/><ellipse cx='332' cy='235' rx='7' ry='4'/><rect x='283' y='312' width='46' height='30' rx='8'/><path d='M293,342 L288,352 L300,342'/><line x1='292' y1='322' x2='320' y2='322'/><line x1='292' y1='330' x2='314' y2='330'/><path d='M160,274 L175,283 L160,310 L145,283 Z'/><line x1='145' y1='283' x2='175' y2='283'/><path d='M248,60 L250,68 M248,60 L246,68 M248,60 L256,62 M248,60 L240,62 M248,60 L254,54 M248,60 L242,54'/><circle cx='130' cy='178' r='20'/><line x1='130' y1='163' x2='130' y2='178'/><line x1='130' y1='178' x2='141' y2='178'/><circle cx='130' cy='178' r='2' fill='rgba(255,255,255,0.11)'/><polygon points='45,170 47,177 55,177 49,182 51,189 45,185 39,189 41,182 35,177 43,177'/><path d='M237,336 A15,15 0 0,1 261,336'/><rect x='233' y='336' width='7' height='11' rx='2.5'/><rect x='260' y='336' width='7' height='11' rx='2.5'/><line x1='324' y1='100' x2='352' y2='94'/><line x1='324' y1='94' x2='352' y2='88'/><line x1='324' y1='88' x2='324' y2='108'/><circle cx='319' cy='108' r='5' fill='rgba(255,255,255,0.11)'/><line x1='352' y1='82' x2='352' y2='102'/><circle cx='347' cy='102' r='5' fill='rgba(255,255,255,0.11)'/><circle cx='195' cy='215' r='18'/><circle cx='189' cy='210' r='2' fill='rgba(255,255,255,0.11)'/><circle cx='201' cy='210' r='2' fill='rgba(255,255,255,0.11)'/><path d='M187,220 Q195,228 203,220'/><path d='M88,92 C88,86 80,84 80,90 C80,84 72,86 72,92 C72,97 80,103 80,103 C80,103 88,97 88,92 Z'/></g></svg>")`;

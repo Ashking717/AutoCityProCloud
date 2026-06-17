@@ -1,5 +1,6 @@
 'use client';
 
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
 // File: components/expenses/CreateExpenseForm.tsx - WITH TIME-BASED LIGHT/DARK THEME
 
 import { useState, useEffect } from 'react';
@@ -7,17 +8,6 @@ import { Plus, Trash2, Loader2, X, Sun, Moon } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 // ─── Time-based theme hook ────────────────────────────────────────────────────
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => { const h = new Date().getHours(); setIsDark(h < 6 || h >= 18); };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
-}
-
 interface CreateExpenseFormProps {
   onClose: () => void;
   onSuccess: () => void;

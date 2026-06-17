@@ -1,5 +1,6 @@
 'use client';
 
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
 import {
   createContext,
   useContext,
@@ -66,20 +67,6 @@ const WELCOME: ChatMessage = {
 };
 
 // ─── Time-based theme ─────────────────────────────────────────────────────────
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => {
-      const h = new Date().getHours();
-      setIsDark(h < 6 || h >= 18);
-    };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
-}
-
 // ─── Provider ─────────────────────────────────────────────────────────────────
 export function AIWorkerProvider({ children }: { children: ReactNode }) {
   const isDark = useTimeBasedTheme();

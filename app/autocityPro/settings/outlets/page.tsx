@@ -1,8 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import {
+  useEffect,
+  useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, Plus, Edit, Trash2, MapPin, Phone, Mail } from 'lucide-react';
+import { Building2,
+  Plus,
+  Edit,
+  Trash2,
+  MapPin,
+  Phone,
+  Mail,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardBody } from '@/components/ui/card';
 

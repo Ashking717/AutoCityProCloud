@@ -1,20 +1,22 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import {
+  useState,
+  useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import { 
-  Plus, 
-  Trash2, 
-  Save, 
-  Send, 
+  Plus,
+  Trash2,
+  Save,
+  Send,
   ChevronLeft,
   Calendar,
   FileText,
   DollarSign,
   AlertCircle,
   BookOpen,
-  Loader2
+  Loader2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 

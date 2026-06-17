@@ -1,28 +1,35 @@
 // app/autocityPro/purchases/[id]/page.tsx - WITH TIME-BASED LIGHT/DARK THEME
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
+
+import {
+  useState,
+  useEffect } from "react";
+import { useRouter,
+  useParams } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import {
-  ArrowLeft, Download, DollarSign, Calendar, Package, CreditCard,
-  Users, FileText, CheckCircle, AlertCircle, XCircle, Clock,
-  ChevronRight, Receipt, History, X, Sun, Moon,
+  ArrowLeft,
+  Download,
+  DollarSign,
+  Calendar,
+  Package,
+  CreditCard,
+  Users,
+  FileText,
+  CheckCircle,
+  AlertCircle,
+  XCircle,
+  Clock,
+  ChevronRight,
+  Receipt,
+  History,
+  X,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
 // ─── Time-based theme hook ────────────────────────────────────────────────────
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => { const h = new Date().getHours(); setIsDark(h < 6 || h >= 18); };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
-}
-
 interface User { id: string; firstName: string; lastName: string; email: string; role: string; }
 interface Purchase {
   _id: string; purchaseNumber: string; purchaseDate: string;
@@ -221,11 +228,6 @@ export default function PurchaseDetailPage() {
                 <ArrowLeft className="h-5 w-5" /><span className="font-medium">Back to Purchases</span>
               </button>
               <div className="flex items-center gap-3">
-                {/* Sun/Moon indicator */}
-                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg backdrop-blur-sm border"
-                  style={{ background: th.headerBtnBg, borderColor: th.headerBtnBorder }}>
-                  {isDark ? <Moon className="h-3.5 w-3.5 text-[color:var(--autocity-accent)]" /> : <Sun className="h-3.5 w-3.5 text-[color:var(--autocity-accent)]" />}
-                </div>
                 {purchase.balanceDue > 0 && (
                   <button onClick={() => setShowPaymentModal(true)}
                     className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-700 text-white rounded-xl font-semibold hover:opacity-90 transition-all shadow-lg">

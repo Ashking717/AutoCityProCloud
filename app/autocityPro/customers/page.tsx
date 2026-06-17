@@ -1,26 +1,28 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
+import {
+  useState,
+  useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import { 
-  Search, Plus, Edit, Trash2, Phone, Mail, User, ChevronLeft,
-  MoreVertical, X, MapPin, FileText, Sun, Moon,
+  Search,
+  Plus,
+  Edit,
+  Trash2,
+  Phone,
+  Mail,
+  User,
+  ChevronLeft,
+  MoreVertical,
+  X,
+  MapPin,
+  FileText,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 // ─── Time-based theme hook ────────────────────────────────────────────────────
-function useTimeBasedTheme() {
-  const [isDark, setIsDark] = useState(true);
-  useEffect(() => {
-    const check = () => { const h = new Date().getHours(); setIsDark(h < 6 || h >= 18); };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return isDark;
-}
-
 export default function CustomersPage() {
   const router = useRouter();
   const isDark = useTimeBasedTheme();
@@ -174,7 +176,7 @@ export default function CustomersPage() {
                 <div>
                   <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: th.mobileHdrTitle }}>
                     Customers
-                    {isDark ? <Moon className="h-4 w-4 text-[color:var(--autocity-accent)]" /> : <Sun className="h-4 w-4 text-[color:var(--autocity-accent)]" />}
+                    
                   </h1>
                   <p className="text-xs" style={{ color: th.mobileHdrSub }}>{filteredCustomers.length} customers</p>
                 </div>

@@ -642,7 +642,7 @@ export default function SettingsPage() {
                     <h1 className="text-3xl font-bold" style={{ color: th.headerTitle }}>Settings</h1>
                   </div>
                   <p className="mt-1" style={{ color: th.headerSub }}>
-                    Manage users, outlets and integrations
+                    
                     {activeTab === 'users' && onlineCount > 0 && (
                       <span className="ml-3 inline-flex items-center">
                         <span className="w-2 h-2 bg-emerald-400 rounded-full mr-2 animate-pulse" />

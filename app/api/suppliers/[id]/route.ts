@@ -55,10 +55,35 @@ export async function PUT(
     
     const user = verifyToken(token);
     const body = await request.json();
+    const {
+      code,
+      name,
+      contactPerson,
+      phone,
+      email,
+      address,
+      taxNumber,
+      creditLimit,
+      paymentTerms,
+      isActive,
+    } = body;
     
     const supplier = await Supplier.findOneAndUpdate(
       { _id: params.id, outletId: user.outletId },
-      { $set: body },
+      {
+        $set: {
+          code,
+          name,
+          contactPerson,
+          phone,
+          email,
+          address,
+          taxNumber,
+          creditLimit,
+          paymentTerms,
+          ...(typeof isActive === 'boolean' ? { isActive } : {}),
+        },
+      },
       { new: true, runValidators: true }
     );
     

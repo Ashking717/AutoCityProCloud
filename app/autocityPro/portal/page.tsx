@@ -385,7 +385,6 @@ export default function PurchasesPortalPage() {
                 <div className="flex items-center gap-3">
                   <h1 className="text-3xl font-bold" style={{ color: th.headerTitle }}>Purchases, Expenses &amp; Inventory</h1>
                 </div>
-                <p className="mt-1" style={{ color: th.headerSub }}>Manage purchases, expenses, categories, and suppliers in one place</p>
               </div>
               <div className="flex gap-3">
                 {(['categories','suppliers','transactions'] as const).map(t => (

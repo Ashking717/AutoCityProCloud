@@ -890,7 +890,6 @@ export default function NewSalePage() {
                   New Sale
                 </h1>
                 <div className="flex items-center gap-2">
-                  <p className="text-sm md:text-base" style={{ color: th.headerSub }}>Create a new sales transaction</p>
                   {/* <div
                     className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs"
                     style={{

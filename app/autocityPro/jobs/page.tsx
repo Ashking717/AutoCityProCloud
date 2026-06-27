@@ -335,7 +335,6 @@ export default function JobsPage() {
                     Jobs & Work Orders
                   </h1>
                 </div>
-                <p className="mt-1" style={{ color: th.headerSub }}>Manage service jobs and work orders</p>
               </div>
               <button
                 onClick={() => router.push("/autocityPro/jobs/new")}

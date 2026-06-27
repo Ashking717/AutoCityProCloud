@@ -23,6 +23,7 @@ import {
   Zap,
   TrendingDown,
   AlertCircle,
+  Truck,
 } from 'lucide-react';
 
 // ─── Time-based theme hook ────────────────────────────────────────────────────
@@ -120,6 +121,7 @@ export default function ReportsPage() {
     { id:'purchases',        name:'Purchase Report',   shortName:'Purchases',   description:'Purchase analysis by supplier and category',          icon:ShoppingCart,gradient:'from-orange-500 to-red-600',    path:'/autocityPro/reports/purchases'        },
     { id:'stock',            name:'Stock Report',      shortName:'Stock',       description:'Inventory valuation and stock alerts',                icon:Package,     gradient:'from-indigo-500 to-purple-600',  path:'/autocityPro/reports/stock'            },
     { id:'customer-ledger',  name:'Customer Ledger',   shortName:'Customers',   description:'Customer account statements and balances',            icon:Users,       gradient:'from-pink-500 to-rose-600',      path:'/autocityPro/reports/customer-ledger'  },
+    { id:'supplier-ledger',  name:'Supplier Ledger',   shortName:'Suppliers',   description:'Supplier statements, payments, and payable balances',  icon:Truck,       gradient:'from-amber-500 to-yellow-600',   path:'/autocityPro/reports/supplier-ledger'  },
     { id:'daybook',          name:'Daybook',           shortName:'Daybook',     description:'Daily transaction summary',                           icon:Calendar,    gradient:'from-teal-500 to-green-600',     path:'/autocityPro/reports/daybook'          },
     { id:'cashflow',         name:'Cash Flow',         shortName:'Cash Flow',   description:'Operating, investing, and financing activities',      icon:Activity,    gradient:'from-red-500 to-orange-600',     path:'/autocityPro/reports/cashflow'         },
   ];
@@ -186,7 +188,6 @@ export default function ReportsPage() {
                 <div className="flex items-center gap-3">
                   <h1 className="text-3xl font-bold" style={{ color: th.desktopHdrTitle }}>Financial Reports</h1>
                 </div>
-                <p className="mt-1" style={{ color: th.desktopHdrSub }}>Comprehensive business insights and analytics</p>
               </div>
             </div>
           </div>

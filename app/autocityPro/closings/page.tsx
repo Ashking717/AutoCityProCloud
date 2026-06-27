@@ -368,7 +368,6 @@ export default function ClosingsPage() {
                       <h1 className="text-4xl font-bold tracking-tight" style={{ color: th.desktopHdrTitle }}>Period Closings</h1>
                       
                     </div>
-                    <p className="text-sm mt-1" style={{ color: th.desktopHdrSub }}>Ledger-driven accounting with COGS tracking</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">

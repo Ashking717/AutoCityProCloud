@@ -330,7 +330,6 @@ export default function AccountsPage() {
                     <h1 className="text-3xl font-bold" style={{ color: th.headerTitle }}>Chart of Accounts</h1>
                     
                   </div>
-                  <p className="mt-1" style={{ color: th.headerSub }}>Manage your account structure</p>
                 </div>
               </div>
               <div className="flex gap-3">

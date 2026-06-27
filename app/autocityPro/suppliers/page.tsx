@@ -18,6 +18,7 @@ import {
   ChevronLeft,
   MapPin,
   Building,
+  Wallet,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -37,6 +38,7 @@ export default function SuppliersPage() {
   const [formData, setFormData] = useState({
     code: '', name: '', contactPerson: '', phone: '', email: '',
     address: '', taxNumber: '', creditLimit: 0, paymentTerms: '',
+    openingBalance: 0, openingBalanceDate: new Date().toISOString().split('T')[0],
   });
 
   // ── Theme tokens ──────────────────────────────────────────────────────────
@@ -140,7 +142,7 @@ export default function SuppliersPage() {
       if (res.ok) {
         toast.success(editingSupplier ? 'Supplier updated!' : 'Supplier created!');
         setShowAddModal(false); setEditingSupplier(null);
-        setFormData({ code:'', name:'', contactPerson:'', phone:'', email:'', address:'', taxNumber:'', creditLimit:0, paymentTerms:'' });
+        setFormData({ code:'', name:'', contactPerson:'', phone:'', email:'', address:'', taxNumber:'', creditLimit:0, paymentTerms:'', openingBalance:0, openingBalanceDate:new Date().toISOString().split('T')[0] });
         fetchSuppliers();
       } else { toast.error((await res.json()).error || 'Failed to save supplier'); }
     } catch { toast.error('Failed to save supplier'); }
@@ -148,7 +150,7 @@ export default function SuppliersPage() {
 
   const handleEdit = (supplier: any) => {
     setEditingSupplier(supplier);
-    setFormData({ code:supplier.code, name:supplier.name, contactPerson:supplier.contactPerson||'', phone:supplier.phone, email:supplier.email||'', address:supplier.address||'', taxNumber:supplier.taxNumber||'', creditLimit:supplier.creditLimit||0, paymentTerms:supplier.paymentTerms||'' });
+    setFormData({ code:supplier.code, name:supplier.name, contactPerson:supplier.contactPerson||'', phone:supplier.phone, email:supplier.email||'', address:supplier.address||'', taxNumber:supplier.taxNumber||'', creditLimit:supplier.creditLimit||0, paymentTerms:supplier.paymentTerms||'', openingBalance:0, openingBalanceDate:new Date().toISOString().split('T')[0] });
     setShowAddModal(true);
   };
 
@@ -169,7 +171,7 @@ export default function SuppliersPage() {
     s.phone?.includes(searchTerm)
   );
 
-  const resetForm = () => { setEditingSupplier(null); setFormData({ code:'', name:'', contactPerson:'', phone:'', email:'', address:'', taxNumber:'', creditLimit:0, paymentTerms:'' }); setShowAddModal(true); };
+  const resetForm = () => { setEditingSupplier(null); setFormData({ code:'', name:'', contactPerson:'', phone:'', email:'', address:'', taxNumber:'', creditLimit:0, paymentTerms:'', openingBalance:0, openingBalanceDate:new Date().toISOString().split('T')[0] }); setShowAddModal(true); };
 
   const modalInputCls = "w-full px-3 py-2 rounded-xl focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent transition-colors duration-500";
   const modalInputStyle = { background: th.modalInputBg, border: `1px solid ${th.modalInputBorder}`, color: th.modalInputText };
@@ -307,6 +309,15 @@ export default function SuppliersPage() {
                         <span className="truncate">{supplier.email}</span>
                       </div>
                     )}
+                    <div className="flex items-center justify-between text-xs md:text-sm" style={{ color: th.cardBody }}>
+                      <span className="flex items-center min-w-0">
+                        <Wallet className="h-3 w-3 md:h-4 md:w-4 mr-2 text-amber-400 flex-shrink-0" />
+                        <span className="truncate">Payable Balance</span>
+                      </span>
+                      <span className={`font-semibold ml-2 ${(supplier.currentBalance || 0) > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                        QAR {(supplier.currentBalance || 0).toFixed(2)}
+                      </span>
+                    </div>
                   </div>
                   <div className="flex gap-2 pt-4" style={{ borderTop: `1px solid ${th.cardDivider}` }}>
                     <button onClick={() => handleEdit(supplier)}
@@ -386,6 +397,22 @@ export default function SuppliersPage() {
                 <input id="supplier-payment-terms" type="text" value={formData.paymentTerms} onChange={e => setFormData({ ...formData, paymentTerms: e.target.value })}
                   placeholder="e.g., Net 30" className={modalInputCls} style={modalInputStyle} />
               </div>
+              {!editingSupplier && (
+                <div className="rounded-xl p-4 border" style={{ borderColor: th.modalInputBorder, background: th.modalInputBg }}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="supplier-opening-balance" className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Opening Payable Balance</label>
+                      <input id="supplier-opening-balance" type="number" value={formData.openingBalance} onChange={e => setFormData({ ...formData, openingBalance: parseFloat(e.target.value)||0 })}
+                        step="0.01" min="0" placeholder="0.00" className={modalInputCls} style={modalInputStyle} />
+                    </div>
+                    <div>
+                      <label htmlFor="supplier-opening-date" className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Opening Balance Date</label>
+                      <input id="supplier-opening-date" type="date" value={formData.openingBalanceDate} onChange={e => setFormData({ ...formData, openingBalanceDate: e.target.value })}
+                        className={modalInputCls} style={modalInputStyle} />
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="flex flex-col md:flex-row justify-end gap-3 pt-4">
                 <button type="button" onClick={() => setShowAddModal(false)}
                   className="px-4 py-2 rounded-xl transition-all"

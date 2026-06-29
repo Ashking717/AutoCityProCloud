@@ -10,6 +10,12 @@ import ActivityLog from "@/lib/models/ActivityLog";
 import { cookies } from "next/headers";
 import { verifyToken } from "@/lib/auth/jwt";
 import { generateVoucherNumber } from "@/lib/services/accountingService";
+import {
+  getPaymentVouchersByPurchase,
+  getSupplierBalancePaymentMap,
+  getSupplierOpeningBalanceMap,
+  toAmount,
+} from "@/lib/services/supplierBalanceService";
 
 async function getAccountDetails(account: any) {
   return {
@@ -17,55 +23,6 @@ async function getAccountDetails(account: any) {
     accountNumber: account.code || account.accountNumber || "N/A",
     accountName: account.name || account.accountName || "Unknown Account",
   };
-}
-
-function toAmount(value: unknown) {
-  const amount = Number(value) || 0;
-  return Number(amount.toFixed(2));
-}
-
-async function getPaymentVouchersByPurchase(outletId: string, purchaseIds: any[]) {
-  if (purchaseIds.length === 0) return new Map<string, any[]>();
-
-  const payments = await Voucher.find({
-    outletId,
-    status: "posted",
-    referenceType: "PURCHASE_PAYMENT",
-    referenceId: { $in: purchaseIds },
-  })
-    .select("referenceId totalDebit totalCredit")
-    .lean();
-
-  const byPurchase = new Map<string, any[]>();
-  for (const payment of payments as any[]) {
-    const purchaseId = payment.referenceId?.toString();
-    if (!purchaseId) continue;
-    if (!byPurchase.has(purchaseId)) byPurchase.set(purchaseId, []);
-    byPurchase.get(purchaseId)!.push(payment);
-  }
-
-  return byPurchase;
-}
-
-async function getSupplierOpeningBalanceMap(outletId: string) {
-  const openingVouchers = await Voucher.find({
-    outletId,
-    referenceType: "OPENING_BALANCE",
-    status: "posted",
-    "metadata.source": "SUPPLIER_OPENING_BALANCE",
-  })
-    .select("referenceId totalDebit totalCredit metadata")
-    .lean();
-
-  const openingBySupplier = new Map<string, number>();
-  for (const voucher of openingVouchers as any[]) {
-    const supplierId = voucher.metadata?.supplierId || voucher.referenceId?.toString();
-    if (!supplierId) continue;
-    const amount = Number(voucher.totalCredit || voucher.totalDebit) || 0;
-    openingBySupplier.set(supplierId, (openingBySupplier.get(supplierId) || 0) + amount);
-  }
-
-  return openingBySupplier;
 }
 
 async function getAccountsPayableAccount(outletId: string) {
@@ -230,6 +187,7 @@ export async function GET() {
       (purchases as any[]).map((purchase) => purchase._id)
     );
     const openingBySupplier = await getSupplierOpeningBalanceMap(user.outletId);
+    const directPaidBySupplier = await getSupplierBalancePaymentMap(user.outletId);
 
     const suppliersWithBalances = (suppliers as any[]).map((supplier) => {
       const supplierId = supplier._id.toString();
@@ -243,15 +201,17 @@ export async function GET() {
         (sum, purchase) => sum + (Number(purchase.grandTotal) || 0),
         0
       );
-      const totalPaid = supplierPurchases.reduce((sum, purchase) => {
+      const purchasePaid = supplierPurchases.reduce((sum, purchase) => {
         const payments = paymentVouchers.get(purchase._id.toString()) || [];
         const voucherPaid = payments.reduce(
-          (paymentSum, payment) => paymentSum + (Number(payment.totalDebit || payment.totalCredit) || 0),
+          (paymentSum, payment) =>
+            paymentSum + (Number(payment.totalDebit || payment.totalCredit) || 0),
           0
         );
         const initialPaid = Math.max(0, (Number(purchase.amountPaid) || 0) - voucherPaid);
         return sum + initialPaid + voucherPaid;
       }, 0);
+      const totalPaid = purchasePaid + (directPaidBySupplier.get(supplierId) || 0);
 
       return {
         ...supplier,

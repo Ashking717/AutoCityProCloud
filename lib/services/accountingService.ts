@@ -733,6 +733,133 @@ export async function postPurchasePaymentToLedger(
   }
 }
 
+export async function postSupplierBalancePaymentToLedger(
+  payment: {
+    supplierId: mongoose.Types.ObjectId;
+    supplierCode: string;
+    supplierName: string;
+    amount: number;
+    paymentMethod: "CASH" | "CARD" | "BANK_TRANSFER";
+    paymentDate: Date;
+    referenceNumber?: string;
+    notes?: string;
+    outletId: mongoose.Types.ObjectId;
+  },
+  userId: mongoose.Types.ObjectId
+) {
+  try {
+    console.log("\n💸 Posting supplier balance payment to ledger...");
+
+    const outlet = await Outlet.findById(payment.outletId).lean();
+    if (!outlet) throw new Error("Outlet not found");
+
+    const sys = await getSystemAccounts(payment.outletId);
+
+    let paymentAccountId: mongoose.Types.ObjectId;
+
+    if (
+      payment.paymentMethod === "BANK_TRANSFER" ||
+      payment.paymentMethod === "CARD"
+    ) {
+      paymentAccountId = sys.bankAccount;
+    } else {
+      paymentAccountId = sys.cashAccount;
+    }
+
+    const apAccountId = sys.apAccount || sys.arAccount;
+    const paymentDetails = await getAccountDetails(paymentAccountId);
+    const apDetails = await getAccountDetails(apAccountId);
+
+    const paymentEntries: Array<{
+      accountId: mongoose.Types.ObjectId;
+      accountNumber: string;
+      accountName: string;
+      debit: number;
+      credit: number;
+    }> = [
+      {
+        ...apDetails,
+        debit: payment.amount,
+        credit: 0,
+      },
+      {
+        ...paymentDetails,
+        debit: 0,
+        credit: payment.amount,
+      },
+    ];
+
+    const voucherNumber = await generateVoucherNumber("payment", payment.outletId);
+    const narration =
+      payment.notes ||
+      `Supplier balance payment - ${payment.supplierName}${
+        payment.referenceNumber ? ` (Ref: ${payment.referenceNumber})` : ""
+      }`;
+
+    const paymentVoucher = await Voucher.create([
+      {
+        voucherNumber,
+        voucherType: "payment",
+        date: payment.paymentDate,
+        narration,
+        entries: paymentEntries,
+        totalDebit: payment.amount,
+        totalCredit: payment.amount,
+        status: "posted",
+        referenceType: "PAYMENT",
+        referenceId: payment.supplierId,
+        referenceNumber: payment.supplierCode,
+        outletId: payment.outletId,
+        createdBy: userId,
+        metadata: {
+          source: "SUPPLIER_BALANCE_PAYMENT",
+          paymentMethod: payment.paymentMethod,
+          referenceNumber: payment.referenceNumber,
+          supplierId: payment.supplierId.toString(),
+          supplierCode: payment.supplierCode,
+          supplierName: payment.supplierName,
+        },
+      },
+    ]);
+
+    await applyVoucherBalances(paymentVoucher[0]);
+
+    const ledgerDocs = paymentEntries.map((entry) => ({
+      voucherId: paymentVoucher[0]._id,
+      voucherNumber: paymentVoucher[0].voucherNumber,
+      voucherType: "payment",
+      accountId: entry.accountId,
+      accountNumber: entry.accountNumber,
+      accountName: entry.accountName,
+      debit: entry.debit,
+      credit: entry.credit,
+      narration: paymentVoucher[0].narration,
+      date: payment.paymentDate,
+      referenceType: "PAYMENT",
+      referenceId: payment.supplierId,
+      referenceNumber: payment.supplierCode,
+      isReversal: false,
+      outletId: payment.outletId,
+      createdBy: userId,
+    }));
+
+    await LedgerEntry.insertMany(ledgerDocs);
+
+    console.log(
+      `✓ Supplier balance payment posted successfully: ${paymentVoucher[0].voucherNumber}\n`
+    );
+
+    return {
+      voucherId: paymentVoucher[0]._id,
+      voucherNumber: paymentVoucher[0].voucherNumber,
+      ledgerEntriesCount: ledgerDocs.length,
+    };
+  } catch (error) {
+    console.error("Error posting supplier balance payment to ledger:", error);
+    throw error;
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════
    EXPENSE POSTING
    
@@ -1688,6 +1815,7 @@ export default {
   postSaleToLedger,
   postPurchaseToLedger,
   postPurchasePaymentToLedger,
+  postSupplierBalancePaymentToLedger,
   postExpenseToLedger,
   reverseExpenseVoucher,
   postInventoryAdjustmentToLedger,

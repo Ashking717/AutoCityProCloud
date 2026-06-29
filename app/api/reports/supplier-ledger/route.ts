@@ -6,75 +6,16 @@ import { connectDB } from "@/lib/db/mongodb";
 import { verifyToken } from "@/lib/auth/jwt";
 import Supplier from "@/lib/models/Supplier";
 import Purchase from "@/lib/models/Purchase";
-import Voucher from "@/lib/models/Voucher";
-
-function toAmount(value: unknown) {
-  const amount = Number(value) || 0;
-  return Number(amount.toFixed(2));
-}
-
-function getVoucherSupplierId(voucher: any) {
-  return voucher.metadata?.supplierId || voucher.referenceId?.toString();
-}
+import {
+  getPaymentVouchersByPurchase,
+  getSupplierOpeningBalanceEntries,
+  getSupplierBalancePaymentEntries,
+  getSupplierBalancePaymentMap,
+  toAmount,
+} from "@/lib/services/supplierBalanceService";
 
 async function getSupplierOpeningBalances(outletId: mongoose.Types.ObjectId) {
-  const vouchers = await Voucher.find({
-    outletId,
-    referenceType: "OPENING_BALANCE",
-    status: "posted",
-    "metadata.source": "SUPPLIER_OPENING_BALANCE",
-  })
-    .sort({ date: 1, createdAt: 1 })
-    .lean();
-
-  const balances = new Map<string, any[]>();
-
-  for (const voucher of vouchers as any[]) {
-    const supplierId = getVoucherSupplierId(voucher);
-    if (!supplierId) continue;
-
-    const amount = toAmount(voucher.totalCredit || voucher.totalDebit);
-    if (!balances.has(supplierId)) balances.set(supplierId, []);
-
-    balances.get(supplierId)!.push({
-      date: voucher.date,
-      type: "opening_balance",
-      reference: voucher.voucherNumber,
-      description: "Opening payable balance",
-      debit: 0,
-      credit: amount,
-      balance: 0,
-    });
-  }
-
-  return balances;
-}
-
-async function getPaymentVouchersByPurchase(
-  outletId: mongoose.Types.ObjectId,
-  purchaseIds: mongoose.Types.ObjectId[]
-) {
-  if (purchaseIds.length === 0) return new Map<string, any[]>();
-
-  const payments = await Voucher.find({
-    outletId,
-    status: "posted",
-    referenceType: "PURCHASE_PAYMENT",
-    referenceId: { $in: purchaseIds },
-  })
-    .sort({ date: 1, createdAt: 1 })
-    .lean();
-
-  const byPurchase = new Map<string, any[]>();
-
-  for (const payment of payments as any[]) {
-    const purchaseId = payment.referenceId?.toString();
-    if (!purchaseId) continue;
-    if (!byPurchase.has(purchaseId)) byPurchase.set(purchaseId, []);
-    byPurchase.get(purchaseId)!.push(payment);
-  }
-
-  return byPurchase;
+  return getSupplierOpeningBalanceEntries(outletId);
 }
 
 export async function GET(request: NextRequest) {
@@ -101,6 +42,7 @@ export async function GET(request: NextRequest) {
     toDate.setHours(23, 59, 59, 999);
 
     const openingBalances = await getSupplierOpeningBalances(outletId);
+    const supplierBalancePayments = await getSupplierBalancePaymentEntries(outletId);
 
     if (!supplierId) {
       const suppliers = await Supplier.find({
@@ -121,6 +63,7 @@ export async function GET(request: NextRequest) {
         outletId,
         (purchases as any[]).map((purchase) => purchase._id)
       );
+      const directPaidBySupplier = await getSupplierBalancePaymentMap(outletId);
 
       const suppliersWithBalance = (suppliers as any[]).map((supplier) => {
         const id = supplier._id.toString();
@@ -135,7 +78,7 @@ export async function GET(request: NextRequest) {
           supplierPurchases.reduce((sum, purchase) => sum + (purchase.grandTotal || 0), 0)
         );
 
-        const totalPaid = toAmount(
+        const purchasePaid = toAmount(
           supplierPurchases.reduce((sum, purchase) => {
             const payments = paymentVouchers.get(purchase._id.toString()) || [];
             const voucherPaid = payments.reduce(
@@ -146,6 +89,7 @@ export async function GET(request: NextRequest) {
             return sum + initialPaid + voucherPaid;
           }, 0)
         );
+        const totalPaid = toAmount(purchasePaid + (directPaidBySupplier.get(id) || 0));
 
         return {
           ...supplier,
@@ -186,7 +130,10 @@ export async function GET(request: NextRequest) {
       (purchases as any[]).map((purchase) => purchase._id)
     );
 
-    const allEntries: any[] = [...(openingBalances.get(supplierId) || [])];
+    const allEntries: any[] = [
+      ...(openingBalances.get(supplierId) || []),
+      ...(supplierBalancePayments.get(supplierId) || []),
+    ];
 
     for (const purchase of purchases as any[]) {
       allEntries.push({
@@ -231,14 +178,20 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const ledgerEntries = allEntries
-      .filter((entry) => {
-        const date = new Date(entry.date);
-        return date >= fromDate && date <= toDate;
-      })
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const sortedEntries = allEntries.sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
 
-    let runningBalance = 0;
+    const openingBalanceBeforeRange = sortedEntries
+      .filter((entry) => new Date(entry.date) < fromDate)
+      .reduce((sum, entry) => sum + (entry.credit || 0) - (entry.debit || 0), 0);
+
+    const ledgerEntries = sortedEntries.filter((entry) => {
+      const date = new Date(entry.date);
+      return date >= fromDate && date <= toDate;
+    });
+
+    let runningBalance = toAmount(openingBalanceBeforeRange);
     ledgerEntries.forEach((entry) => {
       runningBalance += (entry.credit || 0) - (entry.debit || 0);
       entry.balance = toAmount(runningBalance);

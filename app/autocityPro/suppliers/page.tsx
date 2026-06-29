@@ -10,6 +10,7 @@ import {
   Truck,
   Search,
   Plus,
+  DollarSign,
   Edit2,
   Trash2,
   X,
@@ -32,13 +33,23 @@ export default function SuppliersPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<any>(null);
+  const [paymentSupplier, setPaymentSupplier] = useState<any>(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showDynamicIsland, setShowDynamicIsland] = useState(true);
   const [formData, setFormData] = useState({
     code: '', name: '', contactPerson: '', phone: '', email: '',
     address: '', taxNumber: '', creditLimit: 0, paymentTerms: '',
     openingBalance: 0, openingBalanceDate: new Date().toISOString().split('T')[0],
+  });
+  const [paymentForm, setPaymentForm] = useState({
+    amount: '',
+    paymentMethod: 'CASH',
+    paymentDate: new Date().toISOString().split('T')[0],
+    referenceNumber: '',
+    notes: '',
   });
 
   // ── Theme tokens ──────────────────────────────────────────────────────────
@@ -172,6 +183,63 @@ export default function SuppliersPage() {
   );
 
   const resetForm = () => { setEditingSupplier(null); setFormData({ code:'', name:'', contactPerson:'', phone:'', email:'', address:'', taxNumber:'', creditLimit:0, paymentTerms:'', openingBalance:0, openingBalanceDate:new Date().toISOString().split('T')[0] }); setShowAddModal(true); };
+  const resetPaymentForm = () => setPaymentForm({ amount:'', paymentMethod:'CASH', paymentDate:new Date().toISOString().split('T')[0], referenceNumber:'', notes:'' });
+  const openPaymentModal = (supplier: any) => {
+    setPaymentSupplier(supplier);
+    resetPaymentForm();
+    setShowPaymentModal(true);
+  };
+  const closePaymentModal = () => {
+    setShowPaymentModal(false);
+    setPaymentSupplier(null);
+    resetPaymentForm();
+  };
+
+  const handlePaySupplierBalance = async () => {
+    if (!paymentSupplier) return;
+
+    const paymentAmount = Number(paymentForm.amount);
+    const outstandingBalance = Number(paymentSupplier.currentBalance || 0);
+
+    if (!paymentAmount || paymentAmount <= 0) {
+      toast.error('Please enter a valid payment amount');
+      return;
+    }
+
+    if (paymentAmount > outstandingBalance) {
+      toast.error('Payment amount exceeds supplier balance');
+      return;
+    }
+
+    setPaymentLoading(true);
+    try {
+      const res = await fetch(`/api/suppliers/${paymentSupplier._id}/payments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          amount: paymentAmount,
+          paymentMethod: paymentForm.paymentMethod,
+          paymentDate: paymentForm.paymentDate,
+          referenceNumber: paymentForm.referenceNumber,
+          notes: paymentForm.notes,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        toast.success(data.message || 'Supplier payment recorded successfully');
+        closePaymentModal();
+        fetchSuppliers();
+      } else {
+        toast.error((await res.json()).error || 'Failed to record supplier payment');
+      }
+    } catch {
+      toast.error('Failed to record supplier payment');
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
 
   const modalInputCls = "w-full px-3 py-2 rounded-xl focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent transition-colors duration-500";
   const modalInputStyle = { background: th.modalInputBg, border: `1px solid ${th.modalInputBorder}`, color: th.modalInputText };
@@ -320,6 +388,11 @@ export default function SuppliersPage() {
                     </div>
                   </div>
                   <div className="flex gap-2 pt-4" style={{ borderTop: `1px solid ${th.cardDivider}` }}>
+                    <button onClick={() => openPaymentModal(supplier)}
+                      disabled={(supplier.currentBalance || 0) <= 0}
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border transition-all text-xs md:text-sm font-semibold active:scale-95 bg-emerald-400/10 text-emerald-400 border-emerald-400/20 hover:bg-emerald-400/20 disabled:opacity-40 disabled:hover:bg-emerald-400/10">
+                      <DollarSign className="h-3 w-3 md:h-4 md:w-4" /><span>Pay</span>
+                    </button>
                     <button onClick={() => handleEdit(supplier)}
                       className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border transition-all text-xs md:text-sm font-semibold active:scale-95 bg-blue-400/10 text-blue-400 border-blue-400/20 hover:bg-blue-400/20">
                       <Edit2 className="h-3 w-3 md:h-4 md:w-4" /><span>Edit</span>
@@ -427,6 +500,79 @@ export default function SuppliersPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showPaymentModal && paymentSupplier && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="rounded-2xl shadow-2xl max-w-lg w-full transition-colors duration-500"
+            style={{ background: th.modalBg, border: `1px solid ${th.modalBorder}` }}>
+            <div className="flex justify-between items-center px-6 py-4"
+              style={{ background: th.modalHdrBg, borderBottom: `1px solid ${th.modalHdrBorder}` }}>
+              <div>
+                <h2 className="text-xl font-bold" style={{ color: th.modalTitle }}>Pay Supplier Balance</h2>
+                <p className="text-sm mt-1" style={{ color: th.modalCloseText }}>
+                  {paymentSupplier.name} · Outstanding QAR {(Number(paymentSupplier.currentBalance) || 0).toFixed(2)}
+                </p>
+              </div>
+              <button onClick={closePaymentModal} className="p-2 rounded-xl active:scale-95 transition-all"
+                style={{ background: th.modalCloseBg, color: th.modalCloseText }}>
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Amount</label>
+                <input type="number" min="0" step="0.01" value={paymentForm.amount}
+                  onChange={e => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+                  placeholder="0.00" className={modalInputCls} style={modalInputStyle} />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Payment Method</label>
+                  <select value={paymentForm.paymentMethod}
+                    onChange={e => setPaymentForm({ ...paymentForm, paymentMethod: e.target.value })}
+                    className={modalInputCls} style={modalInputStyle}>
+                    <option value="CASH">Cash</option>
+                    <option value="CARD">Card</option>
+                    <option value="BANK_TRANSFER">Bank Transfer</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Payment Date</label>
+                  <input type="date" value={paymentForm.paymentDate}
+                    onChange={e => setPaymentForm({ ...paymentForm, paymentDate: e.target.value })}
+                    className={modalInputCls} style={modalInputStyle} />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Reference Number</label>
+                <input type="text" value={paymentForm.referenceNumber}
+                  onChange={e => setPaymentForm({ ...paymentForm, referenceNumber: e.target.value })}
+                  placeholder="Cheque / transfer reference" className={modalInputCls} style={modalInputStyle} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Notes</label>
+                <textarea value={paymentForm.notes}
+                  onChange={e => setPaymentForm({ ...paymentForm, notes: e.target.value })}
+                  rows={3} placeholder="Optional payment note"
+                  className={`${modalInputCls} resize-none`} style={modalInputStyle} />
+              </div>
+              <div className="flex flex-col md:flex-row justify-end gap-3 pt-2">
+                <button type="button" onClick={closePaymentModal}
+                  className="px-4 py-2 rounded-xl transition-all"
+                  style={{ border: `1px solid ${th.modalCancelBorder}`, color: th.modalCancelText }}
+                  onMouseEnter={e => (e.currentTarget.style.background = th.modalCancelHover)}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                  Cancel
+                </button>
+                <button type="button" onClick={handlePaySupplierBalance} disabled={paymentLoading}
+                  className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-xl hover:opacity-90 transition-all disabled:opacity-50">
+                  {paymentLoading ? 'Saving...' : 'Record Payment'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

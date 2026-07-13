@@ -262,8 +262,8 @@ export default function StockPage() {
 
   const downloadStockCSV = () => {
     if (!filteredProducts.length) { toast.error('No stock data to export'); return; }
-    const headers = ['SKU','Name','Current Stock','Min Stock','Reorder Point','Stock Value','Make','Model','Variant','Color','Year Range'];
-    const rows    = filteredProducts.map(p => [p.sku||'', `"${(p.name||'').replace(/"/g,'""')}"`, p.currentStock||0, p.minStock||0, p.reorderPoint||0, (p.currentStock*p.costPrice)||0, p.carMake||'', p.carModel||'', p.variant||'', p.color||'', p.yearFrom ? `${p.yearFrom}${p.yearTo?`-${p.yearTo}`:''}` : '']);
+    const headers = ['SKU','Name','Location','Current Stock','Min Stock','Reorder Point','Stock Value','Make','Model','Variant','Color','Year Range'];
+    const rows    = filteredProducts.map(p => [p.sku||'', `"${(p.name||'').replace(/"/g,'""')}"`, p.location||'', p.currentStock||0, p.minStock||0, p.reorderPoint||0, (p.currentStock*p.costPrice)||0, p.carMake||'', p.carModel||'', p.variant||'', p.color||'', p.yearFrom ? `${p.yearFrom}${p.yearTo?`-${p.yearTo}`:''}` : '']);
     const csv     = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const link    = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' })), download: `stock_${new Date().toISOString().split('T')[0]}.csv` });
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
@@ -566,6 +566,11 @@ export default function StockPage() {
                               <p className="text-sm font-semibold truncate" style={{ color: th.stockCellPrimary }}>{product.name}</p>
                             </div>
                             <p className="text-xs mt-1" style={{ color: th.mobileCardLabel }}>{product.sku}</p>
+                            {product.location && (
+                              <p className="text-xs mt-1" style={{ color: th.stockCellSecondary }}>
+                                Location: {product.location}
+                              </p>
+                            )}
                             {product.carMake && (
                               <div className="text-xs mt-1" style={{ color: th.stockCellSecondary }}>
                                 <p>{product.carMake} {product.carModel} {product.variant}</p>
@@ -598,7 +603,7 @@ export default function StockPage() {
                   <table className="min-w-full text-sm" style={{ borderCollapse: 'collapse' }}>
                     <thead style={{ background: th.stockTableHeadBg }}>
                       <tr>
-                        {['Product','Vehicle Info','Current Stock','Min Stock','Reorder Point','Stock Value','Status'].map(h => (
+                        {['Product','Location','Vehicle Info','Current Stock','Min Stock','Reorder Point','Stock Value','Status'].map(h => (
                           <th key={h} className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider"
                             style={{ color: th.stockTableHeadText }}>{h}</th>
                         ))}
@@ -622,6 +627,11 @@ export default function StockPage() {
                                   <p className="text-xs" style={{ color: th.stockCellMuted }}>{product.sku}</p>
                                 </div>
                               </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <p className="text-sm" style={{ color: th.stockCellSecondary }}>
+                                {product.location || '-'}
+                              </p>
                             </td>
                             <td className="px-6 py-4">
                               {product.carMake ? (

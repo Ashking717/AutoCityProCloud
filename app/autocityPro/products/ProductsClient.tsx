@@ -338,12 +338,13 @@ export default function ProductsClient({
         if (!f && !t) return ""; if (f && !t) return `${f}+`; if (!f && t) return `Up to ${t}`; if (f===t) return `${f}`; return `${f}-${t}`;
       };
 
-      const headers = ["SKU","Name","Category","Barcode","Cost Price","Selling Price","Current Stock","Car Make","Car Model","Variant","Year Range","Color","Part Number"];
+      const headers = ["SKU","Name","Category","Barcode","Location","Cost Price","Selling Price","Current Stock","Car Make","Car Model","Variant","Year Range","Color","Part Number"];
       const csvRows = filtered.map((p: any) => [
         p.sku||"",
         p.name||"",
         p.category?.name||"",
         p.barcode||"",
+        p.location||"",
         p.costPrice||"",
         p.sellingPrice||"",
         p.currentStock||0,

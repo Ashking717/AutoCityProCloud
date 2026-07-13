@@ -115,6 +115,7 @@ export async function PUT(
     // Basic fields
     if (body.name) updateData.name = body.name;
     if (body.description !== undefined) updateData.description = body.description;
+    if (body.location !== undefined) updateData.location = body.location;
     if (body.categoryId) updateData.category = body.categoryId;
     if (body.category && typeof body.category === 'string') updateData.category = body.category;
     if (body.sku) updateData.sku = body.sku;

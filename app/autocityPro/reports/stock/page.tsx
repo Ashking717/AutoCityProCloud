@@ -150,7 +150,8 @@ export default function StockReportPage() {
   const filteredProducts = products.filter((product: any) =>
     searchQuery === '' ||
     product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.sku?.toLowerCase().includes(searchQuery.toLowerCase())
+    product.sku?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    product.location?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const getStatusColor = (status: string) => {
@@ -451,6 +452,9 @@ export default function StockReportPage() {
                               <div className="flex-1 min-w-0">
                                 <h3 className="text-sm md:text-base font-bold text-white truncate">{product.name}</h3>
                                 <p className="text-xs text-slate-400">SKU: {product.sku}</p>
+                                {product.location && (
+                                  <p className="text-xs text-slate-500 mt-1">Location: {product.location}</p>
+                                )}
                               </div>
                               <div className={`flex items-center gap-1 px-2 md:px-2.5 py-1 rounded-lg border text-xs font-semibold ${getStatusColor(status)}`}>
                                 {getStatusIcon(status)}
@@ -576,6 +580,9 @@ export default function StockReportPage() {
                               <div>
                                 <h4 className="text-sm md:text-base font-bold text-white mb-1">{product.name}</h4>
                                 <p className="text-xs text-slate-400">SKU: {product.sku}</p>
+                                {product.location && (
+                                  <p className="text-xs text-slate-500 mt-1">Location: {product.location}</p>
+                                )}
                               </div>
                               <span className="px-2 md:px-3 py-1 bg-[color:var(--autocity-accent)] text-white text-xs font-bold rounded-lg">
                                 URGENT
@@ -617,6 +624,9 @@ export default function StockReportPage() {
                                 <p className="text-xs text-slate-400">
                                   Current: {product.currentStock || 0} | Min: {product.minStock || 0}
                                 </p>
+                                {product.location && (
+                                  <p className="text-xs text-slate-500 mt-1">Location: {product.location}</p>
+                                )}
                               </div>
                               <span className="px-2 md:px-3 py-1 bg-yellow-400/20 text-yellow-400 text-xs font-bold rounded-lg border border-yellow-400/30">
                                 LOW

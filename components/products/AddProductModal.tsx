@@ -105,6 +105,7 @@ export default function AddProductModal({
   const [formData, setFormData] = useState({
     name: "",
     description: "",
+    location: "",
     categoryId: "",
     barcode: "",
     unit: "pcs",
@@ -157,6 +158,7 @@ export default function AddProductModal({
     setFormData({
       name: "",
       description: "",
+      location: "",
       categoryId: "",
       barcode: "",
       unit: "pcs",
@@ -196,6 +198,7 @@ export default function AddProductModal({
     const productData: any = {
       name: formData.name,
       description: formData.description,
+      location: formData.location.trim(),
       categoryId: formData.categoryId || undefined,
       sku: nextSKU,
       barcode: formData.barcode || undefined,
@@ -408,6 +411,22 @@ export default function AddProductModal({
                   <Plus className="h-4 w-4" />
                 </button>
               </div>
+            </div>
+
+            <div>
+              <label htmlFor="add-product-location" className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
+                Location
+              </label>
+              <input
+                id="add-product-location"
+                type="text"
+                value={formData.location}
+                onChange={(e) =>
+                  setFormData({ ...formData, location: e.target.value })
+                }
+                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
+                placeholder="Shelf / rack / bin"
+              />
             </div>
 
             <div>

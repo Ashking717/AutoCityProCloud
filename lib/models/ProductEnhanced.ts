@@ -4,6 +4,7 @@ import './Category';
 export interface IProduct extends Document {
   name: string;
   description?: string;
+  location?: string;
   category: mongoose.Types.ObjectId;
   sku: string;
   barcode?: string;
@@ -39,6 +40,12 @@ const ProductSchema = new Schema(
     name: { type: String, required: true, trim: true },
 
     description: { type: String, default: '' },
+
+    location: {
+      type: String,
+      default: '',
+      trim: true
+    },
 
     category: {
       type: Schema.Types.ObjectId,

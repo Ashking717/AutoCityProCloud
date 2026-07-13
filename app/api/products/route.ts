@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
         { name: { $regex: searchTerm, $options: 'i' } },
         { sku: { $regex: searchTerm, $options: 'i' } },
         { barcode: { $regex: searchTerm, $options: 'i' } },
+        { location: { $regex: searchTerm, $options: 'i' } },
         { carMake: { $regex: searchTerm, $options: 'i' } },
         { carModel: { $regex: searchTerm, $options: 'i' } },
         { variant: { $regex: searchTerm, $options: 'i' } },
@@ -254,6 +255,7 @@ export async function POST(request: NextRequest) {
     const {
       name,
       description,
+      location,
       categoryId,
       sku,
       barcode,
@@ -333,6 +335,7 @@ export async function POST(request: NextRequest) {
     const product = await Product.create({
       name,
       description,
+      location,
       category: categoryIdObj,
       sku: finalSKU,
       barcode,

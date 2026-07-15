@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/db/mongodb";
 import Product from "@/lib/models/ProductEnhanced";
 import { cookies } from "next/headers";
 import { verifyToken } from "@/lib/auth/jwt";
+import mongoose from "mongoose";
 
 const escapeRegex = (value: string) =>
   value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -17,6 +18,10 @@ export async function GET(req: NextRequest) {
     }
 
     const user = verifyToken(token);
+    const outletIdObj =
+      typeof user.outletId === "string"
+        ? new mongoose.Types.ObjectId(user.outletId)
+        : user.outletId;
     const { searchParams } = new URL(req.url);
     const q = searchParams.get("q");
 
@@ -34,7 +39,7 @@ export async function GET(req: NextRequest) {
     const suggestions = await Product.aggregate([
       {
         $match: {
-          outletId: user.outletId,
+          outletId: outletIdObj,
           isActive: true,
           $and: words.map((word) => ({
             name: { $regex: word, $options: "i" },

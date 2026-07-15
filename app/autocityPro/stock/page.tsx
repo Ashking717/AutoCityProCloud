@@ -16,9 +16,10 @@ import {
   X,
   MoreVertical,
   ChevronLeft,
+  ChevronDown,
+  ChevronUp,
   FileDown,
   Search,
-  Zap,
   RefreshCw,
   Car,
   Palette,
@@ -39,6 +40,13 @@ export default function StockPage() {
   const [searchTerm,       setSearchTerm]       = useState('');
   const [showFilters,      setShowFilters]      = useState(false);
   const [showDesktopFilters, setShowDesktopFilters] = useState(false);
+  const [desktopFilterSections, setDesktopFilterSections] = useState({
+    search: true,
+    stock: true,
+    product: true,
+    vehicle: true,
+    active: true,
+  });
   const [filterStatus,     setFilterStatus]     = useState<string>('all');
   const [isMobile,         setIsMobile]         = useState(false);
   const [showMobileMenu,   setShowMobileMenu]   = useState(false);
@@ -260,6 +268,23 @@ export default function StockPage() {
   const clearFilters = () => { setFilterStatus('all'); setFilterCategory(''); setFilterMake(''); setFilterModel(''); setFilterVariant(''); setFilterColor(''); setFilterYear(''); setFilterIsVehicle('all'); setSearchTerm(''); };
 
   const activeFilterCount = [filterCategory, filterMake, filterModel, filterVariant, filterColor, filterYear, filterIsVehicle !== 'all', filterStatus !== 'all'].filter(Boolean).length;
+  const stockFilterCount = [filterStatus !== 'all'].filter(Boolean).length;
+  const productFilterCount = [filterCategory, filterIsVehicle !== 'all'].filter(Boolean).length;
+  const vehicleFilterCount = [filterMake, filterModel, filterVariant, filterColor, filterYear].filter(Boolean).length;
+  const activeFilterTags = [
+    filterStatus !== 'all' && { label: `Status: ${filterStatus === 'low' ? 'Low Stock' : filterStatus === 'critical' ? 'Critical' : 'Out of Stock'}`, clear: () => setFilterStatus('all') },
+    filterCategory && { label: `Category: ${categories.find(c => c._id === filterCategory)?.name || 'Selected'}`, clear: () => setFilterCategory('') },
+    filterIsVehicle !== 'all' && { label: `Type: ${filterIsVehicle === 'vehicle' ? 'Vehicles/Parts' : 'Non-Vehicle'}`, clear: () => setFilterIsVehicle('all') },
+    filterMake && { label: `Make: ${filterMake}`, clear: () => { setFilterMake(''); setFilterModel(''); } },
+    filterModel && { label: `Model: ${filterModel}`, clear: () => setFilterModel('') },
+    filterVariant && { label: `Variant: ${filterVariant}`, clear: () => setFilterVariant('') },
+    filterColor && { label: `Color: ${filterColor}`, clear: () => setFilterColor('') },
+    filterYear && { label: `Year: ${filterYear}`, clear: () => setFilterYear('') },
+  ].filter(Boolean) as Array<{ label: string; clear: () => void }>;
+
+  const toggleDesktopFilterSection = (section: keyof typeof desktopFilterSections) => {
+    setDesktopFilterSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
 
   const downloadStockCSV = () => {
     if (!filteredProducts.length) { toast.error('No stock data to export'); return; }
@@ -451,101 +476,287 @@ export default function StockPage() {
             </div>
           )}
 
-          {/* Desktop Filters */}
-          {showDesktopFilters && (
-            <div className="hidden md:block rounded-lg shadow p-3 mb-4 transition-colors duration-500"
+          {activeFilterTags.length > 0 && (
+            <div className="hidden md:flex items-start justify-between gap-4 rounded-2xl p-4 mb-4 transition-colors duration-500"
               style={{ background: th.filterPanelBg, border: `1px solid ${th.filterPanelBorder}` }}
             >
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
-                {/* Search */}
-                <div className="relative">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4" style={{ color: th.filterInputIcon }} />
-                  <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search products..."
-                    className="w-full pl-8 pr-3 py-2 text-sm rounded focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
-                    style={selectStyle} />
-                </div>
-                {[
-                  { id: 'status', value: filterStatus, onChange: (v: string) => setFilterStatus(v), opts: [['all','All Status'],['low','Low Stock'],['critical','Critical'],['out','Out of Stock']] },
-                  { id: 'category', value: filterCategory, onChange: (v: string) => setFilterCategory(v), opts: [['','All Categories'], ...categories.map(c => [c._id, c.name])] },
-                  { id: 'type', value: filterIsVehicle, onChange: (v: string) => setFilterIsVehicle(v), opts: [['all','All Types'],['vehicle','Vehicles/Parts Only'],['non-vehicle','Non-Vehicle Only']] },
-                ].map((s) => (
-                  <div key={s.id} className="relative">
-                    <select value={s.value} onChange={e => s.onChange(e.target.value)}
-                      className="w-full px-3 py-2 text-sm rounded focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent appearance-none"
-                      style={selectStyle}
+              <div className="flex-1">
+                <p className="text-xs uppercase tracking-[0.2em] mb-2" style={{ color: th.stockCellMuted }}>
+                  Active Filters
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {activeFilterTags.map((tag) => (
+                    <button
+                      key={tag.label}
+                      onClick={tag.clear}
+                      className="px-3 py-1.5 text-xs rounded-full flex items-center gap-2 transition-colors"
+                      style={{ background: th.filterTagBg, color: 'var(--autocity-accent)' }}
                     >
-                      {s.opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                    </select>
-                  </div>
-                ))}
-              </div>
-              {/* Vehicle filters */}
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-                <div className="relative">
-                  <Car className="absolute left-2 top-2.5 h-4 w-4" style={{ color: th.filterInputIcon }} />
-                  <select value={filterMake} onChange={e => { setFilterMake(e.target.value); setFilterModel(''); }}
-                    className="w-full pl-8 pr-3 py-2 text-sm rounded focus:ring-2 focus:ring-[color:var(--autocity-accent)] appearance-none" style={selectStyle}>
-                    <option value="">All Makes</option>
-                    {availableMakes.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
-                </div>
-                <div className="relative">
-                  <select value={filterModel} onChange={e => setFilterModel(e.target.value)} disabled={!filterMake}
-                    className="w-full px-3 py-2 text-sm rounded focus:ring-2 focus:ring-[color:var(--autocity-accent)] appearance-none disabled:opacity-50" style={selectStyle}>
-                    <option value="">All Models</option>
-                    {availableModels.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
-                </div>
-                <div className="relative">
-                  <select value={filterVariant} onChange={e => setFilterVariant(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded focus:ring-2 focus:ring-[color:var(--autocity-accent)] appearance-none" style={selectStyle}>
-                    <option value="">All Variants</option>
-                    {availableVariants.map(v => <option key={v} value={v}>{v}</option>)}
-                  </select>
-                </div>
-                <div className="relative">
-                  <Palette className="absolute left-2 top-2.5 h-4 w-4" style={{ color: th.filterInputIcon }} />
-                  <select value={filterColor} onChange={e => setFilterColor(e.target.value)}
-                    className="w-full pl-8 pr-3 py-2 text-sm rounded focus:ring-2 focus:ring-[color:var(--autocity-accent)] appearance-none" style={selectStyle}>
-                    <option value="">All Colors</option>
-                    {availableColors.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div className="relative">
-                  <Calendar className="absolute left-2 top-2.5 h-4 w-4" style={{ color: th.filterInputIcon }} />
-                  <select value={filterYear} onChange={e => setFilterYear(e.target.value)}
-                    className="w-full pl-8 pr-3 py-2 text-sm rounded focus:ring-2 focus:ring-[color:var(--autocity-accent)] appearance-none" style={selectStyle}>
-                    <option value="">All Years</option>
-                    {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
-                  </select>
+                      <span>{tag.label}</span>
+                      <X className="h-3 w-3" />
+                    </button>
+                  ))}
                 </div>
               </div>
-              {activeFilterCount > 0 && (
-                <div className="mt-3 flex items-center justify-between">
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      filterCategory && { label: `Category: ${categories.find(c => c._id === filterCategory)?.name}`, clear: () => setFilterCategory('') },
-                      filterMake     && { label: `Make: ${filterMake}`,     clear: () => setFilterMake('') },
-                      filterModel    && { label: `Model: ${filterModel}`,   clear: () => setFilterModel('') },
-                      filterVariant  && { label: `Variant: ${filterVariant}`, clear: () => setFilterVariant('') },
-                      filterColor    && { label: `Color: ${filterColor}`,   clear: () => setFilterColor('') },
-                      filterYear     && { label: `Year: ${filterYear}`,     clear: () => setFilterYear('') },
-                    ].filter(Boolean).map((tag: any) => (
-                      <span key={tag.label} className="px-2 py-1 text-[color:var(--autocity-accent)] text-xs rounded-full flex items-center gap-1"
-                        style={{ background: th.filterTagBg }}>
-                        {tag.label}<X className="h-3 w-3 cursor-pointer" onClick={tag.clear} />
-                      </span>
-                    ))}
-                  </div>
-                  <button onClick={clearFilters} className="px-4 py-1 text-xs rounded transition-colors"
+              <button
+                onClick={clearFilters}
+                className="px-4 py-2 text-sm rounded-lg transition-colors whitespace-nowrap"
+                style={{ background: th.clearAllBg, border: `1px solid ${th.clearAllBorder}`, color: th.clearAllText }}
+                onMouseEnter={e => (e.currentTarget.style.background = th.clearAllHover)}
+                onMouseLeave={e => (e.currentTarget.style.background = th.clearAllBg)}
+              >
+                Clear All
+              </button>
+            </div>
+          )}
+
+          {/* Desktop Filters */}
+          {showDesktopFilters && (
+            <div className="hidden md:block rounded-2xl shadow-xl p-4 mb-4 transition-colors duration-500"
+              style={{ background: th.filterPanelBg, border: `1px solid ${th.filterPanelBorder}` }}
+            >
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] mb-1" style={{ color: th.stockCellMuted }}>
+                    Advanced Filters
+                  </p>
+                  <h3 className="text-lg font-semibold" style={{ color: th.stockCellPrimary }}>
+                    Narrow stock like a product catalog
+                  </h3>
+                  <p className="text-sm mt-1" style={{ color: th.stockCellMuted }}>
+                    Filters apply instantly as you select them.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={clearFilters}
+                    className="px-4 py-2 text-sm rounded-lg transition-colors"
                     style={{ background: th.clearAllBg, border: `1px solid ${th.clearAllBorder}`, color: th.clearAllText }}
                     onMouseEnter={e => (e.currentTarget.style.background = th.clearAllHover)}
                     onMouseLeave={e => (e.currentTarget.style.background = th.clearAllBg)}
                   >
-                    Clear All
+                    Reset Filters
+                  </button>
+                  <button
+                    onClick={() => setShowDesktopFilters(false)}
+                    className="px-4 py-2 text-sm rounded-lg transition-colors"
+                    style={{ background: th.headerBtnBg, border: `1px solid ${th.headerBtnBorder}`, color: th.headerBtnText }}
+                    onMouseEnter={e => (e.currentTarget.style.background = th.headerBtnHover)}
+                    onMouseLeave={e => (e.currentTarget.style.background = th.headerBtnBg)}
+                  >
+                    Close
                   </button>
                 </div>
-              )}
+              </div>
+
+              <div className="space-y-4">
+                <div className="rounded-2xl p-4" style={{ background: th.clearAllBg, border: `1px solid ${th.clearAllBorder}` }}>
+                  <button
+                    onClick={() => toggleDesktopFilterSection('search')}
+                    className="w-full flex items-center justify-between text-left"
+                  >
+                    <div>
+                      <p className="text-sm font-semibold" style={{ color: th.stockCellPrimary }}>Search</p>
+                      <p className="text-xs mt-1" style={{ color: th.stockCellMuted }}>Find by product name, SKU, make, model, or location</p>
+                    </div>
+                    {desktopFilterSections.search ? <ChevronUp className="h-4 w-4" style={{ color: th.stockCellMuted }} /> : <ChevronDown className="h-4 w-4" style={{ color: th.stockCellMuted }} />}
+                  </button>
+                  {desktopFilterSections.search && (
+                    <div className="mt-4">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-3 h-4 w-4" style={{ color: th.filterInputIcon }} />
+                        <input
+                          type="text"
+                          value={searchTerm}
+                          onChange={e => setSearchTerm(e.target.value)}
+                          placeholder="Search products..."
+                          className="w-full pl-10 pr-4 py-3 text-sm rounded-xl focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
+                          style={selectStyle}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                  <div className="rounded-2xl p-4" style={{ background: th.clearAllBg, border: `1px solid ${th.clearAllBorder}` }}>
+                    <button
+                      onClick={() => toggleDesktopFilterSection('stock')}
+                      className="w-full flex items-center justify-between text-left"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold" style={{ color: th.stockCellPrimary }}>Stock Status</p>
+                        <p className="text-xs mt-1" style={{ color: th.stockCellMuted }}>{stockFilterCount} selected</p>
+                      </div>
+                      {desktopFilterSections.stock ? <ChevronUp className="h-4 w-4" style={{ color: th.stockCellMuted }} /> : <ChevronDown className="h-4 w-4" style={{ color: th.stockCellMuted }} />}
+                    </button>
+                    {desktopFilterSections.stock && (
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+                        {[
+                          ['all', 'All Status'],
+                          ['low', 'Low Stock'],
+                          ['critical', 'Critical'],
+                          ['out', 'Out of Stock'],
+                        ].map(([value, label]) => {
+                          const active = filterStatus === value;
+                          return (
+                            <button
+                              key={value}
+                              onClick={() => setFilterStatus(value)}
+                              className="px-3 py-2.5 rounded-xl text-sm text-left transition-colors"
+                              style={{
+                                background: active ? 'var(--autocity-accent-10)' : th.filterInputBg,
+                                border: active ? '1px solid var(--autocity-accent-30)' : `1px solid ${th.filterInputBorder}`,
+                                color: active ? 'var(--autocity-accent)' : th.filterInputText
+                              }}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-2xl p-4" style={{ background: th.clearAllBg, border: `1px solid ${th.clearAllBorder}` }}>
+                    <button
+                      onClick={() => toggleDesktopFilterSection('product')}
+                      className="w-full flex items-center justify-between text-left"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold" style={{ color: th.stockCellPrimary }}>Product Type</p>
+                        <p className="text-xs mt-1" style={{ color: th.stockCellMuted }}>{productFilterCount} selected</p>
+                      </div>
+                      {desktopFilterSections.product ? <ChevronUp className="h-4 w-4" style={{ color: th.stockCellMuted }} /> : <ChevronDown className="h-4 w-4" style={{ color: th.stockCellMuted }} />}
+                    </button>
+                    {desktopFilterSections.product && (
+                      <div className="mt-4 space-y-4">
+                        <div className="grid grid-cols-3 gap-2">
+                          {[
+                            ['all', 'All'],
+                            ['vehicle', 'Vehicles'],
+                            ['non-vehicle', 'Non-Vehicle'],
+                          ].map(([value, label]) => {
+                            const active = filterIsVehicle === value;
+                            return (
+                              <button
+                                key={value}
+                                onClick={() => setFilterIsVehicle(value)}
+                                className="px-3 py-2.5 rounded-xl text-sm transition-colors"
+                                style={{
+                                  background: active ? 'var(--autocity-accent-10)' : th.filterInputBg,
+                                  border: active ? '1px solid var(--autocity-accent-30)' : `1px solid ${th.filterInputBorder}`,
+                                  color: active ? 'var(--autocity-accent)' : th.filterInputText
+                                }}
+                              >
+                                {label}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.2em] mb-2" style={{ color: th.stockCellMuted }}>Category</p>
+                          <select
+                            value={filterCategory}
+                            onChange={e => setFilterCategory(e.target.value)}
+                            className="w-full px-3 py-3 text-sm rounded-xl focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent appearance-none"
+                            style={selectStyle}
+                          >
+                            <option value="">All Categories</option>
+                            {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl p-4" style={{ background: th.clearAllBg, border: `1px solid ${th.clearAllBorder}` }}>
+                  <button
+                    onClick={() => toggleDesktopFilterSection('vehicle')}
+                    className="w-full flex items-center justify-between text-left"
+                  >
+                    <div>
+                      <p className="text-sm font-semibold" style={{ color: th.stockCellPrimary }}>Vehicle Compatibility</p>
+                      <p className="text-xs mt-1" style={{ color: th.stockCellMuted }}>{vehicleFilterCount} selected</p>
+                    </div>
+                    {desktopFilterSections.vehicle ? <ChevronUp className="h-4 w-4" style={{ color: th.stockCellMuted }} /> : <ChevronDown className="h-4 w-4" style={{ color: th.stockCellMuted }} />}
+                  </button>
+                  {desktopFilterSections.vehicle && (
+                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+                      <div className="relative">
+                        <Car className="absolute left-3 top-3 h-4 w-4" style={{ color: th.filterInputIcon }} />
+                        <select value={filterMake} onChange={e => { setFilterMake(e.target.value); setFilterModel(''); }}
+                          className="w-full pl-10 pr-3 py-3 text-sm rounded-xl focus:ring-2 focus:ring-[color:var(--autocity-accent)] appearance-none" style={selectStyle}>
+                          <option value="">All Makes</option>
+                          {availableMakes.map(m => <option key={m} value={m}>{m}</option>)}
+                        </select>
+                      </div>
+                      <div className="relative">
+                        <select value={filterModel} onChange={e => setFilterModel(e.target.value)} disabled={!filterMake}
+                          className="w-full px-3 py-3 text-sm rounded-xl focus:ring-2 focus:ring-[color:var(--autocity-accent)] appearance-none disabled:opacity-50" style={selectStyle}>
+                          <option value="">All Models</option>
+                          {availableModels.map(m => <option key={m} value={m}>{m}</option>)}
+                        </select>
+                      </div>
+                      <div className="relative">
+                        <select value={filterVariant} onChange={e => setFilterVariant(e.target.value)}
+                          className="w-full px-3 py-3 text-sm rounded-xl focus:ring-2 focus:ring-[color:var(--autocity-accent)] appearance-none" style={selectStyle}>
+                          <option value="">All Variants</option>
+                          {availableVariants.map(v => <option key={v} value={v}>{v}</option>)}
+                        </select>
+                      </div>
+                      <div className="relative">
+                        <Palette className="absolute left-3 top-3 h-4 w-4" style={{ color: th.filterInputIcon }} />
+                        <select value={filterColor} onChange={e => setFilterColor(e.target.value)}
+                          className="w-full pl-10 pr-3 py-3 text-sm rounded-xl focus:ring-2 focus:ring-[color:var(--autocity-accent)] appearance-none" style={selectStyle}>
+                          <option value="">All Colors</option>
+                          {availableColors.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </div>
+                      <div className="relative">
+                        <Calendar className="absolute left-3 top-3 h-4 w-4" style={{ color: th.filterInputIcon }} />
+                        <select value={filterYear} onChange={e => setFilterYear(e.target.value)}
+                          className="w-full pl-10 pr-3 py-3 text-sm rounded-xl focus:ring-2 focus:ring-[color:var(--autocity-accent)] appearance-none" style={selectStyle}>
+                          <option value="">All Years</option>
+                          {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {activeFilterTags.length > 0 && (
+                  <div className="rounded-2xl p-4" style={{ background: th.clearAllBg, border: `1px solid ${th.clearAllBorder}` }}>
+                    <button
+                      onClick={() => toggleDesktopFilterSection('active')}
+                      className="w-full flex items-center justify-between text-left"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold" style={{ color: th.stockCellPrimary }}>Selected Filters</p>
+                        <p className="text-xs mt-1" style={{ color: th.stockCellMuted }}>{activeFilterTags.length} active</p>
+                      </div>
+                      {desktopFilterSections.active ? <ChevronUp className="h-4 w-4" style={{ color: th.stockCellMuted }} /> : <ChevronDown className="h-4 w-4" style={{ color: th.stockCellMuted }} />}
+                    </button>
+                    {desktopFilterSections.active && (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {activeFilterTags.map((tag) => (
+                          <button
+                            key={tag.label}
+                            onClick={tag.clear}
+                            className="px-3 py-1.5 text-xs rounded-full flex items-center gap-2 transition-colors"
+                            style={{ background: th.filterTagBg, color: 'var(--autocity-accent)' }}
+                          >
+                            <span>{tag.label}</span>
+                            <X className="h-3 w-3" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

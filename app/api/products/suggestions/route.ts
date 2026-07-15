@@ -4,6 +4,9 @@ import Product from "@/lib/models/ProductEnhanced";
 import { cookies } from "next/headers";
 import { verifyToken } from "@/lib/auth/jwt";
 
+const escapeRegex = (value: string) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 export async function GET(req: NextRequest) {
   try {
     await connectDB();
@@ -22,22 +25,45 @@ export async function GET(req: NextRequest) {
     }
 
     // 🔥 CHANGE STARTS HERE
-    const words = q.trim().split(/\s+/);
+    const words = q
+      .trim()
+      .split(/\s+/)
+      .map((word) => escapeRegex(word))
+      .filter(Boolean);
 
-    const suggestions = await Product.find(
+    const suggestions = await Product.aggregate([
       {
-        outletId: user.outletId,
-        isActive: true,
-        $and: words.map((word) => ({
-          name: { $regex: word, $options: "i" }, // CONTAINS, not startsWith
-        })),
+        $match: {
+          outletId: user.outletId,
+          isActive: true,
+          $and: words.map((word) => ({
+            name: { $regex: word, $options: "i" },
+          })),
+        },
       },
-      { name: 1 }
-    )
-      .limit(15)
-      .sort({ name: 1 })
-      .lean();
-    // 🔥 CHANGE ENDS HERE
+      {
+        $project: {
+          name: { $trim: { input: "$name" } },
+        },
+      },
+      {
+        $match: {
+          name: { $ne: "" },
+        },
+      },
+      {
+        $group: {
+          _id: { $toLower: "$name" },
+          name: { $first: "$name" },
+        },
+      },
+      {
+        $sort: { name: 1 },
+      },
+      {
+        $limit: 15,
+      },
+    ]);
 
     return NextResponse.json({
       suggestions: suggestions.map((p) => p.name),

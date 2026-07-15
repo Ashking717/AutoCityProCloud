@@ -87,6 +87,13 @@ const vehicleColors = [
   "Forest Green",
 ];
 
+interface LocationStockSplit {
+  id: string;
+  locationId: string;
+  locationName: string;
+  quantity: number;
+}
+
 export default function EditProductModal({
   show,
   onClose,
@@ -96,6 +103,12 @@ export default function EditProductModal({
   onQuickAddCategory,
 }: EditProductModalProps) {
   const [isVehicle, setIsVehicle] = useState(false);
+  const [stockLocations, setStockLocations] = useState<any[]>([]);
+  const [selectedLocationId, setSelectedLocationId] = useState("");
+  const [showNewLocation, setShowNewLocation] = useState(false);
+  const [newLocationName, setNewLocationName] = useState("");
+  const [addingLocation, setAddingLocation] = useState(false);
+  const [locationSplits, setLocationSplits] = useState<LocationStockSplit[]>([]);
   const [formData, setFormData] = useState({
     _id: "",
     name: "",
@@ -123,11 +136,35 @@ export default function EditProductModal({
 
   useEffect(() => {
     if (product && show) {
+      const productLocations = (product.locations || []).filter(
+        (location: any) => location.locationId || location.locationName
+      );
+      const primaryLocation =
+        productLocations.find((location: any) => (location.quantity || 0) > 0) ||
+        productLocations[0];
+      const primaryLocationName = primaryLocation?.locationName || product.location || "";
+      const initialLocationSplits =
+        productLocations.length > 0
+          ? productLocations.map((location: any, index: number) => ({
+              id: `${location.locationId || location.locationName || index}-${index}`,
+              locationId: location.locationId || "",
+              locationName: location.locationName || "",
+              quantity: Number(location.quantity) || 0,
+            }))
+          : primaryLocationName || product.currentStock
+          ? [{
+              id: `legacy-${product._id}`,
+              locationId: primaryLocation?.locationId || "",
+              locationName: primaryLocationName,
+              quantity: Number(product.currentStock) || 0,
+            }]
+          : [];
+
       setFormData({
         _id: product._id,
         name: product.name || "",
         description: product.description || "",
-        location: product.location || "",
+        location: primaryLocationName,
         categoryId: product.category?._id || "",
         sku: product.sku || "",
         barcode: product.barcode || "",
@@ -147,9 +184,260 @@ export default function EditProductModal({
         color: product.color || "",
         isVehicle: product.isVehicle || false,
       });
+      setSelectedLocationId(primaryLocation?.locationId || "");
+      setLocationSplits(initialLocationSplits);
       setIsVehicle(product.isVehicle || false);
+      setShowNewLocation(false);
+      setNewLocationName("");
+      fetchStockLocations(primaryLocation?.locationId, primaryLocationName);
     }
   }, [product, show]);
+
+  useEffect(() => {
+    if (!show || !product) return;
+
+    const splitTotal = locationSplits.reduce(
+      (sum, split) => sum + (Number(split.quantity) || 0),
+      0
+    );
+
+    setFormData((prev) =>
+      prev.currentStock === splitTotal
+        ? prev
+        : { ...prev, currentStock: splitTotal }
+    );
+  }, [locationSplits, product, show]);
+
+  const fetchStockLocations = async (
+    preferredLocationId?: string,
+    preferredLocationName?: string
+  ) => {
+    try {
+      const res = await fetch("/api/stock-locations", { credentials: "include" });
+      if (!res.ok) return;
+
+      const data = await res.json();
+      const locations = data.locations || [];
+      setStockLocations(locations);
+      setLocationSplits((prev) =>
+        prev.map((split) => {
+          if (split.locationId || !split.locationName) return split;
+
+          const matchedLocation = locations.find(
+            (location: any) =>
+              String(location.name || "").toLowerCase() ===
+              split.locationName.toLowerCase()
+          );
+
+          return matchedLocation
+            ? { ...split, locationId: matchedLocation._id }
+            : split;
+        })
+      );
+
+      if (preferredLocationId) {
+        const preferredLocation = locations.find(
+          (location: any) => location._id === preferredLocationId
+        );
+        if (preferredLocation) {
+          setFormData((prev) => ({
+            ...prev,
+            location: preferredLocation.name || preferredLocationName || "",
+          }));
+        }
+        return;
+      }
+
+      const preferredByName = preferredLocationName
+        ? locations.find(
+            (location: any) =>
+              String(location.name || "").toLowerCase() ===
+              preferredLocationName.toLowerCase()
+          )
+        : null;
+
+      if (preferredByName) {
+        setSelectedLocationId(preferredByName._id);
+        setFormData((prev) => ({
+          ...prev,
+          location: preferredByName.name || preferredLocationName,
+        }));
+        return;
+      }
+
+      if (preferredLocationName) {
+        setSelectedLocationId("");
+        setFormData((prev) => ({
+          ...prev,
+          location: preferredLocationName,
+        }));
+        return;
+      }
+
+      const defaultLocation = locations[0];
+      if (defaultLocation) {
+        setSelectedLocationId(defaultLocation._id);
+        setFormData((prev) => ({
+          ...prev,
+          location: preferredLocationName || defaultLocation.name || "",
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to load stock locations:", error);
+    }
+  };
+
+  const handleLocationChange = (locationId: string) => {
+    const selectedLocation = stockLocations.find(
+      (location) => location._id === locationId
+    );
+
+    setSelectedLocationId(locationId);
+    setFormData({
+      ...formData,
+      location: selectedLocation?.name || "",
+    });
+    setLocationSplits((prev) => {
+      const nextSplit = {
+        id: `${Date.now()}-${Math.random()}`,
+        locationId,
+        locationName: selectedLocation?.name || "",
+        quantity: Number(formData.currentStock) || 0,
+      };
+
+      if (prev.length === 0) return [nextSplit];
+
+      return prev.map((split, index) =>
+        index === 0
+          ? {
+              ...split,
+              locationId,
+              locationName: selectedLocation?.name || "",
+            }
+          : split
+      );
+    });
+  };
+
+  const handleAddLocation = async () => {
+    const name = newLocationName.trim();
+    if (!name) {
+      toast.error("Location name is required");
+      return;
+    }
+
+    setAddingLocation(true);
+    try {
+      const res = await fetch("/api/stock-locations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ name }),
+      });
+
+      if (!res.ok) {
+        toast.error((await res.json()).error || "Failed to add location");
+        return;
+      }
+
+      const data = await res.json();
+      const location = data.location;
+      setStockLocations((prev) => {
+        const exists = prev.some((item) => item._id === location._id);
+        return exists ? prev : [...prev, location].sort((a, b) => a.name.localeCompare(b.name));
+      });
+      setSelectedLocationId(location._id);
+      setFormData({ ...formData, location: location.name || name });
+      setLocationSplits((prev) =>
+        prev.length === 0
+          ? [{
+              id: `${Date.now()}-${Math.random()}`,
+              locationId: location._id,
+              locationName: location.name || name,
+              quantity: Number(formData.currentStock) || 0,
+            }]
+          : prev
+      );
+      setNewLocationName("");
+      setShowNewLocation(false);
+      toast.success("Location added");
+    } catch {
+      toast.error("Failed to add location");
+    } finally {
+      setAddingLocation(false);
+    }
+  };
+
+  const addLocationSplit = () => {
+    const usedLocationIds = new Set(
+      locationSplits.map((split) => split.locationId).filter(Boolean)
+    );
+    const defaultLocation =
+      stockLocations.find((location) => !usedLocationIds.has(location._id)) ||
+      stockLocations[0];
+
+    setLocationSplits([
+      ...locationSplits,
+      {
+        id: `${Date.now()}-${Math.random()}`,
+        locationId: defaultLocation?._id || "",
+        locationName: defaultLocation?.name || "",
+        quantity: 0,
+      },
+    ]);
+  };
+
+  const updateLocationSplit = (
+    id: string,
+    field: "locationId" | "quantity",
+    value: string | number
+  ) => {
+    setLocationSplits((prev) =>
+      prev.map((split, index) => {
+        if (split.id !== id) return split;
+
+        if (field === "locationId") {
+          const location = stockLocations.find((item) => item._id === value);
+
+          if (index === 0) {
+            setSelectedLocationId(String(value));
+            setFormData((current) => ({
+              ...current,
+              location: location?.name || "",
+            }));
+          }
+
+          return {
+            ...split,
+            locationId: String(value),
+            locationName: location?.name || "",
+          };
+        }
+
+        return {
+          ...split,
+          quantity: Number(value) || 0,
+        };
+      })
+    );
+  };
+
+  const removeLocationSplit = (id: string) => {
+    setLocationSplits((prev) => {
+      const next = prev.filter((split) => split.id !== id);
+      const firstSplit = next[0];
+
+      if (firstSplit) {
+        setSelectedLocationId(firstSplit.locationId || "");
+        setFormData((current) => ({
+          ...current,
+          location: firstSplit.locationName || "",
+        }));
+      }
+
+      return next;
+    });
+  };
 
   const handleSubmit = async () => {
     if (!formData.name || !formData.sku) {
@@ -164,10 +452,28 @@ export default function EditProductModal({
       }
     }
 
+    const normalizedLocationSplits = locationSplits
+      .filter((split) => (Number(split.quantity) || 0) > 0)
+      .map((split) => ({
+        locationId: split.locationId || undefined,
+        locationName: split.locationName || undefined,
+        quantity: Number(split.quantity) || 0,
+      }));
+    const splitTotal = normalizedLocationSplits.reduce(
+      (sum, split) => sum + (Number(split.quantity) || 0),
+      0
+    );
+    const primarySplit = normalizedLocationSplits[0];
+
     const productData: any = {
       name: formData.name,
       description: formData.description,
-      location: formData.location.trim(),
+      locationId: primarySplit?.locationId || selectedLocationId || undefined,
+      locationName: primarySplit?.locationName || formData.location.trim() || undefined,
+      location: primarySplit?.locationName || formData.location.trim(),
+      moveSingleLocationStock: false,
+      replaceLocationSplits: true,
+      locationSplits: normalizedLocationSplits,
       categoryId: formData.categoryId || undefined,
       sku: formData.sku.toUpperCase(),
       barcode: formData.barcode || undefined,
@@ -175,7 +481,7 @@ export default function EditProductModal({
       costPrice: parseFloat(formData.costPrice as any) || 0,
       sellingPrice: parseFloat(formData.sellingPrice as any) || 0,
       taxRate: parseFloat(formData.taxRate as any) || 0,
-      currentStock: parseFloat(formData.currentStock as any) || 0,
+      currentStock: splitTotal,
       minStock: parseFloat(formData.minStock as any) || 0,
       maxStock: parseFloat(formData.maxStock as any) || 1000,
     };
@@ -298,17 +604,146 @@ export default function EditProductModal({
 
             <div>
               <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                Location
-                <input
-                  type="text"
-                  value={formData.location}
-                  onChange={(e) =>
-                    setFormData({ ...formData, location: e.target.value })
-                  }
-                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
-                  placeholder="Shelf / rack / bin"
-                />
+                Product Location
+                <div className="flex gap-2">
+                  <select
+                    value={selectedLocationId}
+                    onChange={(e) => handleLocationChange(e.target.value)}
+                    className="flex-1 px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
+                  >
+                    {!selectedLocationId && formData.location && (
+                      <option value="" className="text-[#050505]">
+                        {formData.location}
+                      </option>
+                    )}
+                    {stockLocations.length === 0 && (
+                      <option value="">Main Store</option>
+                    )}
+                    {stockLocations.map((location) => (
+                      <option
+                        key={location._id}
+                        value={location._id}
+                        className="text-[#050505]"
+                      >
+                        {location.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setShowNewLocation((value) => !value)}
+                    className="px-3 py-2 bg-[color:var(--autocity-accent-10)] border border-[color:var(--autocity-accent-30)] rounded-lg hover:bg-[color:var(--autocity-accent-20)] transition-colors text-white active:scale-95"
+                    title="Add Location"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
               </label>
+              {showNewLocation && (
+                <div className="mt-2 flex gap-2">
+                  <input
+                    type="text"
+                    value={newLocationName}
+                    onChange={(e) => setNewLocationName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleAddLocation()}
+                    className="flex-1 px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
+                    placeholder="New location name"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddLocation}
+                    disabled={addingLocation}
+                    className="px-3 py-2 bg-[color:var(--autocity-accent)] rounded-lg text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50 active:scale-95 transition-all"
+                  >
+                    {addingLocation ? "Adding..." : "Add"}
+                  </button>
+                </div>
+              )}
+              <p className="mt-1 text-[11px] text-gray-500">
+                Edit the rows below to set the exact stock in each location.
+              </p>
+              <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-300">
+                      Location stock split
+                    </p>
+                    <p className="text-[11px] text-gray-500">
+                      Current stock is calculated from these rows.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={addLocationSplit}
+                    className="px-2.5 py-1.5 text-xs rounded-lg bg-[color:var(--autocity-accent-10)] border border-[color:var(--autocity-accent-30)] text-white hover:bg-[color:var(--autocity-accent-20)] active:scale-95 transition-all"
+                  >
+                    Add Split
+                  </button>
+                </div>
+                {locationSplits.length > 0 ? (
+                  <div className="mt-3 space-y-2">
+                    {locationSplits.map((split) => (
+                      <div key={split.id} className="grid grid-cols-[1fr_90px_34px] gap-2">
+                        <select
+                          value={split.locationId}
+                          onChange={(e) =>
+                            updateLocationSplit(split.id, "locationId", e.target.value)
+                          }
+                          className="px-2 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-xs focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
+                        >
+                          {!split.locationId && split.locationName && (
+                            <option value="" className="text-[#050505]">
+                              {split.locationName}
+                            </option>
+                          )}
+                          {stockLocations.length === 0 && (
+                            <option value="">Main Store</option>
+                          )}
+                          {stockLocations.map((location) => (
+                            <option
+                              key={location._id}
+                              value={location._id}
+                              className="text-[#050505]"
+                            >
+                              {location.name}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="number"
+                          min="0"
+                          value={split.quantity}
+                          onChange={(e) =>
+                            updateLocationSplit(split.id, "quantity", e.target.value)
+                          }
+                          className="px-2 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-xs focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
+                          placeholder="Qty"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeLocationSplit(split.id)}
+                          className="rounded-lg border border-red-500/20 bg-red-500/10 text-red-300 hover:bg-red-500/20 active:scale-95 transition-all flex items-center justify-center"
+                          title="Remove split"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-3 text-[11px] text-gray-500">
+                    No stock rows yet. Add a split row to assign stock to a location.
+                  </p>
+                )}
+                <p className="mt-3 text-[11px] text-gray-400">
+                  Total stock:{" "}
+                  <span className="font-semibold text-white">
+                    {locationSplits
+                      .reduce((sum, split) => sum + (Number(split.quantity) || 0), 0)
+                      .toFixed(2)}
+                  </span>
+                </p>
+              </div>
             </div>
 
             <div>
@@ -648,16 +1083,14 @@ export default function EditProductModal({
                 <input
                   type="number"
                   value={formData.currentStock}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      currentStock: parseFloat(e.target.value),
-                    })
-                  }
+                  readOnly
                   min="0"
-                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
+                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base opacity-80 cursor-not-allowed"
                 />
               </label>
+              <p className="mt-1 text-[11px] text-gray-500">
+                Auto-filled from the location stock split.
+              </p>
             </div>
             <div>
               <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">

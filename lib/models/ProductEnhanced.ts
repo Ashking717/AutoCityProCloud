@@ -41,6 +41,7 @@ const ProductSchema = new Schema(
 
     description: { type: String, default: '' },
 
+    // Legacy field: kept only so old products can be migrated into StockLocation.
     location: {
       type: String,
       default: '',

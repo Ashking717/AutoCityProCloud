@@ -11,6 +11,10 @@ import User from "@/lib/models/User";
 import InventoryMovement from "@/lib/models/InventoryMovement";
 
 import { postSaleToLedger } from "@/lib/services/accountingService";
+import {
+  adjustProductLocationStock,
+  resolveStockLocationForSale,
+} from "@/lib/services/locationStockService";
 import { verifyToken } from "@/lib/auth/jwt";
 import { connectDB } from "@/lib/db/mongodb";
 
@@ -241,18 +245,27 @@ export async function POST(request: NextRequest) {
     for (const item of items) {
       const isLabor = item.isLabor === true;
       let product: any = null;
+      let stockLocationSelection: any = null;
+      const quantity = Number(item.quantity) || 1;
 
       if (!isLabor) {
         product = await Product.findById(item.productId);
         if (!product) {
           throw new Error(`Product not found: ${item.productId}`);
         }
-        if (product.currentStock < item.quantity) {
+        if (product.currentStock < quantity) {
           throw new Error(`Insufficient stock for ${product.name}`);
         }
+        stockLocationSelection = await resolveStockLocationForSale({
+          product,
+          outletId,
+          quantity,
+          locationId: item.locationId,
+          locationName: item.locationName || item.location,
+          userId,
+        });
       }
 
-      const quantity = Number(item.quantity) || 1;
       const unitPrice = Number(item.unitPrice) || 0;
       const costPrice = isLabor ? 0 : Number(product.costPrice || 0);
 
@@ -274,6 +287,8 @@ export async function POST(request: NextRequest) {
         productId: isLabor ? undefined : product._id,
         name: item.name || product?.name || "Labor",
         sku: item.sku || product?.sku || "LABOR",
+        locationId: stockLocationSelection?.location?._id,
+        locationName: stockLocationSelection?.location?.name,
         quantity,
         unit: item.unit || "pcs",
         unitPrice,
@@ -374,18 +389,38 @@ export async function POST(request: NextRequest) {
 
       const productId = new mongoose.Types.ObjectId(item.productId);
       const qty = Number(item.quantity);
+      const productBeforeSale = await Product.findById(productId);
+
+      if (!productBeforeSale) {
+        throw new Error(`Product not found: ${productId}`);
+      }
 
       const lastMovement = await InventoryMovement.findOne({
         productId,
         outletId,
       }).sort({ date: -1 });
 
-      const prevBalance = lastMovement?.balanceAfter || 0;
+      const prevBalance = lastMovement
+        ? Number(lastMovement.balanceAfter || 0)
+        : Number(productBeforeSale.currentStock || 0);
       const newBalance = prevBalance - qty;
 
       if (newBalance < 0) {
         throw new Error(`Negative stock for ${item.name}`);
       }
+
+      const locationStock = await adjustProductLocationStock({
+        product: {
+          _id: productId,
+          name: item.name,
+          sku: item.sku,
+        },
+        outletId,
+        locationId: item.locationId,
+        locationName: item.locationName,
+        quantityDelta: -qty,
+        userId,
+      });
 
       await InventoryMovement.create({
         productId,
@@ -398,6 +433,9 @@ export async function POST(request: NextRequest) {
         referenceType: "SALE",
         referenceId: sale._id,
         referenceNumber: sale.invoiceNumber,
+        locationId: locationStock.location._id,
+        locationName: locationStock.location.name,
+        locationBalanceAfter: locationStock.newQuantity,
         outletId,
         balanceAfter: newBalance,
         date: new Date(),

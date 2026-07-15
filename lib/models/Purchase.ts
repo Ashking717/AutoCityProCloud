@@ -5,6 +5,8 @@ export interface IPurchaseItem {
   productId: mongoose.Types.ObjectId;
   name: string;
   sku: string;
+  locationId?: mongoose.Types.ObjectId;
+  locationName?: string;
   quantity: number;
   unit: string;
   unitPrice: number;
@@ -39,6 +41,8 @@ const PurchaseItemSchema = new Schema<IPurchaseItem>({
   productId: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
   name: { type: String, required: true },
   sku: { type: String, required: true },
+  locationId: { type: Schema.Types.ObjectId, ref: 'StockLocation' },
+  locationName: { type: String, trim: true },
   quantity: { type: Number, required: true, min: 0 },
   unit: { type: String, required: true },
   unitPrice: { type: Number, required: true, min: 0 },

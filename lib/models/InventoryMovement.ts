@@ -31,9 +31,18 @@ export interface IInventoryMovement extends Document {
   totalValue: number; // quantity * unitCost
   
   // Reference to source
-  referenceType: 'SALE' | 'PURCHASE' | 'ADJUSTMENT' | 'RETURN';
+  referenceType: 'SALE' | 'PURCHASE' | 'ADJUSTMENT' | 'RETURN' | 'TRANSFER';
   referenceId: mongoose.Types.ObjectId;
   referenceNumber: string;
+
+  // Location details
+  locationId?: mongoose.Types.ObjectId;
+  locationName?: string;
+  fromLocationId?: mongoose.Types.ObjectId;
+  fromLocationName?: string;
+  toLocationId?: mongoose.Types.ObjectId;
+  toLocationName?: string;
+  locationBalanceAfter?: number;
   
   // Link to accounting (CRITICAL for atomicity)
   voucherId?: mongoose.Types.ObjectId;
@@ -96,7 +105,7 @@ const InventoryMovementSchema = new Schema<IInventoryMovement>(
     referenceType: {
       type: String,
       required: true,
-      enum: ['SALE', 'PURCHASE', 'ADJUSTMENT', 'RETURN'],
+      enum: ['SALE', 'PURCHASE', 'ADJUSTMENT', 'RETURN', 'TRANSFER'],
     },
     referenceId: {
       type: Schema.Types.ObjectId,
@@ -106,6 +115,35 @@ const InventoryMovementSchema = new Schema<IInventoryMovement>(
     referenceNumber: {
       type: String,
       required: true,
+    },
+
+    locationId: {
+      type: Schema.Types.ObjectId,
+      ref: 'StockLocation',
+      index: true,
+    },
+    locationName: {
+      type: String,
+      trim: true,
+    },
+    fromLocationId: {
+      type: Schema.Types.ObjectId,
+      ref: 'StockLocation',
+    },
+    fromLocationName: {
+      type: String,
+      trim: true,
+    },
+    toLocationId: {
+      type: Schema.Types.ObjectId,
+      ref: 'StockLocation',
+    },
+    toLocationName: {
+      type: String,
+      trim: true,
+    },
+    locationBalanceAfter: {
+      type: Number,
     },
     
     voucherId: {
@@ -155,6 +193,7 @@ InventoryMovementSchema.index({ outletId: 1, productId: 1, date: -1 });
 InventoryMovementSchema.index({ outletId: 1, date: -1 });
 InventoryMovementSchema.index({ referenceType: 1, referenceId: 1 });
 InventoryMovementSchema.index({ voucherId: 1 });
+InventoryMovementSchema.index({ outletId: 1, productId: 1, locationId: 1, date: -1 });
 
 // PREVENT UPDATES AND DELETES
 InventoryMovementSchema.pre('findOneAndUpdate', function() {

@@ -6,6 +6,12 @@ import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth/jwt';
 import Product from '@/lib/models/ProductEnhanced';
 import { postInventoryAdjustmentToLedger } from '@/lib/services/accountingService';
+import {
+  adjustProductLocationStock,
+  attachLocationDataToProducts,
+  findProductIdsByLocationSearch,
+  materializeLegacyLocationStocksForProducts,
+} from '@/lib/services/locationStockService';
 import mongoose from 'mongoose';
 import InventoryMovement from '@/lib/models/InventoryMovement';
 import type { SortOrder } from 'mongoose';
@@ -44,6 +50,10 @@ export async function GET(request: NextRequest) {
     // ─────────────────────────────────────────────────────────────
     const searchTerm = searchParams.get('search');
     if (searchTerm) {
+      const productIdsByLocation = await findProductIdsByLocationSearch(
+        outletIdObj,
+        searchTerm
+      );
       query.$or = [
         { name: { $regex: searchTerm, $options: 'i' } },
         { sku: { $regex: searchTerm, $options: 'i' } },
@@ -55,6 +65,9 @@ export async function GET(request: NextRequest) {
         { color: { $regex: searchTerm, $options: 'i' } },
         { partNumber: { $regex: searchTerm, $options: 'i' } },
       ];
+      if (productIdsByLocation.length > 0) {
+        query.$or.push({ _id: { $in: productIdsByLocation } });
+      }
     }
     
     // ─────────────────────────────────────────────────────────────
@@ -205,9 +218,20 @@ export async function GET(request: NextRequest) {
         .lean(),
       Product.countDocuments(query),
     ]);
+
+    await materializeLegacyLocationStocksForProducts(
+      products,
+      outletIdObj,
+      user.userId
+    );
+
+    const productsWithLocations = await attachLocationDataToProducts(
+      products,
+      outletIdObj
+    );
     
     return NextResponse.json({
-      products,
+      products: productsWithLocations,
       pagination: {
         total,
         page,
@@ -256,6 +280,9 @@ export async function POST(request: NextRequest) {
       name,
       description,
       location,
+      locationId,
+      locationName,
+      openingLocations,
       categoryId,
       sku,
       barcode,
@@ -326,8 +353,50 @@ export async function POST(request: NextRequest) {
         ? new mongoose.Types.ObjectId(categoryId)
         : categoryId;
 
-    const stockQty = Number(currentStock) || 0;
     const cost = Number(costPrice);
+
+    const rawOpeningLocations = Array.isArray(openingLocations)
+      ? openingLocations
+      : [];
+    const locationAccumulator = new Map<
+      string,
+      { locationId?: any; locationName?: string; quantity: number }
+    >();
+
+    for (const entry of rawOpeningLocations) {
+      const quantity = Number(entry?.quantity) || 0;
+      if (quantity <= 0) continue;
+
+      const key = entry.locationId
+        ? `id:${entry.locationId}`
+        : `name:${String(entry.locationName || entry.location || locationName || location || '').trim().toLowerCase()}`;
+
+      const existing = locationAccumulator.get(key);
+      if (existing) {
+        existing.quantity += quantity;
+      } else {
+        locationAccumulator.set(key, {
+          locationId: entry.locationId,
+          locationName: entry.locationName || entry.location,
+          quantity,
+        });
+      }
+    }
+
+    const openingStockEntries = Array.from(locationAccumulator.values());
+
+    if (openingStockEntries.length === 0 && Number(currentStock) > 0) {
+      openingStockEntries.push({
+        locationId,
+        locationName: locationName || location,
+        quantity: Number(currentStock) || 0,
+      });
+    }
+
+    const stockQty = openingStockEntries.reduce(
+      (sum, entry) => sum + (Number(entry.quantity) || 0),
+      0
+    );
 
     // ─────────────────────────────────────────────
     // CREATE PRODUCT
@@ -335,7 +404,6 @@ export async function POST(request: NextRequest) {
     const product = await Product.create({
       name,
       description,
-      location,
       category: categoryIdObj,
       sku: finalSKU,
       barcode,
@@ -360,26 +428,48 @@ export async function POST(request: NextRequest) {
       isActive: true,
     });
 
+    const openingLocationResults = [];
+    for (const entry of openingStockEntries) {
+      openingLocationResults.push({
+        quantity: Number(entry.quantity) || 0,
+        result: await adjustProductLocationStock({
+          product,
+          outletId: outletIdObj,
+          locationId: entry.locationId,
+          locationName: entry.locationName || locationName || location,
+          quantityDelta: Number(entry.quantity) || 0,
+          userId,
+        }),
+      });
+    }
+
     // ─────────────────── INVENTORY OPENING MOVEMENT ─────────────────
     if (stockQty > 0 && cost > 0) {
-      await InventoryMovement.create({
-        productId: product._id,
-        productName: name,
-        sku: finalSKU,
-        movementType: 'ADJUSTMENT',
-        quantity: stockQty,
-        unitCost: cost,
-        totalValue: stockQty * cost,
-        referenceType: 'ADJUSTMENT',
-        referenceId: product._id,
-        referenceNumber: `OPEN-${finalSKU}`,
-        outletId: outletIdObj,
-        balanceAfter: stockQty,
-        date: new Date(),
-        notes: 'Opening stock on product creation',
-        createdBy: userId,
-        ledgerEntriesCreated: true,
-      });
+      let runningBalance = 0;
+      await InventoryMovement.create(openingLocationResults.map(({ quantity, result }) => {
+        runningBalance += quantity;
+        return {
+          productId: product._id,
+          productName: name,
+          sku: finalSKU,
+          movementType: 'ADJUSTMENT',
+          quantity,
+          unitCost: cost,
+          totalValue: quantity * cost,
+          referenceType: 'ADJUSTMENT',
+          referenceId: product._id,
+          referenceNumber: `OPEN-${finalSKU}`,
+          locationId: result.location._id,
+          locationName: result.location.name,
+          locationBalanceAfter: result.newQuantity,
+          outletId: outletIdObj,
+          balanceAfter: runningBalance,
+          date: new Date(),
+          notes: 'Opening stock on product creation',
+          createdBy: userId,
+          ledgerEntriesCreated: true,
+        };
+      }));
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -446,9 +536,14 @@ export async function POST(request: NextRequest) {
       timestamp: new Date(),
     });
 
+    const [productWithLocation] = await attachLocationDataToProducts(
+      [product.toObject()],
+      outletIdObj
+    );
+
     return NextResponse.json(
       {
-        product,
+        product: productWithLocation,
         voucherId,
         inventoryPosted: stockQty > 0 && cost > 0,
         message: 'Product created successfully',

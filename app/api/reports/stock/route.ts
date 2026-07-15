@@ -4,6 +4,10 @@ import Product from '@/lib/models/ProductEnhanced';
 import Category from '@/lib/models/Category';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth/jwt';
+import {
+  attachLocationDataToProducts,
+  materializeLegacyLocationStocksForProducts,
+} from '@/lib/services/locationStockService';
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,12 +29,23 @@ export async function GET(request: NextRequest) {
       .populate('category', 'name')
       .lean();
     
+    await materializeLegacyLocationStocksForProducts(
+      products,
+      user.outletId,
+      user.userId
+    );
+
+    const productsWithLocations = await attachLocationDataToProducts(
+      products,
+      user.outletId
+    );
+
     let totalStockValue = 0;
     let lowStockItems = 0;
     let outOfStockItems = 0;
     let overStockItems = 0;
     
-    products.forEach((p: any) => {
+    productsWithLocations.forEach((p: any) => {
       const stockValue = (p.currentStock || 0) * (p.costPrice || 0);
       totalStockValue += stockValue;
       
@@ -45,11 +60,11 @@ export async function GET(request: NextRequest) {
       }
     });
     
-    const totalProducts = products.length;
+    const totalProducts = productsWithLocations.length;
     
     const stockByCategory: { [key: string]: { count: number; value: number; quantity: number } } = {};
     
-    products.forEach((product: any) => {
+    productsWithLocations.forEach((product: any) => {
       const categoryName = product.category?.name || 'Uncategorized';
       
       if (!stockByCategory[categoryName]) {
@@ -60,7 +75,7 @@ export async function GET(request: NextRequest) {
       stockByCategory[categoryName].quantity += (product.currentStock || 0);
     });
     
-    const deadStock = products.filter((p: any) => 
+    const deadStock = productsWithLocations.filter((p: any) =>
       p.maxStock && (p.currentStock || 0) > 0 && (p.currentStock || 0) >= p.maxStock
     );
     
@@ -73,7 +88,7 @@ export async function GET(request: NextRequest) {
         overStockItems,
         deadStockItems: deadStock.length,
       },
-      products,
+      products: productsWithLocations,
       stockByCategory,
       deadStock,
     });

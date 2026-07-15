@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
     // Get query parameters
     const { searchParams } = new URL(request.url);
     const productId = searchParams.get('productId');
+    const locationId = searchParams.get('locationId');
     const sku = searchParams.get('sku');
     const movementType = searchParams.get('movementType');
     const startDate = searchParams.get('startDate');
@@ -32,6 +33,7 @@ export async function GET(request: NextRequest) {
     };
     
     if (productId) query.productId = productId;
+    if (locationId) query.locationId = locationId;
     if (sku) query.sku = sku;
     if (movementType) query.movementType = movementType;
     if (startDate || endDate) {
@@ -100,6 +102,13 @@ export async function POST(request: NextRequest) {
       referenceNumber,
       voucherId,
       notes,
+      locationId,
+      locationName,
+      fromLocationId,
+      fromLocationName,
+      toLocationId,
+      toLocationName,
+      locationBalanceAfter,
     } = body;
     
     // Validation
@@ -131,6 +140,13 @@ export async function POST(request: NextRequest) {
       referenceType,
       referenceId,
       referenceNumber,
+      locationId,
+      locationName,
+      fromLocationId,
+      fromLocationName,
+      toLocationId,
+      toLocationName,
+      locationBalanceAfter,
       voucherId,
       ledgerEntriesCreated: !!voucherId,
       balanceAfter,

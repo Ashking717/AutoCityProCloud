@@ -4,6 +4,8 @@ export type AppearanceMode = "auto" | "light" | "dark";
 
 export const APPEARANCE_MODE_STORAGE_KEY = "autocity-appearance-mode";
 export const APPEARANCE_MODE_CHANGE_EVENT = "autocity-appearance-mode-change";
+const DEFAULT_APPEARANCE_MODE: AppearanceMode = "auto";
+const HYDRATION_SAFE_IS_DARK = true;
 
 export const APPEARANCE_MODES: Array<{
   key: AppearanceMode;
@@ -32,13 +34,13 @@ export function isAppearanceMode(value: string | null): value is AppearanceMode 
 }
 
 export function getStoredAppearanceMode(): AppearanceMode {
-  if (typeof window === "undefined") return "auto";
+  if (typeof window === "undefined") return DEFAULT_APPEARANCE_MODE;
 
   try {
     const value = window.localStorage.getItem(APPEARANCE_MODE_STORAGE_KEY);
-    return isAppearanceMode(value) ? value : "auto";
+    return isAppearanceMode(value) ? value : DEFAULT_APPEARANCE_MODE;
   } catch {
-    return "auto";
+    return DEFAULT_APPEARANCE_MODE;
   }
 }
 
@@ -54,8 +56,8 @@ export function resolveAppearanceIsDark(mode: AppearanceMode) {
 }
 
 export function useAppearanceMode() {
-  const [mode, setMode] = useState<AppearanceMode>(() => getStoredAppearanceMode());
-  const [isDark, setIsDark] = useState(() => resolveAppearanceIsDark(getStoredAppearanceMode()));
+  const [mode, setMode] = useState<AppearanceMode>(DEFAULT_APPEARANCE_MODE);
+  const [isDark, setIsDark] = useState(HYDRATION_SAFE_IS_DARK);
 
   useEffect(() => {
     const syncMode = () => {

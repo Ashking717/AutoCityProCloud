@@ -87,6 +87,13 @@ const vehicleColors = [
   "Forest Green",
 ];
 
+interface OpeningStockSplit {
+  id: string;
+  locationId: string;
+  locationName: string;
+  quantity: number;
+}
+
 export default function AddProductModal({
   show,
   onClose,
@@ -99,6 +106,13 @@ export default function AddProductModal({
   const [nameSuggestions, setNameSuggestions] = useState<string[]>([]);
   const [showNameSuggestions, setShowNameSuggestions] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
+  const [stockLocations, setStockLocations] = useState<any[]>([]);
+  const [selectedLocationId, setSelectedLocationId] = useState("");
+  const [showNewLocation, setShowNewLocation] = useState(false);
+  const [newLocationName, setNewLocationName] = useState("");
+  const [addingLocation, setAddingLocation] = useState(false);
+  const [selectedLocationQty, setSelectedLocationQty] = useState(0);
+  const [openingStockSplits, setOpeningStockSplits] = useState<OpeningStockSplit[]>([]);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const suggestionRefs = useRef<(HTMLDivElement | null)[]>([]);
 
@@ -133,6 +147,140 @@ export default function AddProductModal({
     }
   }, [highlightedIndex]);
 
+  useEffect(() => {
+    if (show) {
+      fetchStockLocations();
+    }
+  }, [show]);
+
+  useEffect(() => {
+    const totalOpeningStock =
+      (Number(selectedLocationQty) || 0) +
+      openingStockSplits.reduce(
+        (sum, split) => sum + (Number(split.quantity) || 0),
+        0
+      );
+
+    setFormData((prev) =>
+      prev.currentStock === totalOpeningStock
+        ? prev
+        : { ...prev, currentStock: totalOpeningStock }
+    );
+  }, [selectedLocationQty, openingStockSplits]);
+
+  const fetchStockLocations = async () => {
+    try {
+      const res = await fetch("/api/stock-locations", { credentials: "include" });
+      if (!res.ok) return;
+
+      const data = await res.json();
+      const locations = data.locations || [];
+      setStockLocations(locations);
+
+      if (!selectedLocationId && locations.length > 0) {
+        setSelectedLocationId(locations[0]._id);
+        setFormData((prev) => ({ ...prev, location: locations[0].name || "" }));
+      }
+    } catch (error) {
+      console.error("Failed to load stock locations:", error);
+    }
+  };
+
+  const handleLocationChange = (locationId: string) => {
+    const selectedLocation = stockLocations.find(
+      (location) => location._id === locationId
+    );
+
+    setSelectedLocationId(locationId);
+    setFormData({
+      ...formData,
+      location: selectedLocation?.name || "",
+    });
+  };
+
+  const handleAddLocation = async () => {
+    const name = newLocationName.trim();
+    if (!name) {
+      toast.error("Location name is required");
+      return;
+    }
+
+    setAddingLocation(true);
+    try {
+      const res = await fetch("/api/stock-locations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ name }),
+      });
+
+      if (!res.ok) {
+        toast.error((await res.json()).error || "Failed to add location");
+        return;
+      }
+
+      const data = await res.json();
+      const location = data.location;
+      setStockLocations((prev) => {
+        const exists = prev.some((item) => item._id === location._id);
+        return exists ? prev : [...prev, location].sort((a, b) => a.name.localeCompare(b.name));
+      });
+      setSelectedLocationId(location._id);
+      setFormData({ ...formData, location: location.name || name });
+      setNewLocationName("");
+      setShowNewLocation(false);
+      toast.success("Location added");
+    } catch {
+      toast.error("Failed to add location");
+    } finally {
+      setAddingLocation(false);
+    }
+  };
+
+  const addOpeningStockSplit = () => {
+    const defaultLocation =
+      stockLocations.find((location) => location._id !== selectedLocationId) ||
+      stockLocations[0];
+
+    setOpeningStockSplits([
+      ...openingStockSplits,
+      {
+        id: `${Date.now()}-${Math.random()}`,
+        locationId: defaultLocation?._id || "",
+        locationName: defaultLocation?.name || "",
+        quantity: 0,
+      },
+    ]);
+  };
+
+  const updateOpeningStockSplit = (
+    id: string,
+    field: "locationId" | "quantity",
+    value: string | number
+  ) => {
+    setOpeningStockSplits(openingStockSplits.map((split) => {
+      if (split.id !== id) return split;
+
+      if (field === "locationId") {
+        const location = stockLocations.find((item) => item._id === value);
+        return {
+          ...split,
+          locationId: String(value),
+          locationName: location?.name || "",
+        };
+      }
+
+      return {
+        ...split,
+        quantity: Number(value) || 0,
+      };
+    }));
+  };
+
+  const removeOpeningStockSplit = (id: string) => {
+    setOpeningStockSplits(openingStockSplits.filter((split) => split.id !== id));
+  };
+
   const fetchNameSuggestions = async (query: string) => {
     if (query.length < 1) {
       setNameSuggestions([]);
@@ -155,10 +303,11 @@ export default function AddProductModal({
   };
 
   const resetForm = () => {
+    const defaultLocation = stockLocations[0];
     setFormData({
       name: "",
       description: "",
-      location: "",
+      location: defaultLocation?.name || "",
       categoryId: "",
       barcode: "",
       unit: "pcs",
@@ -180,6 +329,11 @@ export default function AddProductModal({
     setNameSuggestions([]);
     setShowNameSuggestions(false);
     setHighlightedIndex(-1);
+    setSelectedLocationId(defaultLocation?._id || "");
+    setSelectedLocationQty(0);
+    setNewLocationName("");
+    setShowNewLocation(false);
+    setOpeningStockSplits([]);
   };
 
   const handleSubmit = async () => {
@@ -195,9 +349,33 @@ export default function AddProductModal({
       }
     }
 
+    const primaryOpeningQty = Number(selectedLocationQty) || 0;
+    const openingLocations = [
+      ...(primaryOpeningQty > 0
+        ? [{
+            locationId: selectedLocationId || undefined,
+            locationName: formData.location.trim() || undefined,
+            quantity: primaryOpeningQty,
+          }]
+        : []),
+      ...openingStockSplits
+        .filter((split) => (Number(split.quantity) || 0) > 0)
+        .map((split) => ({
+          locationId: split.locationId || undefined,
+          locationName: split.locationName || undefined,
+          quantity: Number(split.quantity) || 0,
+        })),
+    ];
+    const totalOpeningStock = openingLocations.reduce(
+      (sum, split) => sum + (Number(split.quantity) || 0),
+      0
+    );
+
     const productData: any = {
       name: formData.name,
       description: formData.description,
+      locationId: selectedLocationId || undefined,
+      locationName: formData.location.trim() || undefined,
       location: formData.location.trim(),
       categoryId: formData.categoryId || undefined,
       sku: nextSKU,
@@ -206,9 +384,10 @@ export default function AddProductModal({
       costPrice: parseFloat(formData.costPrice as any) || 0,
       sellingPrice: parseFloat(formData.sellingPrice as any) || 0,
       taxRate: parseFloat(formData.taxRate as any) || 0,
-      currentStock: parseFloat(formData.currentStock as any) || 0,
+      currentStock: totalOpeningStock,
       minStock: parseFloat(formData.minStock as any) || 0,
       maxStock: parseFloat(formData.maxStock as any) || 1000,
+      openingLocations,
     };
 
     if (isVehicle && formData.carMake) {
@@ -415,18 +594,146 @@ export default function AddProductModal({
 
             <div>
               <label htmlFor="add-product-location" className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                Location
+                Initial Stock Location
               </label>
-              <input
-                id="add-product-location"
-                type="text"
-                value={formData.location}
-                onChange={(e) =>
-                  setFormData({ ...formData, location: e.target.value })
-                }
-                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
-                placeholder="Shelf / rack / bin"
-              />
+              <div className="flex gap-2">
+                <select
+                  id="add-product-location"
+                  value={selectedLocationId}
+                  onChange={(e) => handleLocationChange(e.target.value)}
+                  className="flex-1 px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
+                >
+                  {stockLocations.length === 0 && (
+                    <option value="">Main Store</option>
+                  )}
+                  {stockLocations.map((location) => (
+                    <option
+                      key={location._id}
+                      value={location._id}
+                      className="text-[#050505]"
+                    >
+                      {location.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setShowNewLocation((value) => !value)}
+                  className="px-3 py-2 bg-[color:var(--autocity-accent-10)] border border-[color:var(--autocity-accent-30)] rounded-lg hover:bg-[color:var(--autocity-accent-20)] transition-colors text-white active:scale-95"
+                  title="Add Location"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
+              {showNewLocation && (
+                <div className="mt-2 flex gap-2">
+                  <input
+                    type="text"
+                    value={newLocationName}
+                    onChange={(e) => setNewLocationName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleAddLocation()}
+                    className="flex-1 px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
+                    placeholder="New location name"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddLocation}
+                    disabled={addingLocation}
+                    className="px-3 py-2 bg-[color:var(--autocity-accent)] rounded-lg text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50 active:scale-95 transition-all"
+                  >
+                    {addingLocation ? "Adding..." : "Add"}
+                  </button>
+                </div>
+              )}
+              <label className="block text-xs md:text-sm font-medium text-gray-300 mt-3 mb-1">
+                Opening Qty in This Location
+                <input
+                  type="number"
+                  value={selectedLocationQty}
+                  onChange={(e) =>
+                    setSelectedLocationQty(parseFloat(e.target.value) || 0)
+                  }
+                  min="0"
+                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
+                />
+              </label>
+              <p className="mt-1 text-[11px] text-gray-500">
+                This quantity is assigned to the selected location.
+              </p>
+              <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-300">
+                      Split opening stock
+                    </p>
+                    <p className="text-[11px] text-gray-500">
+                      Add more rows if stock starts in multiple locations.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={addOpeningStockSplit}
+                    className="px-2.5 py-1.5 text-xs rounded-lg bg-[color:var(--autocity-accent-10)] border border-[color:var(--autocity-accent-30)] text-white hover:bg-[color:var(--autocity-accent-20)] active:scale-95 transition-all"
+                  >
+                    Add Split
+                  </button>
+                </div>
+                {openingStockSplits.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {openingStockSplits.map((split) => (
+                      <div key={split.id} className="grid grid-cols-[1fr_90px_34px] gap-2">
+                        <select
+                          value={split.locationId}
+                          onChange={(e) =>
+                            updateOpeningStockSplit(split.id, "locationId", e.target.value)
+                          }
+                          className="px-2 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-xs focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
+                        >
+                          {stockLocations.length === 0 && (
+                            <option value="">Main Store</option>
+                          )}
+                          {stockLocations.map((location) => (
+                            <option
+                              key={location._id}
+                              value={location._id}
+                              className="text-[#050505]"
+                            >
+                              {location.name}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="number"
+                          min="0"
+                          value={split.quantity}
+                          onChange={(e) =>
+                            updateOpeningStockSplit(split.id, "quantity", e.target.value)
+                          }
+                          className="px-2 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-xs focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
+                          placeholder="Qty"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeOpeningStockSplit(split.id)}
+                          className="rounded-lg border border-red-500/20 bg-red-500/10 text-red-300 hover:bg-red-500/20 active:scale-95 transition-all flex items-center justify-center"
+                          title="Remove split"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="mt-3 text-[11px] text-gray-400">
+                  Total opening stock: {" "}
+                  <span className="font-semibold text-white">
+                    {(
+                      (Number(selectedLocationQty) || 0) +
+                      openingStockSplits.reduce((sum, split) => sum + (Number(split.quantity) || 0), 0)
+                    ).toFixed(2)}
+                  </span>
+                </p>
+              </div>
             </div>
 
             <div>
@@ -770,20 +1077,18 @@ export default function AddProductModal({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                Current Stock
+                Total Opening Stock
               <input
                 type="number"
                 value={formData.currentStock}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    currentStock: parseFloat(e.target.value),
-                  })
-                }
+                readOnly
                 min="0"
-                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
+                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base opacity-80 cursor-not-allowed"
               />
               </label>
+              <p className="mt-1 text-[11px] text-gray-500">
+                Auto-filled from the sum of all opening location quantities.
+              </p>
             </div>
             <div>
               <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">

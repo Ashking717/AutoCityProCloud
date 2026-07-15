@@ -3,6 +3,10 @@ import { Product, Sale } from "@/lib/models";
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { verifyToken } from "@/lib/auth/jwt";
+import {
+  attachLocationDataToProducts,
+  materializeLegacyLocationStocksForProducts,
+} from "@/lib/services/locationStockService";
 
 export async function GET(request: NextRequest) {
   try {
@@ -52,7 +56,7 @@ export async function GET(request: NextRequest) {
       _id: { $in: productIds },
       outletId: user.outletId 
     })
-      .select("name sku sellingPrice currentStock isVehicle carMake carModel taxRate vin")
+      .select("name sku sellingPrice currentStock location isVehicle carMake carModel taxRate vin")
       .lean();
 
     // ✅ Sort products by the order of topProducts (most sold first)
@@ -60,7 +64,18 @@ export async function GET(request: NextRequest) {
       .map(id => products.find((p:any) => p._id.toString() === id.toString()))
       .filter(Boolean);
 
-    return NextResponse.json({ products: sortedProducts });
+    await materializeLegacyLocationStocksForProducts(
+      sortedProducts,
+      user.outletId,
+      user.userId
+    );
+
+    const productsWithLocations = await attachLocationDataToProducts(
+      sortedProducts,
+      user.outletId
+    );
+
+    return NextResponse.json({ products: productsWithLocations });
   } catch (error) {
     console.error("Frequent products error:", error);
     return NextResponse.json(

@@ -7,6 +7,8 @@ export { default as Customer } from './Customer';
 export { default as Supplier } from './Supplier';
 export { default as Sale } from './Sale';
 export { default as Purchase } from './Purchase';
+export { default as StockLocation } from './StockLocation';
+export { default as ProductLocationStock } from './ProductLocationStock';
 export { default as Account } from './Account';
 export { default as Voucher } from './Voucher';
 
@@ -19,6 +21,8 @@ export type { ICustomer } from './Customer';
 export type { ISupplier } from './Supplier';
 export type { ISale, ISaleItem } from './Sale';
 export type { IPurchase, IPurchaseItem } from './Purchase';
+export type { IStockLocation } from './StockLocation';
+export type { IProductLocationStock } from './ProductLocationStock';
 export type { IAccount } from './Account';
 export type { IVoucher, IVoucherEntry } from './Voucher';
 

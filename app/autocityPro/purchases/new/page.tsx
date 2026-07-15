@@ -35,6 +35,13 @@ interface CartItem {
   productId: string;
   productName: string;
   sku: string;
+  locationId?: string;
+  locationName?: string;
+  availableLocations?: Array<{
+    locationId: string;
+    locationName: string;
+    quantity: number;
+  }>;
   unit: string;
   quantity: number;
   unitPrice: number;
@@ -317,11 +324,18 @@ export default function NewPurchasePage() {
       const qty = parsed.quantity;
       const taxRate = parsed.taxRate || 0;
       const taxAmount = (price * qty * taxRate) / 100;
+      const availableLocations = matched?.locations || [];
+      const defaultLocation =
+        availableLocations.find((location: any) => (location.quantity || 0) > 0) ||
+        availableLocations[0];
 
       return {
         productId,
         productName: matched?.name || parsed.name,
         sku: matched?.sku || parsed.sku || "OCR",
+        locationId: defaultLocation?.locationId,
+        locationName: defaultLocation?.locationName || matched?.location,
+        availableLocations,
         unit: parsed.unit || matched?.unit || "pcs",
         quantity: qty,
         unitPrice: price,
@@ -364,7 +378,24 @@ export default function NewPurchasePage() {
       updateCartItem(existing.productId, "quantity", existing.quantity + 1);
     } else {
       const price = product.costPrice || product.sellingPrice || 0;
-      setCart([...cart, { productId: product._id, productName: product.name, sku: product.sku, unit: product.unit || "pcs", quantity: 1, unitPrice: price, taxRate: 0, taxAmount: 0, total: price }]);
+      const availableLocations = product.locations || [];
+      const defaultLocation =
+        availableLocations.find((location: any) => (location.quantity || 0) > 0) ||
+        availableLocations[0];
+      setCart([...cart, {
+        productId: product._id,
+        productName: product.name,
+        sku: product.sku,
+        locationId: defaultLocation?.locationId,
+        locationName: defaultLocation?.locationName || product.location,
+        availableLocations,
+        unit: product.unit || "pcs",
+        quantity: 1,
+        unitPrice: price,
+        taxRate: 0,
+        taxAmount: 0,
+        total: price,
+      }]);
     }
     toast.success("Added to cart");
     setSearchTerm("");
@@ -380,6 +411,20 @@ export default function NewPurchasePage() {
       updated.taxAmount = (subtotal * updated.taxRate) / 100;
       updated.total = subtotal + updated.taxAmount;
       return updated;
+    }));
+  };
+
+  const updateCartLocation = (productId: string, locationId: string) => {
+    setCart(cart.map(item => {
+      if (item.productId !== productId) return item;
+      const selectedLocation = item.availableLocations?.find(
+        location => location.locationId === locationId
+      );
+      return {
+        ...item,
+        locationId: selectedLocation?.locationId,
+        locationName: selectedLocation?.locationName,
+      };
     }));
   };
 
@@ -411,7 +456,17 @@ export default function NewPurchasePage() {
         credentials: "include",
         body: JSON.stringify({
           supplierId: selectedSupplier._id, supplierName: selectedSupplier.name,
-          items: cart.map(i => ({ productId: i.productId, name: i.productName, sku: i.sku, quantity: i.quantity, unit: i.unit, unitPrice: i.unitPrice, taxRate: i.taxRate })),
+          items: cart.map(i => ({
+            productId: i.productId,
+            name: i.productName,
+            sku: i.sku,
+            locationId: i.locationId,
+            locationName: i.locationName,
+            quantity: i.quantity,
+            unit: i.unit,
+            unitPrice: i.unitPrice,
+            taxRate: i.taxRate,
+          })),
           paymentMethod: getEffectivePaymentMethod(), amountPaid, notes: "",
         }),
       });
@@ -601,7 +656,14 @@ export default function NewPurchasePage() {
                             </div>
                             <div className="flex items-center justify-between pt-2 mt-2 border-t" style={{ borderColor: th.divider }}>
                               <span className="text-[color:var(--autocity-accent)] font-bold">{formatCurrency(product.costPrice || product.sellingPrice)}</span>
-                              <span className="text-xs" style={{ color: th.textMuted }}>Stock: {product.currentStock}</span>
+                              <div className="text-right">
+                                <span className="text-xs" style={{ color: th.textMuted }}>Stock: {product.currentStock}</span>
+                                {product.location && (
+                                  <p className="text-[10px] max-w-32 truncate" style={{ color: th.textMuted }}>
+                                    {product.location}
+                                  </p>
+                                )}
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -643,6 +705,26 @@ export default function NewPurchasePage() {
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold truncate" style={{ color: th.textPrimary }}>{item.productName}</h3>
                             <p className="text-xs mt-1" style={{ color: th.textSecondary }}>SKU: {item.sku}</p>
+                            {item.availableLocations && item.availableLocations.length > 1 ? (
+                              <select
+                                value={item.locationId || ""}
+                                onChange={e => updateCartLocation(item.productId, e.target.value)}
+                                className={`mt-2 px-2 py-1 rounded-lg text-xs ${inputClass}`}
+                                style={inputStyle}
+                              >
+                                {item.availableLocations.map(location => (
+                                  <option key={location.locationId} value={location.locationId}>
+                                    {location.locationName} ({location.quantity})
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              item.locationName && (
+                                <p className="text-xs mt-1" style={{ color: th.textSecondary }}>
+                                  Location: {item.locationName}
+                                </p>
+                              )
+                            )}
                           </div>
                           <button onClick={() => removeFromCart(index)} className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all ml-2">
                             <Trash2 className="h-4 w-4" />
@@ -866,6 +948,26 @@ export default function NewPurchasePage() {
                         <div className="flex-1 min-w-0 pr-2">
                           <h3 className="font-semibold truncate" style={{ color: th.textPrimary }}>{item.productName}</h3>
                           <p className="text-xs mt-1" style={{ color: th.textSecondary }}>SKU: {item.sku}</p>
+                          {item.availableLocations && item.availableLocations.length > 1 ? (
+                            <select
+                              value={item.locationId || ""}
+                              onChange={e => updateCartLocation(item.productId, e.target.value)}
+                              className={`mt-2 px-2 py-1 rounded-lg text-xs ${inputClass}`}
+                              style={inputStyle}
+                            >
+                              {item.availableLocations.map(location => (
+                                <option key={location.locationId} value={location.locationId}>
+                                  {location.locationName} ({location.quantity})
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            item.locationName && (
+                              <p className="text-xs mt-1" style={{ color: th.textSecondary }}>
+                                Location: {item.locationName}
+                              </p>
+                            )
+                          )}
                         </div>
                         <button onClick={() => removeFromCart(index)} className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 active:scale-95 transition-all flex-shrink-0">
                           <Trash2 className="h-4 w-4" />

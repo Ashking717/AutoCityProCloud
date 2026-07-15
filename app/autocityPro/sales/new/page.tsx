@@ -194,6 +194,13 @@ interface CartItem {
   productId?: string;
   productName: string;
   sku: string;
+  locationId?: string;
+  locationName?: string;
+  availableLocations?: Array<{
+    locationId: string;
+    locationName: string;
+    quantity: number;
+  }>;
   isVehicle: boolean;
   isLabor?: boolean;
   unit: string;
@@ -571,10 +578,17 @@ export default function NewSalePage() {
     if (existing) {
       updateCartItem(existing.productId!, "quantity", existing.quantity + 1);
     } else {
+      const availableLocations = product.locations || [];
+      const defaultLocation =
+        availableLocations.find((location: any) => (location.quantity || 0) > 0) ||
+        availableLocations[0];
       setCart([...cart, {
         productId: product._id,
         productName: product.name,
         sku: product.sku,
+        locationId: defaultLocation?.locationId || undefined,
+        locationName: defaultLocation?.locationName || product.location || undefined,
+        availableLocations,
         isVehicle: product.isVehicle || false,
         isLabor: false,
         unit: product.unit || "pcs",
@@ -614,6 +628,20 @@ export default function NewSalePage() {
       updated.total = updated.subtotal * (1 + updated.taxRate / 100);
       updated.profit = (updated.sellingPrice - updated.costPrice) * updated.quantity - discountAmount;
       return updated;
+    }));
+  };
+
+  const updateCartLocation = (productId: string, locationId: string) => {
+    setCart(cart.map((item) => {
+      if (item.productId !== productId) return item;
+      const selectedLocation = item.availableLocations?.find(
+        (location) => location.locationId === locationId
+      );
+      return {
+        ...item,
+        locationId: selectedLocation?.locationId || undefined,
+        locationName: selectedLocation?.locationName || undefined,
+      };
     }));
   };
 
@@ -661,6 +689,8 @@ export default function NewSalePage() {
         quantity: item.quantity,
         unit: item.unit || "pcs",
         unitPrice: item.sellingPrice,
+        locationId: item.locationId,
+        locationName: item.locationName,
         taxRate: item.taxRate,
         discount: discountPercentage,
         discountAmount,
@@ -980,6 +1010,11 @@ export default function NewSalePage() {
                             <div className="text-right ml-2">
                               <p className="font-bold text-sm text-[color:var(--autocity-accent)]">QAR {product.sellingPrice}</p>
                               <p className="text-xs" style={{ color: th.productItemStock }}>Stock: {product.currentStock}</p>
+                              {product.location && (
+                                <p className="text-[10px] max-w-24 truncate" style={{ color: th.productItemStock }}>
+                                  {product.location}
+                                </p>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1202,6 +1237,11 @@ export default function NewSalePage() {
                                 <div className="text-right ml-3 flex-shrink-0">
                                   <p className="font-bold text-[color:var(--autocity-accent)] whitespace-nowrap">QAR {product.sellingPrice}</p>
                                   <p className="text-xs" style={{ color: th.productItemStock }}>Stock: {product.currentStock}</p>
+                                  {product.location && (
+                                    <p className="text-[10px] max-w-32 truncate" style={{ color: th.productItemStock }}>
+                                      {product.location}
+                                    </p>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -1240,6 +1280,26 @@ export default function NewSalePage() {
                                 </p>
                               )}
                               <p className="text-xs mt-1" style={{ color: th.cartItemSku }}>SKU: {item.sku}</p>
+                              {!item.isLabor && item.availableLocations && item.availableLocations.length > 1 ? (
+                                <select
+                                  value={item.locationId || ""}
+                                  onChange={(e) => updateCartLocation(item.productId!, e.target.value)}
+                                  className="mt-2 px-2 py-1 rounded text-xs focus:ring-1 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
+                                  style={inputStyle}
+                                >
+                                  {item.availableLocations.map((location) => (
+                                    <option key={location.locationId} value={location.locationId} style={{ background: selectOptBg }}>
+                                      {location.locationName} ({location.quantity})
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : (
+                                item.locationName && (
+                                  <p className="text-xs mt-1" style={{ color: th.cartItemMeta }}>
+                                    Location: {item.locationName}
+                                  </p>
+                                )
+                              )}
                             </div>
                             <button onClick={() => removeFromCart(index)} className="text-[color:var(--autocity-accent)] hover:text-[color:var(--autocity-accent-strong)] transition-colors">
                               <Trash2 className="h-5 w-5" />

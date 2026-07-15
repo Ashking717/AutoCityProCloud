@@ -13,6 +13,11 @@ import InventoryMovement from "@/lib/models/InventoryMovement";
 
 import { postPurchaseToLedger } from "@/lib/services/accountingService";
 import { updateWeightedAverageCost } from "@/lib/services/inventoryService";
+import {
+  adjustProductLocationStock,
+  ensureProductHasLocationStock,
+  getOrCreateStockLocation,
+} from "@/lib/services/locationStockService";
 import { verifyToken } from "@/lib/auth/jwt";
 import { connectDB } from "@/lib/db/mongodb";
 
@@ -129,6 +134,12 @@ export async function POST(request: NextRequest) {
       const quantity = Number(item.quantity) || 1;
       const unitPrice = Number(item.unitPrice) || 0;
       const taxRate = Number(item.taxRate) || 0;
+      const stockLocation = await getOrCreateStockLocation({
+        outletId,
+        locationId: item.locationId,
+        name: item.locationName || item.location,
+        createdBy: userId,
+      });
 
       const itemSubtotal = unitPrice * quantity;
       const taxAmount = (itemSubtotal * taxRate) / 100;
@@ -141,6 +152,8 @@ export async function POST(request: NextRequest) {
         productId: product._id,
         name: item.name || product.name,
         sku: item.sku || product.sku,
+        locationId: stockLocation._id,
+        locationName: stockLocation.name,
         quantity,
         unit: item.unit || product.unit || "pcs",
         unitPrice,
@@ -189,6 +202,17 @@ export async function POST(request: NextRequest) {
         const productId = new mongoose.Types.ObjectId(item.productId);
         const purchaseQty = Number(item.quantity);
         const purchasePrice = Number(item.unitPrice);
+        const productBeforePurchase = await Product.findById(productId);
+
+        if (!productBeforePurchase) {
+          throw new Error(`Product not found: ${productId}`);
+        }
+
+        await ensureProductHasLocationStock(
+          productBeforePurchase,
+          outletId,
+          userId
+        );
 
         // 1️⃣ Update weighted average COST only
         const result = await updateWeightedAverageCost(
@@ -203,8 +227,23 @@ export async function POST(request: NextRequest) {
           .findOne({ productId, outletId })
           .sort({ date: -1 });
 
-        const previousBalance = lastMovement?.balanceAfter || 0;
+        const previousBalance = lastMovement
+          ? Number(lastMovement.balanceAfter || 0)
+          : Number(productBeforePurchase.currentStock || 0);
         const newBalance = previousBalance + purchaseQty;
+
+        const locationStock = await adjustProductLocationStock({
+          product: {
+            _id: productId,
+            name: item.name,
+            sku: item.sku,
+          },
+          outletId,
+          locationId: item.locationId,
+          locationName: item.locationName,
+          quantityDelta: purchaseQty,
+          userId,
+        });
 
         // 3️⃣ Create inventory movement (SOURCE OF TRUTH)
         await InventoryMovement.create({
@@ -220,6 +259,9 @@ export async function POST(request: NextRequest) {
           referenceType: 'PURCHASE',
           referenceId: purchase._id,
           referenceNumber: purchase.purchaseNumber,
+          locationId: locationStock.location._id,
+          locationName: locationStock.location.name,
+          locationBalanceAfter: locationStock.newQuantity,
 
           outletId,
           balanceAfter: newBalance,
@@ -338,4 +380,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

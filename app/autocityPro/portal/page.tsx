@@ -92,12 +92,23 @@ export default function PurchasesPortalPage() {
   const [recentCategories,    setRecentCategories]    = useState<any[]>([]);
   const [topSuppliers,        setTopSuppliers]        = useState<any[]>([]);
   const [recentTransactions,  setRecentTransactions]  = useState<any[]>([]);
+  const [transferProducts,    setTransferProducts]    = useState<any[]>([]);
+  const [stockLocations,      setStockLocations]      = useState<any[]>([]);
   const [searchTerm,          setSearchTerm]          = useState("");
   const [showFilters,         setShowFilters]         = useState(false);
   const [filterType,          setFilterType]          = useState<string>("all");
   const [isMobile,            setIsMobile]            = useState(false);
   const [showMobileMenu,      setShowMobileMenu]      = useState(false);
   const [showDynamicIsland,   setShowDynamicIsland]   = useState(true);
+  const [transferLoading,     setTransferLoading]     = useState(false);
+  const [newLocationName,     setNewLocationName]     = useState("");
+  const [transferForm,        setTransferForm]        = useState({
+    productId: "",
+    fromLocationId: "",
+    toLocationId: "",
+    quantity: 1,
+    notes: "",
+  });
 
   // ── Theme tokens ──────────────────────────────────────────────────────────
   const th = {
@@ -195,7 +206,7 @@ export default function PurchasesPortalPage() {
   };
 
   useEffect(() => {
-    fetchUser(); fetchStats(); fetchRecentCategories(); fetchTopSuppliers(); fetchRecentTransactions();
+    fetchUser(); fetchStats(); fetchRecentCategories(); fetchTopSuppliers(); fetchRecentTransactions(); fetchTransferData();
     const check = () => setIsMobile(window.innerWidth < 768);
     check();
     window.addEventListener('resize', check);
@@ -275,6 +286,94 @@ export default function PurchasesPortalPage() {
     } catch {}
   };
 
+  const fetchTransferData = async () => {
+    try {
+      const [productsRes, locationsRes] = await Promise.all([
+        fetch("/api/products?searchMode=true", { credentials: "include" }),
+        fetch("/api/stock-locations", { credentials: "include" }),
+      ]);
+      if (productsRes.ok) setTransferProducts((await productsRes.json()).products || []);
+      if (locationsRes.ok) setStockLocations((await locationsRes.json()).locations || []);
+    } catch {}
+  };
+
+  const handleTransferProductChange = (productId: string) => {
+    const product = transferProducts.find((item) => item._id === productId);
+    const productLocations = (product?.locations || []).filter((location: any) => location.locationId);
+    const firstFrom = productLocations[0]?.locationId || "";
+    const firstTo = stockLocations.find((location) => String(location._id) !== String(firstFrom))?._id || "";
+
+    setTransferForm({
+      productId,
+      fromLocationId: firstFrom,
+      toLocationId: firstTo,
+      quantity: 1,
+      notes: "",
+    });
+  };
+
+  const createStockLocation = async () => {
+    const name = newLocationName.trim();
+    if (!name) { toast.error("Location name is required"); return; }
+
+    try {
+      const res = await fetch("/api/stock-locations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) {
+        toast.error((await res.json()).error || "Failed to create location");
+        return;
+      }
+      toast.success("Location created");
+      setNewLocationName("");
+      await fetchTransferData();
+    } catch {
+      toast.error("Failed to create location");
+    }
+  };
+
+  const handleTransferStock = async () => {
+    if (!transferForm.productId || !transferForm.fromLocationId || !transferForm.toLocationId) {
+      toast.error("Select product, from location, and to location");
+      return;
+    }
+    if (transferForm.fromLocationId === transferForm.toLocationId) {
+      toast.error("From and to locations must be different");
+      return;
+    }
+    if (!transferForm.quantity || transferForm.quantity <= 0) {
+      toast.error("Enter a valid quantity");
+      return;
+    }
+
+    setTransferLoading(true);
+    try {
+      const res = await fetch("/api/stock-locations/transfer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(transferForm),
+      });
+
+      if (!res.ok) {
+        toast.error((await res.json()).error || "Failed to transfer stock");
+        return;
+      }
+
+      const data = await res.json();
+      toast.success(`Transfer saved: ${data.referenceNumber}`);
+      setTransferForm({ productId: "", fromLocationId: "", toLocationId: "", quantity: 1, notes: "" });
+      await fetchTransferData();
+    } catch {
+      toast.error("Failed to transfer stock");
+    } finally {
+      setTransferLoading(false);
+    }
+  };
+
   const formatCurrency       = (n: number) => new Intl.NumberFormat('en-QA', { style: 'currency', currency: 'QAR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
   const formatCompactCurrency = (n: number) => n >= 1_000_000 ? `QR${(n / 1_000_000).toFixed(1)}M` : n >= 10_000 ? `QR${(n / 1_000).toFixed(1)}K` : formatCurrency(n);
 
@@ -306,6 +405,15 @@ export default function PurchasesPortalPage() {
     window.location.href = '/autocityPro/login';
   };
 
+  const selectedTransferProduct = transferProducts.find(
+    (product) => product._id === transferForm.productId
+  );
+  const selectedProductLocations = (selectedTransferProduct?.locations || []).filter(
+    (location: any) => location.locationId
+  );
+  const selectedFromLocation = selectedProductLocations.find(
+    (location: any) => location.locationId === transferForm.fromLocationId
+  );
 
   return (
     <MainLayout user={user} onLogout={handleLogout}>
@@ -556,6 +664,141 @@ export default function PurchasesPortalPage() {
                   </div>
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Stock Transfer */}
+          <div className="mb-6 md:mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg md:text-xl font-bold" style={{ color: th.sectionTitle }}>Transfer Stock Between Locations</h2>
+                <p className="text-xs md:text-sm mt-1" style={{ color: th.sectionSub }}>
+                  Move quantity from one shelf, store, or warehouse to another without changing total stock.
+                </p>
+              </div>
+              <Package className="h-6 w-6 text-[color:var(--autocity-accent)]" />
+            </div>
+
+            <div className="rounded-2xl shadow-xl p-4 md:p-5 transition-colors duration-500"
+              style={{ background: `linear-gradient(135deg,${th.actionCardBgFrom},${th.actionCardBgTo})`, border: `1px solid ${th.actionCardBorder}` }}>
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
+                <div className="lg:col-span-2">
+                  <label htmlFor="transfer-product" className="block text-xs font-medium mb-1" style={{ color: th.filterLabel }}>Product</label>
+                  <select
+                    id="transfer-product"
+                    value={transferForm.productId}
+                    onChange={(e) => handleTransferProductChange(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm transition-colors duration-500"
+                    style={{ background: th.selectBg, border: `1px solid ${th.selectBorder}`, color: th.selectText }}
+                  >
+                    <option value="">Select product</option>
+                    {transferProducts.map((product) => (
+                      <option key={product._id} value={product._id}>
+                        {product.name} - {product.sku} ({product.currentStock || 0})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="transfer-from" className="block text-xs font-medium mb-1" style={{ color: th.filterLabel }}>From</label>
+                  <select
+                    id="transfer-from"
+                    value={transferForm.fromLocationId}
+                    onChange={(e) => {
+                      const nextFrom = e.target.value;
+                      const nextTo = transferForm.toLocationId === nextFrom
+                        ? stockLocations.find((location) => String(location._id) !== String(nextFrom))?._id || ""
+                        : transferForm.toLocationId;
+                      setTransferForm({ ...transferForm, fromLocationId: nextFrom, toLocationId: nextTo });
+                    }}
+                    className="w-full px-3 py-2 rounded-lg text-sm transition-colors duration-500"
+                    style={{ background: th.selectBg, border: `1px solid ${th.selectBorder}`, color: th.selectText }}
+                    disabled={!selectedTransferProduct}
+                  >
+                    <option value="">Select source</option>
+                    {selectedProductLocations.map((location: any) => (
+                      <option key={location.locationId} value={location.locationId}>
+                        {location.locationName} ({location.quantity})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="transfer-to" className="block text-xs font-medium mb-1" style={{ color: th.filterLabel }}>To</label>
+                  <select
+                    id="transfer-to"
+                    value={transferForm.toLocationId}
+                    onChange={(e) => setTransferForm({ ...transferForm, toLocationId: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg text-sm transition-colors duration-500"
+                    style={{ background: th.selectBg, border: `1px solid ${th.selectBorder}`, color: th.selectText }}
+                  >
+                    <option value="">Select destination</option>
+                    {stockLocations
+                      .filter((location) => String(location._id) !== String(transferForm.fromLocationId))
+                      .map((location) => (
+                        <option key={location._id} value={location._id}>
+                          {location.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="transfer-quantity" className="block text-xs font-medium mb-1" style={{ color: th.filterLabel }}>
+                    Qty{selectedFromLocation ? ` / ${selectedFromLocation.quantity}` : ""}
+                  </label>
+                  <input
+                    id="transfer-quantity"
+                    type="number"
+                    min={1}
+                    max={selectedFromLocation?.quantity || undefined}
+                    value={transferForm.quantity}
+                    onChange={(e) => setTransferForm({ ...transferForm, quantity: parseFloat(e.target.value) || 1 })}
+                    className="w-full px-3 py-2 rounded-lg text-sm transition-colors duration-500"
+                    style={{ background: th.selectBg, border: `1px solid ${th.selectBorder}`, color: th.selectText }}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 mt-3">
+                <input
+                  type="text"
+                  value={transferForm.notes}
+                  onChange={(e) => setTransferForm({ ...transferForm, notes: e.target.value })}
+                  placeholder="Optional transfer note"
+                  className="lg:col-span-3 px-3 py-2 rounded-lg text-sm transition-colors duration-500"
+                  style={{ background: th.selectBg, border: `1px solid ${th.selectBorder}`, color: th.selectText }}
+                />
+                <button
+                  onClick={handleTransferStock}
+                  disabled={transferLoading}
+                  className="lg:col-span-2 px-4 py-2 rounded-lg text-white font-semibold active:scale-95 transition-all disabled:opacity-50"
+                  style={{ background: 'linear-gradient(135deg,var(--autocity-accent),var(--autocity-accent-strong))' }}
+                >
+                  {transferLoading ? 'Transferring...' : 'Transfer Stock'}
+                </button>
+              </div>
+
+              <div className="mt-4 pt-4 flex flex-col md:flex-row gap-3" style={{ borderTop: `1px solid ${th.tableDivider}` }}>
+                <input
+                  type="text"
+                  value={newLocationName}
+                  onChange={(e) => setNewLocationName(e.target.value)}
+                  placeholder="Create new location, e.g. Rack A / Warehouse 2"
+                  className="flex-1 px-3 py-2 rounded-lg text-sm transition-colors duration-500"
+                  style={{ background: th.selectBg, border: `1px solid ${th.selectBorder}`, color: th.selectText }}
+                  onKeyDown={(e) => e.key === 'Enter' && createStockLocation()}
+                />
+                <button
+                  onClick={createStockLocation}
+                  className="px-4 py-2 rounded-lg active:scale-95 transition-all text-[color:var(--autocity-accent)]"
+                  style={{ background: th.clearBtnBg, border: `1px solid ${th.clearBtnBorder}` }}
+                >
+                  Add Location
+                </button>
+              </div>
             </div>
           </div>
 

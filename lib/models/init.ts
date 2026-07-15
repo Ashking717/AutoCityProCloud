@@ -9,6 +9,8 @@ import Customer from './Customer';
 import Supplier from './Supplier';
 import Sale from './Sale';
 import Purchase from './Purchase';
+import StockLocation from './StockLocation';
+import ProductLocationStock from './ProductLocationStock';
 import Account from './Account';
 import Voucher from './Voucher';
 
@@ -22,6 +24,8 @@ export {
   Supplier,
   Sale,
   Purchase,
+  StockLocation,
+  ProductLocationStock,
   Account,
   Voucher,
 };
@@ -38,6 +42,8 @@ export function initializeModels() {
     Supplier,
     Sale,
     Purchase,
+    StockLocation,
+    ProductLocationStock,
     Account,
     Voucher,
   };

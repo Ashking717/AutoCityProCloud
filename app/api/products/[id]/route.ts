@@ -6,6 +6,14 @@ import ActivityLog from '@/lib/models/ActivityLog';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth/jwt';
 import { handleStockEdit, handleStockEditWithDifferenceOnly } from '@/lib/services/StockAdjustmentHandler';
+import {
+  applyProductLocationStockDelta,
+  attachLocationDataToProducts,
+  ensureProductHasLocationStock,
+  materializeLegacyLocationStocksForProducts,
+  moveSingleLocationProductStock,
+  replaceProductLocationStocks,
+} from '@/lib/services/locationStockService';
 import mongoose  from 'mongoose';
 
 // GET /api/products/[id]
@@ -28,13 +36,24 @@ export async function GET(
     const product = await Product.findOne({
       _id: params.id,
       outletId: user.outletId,
-    }).populate('category', 'name');
+    }).populate('category', 'name').lean();
     
     if (!product) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
     
-    return NextResponse.json({ product });
+    await materializeLegacyLocationStocksForProducts(
+      [product],
+      user.outletId,
+      user.userId
+    );
+
+    const [productWithLocations] = await attachLocationDataToProducts(
+      [product],
+      user.outletId
+    );
+
+    return NextResponse.json({ product: productWithLocations });
   } catch (error: any) {
     console.error('Error fetching product:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -108,6 +127,12 @@ export async function PUT(
     if (!existingProduct) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
+
+    await materializeLegacyLocationStocksForProducts(
+      [existingProduct.toObject()],
+      user.outletId || existingProduct.outletId,
+      user.userId
+    );
     
     // Handle both nested and flat structure
     const updateData: any = {};
@@ -115,7 +140,6 @@ export async function PUT(
     // Basic fields
     if (body.name) updateData.name = body.name;
     if (body.description !== undefined) updateData.description = body.description;
-    if (body.location !== undefined) updateData.location = body.location;
     if (body.categoryId) updateData.category = body.categoryId;
     if (body.category && typeof body.category === 'string') updateData.category = body.category;
     if (body.sku) updateData.sku = body.sku;
@@ -177,6 +201,20 @@ export async function PUT(
     let stockChanged = false;
     let oldStock = existingProduct.currentStock || 0;
     let newStock = oldStock;
+    const shouldReplaceLocationSplits = Boolean(
+      body.replaceLocationSplits && Array.isArray(body.locationSplits)
+    );
+    const requestedLocationSplits = shouldReplaceLocationSplits
+      ? body.locationSplits.map((split: any) => ({
+          locationId: split.locationId,
+          locationName: split.locationName,
+          quantity: Number(split.quantity) || 0,
+        }))
+      : [];
+    const requestedSplitTotal = requestedLocationSplits.reduce(
+      (sum: number, split: any) => sum + (Number(split.quantity) || 0),
+      0
+    );
     
     // Stock fields (nested or flat)
     if (body.stock) {
@@ -195,6 +233,12 @@ export async function PUT(
       }
       if (body.minStock !== undefined) updateData.minStock = body.minStock;
       if (body.maxStock !== undefined) updateData.maxStock = body.maxStock;
+    }
+
+    if (shouldReplaceLocationSplits) {
+      newStock = requestedSplitTotal;
+      updateData.currentStock = newStock;
+      stockChanged = newStock !== oldStock;
     }
     
     // Validate required fields
@@ -242,12 +286,42 @@ export async function PUT(
     
     // 🔥 HANDLE STOCK ADJUSTMENTS
     let stockAdjustmentResult = null;
+    let locationMoveResult: any = null;
+    let locationSplitResult: any = null;
+    const shouldMoveSingleLocationStock = Boolean(
+      !shouldReplaceLocationSplits &&
+      body.moveSingleLocationStock &&
+      (body.locationId || body.locationName || body.location)
+    );
     
     if (stockChanged) {
       console.log(`\n🔄 Stock change detected for ${product.name} (${product.sku})`);
       console.log(`   Old stock: ${oldStock} → New stock: ${newStock}`);
       
       try {
+        const selectedLocationName = body.locationName || body.location;
+
+        if (shouldReplaceLocationSplits) {
+          locationSplitResult = await replaceProductLocationStocks({
+            product: product.toObject(),
+            outletId: user.outletId || product.outletId,
+            splits: requestedLocationSplits,
+            userId: new mongoose.Types.ObjectId(user.userId),
+          });
+        } else if (shouldMoveSingleLocationStock) {
+          locationMoveResult = await moveSingleLocationProductStock({
+            product: {
+              ...product.toObject(),
+              currentStock: oldStock,
+              location: selectedLocationName || existingProduct.location || product.location,
+            },
+            outletId: user.outletId || product.outletId,
+            toLocationId: body.locationId,
+            toLocationName: selectedLocationName,
+            userId: new mongoose.Types.ObjectId(user.userId),
+          });
+        }
+
         // Choose one of the two methods:
         
         // METHOD 1: Reverse original entry and create new one (keeps clean history)
@@ -262,6 +336,21 @@ export async function PUT(
           userId: new mongoose.Types.ObjectId(user.userId),
           reason: body.adjustmentReason || 'Stock correction via product edit',
         });
+
+        if (!shouldReplaceLocationSplits) {
+          await applyProductLocationStockDelta({
+            product: {
+              ...product.toObject(),
+              currentStock: oldStock,
+              location: selectedLocationName || existingProduct.location || product.location,
+            },
+            outletId: user.outletId || product.outletId,
+            locationId: body.locationId,
+            locationName: selectedLocationName,
+            quantityDelta: newStock - oldStock,
+            userId: new mongoose.Types.ObjectId(user.userId),
+          });
+        }
         
         // METHOD 2: Just create adjustment for the difference (simpler, shows all adjustments)
         // Uncomment this and comment out METHOD 1 if you prefer this approach
@@ -289,6 +378,48 @@ export async function PUT(
           error: adjustmentError instanceof Error ? adjustmentError.message : 'Unknown error',
         }, { status: 207 }); // 207 Multi-Status
       }
+    } else if (shouldReplaceLocationSplits) {
+      locationSplitResult = await replaceProductLocationStocks({
+        product: product.toObject(),
+        outletId: user.outletId || product.outletId,
+        splits: requestedLocationSplits,
+        userId: new mongoose.Types.ObjectId(user.userId),
+      });
+    } else if (shouldMoveSingleLocationStock) {
+      const selectedLocationName = body.locationName || body.location;
+
+      locationMoveResult = await moveSingleLocationProductStock({
+        product: {
+          ...product.toObject(),
+          location: selectedLocationName || existingProduct.location || product.location,
+        },
+        outletId: user.outletId || product.outletId,
+        toLocationId: body.locationId,
+        toLocationName: selectedLocationName,
+        userId: new mongoose.Types.ObjectId(user.userId),
+      });
+    } else if (body.locationId || body.locationName || body.location) {
+      const selectedLocationName = body.locationName || body.location;
+
+      await ensureProductHasLocationStock(
+        {
+          ...product.toObject(),
+          location: selectedLocationName || existingProduct.location || product.location,
+        },
+        user.outletId || product.outletId,
+        new mongoose.Types.ObjectId(user.userId)
+      );
+    }
+
+    const updatedLocationName =
+      locationSplitResult?.primaryLocationName ||
+      locationMoveResult?.location?.name;
+
+    if (updatedLocationName) {
+      product.set('location', updatedLocationName);
+      await Product.findByIdAndUpdate(product._id, {
+        $set: { location: updatedLocationName },
+      });
     }
     
     // Create activity log
@@ -304,6 +435,14 @@ export async function PUT(
     
     if (stockChanged) {
       logDescription += ` | Stock: ${oldStock} → ${newStock} (${newStock - oldStock > 0 ? '+' : ''}${newStock - oldStock})`;
+    }
+
+    if (locationMoveResult?.moved) {
+      logDescription += ` | Location: ${locationMoveResult.previousLocationName || 'Unassigned'} → ${locationMoveResult.location.name}`;
+    }
+
+    if (locationSplitResult) {
+      logDescription += ` | Location split updated: ${locationSplitResult.totalQuantity}`;
     }
     
     if (updateData.costPrice !== undefined) {
@@ -342,10 +481,23 @@ export async function PUT(
       console.log(`   Stock adjusted: ${oldStock} → ${newStock}`);
     }
     
+    await materializeLegacyLocationStocksForProducts(
+      [product.toObject()],
+      user.outletId || product.outletId,
+      user.userId
+    );
+
+    const [productWithLocations] = await attachLocationDataToProducts(
+      [product.toObject()],
+      user.outletId || product.outletId
+    );
+
     return NextResponse.json({ 
-      product,
+      product: productWithLocations,
       message: 'Product updated successfully',
       stockAdjustment: stockAdjustmentResult,
+      locationMove: locationMoveResult,
+      locationSplit: locationSplitResult,
     });
   } catch (error: any) {
     console.error('Error updating product:', error);

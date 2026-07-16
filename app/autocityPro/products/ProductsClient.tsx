@@ -66,7 +66,7 @@ export default function ProductsClient({
   const [stockToDecrease, setStockToDecrease] = useState<number>(0);
 
   const [selectedProductIndex, setSelectedProductIndex] = useState(-1);
-  const productRefs    = useRef<(HTMLDivElement | null)[]>([]);
+  const productRefs    = useRef<(HTMLTableRowElement | null)[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const [filterCategory,  setFilterCategory]  = useState("");
@@ -191,6 +191,30 @@ export default function ProductsClient({
     onDeleteProduct: handleDeleteClick,
     disabled: showAddModal || showEditModal || showQuickAddCategory || !!productToDelete || showFilters || showMobileMenu || showStockModal || showCSVModal,
   });
+
+  useEffect(() => {
+    productRefs.current = productRefs.current.slice(0, products.length);
+    setSelectedProductIndex((prev) => {
+      if (products.length === 0) return -1;
+      return prev >= products.length ? products.length - 1 : prev;
+    });
+  }, [products.length]);
+
+  useEffect(() => {
+    if (isMobile || selectedProductIndex < 0) return;
+
+    const selectedRow = productRefs.current[selectedProductIndex];
+    if (!selectedRow) return;
+
+    const rect = selectedRow.getBoundingClientRect();
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    const topPadding = 16;
+    const bottomPadding = 24;
+
+    if (rect.top < topPadding || rect.bottom > viewportHeight - bottomPadding) {
+      selectedRow.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "auto" });
+    }
+  }, [selectedProductIndex, isMobile, products.length]);
 
   // ── Data fetching ─────────────────────────────────────────────────────────
   const fetchProducts = async (page = 1, append = false) => {

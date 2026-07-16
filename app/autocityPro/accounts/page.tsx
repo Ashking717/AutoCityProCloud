@@ -386,7 +386,7 @@ export default function AccountsPage() {
               const colors = getSummaryColors(type);
               const isActive = filterType === type;
               return (
-                <div key={type} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setFilterType(filterType === type ? 'all' : type); }} onClick={() => setFilterType(filterType === type ? 'all' : type)}
+                <div key={type} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFilterType(filterType === type ? 'all' : type); } }} onClick={() => setFilterType(filterType === type ? 'all' : type)}
                   className="rounded-xl p-4 md:p-6 cursor-pointer transition-all active:scale-[0.98]"
                   style={{ background: th.cardBg, border: `1px solid ${isActive ? 'var(--autocity-accent)' : th.cardBorder}`, boxShadow: isActive ? '0 0 0 2px var(--autocity-accent-15)' : 'none' }}
                   onMouseEnter={e => !isActive && (e.currentTarget.style.borderColor = th.cardHoverBorder)}

@@ -442,7 +442,7 @@ function ForgotPasswordModal({ onClose, lang, t, isRTL }: any) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClose(); }} className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+      <div role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClose(); } }} className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
       
       <div className="relative w-full max-w-md dash-panel p-8 animate-fade-up">
         {!success ? (

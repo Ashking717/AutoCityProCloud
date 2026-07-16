@@ -804,7 +804,7 @@ export default function SalesPage() {
                           onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
 
                           <td className="px-4 py-3 whitespace-nowrap">
-                            <span role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleViewDetails(sale); }} className="text-sm font-medium text-[color:var(--autocity-accent)] hover:text-[color:var(--autocity-accent-strong)] cursor-pointer transition-colors" onClick={() => handleViewDetails(sale)}>
+                            <span role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleViewDetails(sale); } }} className="text-sm font-medium text-[color:var(--autocity-accent)] hover:text-[color:var(--autocity-accent-strong)] cursor-pointer transition-colors" onClick={() => handleViewDetails(sale)}>
                               {sale.invoiceNumber}
                             </span>
                             {sale.returnStatus && (

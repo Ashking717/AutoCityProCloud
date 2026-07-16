@@ -399,7 +399,7 @@ export default function NewJobPage() {
                       {filteredProducts.length === 0 ? (
                         <div className="text-center py-8"><Search className="h-12 w-12 mx-auto mb-3" style={{ color: th.emptyIcon }} /><p style={{ color: th.emptyText }}>No products found</p></div>
                       ) : filteredProducts.map(p => (
-                        <div key={p._id} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') addToItems(p); }} onClick={() => addToItems(p)} className="p-4 rounded-lg cursor-pointer transition-all"
+                        <div key={p._id} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); addToItems(p); } }} onClick={() => addToItems(p)} className="p-4 rounded-lg cursor-pointer transition-all"
                           style={{ background: th.productCardBg, border: `1px solid ${th.productCardBorder}` }}
                           onMouseEnter={e => (e.currentTarget.style.borderColor = th.productCardHover)}
                           onMouseLeave={e => (e.currentTarget.style.borderColor = th.productCardBorder)}>

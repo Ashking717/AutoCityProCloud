@@ -777,7 +777,7 @@ export default function PurchasesPage() {
               {isMobile && (
                 <div className="space-y-4">
                   {filteredAndSortedPurchases.map(purchase => (
-                    <div key={purchase._id} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') router.push(`/autocityPro/purchases/${purchase._id}`); }} onClick={() => router.push(`/autocityPro/purchases/${purchase._id}`)}
+                    <div key={purchase._id} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push(`/autocityPro/purchases/${purchase._id}`); } }} onClick={() => router.push(`/autocityPro/purchases/${purchase._id}`)}
                       className="rounded-2xl shadow-lg p-4 active:scale-[0.98] transition-all relative overflow-hidden group border cursor-pointer"
                       style={{ background: th.cardBg, borderColor: th.cardBorder }}
                       onMouseEnter={e => (e.currentTarget.style.borderColor = th.cardBorderHover)}
@@ -835,12 +835,12 @@ export default function PurchasesPage() {
               {!isMobile && viewMode === 'grid' && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                   {filteredAndSortedPurchases.map(purchase => (
-                    <div key={purchase._id} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') router.push(`/autocityPro/purchases/${purchase._id}`); }} onClick={() => router.push(`/autocityPro/purchases/${purchase._id}`)}
+                    <div key={purchase._id} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push(`/autocityPro/purchases/${purchase._id}`); } }} onClick={() => router.push(`/autocityPro/purchases/${purchase._id}`)}
                       className="rounded-2xl shadow-lg p-5 transition-all cursor-pointer group relative overflow-hidden border"
                       style={{ background: th.cardBg, borderColor: th.cardBorder }}
                       onMouseEnter={e => (e.currentTarget.style.borderColor = th.cardBorderHover)}
                       onMouseLeave={e => (e.currentTarget.style.borderColor = th.cardBorder)}>
-                      <div role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); toggleSelectPurchase(purchase._id); } }} className="absolute top-4 left-4 z-20" onClick={e => { e.stopPropagation(); toggleSelectPurchase(purchase._id); }}>
+                      <div role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); toggleSelectPurchase(purchase._id); } }} className="absolute top-4 left-4 z-20" onClick={e => { e.stopPropagation(); toggleSelectPurchase(purchase._id); }}>
                         <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${selectedPurchases.has(purchase._id) ? 'bg-[color:var(--autocity-accent)] border-[color:var(--autocity-accent)]' : ''}`}
                           style={!selectedPurchases.has(purchase._id) ? { borderColor: th.dividerStrong } : {}}>
                           {selectedPurchases.has(purchase._id) && <CheckCircle className="h-3 w-3 text-white" />}
@@ -1003,13 +1003,13 @@ export default function PurchasesPage() {
                 <div className="rounded-2xl shadow-lg overflow-hidden border transition-colors duration-500" style={{ background: th.cardBg, borderColor: th.cardBorder }}>
                   <div>
                     {filteredAndSortedPurchases.map(purchase => (
-                      <div key={purchase._id} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') router.push(`/autocityPro/purchases/${purchase._id}`); }} onClick={() => router.push(`/autocityPro/purchases/${purchase._id}`)}
+                      <div key={purchase._id} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push(`/autocityPro/purchases/${purchase._id}`); } }} onClick={() => router.push(`/autocityPro/purchases/${purchase._id}`)}
                         className="flex items-center justify-between p-4 transition-all cursor-pointer group border-b"
                         style={{ borderColor: th.tableRowDivider }}
                         onMouseEnter={e => (e.currentTarget.style.background = th.tableRowHover)}
                         onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                         <div className="flex items-center gap-4 flex-1">
-                          <div role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); toggleSelectPurchase(purchase._id); } }} onClick={e => { e.stopPropagation(); toggleSelectPurchase(purchase._id); }}>
+                          <div role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); toggleSelectPurchase(purchase._id); } }} onClick={e => { e.stopPropagation(); toggleSelectPurchase(purchase._id); }}>
                             <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${selectedPurchases.has(purchase._id) ? 'bg-[color:var(--autocity-accent)] border-[color:var(--autocity-accent)]' : ''}`}
                               style={!selectedPurchases.has(purchase._id) ? { borderColor: th.dividerStrong } : {}}>
                               {selectedPurchases.has(purchase._id) && <CheckCircle className="h-3 w-3 text-white" />}

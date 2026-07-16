@@ -520,7 +520,7 @@ export default function VouchersPage() {
                     <div key={voucher._id}
                       role="button"
                       tabIndex={0}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') router.push(`/autocityPro/vouchers/${voucher._id}`); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push(`/autocityPro/vouchers/${voucher._id}`); } }}
                       onClick={() => router.push(`/autocityPro/vouchers/${voucher._id}`)}
                       className="rounded-xl p-4 cursor-pointer transition-all active:scale-[0.98]"
                       style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}

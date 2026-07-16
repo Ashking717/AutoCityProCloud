@@ -378,7 +378,7 @@ const fmt = (n: any) =>
                     <div key={acc._id}
                       role="button"
                       tabIndex={0}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openLedger(acc); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLedger(acc); } }}
                       className="rounded-xl p-4 cursor-pointer transition-all duration-300 group"
                       style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}
                       onMouseEnter={e => (e.currentTarget.style.borderColor = th.cardHoverBorder)}

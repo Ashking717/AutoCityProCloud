@@ -1,6 +1,7 @@
 'use client';
 
 import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
+import { shouldIgnoreGlobalShortcut } from "@/lib/utils/keyboard";
 import {
   useState,
   useEffect } from "react";
@@ -215,7 +216,7 @@ export default function PurchasesPortalPage() {
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
+      if (shouldIgnoreGlobalShortcut(e)) return;
       const isCtrl = e.ctrlKey || e.metaKey;
       const isShift = e.shiftKey;
       let handled = false;

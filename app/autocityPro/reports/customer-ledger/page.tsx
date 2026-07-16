@@ -193,7 +193,7 @@ export default function CustomerLedgerPage() {
                     key={customer._id}
                     role="button"
                     tabIndex={0}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fetchLedger(customer._id); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fetchLedger(customer._id); } }}
                     onClick={() => fetchLedger(customer._id)}
                     className="bg-[#0A0A0A] rounded-xl p-4 border border-white/5 active:scale-[0.98] transition-all"
                   >

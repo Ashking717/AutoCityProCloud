@@ -516,7 +516,7 @@ export default function AddProductModal({
                         role="option"
                         aria-selected={highlightedIndex === index}
                         tabIndex={0}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); setFormData({ ...formData, name }); setShowNameSuggestions(false); setHighlightedIndex(-1); } }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setFormData({ ...formData, name }); setShowNameSuggestions(false); setHighlightedIndex(-1); } }}
                         ref={(el) => {
                           suggestionRefs.current[index] = el;
                         }}

@@ -637,7 +637,7 @@ export default function NewPurchasePage() {
                       <>
                         {filteredProducts.map(product => (
                           <div key={product._id} role="button" tabIndex={0}
-                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') addToCart(product); }}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); addToCart(product); } }}
                             onClick={() => addToCart(product)}
                             className="p-4 rounded-xl cursor-pointer transition-all active:scale-[0.98] border"
                             style={{ background: th.itemBg, borderColor: th.itemBorder }}

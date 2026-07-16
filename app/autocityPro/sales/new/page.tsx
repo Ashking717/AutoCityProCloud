@@ -2,6 +2,7 @@
 "use client";
 
 import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
+import { hasShortcutModifier, shouldIgnoreGlobalShortcut } from "@/lib/utils/keyboard";
 
 import {
   useState,
@@ -344,16 +345,9 @@ export default function NewSalePage() {
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.tagName === "SELECT"
-      ) {
-        if (e.key === "Escape") {
-          if (activeOverlay) setActiveOverlay(null);
-          return;
-        }
+      if (shouldIgnoreGlobalShortcut(e, { allowEscapeFromInputs: true })) return;
+
+      if (hasShortcutModifier(e)) {
         return;
       }
 
@@ -1613,7 +1607,7 @@ export default function NewSalePage() {
                         key={job._id}
                         role="button"
                         tabIndex={0}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') loadJobIntoCart(job); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); loadJobIntoCart(job); } }}
                         onClick={() => loadJobIntoCart(job)}
                         className="rounded-lg p-4 cursor-pointer transition-all group"
                         style={{ background: th.jobItemBg, border: `1px solid ${th.jobItemBorder}` }}

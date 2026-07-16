@@ -217,7 +217,7 @@ function MessageBubble({
       >
         {msg.type === "image" ? (
           <div className="space-y-2">
-            <img role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onImageView(msg.imageUrl!, msg.content); }} src={msg.imageUrl} alt="Shared image" className="rounded-lg max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity active:opacity-75"
+            <img role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onImageView(msg.imageUrl!, msg.content); } }} src={msg.imageUrl} alt="Shared image" className="rounded-lg max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity active:opacity-75"
               onClick={() => onImageView(msg.imageUrl!, msg.content)} />
             {msg.content && msg.content !== "Image" && <p className="text-sm">{msg.content}</p>}
           </div>
@@ -1009,7 +1009,7 @@ export default function MessagesPage() {
                               style={{ background: th.inputFieldBg, border: `1px solid ${th.inputFieldBorder}` }}>
                               <input
                                 type="text" value={message} onChange={e => setMessage(e.target.value)}
-                                onKeyPress={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
+                                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
                                 placeholder="Type a message"
                                 className="flex-1 bg-transparent outline-none py-2.5 text-[15px] min-w-0 transition-colors"
                                 style={{ color: th.inputText, caretColor: 'var(--autocity-accent)', fontSize: "16px" }}
@@ -1050,7 +1050,7 @@ export default function MessagesPage() {
 
       {/* ── Message Options Modal ─────────────────────────────────────────── */}
       {selectedMessage && (
-        <div role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedMessage(null); }} className="fixed inset-0 z-50 bg-black/50 flex items-end md:items-center justify-center p-4 animate-in fade-in duration-200"
+        <div role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedMessage(null); } }} className="fixed inset-0 z-50 bg-black/50 flex items-end md:items-center justify-center p-4 animate-in fade-in duration-200"
           onClick={() => setSelectedMessage(null)}>
           <div
             role="dialog"
@@ -1099,7 +1099,7 @@ export default function MessagesPage() {
 
       {/* ── Image Viewer ──────────────────────────────────────────────────── */}
       {viewingImage && (
-        <div role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setViewingImage(null); }} className="fixed inset-0 z-50 bg-black flex flex-col animate-in fade-in duration-200"
+        <div role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewingImage(null); } }} className="fixed inset-0 z-50 bg-black flex flex-col animate-in fade-in duration-200"
           onClick={e => { if (e.target === e.currentTarget) setViewingImage(null); }}>
           <div className="flex items-center justify-between p-3 md:p-4 bg-gradient-to-b from-black/80 to-transparent backdrop-blur-sm z-10">
             <button onClick={() => setViewingImage(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors active:scale-95 touch-manipulation">
@@ -1109,8 +1109,8 @@ export default function MessagesPage() {
               <Download className="h-6 w-6 text-white" />
             </button>
           </div>
-          <div role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setViewingImage(null); }} className="flex-1 flex items-center justify-center p-4 overflow-hidden touch-none" onClick={() => setViewingImage(null)}>
-            <img role="button" tabIndex={0} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); setImageZoom(z => z === 1 ? 2 : 1); } }} src={viewingImage.url} alt="Full size" className="max-w-full max-h-full object-contain select-none"
+          <div role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewingImage(null); } }} className="flex-1 flex items-center justify-center p-4 overflow-hidden touch-none" onClick={() => setViewingImage(null)}>
+            <img role="button" tabIndex={0} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setImageZoom(z => z === 1 ? 2 : 1); } }} src={viewingImage.url} alt="Full size" className="max-w-full max-h-full object-contain select-none"
               style={{ transform: `scale(${imageZoom})`, transition: "transform 0.2s ease-out" }}
               onClick={e => e.stopPropagation()}
               onDoubleClick={e => { e.stopPropagation(); setImageZoom(z => z === 1 ? 2 : 1); }}

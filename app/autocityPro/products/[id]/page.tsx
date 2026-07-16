@@ -1,9 +1,11 @@
 "use client";
 
+import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
 import {
   useState,
   useEffect,
-  useCallback } from "react";
+  useCallback,
+  type CSSProperties } from "react";
 import { useRouter,
   useParams } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
@@ -72,6 +74,13 @@ interface Product {
   currentStock: number;
   minStock: number;
   maxStock: number;
+  location?: string;
+  locations?: Array<{
+    locationId: string;
+    locationName: string;
+    quantity: number;
+    isSynthetic?: boolean;
+  }>;
   createdAt: string;
   updatedAt: string;
 }
@@ -85,8 +94,13 @@ interface StockHistory {
   newStock: number;
   reason?: string;
   reference?: string;
-  performedBy: string;
-  performedByName: string;
+  referenceType?: string;
+  locationName?: string;
+  fromLocationName?: string;
+  toLocationName?: string;
+  locationBalanceAfter?: number;
+  performedBy?: string;
+  performedByName?: string;
   timestamp: string;
 }
 
@@ -104,6 +118,7 @@ export default function ProductDetailPage() {
   const router = useRouter();
   const params = useParams();
   const productId = params.id as string;
+  const isDark = useTimeBasedTheme();
 
   const [user, setUser] = useState<any>(null);
   const [userLoading, setUserLoading] = useState(true);
@@ -119,12 +134,64 @@ export default function ProductDetailPage() {
     type: "in" as "in" | "out" | "adjustment",
     quantity: 0,
     reason: "",
+    locationId: "",
+    locationName: "",
   });
 
   // Add loading states for API calls
   const [loadingStockHistory, setLoadingStockHistory] = useState(false);
   const [loadingSaleHistory, setLoadingSaleHistory] = useState(false);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+
+  const th = {
+    pageBg: isDark ? "#050505" : "#f3f4f6",
+    pageBgTo: isDark ? "#0A0A0A" : "#ffffff",
+    headerBg: isDark
+      ? "linear-gradient(135deg,var(--autocity-header-from-dark),var(--autocity-header-via-dark),var(--autocity-header-to-dark))"
+      : "linear-gradient(135deg,var(--autocity-header-from-light),var(--autocity-header-via-light),var(--autocity-header-to-light))",
+    mobileHeaderBg: isDark
+      ? "linear-gradient(135deg,#0A0A0A,#050505,#0A0A0A)"
+      : "linear-gradient(135deg,#ffffff,#f9fafb,#ffffff)",
+    textPrimary: isDark ? "#ffffff" : "#111827",
+    textSecondary: isDark ? "#d1d5db" : "#374151",
+    textMuted: isDark ? "#9ca3af" : "#6b7280",
+    textFaint: isDark ? "#6b7280" : "#9ca3af",
+    cardBg: isDark ? "linear-gradient(135deg,#0A0A0A,#050505)" : "linear-gradient(135deg,#ffffff,#f9fafb)",
+    cardBgSolid: isDark ? "#0A0A0A" : "#ffffff",
+    softBg: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)",
+    softBgStrong: isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)",
+    border: isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.08)",
+    borderSoft: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.06)",
+    inputBg: isDark ? "#050505" : "#ffffff",
+    inputBorder: isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.12)",
+    headerText: isDark ? "#ffffff" : "var(--autocity-header-text-light)",
+    headerSub: isDark ? "rgba(255,255,255,0.80)" : "var(--autocity-header-sub-light)",
+    headerButtonBg: isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.08)",
+    headerButtonHover: isDark ? "rgba(255,255,255,0.20)" : "rgba(0,0,0,0.14)",
+  };
+
+  const detailThemeVars = {
+    "--pd-page-bg": th.pageBg,
+    "--pd-page-bg-to": th.pageBgTo,
+    "--pd-header-bg": th.headerBg,
+    "--pd-mobile-header-bg": th.mobileHeaderBg,
+    "--pd-text-primary": th.textPrimary,
+    "--pd-text-secondary": th.textSecondary,
+    "--pd-text-muted": th.textMuted,
+    "--pd-text-faint": th.textFaint,
+    "--pd-card-bg": th.cardBg,
+    "--pd-card-bg-solid": th.cardBgSolid,
+    "--pd-soft-bg": th.softBg,
+    "--pd-soft-bg-strong": th.softBgStrong,
+    "--pd-border": th.border,
+    "--pd-border-soft": th.borderSoft,
+    "--pd-input-bg": th.inputBg,
+    "--pd-input-border": th.inputBorder,
+    "--pd-header-text": th.headerText,
+    "--pd-header-sub": th.headerSub,
+    "--pd-header-button-bg": th.headerButtonBg,
+    "--pd-header-button-hover": th.headerButtonHover,
+  } as CSSProperties;
 
   useEffect(() => {
     const checkIfMobile = () => {
@@ -261,6 +328,26 @@ export default function ProductDetailPage() {
     ? ((product.sellingPrice - product.costPrice) / product.costPrice) * 100
     : 0;
   const totalValue = product ? product.sellingPrice * product.currentStock : 0;
+  const locationStocks = product?.locations?.filter((location) => (location.quantity || 0) > 0) || [];
+  const locationStockTotal = locationStocks.reduce(
+    (sum, location) => sum + (Number(location.quantity) || 0),
+    0
+  );
+  const stockProgressMax = product ? Math.max(product.maxStock || 0, product.currentStock || 0, 1) : 1;
+  const locationsAreSynced = !product || locationStockTotal === 0 || locationStockTotal === product.currentStock;
+
+  useEffect(() => {
+    if (!product || stockAdjustment.locationId || locationStocks.length === 0) return;
+
+    const firstLocation = locationStocks[0];
+    if (!firstLocation?.locationId) return;
+
+    setStockAdjustment((prev) => ({
+      ...prev,
+      locationId: firstLocation.locationId,
+      locationName: firstLocation.locationName,
+    }));
+  }, [product, locationStocks, stockAdjustment.locationId]);
 
   const handleDeleteProduct = async () => {
     if (!product) return;
@@ -300,12 +387,19 @@ export default function ProductDetailPage() {
           type: stockAdjustment.type,
           quantity: stockAdjustment.quantity,
           reason: stockAdjustment.reason || "Manual adjustment",
+          locationId: stockAdjustment.locationId || undefined,
+          locationName: stockAdjustment.locationName || undefined,
         }),
       });
 
       if (res.ok) {
         toast.success("Stock updated successfully!");
-        setStockAdjustment({ type: "in", quantity: 0, reason: "" });
+        setStockAdjustment((prev) => ({
+          ...prev,
+          type: "in",
+          quantity: 0,
+          reason: "",
+        }));
         
         // Refresh product and stock history
         await Promise.all([
@@ -358,10 +452,10 @@ export default function ProductDetailPage() {
 
   if (userLoading || loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#050505]">
+      <div className="flex items-center justify-center h-screen transition-colors duration-500" style={{ background: th.pageBg }}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-white/10 border-t-[color:var(--autocity-accent)] mx-auto"></div>
-          <p className="mt-4 text-white text-lg font-medium">
+          <p className="mt-4 text-lg font-medium" style={{ color: th.textPrimary }}>
             Loading product details...
           </p>
         </div>
@@ -372,13 +466,13 @@ export default function ProductDetailPage() {
   if (!product) {
     return (
       <MainLayout user={user} onLogout={handleLogout}>
-        <div className="min-h-screen bg-[#050505] flex items-center justify-center">
+        <div className="min-h-screen flex items-center justify-center transition-colors duration-500" style={{ background: th.pageBg }}>
           <div className="text-center">
-            <Package className="h-16 w-16 text-gray-600 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-white mb-2">
+            <Package className="h-16 w-16 mx-auto mb-4" style={{ color: th.textFaint }} />
+            <h2 className="text-xl font-bold mb-2" style={{ color: th.textPrimary }}>
               Product Not Found
             </h2>
-            <p className="text-gray-400 mb-6">
+            <p className="mb-6" style={{ color: th.textMuted }}>
               The product you're looking for doesn't exist.
             </p>
             <button
@@ -395,15 +489,76 @@ export default function ProductDetailPage() {
 
   return (
     <MainLayout user={user} onLogout={handleLogout}>
-      <div className="min-h-screen bg-gradient-to-b from-[#050505] to-[#0A0A0A]">
+      <div className="product-detail-page min-h-screen bg-gradient-to-b from-[#050505] to-[#0A0A0A] transition-colors duration-500" style={detailThemeVars}>
+        <style>{`
+          .product-detail-page {
+            background: linear-gradient(180deg, var(--pd-page-bg), var(--pd-page-bg-to));
+            color: var(--pd-text-primary);
+          }
+          .product-detail-page .text-white { color: var(--pd-text-primary) !important; }
+          .product-detail-page .text-gray-300,
+          .product-detail-page .text-gray-400 { color: var(--pd-text-secondary) !important; }
+          .product-detail-page .text-gray-500,
+          .product-detail-page .text-gray-600 { color: var(--pd-text-muted) !important; }
+          .product-detail-page [class*="bg-[#050505]"],
+          .product-detail-page [class*="bg-[#0A0A0A]"] {
+            background: var(--pd-card-bg-solid) !important;
+          }
+          .product-detail-page [class*="from-[#050505]"],
+          .product-detail-page [class*="from-[#0A0A0A]"] {
+            --tw-gradient-from: var(--pd-card-bg-solid) var(--tw-gradient-from-position) !important;
+            --tw-gradient-to: var(--pd-page-bg-to) var(--tw-gradient-to-position) !important;
+            --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+          }
+          .product-detail-page [class*="border-white/"] { border-color: var(--pd-border) !important; }
+          .product-detail-page [class*="divide-white/"] > :not([hidden]) ~ :not([hidden]) {
+            border-color: var(--pd-border-soft) !important;
+          }
+          .product-detail-page [class*="bg-white/5"],
+          .product-detail-page [class*="bg-white/10"] {
+            background: var(--pd-soft-bg) !important;
+          }
+          .product-detail-page input,
+          .product-detail-page select {
+            background: var(--pd-input-bg) !important;
+            border-color: var(--pd-input-border) !important;
+            color: var(--pd-text-primary) !important;
+          }
+          .product-detail-mobile-header {
+            background: var(--pd-mobile-header-bg) !important;
+            border-color: var(--pd-border-soft) !important;
+          }
+          .product-detail-desktop-header {
+            background: var(--pd-header-bg) !important;
+            border-color: var(--pd-border-soft) !important;
+          }
+          .product-detail-header-button {
+            background: var(--pd-header-button-bg) !important;
+            color: var(--pd-header-text) !important;
+          }
+          .product-detail-header-button:hover {
+            background: var(--pd-header-button-hover) !important;
+          }
+          .product-detail-tab {
+            color: var(--pd-text-muted);
+            border-color: transparent;
+          }
+          .product-detail-tab:hover {
+            color: var(--pd-text-primary);
+          }
+          .product-detail-tab-active {
+            color: var(--pd-text-primary);
+            border-color: var(--autocity-accent);
+          }
+        `}</style>
         {/* Mobile Header */}
-        <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-gradient-to-br from-[#0A0A0A] via-[#050505] to-[#0A0A0A] border-b border-white/5 backdrop-blur-xl">
+        <div className="product-detail-mobile-header md:hidden fixed top-0 left-0 right-0 z-40 bg-gradient-to-br from-[#0A0A0A] via-[#050505] to-[#0A0A0A] border-b border-white/5 backdrop-blur-xl">
           <div className="px-4 py-3">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => router.back()}
-                  className="p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
+                  className="product-detail-header-button p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
                 >
                   <ChevronLeft className="h-5 w-5" />
                 </button>
@@ -416,7 +571,7 @@ export default function ProductDetailPage() {
               </div>
               <button
                 onClick={() => setShowMobileMenu(true)}
-                className="p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
+                className="product-detail-header-button p-2 rounded-xl bg-white/5 text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
               >
                 <MoreVertical className="h-5 w-5" />
               </button>
@@ -455,13 +610,13 @@ export default function ProductDetailPage() {
         </div>
 
         {/* Desktop Header */}
-        <div className="hidden md:block py-12 bg-gradient-to-br from-[var(--autocity-header-from-dark)] via-[var(--autocity-header-via-dark)] to-[var(--autocity-header-to-dark)] border-b border-white/5 shadow-xl">
+        <div className="product-detail-desktop-header hidden md:block py-12 bg-gradient-to-br from-[var(--autocity-header-from-dark)] via-[var(--autocity-header-via-dark)] to-[var(--autocity-header-to-dark)] border-b border-white/5 shadow-xl">
           <div className="px-8">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => router.back()}
-                  className="p-2 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors"
+                  className="product-detail-header-button p-2 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors"
                 >
                   <ChevronLeft className="h-5 w-5" />
                 </button>
@@ -509,10 +664,10 @@ export default function ProductDetailPage() {
           <div className="flex border-b border-white/10 mb-6">
             <button
               onClick={() => setActiveTab("details")}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`product-detail-tab px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === "details"
-                  ? "border-[color:var(--autocity-accent)] text-white"
-                  : "border-transparent text-gray-400 hover:text-white"
+                  ? "product-detail-tab-active"
+                  : ""
               }`}
             >
               <Package className="h-4 w-4 inline mr-2" />
@@ -520,10 +675,10 @@ export default function ProductDetailPage() {
             </button>
             <button
               onClick={() => setActiveTab("stock")}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`product-detail-tab px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === "stock"
-                  ? "border-[color:var(--autocity-accent)] text-white"
-                  : "border-transparent text-gray-400 hover:text-white"
+                  ? "product-detail-tab-active"
+                  : ""
               }`}
             >
               <Warehouse className="h-4 w-4 inline mr-2" />
@@ -531,10 +686,10 @@ export default function ProductDetailPage() {
             </button>
             <button
               onClick={() => setActiveTab("sales")}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`product-detail-tab px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === "sales"
-                  ? "border-[color:var(--autocity-accent)] text-white"
-                  : "border-transparent text-gray-400 hover:text-white"
+                  ? "product-detail-tab-active"
+                  : ""
               }`}
             >
               <DollarSign className="h-4 w-4 inline mr-2" />
@@ -717,7 +872,14 @@ export default function ProductDetailPage() {
 
                     {/* Stock */}
                     <div className="space-y-3">
-                      <h3 className="font-semibold text-white">Stock Levels</h3>
+                      <div className="flex items-center justify-between gap-3">
+                        <h3 className="font-semibold text-white">Stock Levels</h3>
+                        {locationStocks.length > 0 && (
+                          <span className="rounded-full px-2 py-1 text-xs font-medium text-[color:var(--autocity-accent)] bg-[color:var(--autocity-accent-10)] border border-[color:var(--autocity-accent-20)]">
+                            {locationStocks.length} location{locationStocks.length === 1 ? "" : "s"}
+                          </span>
+                        )}
+                      </div>
                       <div className="grid grid-cols-3 gap-3">
                         <div className="bg-[#0A0A0A]/50 rounded-lg p-3 border border-white/5">
                           <p className="text-xs text-gray-500">Current</p>
@@ -740,12 +902,77 @@ export default function ProductDetailPage() {
                       </div>
                     </div>
 
+                    {/* Location Stock Split */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <Warehouse className="h-4 w-4 text-[color:var(--autocity-accent)]" />
+                          <h3 className="font-semibold text-white">Location Stock</h3>
+                        </div>
+                        <span className="text-xs text-gray-400">
+                          Total: {locationStockTotal || product.currentStock}
+                        </span>
+                      </div>
+
+                      {locationStocks.length > 0 ? (
+                        <div className="space-y-2">
+                          {locationStocks.map((location) => {
+                            const percent = Math.min(
+                              ((location.quantity || 0) / Math.max(locationStockTotal, 1)) * 100,
+                              100
+                            );
+                            return (
+                              <div
+                                key={`${location.locationId || location.locationName}-${location.quantity}`}
+                                className="rounded-xl border border-white/5 bg-[#0A0A0A]/50 p-3"
+                              >
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm font-semibold text-white">
+                                      {location.locationName || "Unknown location"}
+                                    </p>
+                                    {location.isSynthetic && (
+                                      <p className="text-xs text-gray-500">
+                                        Imported from old plain-text location
+                                      </p>
+                                    )}
+                                  </div>
+                                  <span className="rounded-lg bg-[color:var(--autocity-accent-10)] px-3 py-1 text-sm font-bold text-[color:var(--autocity-accent)]">
+                                    {location.quantity || 0}
+                                  </span>
+                                </div>
+                                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+                                  <div
+                                    className="h-full rounded-full bg-[color:var(--autocity-accent)] transition-all"
+                                    style={{ width: `${percent}%` }}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="rounded-xl border border-dashed border-white/10 bg-[#0A0A0A]/50 p-4 text-sm text-gray-400">
+                          No location split is available for this product yet.
+                        </div>
+                      )}
+
+                      {!locationsAreSynced && (
+                        <div className="flex items-start gap-2 rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-3 text-xs text-yellow-500">
+                          <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                          <span>
+                            Location total ({locationStockTotal}) is different from current stock ({product.currentStock}).
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
                     {/* Stock Progress Bar */}
                     <div className="space-y-2">
                       <div className="flex justify-between text-xs text-gray-400">
                         <span>Stock Level</span>
                         <span>
-                          {product.currentStock} / {product.maxStock}
+                          {product.currentStock} / {stockProgressMax}
                         </span>
                       </div>
                       <div className="h-2 bg-white/10 rounded-full overflow-hidden">
@@ -759,7 +986,7 @@ export default function ProductDetailPage() {
                           }`}
                           style={{
                             width: `${Math.min(
-                              (product.currentStock / product.maxStock) * 100,
+                              (product.currentStock / stockProgressMax) * 100,
                               100
                             )}%`,
                           }}
@@ -810,7 +1037,7 @@ export default function ProductDetailPage() {
                   Adjust Stock
                 </h3>
                 <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                       <label htmlFor="stock-adjustment-type" className="block text-sm font-medium text-gray-300 mb-2">
                         Adjustment Type
@@ -829,6 +1056,38 @@ export default function ProductDetailPage() {
                         <option value="in">Stock In</option>
                         <option value="out">Stock Out</option>
                         <option value="adjustment">Manual Adjustment</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="stock-adjustment-location" className="block text-sm font-medium text-gray-300 mb-2">
+                        Location
+                      </label>
+                      <select
+                        id="stock-adjustment-location"
+                        value={stockAdjustment.locationId}
+                        onChange={(e) => {
+                          const selectedLocation = locationStocks.find(
+                            (location) => String(location.locationId) === e.target.value
+                          );
+                          setStockAdjustment({
+                            ...stockAdjustment,
+                            locationId: e.target.value,
+                            locationName: selectedLocation?.locationName || "",
+                          });
+                        }}
+                        className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white"
+                      >
+                        {locationStocks.length === 0 && (
+                          <option value="">Default location</option>
+                        )}
+                        {locationStocks.map((location) => (
+                          <option
+                            key={location.locationId || location.locationName}
+                            value={location.locationId}
+                          >
+                            {location.locationName} ({location.quantity || 0})
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div>
@@ -963,8 +1222,29 @@ export default function ProductDetailPage() {
                             Reason: {item.reason}
                           </p>
                         )}
+                        {(item.locationName || item.fromLocationName || item.toLocationName) && (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {item.locationName && (
+                              <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1 text-xs text-gray-400">
+                                <Warehouse className="h-3 w-3 text-[color:var(--autocity-accent)]" />
+                                {item.locationName}
+                              </span>
+                            )}
+                            {item.fromLocationName && item.toLocationName && (
+                              <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1 text-xs text-gray-400">
+                                <RefreshCw className="h-3 w-3 text-[color:var(--autocity-accent)]" />
+                                {item.fromLocationName} → {item.toLocationName}
+                              </span>
+                            )}
+                            {item.locationBalanceAfter !== undefined && (
+                              <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1 text-xs text-gray-400">
+                                Location balance: {item.locationBalanceAfter}
+                              </span>
+                            )}
+                          </div>
+                        )}
                         <p className="text-xs text-gray-500 mt-2">
-                          By {item.performedByName} • {item.reference || "No reference"}
+                          By {item.performedByName || item.performedBy || "System"} • {item.reference || "No reference"}
                         </p>
                       </div>
                     ))

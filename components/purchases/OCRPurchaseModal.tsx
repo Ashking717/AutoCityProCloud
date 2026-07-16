@@ -920,7 +920,7 @@ const handleParse = async () => {
                 {filteredSearchProducts.map(product=>(
                   <div key={product._id} role="button" tabIndex={0}
                     onClick={()=>linkProductFromSearch(productSearchIdx,product)}
-                    onKeyDown={e=>{if(e.key==="Enter"||e.key===" ")linkProductFromSearch(productSearchIdx,product);}}
+                    onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();linkProductFromSearch(productSearchIdx,product);}}}
                     className="p-3.5 rounded-xl cursor-pointer transition-all active:scale-[0.98] border"
                     style={{background:th.itemBg,borderColor:th.itemBorder}}
                     onMouseEnter={e=>e.currentTarget.style.borderColor=th.itemBorderHover}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
+import { shouldIgnoreGlobalShortcut } from "@/lib/utils/keyboard";
 import {
   usePathname,
   useRouter } from "next/navigation";
@@ -38,7 +39,14 @@ import {
   MessageCircle,
   Briefcase,
 } from "lucide-react";
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 
 interface SidebarProps {
   user: any;
@@ -210,6 +218,30 @@ function buildThemeTokens(isDark: boolean) {
 type ThemeTokens = ReturnType<typeof buildThemeTokens>;
 type NavItem = { name: string; icon: any; href: string; roles: string[] };
 type NavSection = { title: string; items: NavItem[] };
+
+const SIDEBAR_NAV_ITEM_SELECTOR = "[data-sidebar-nav-item='true']:not(:disabled)";
+
+function handleSidebarRovingKeyDown(event: ReactKeyboardEvent<HTMLElement>) {
+  if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+
+  const items = Array.from(
+    event.currentTarget.querySelectorAll<HTMLElement>(SIDEBAR_NAV_ITEM_SELECTOR)
+  ).filter((item) => item.offsetParent !== null || item === document.activeElement);
+
+  if (items.length === 0) return;
+
+  const activeElement = document.activeElement as HTMLElement | null;
+  const currentIndex = activeElement ? items.indexOf(activeElement) : -1;
+
+  let nextIndex = currentIndex;
+  if (event.key === "ArrowDown") nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % items.length;
+  if (event.key === "ArrowUp") nextIndex = currentIndex < 0 ? items.length - 1 : (currentIndex - 1 + items.length) % items.length;
+  if (event.key === "Home") nextIndex = 0;
+  if (event.key === "End") nextIndex = items.length - 1;
+
+  event.preventDefault();
+  items[nextIndex]?.focus();
+}
 
 function formatOutletName(name: string) {
   const trimmed = name.trim();
@@ -506,7 +538,11 @@ function NavigationMenu({
     const items = navigation.flatMap((section) => section.items);
 
     return (
-      <nav className="flex-1 py-3 px-2 overflow-y-auto custom-scrollbar">
+      <nav
+        className="flex-1 py-3 px-2 overflow-y-auto custom-scrollbar"
+        aria-label="Primary navigation"
+        onKeyDown={handleSidebarRovingKeyDown}
+      >
         <div className="space-y-1">
           {items.map((item) => {
             const isActive = pathname === item.href;
@@ -516,6 +552,8 @@ function NavigationMenu({
                 onClick={() => onNavigate(item.href)}
                 title={item.name}
                 aria-label={item.name}
+                aria-current={isActive ? "page" : undefined}
+                data-sidebar-nav-item="true"
                 className="relative flex h-11 w-full items-center justify-center rounded-xl transition-all duration-200 group"
                 style={{
                   background: isActive ? th.navItemActiveBg : "transparent",
@@ -545,13 +583,21 @@ function NavigationMenu({
   }
 
   return (
-    <nav className="flex-1 py-4 px-2 overflow-y-auto custom-scrollbar">
+    <nav
+      className="flex-1 py-4 px-2 overflow-y-auto custom-scrollbar"
+      aria-label="Primary navigation"
+      onKeyDown={handleSidebarRovingKeyDown}
+    >
       {navigation.map((section) => {
         const isCollapsed = collapsedSections.has(section.title);
+        const sectionPanelId = `sidebar-section-${section.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
         return (
           <div key={section.title} className="mb-3">
             <button
               onClick={() => onToggleSection(section.title)}
+              aria-expanded={!isCollapsed}
+              aria-controls={sectionPanelId}
+              data-sidebar-nav-item="true"
               className="w-full flex items-center justify-between px-3 py-2 mb-1 text-xs font-bold uppercase tracking-wider transition-colors rounded-lg"
               style={{ color: th.sectionLabel }}
               onMouseEnter={e => (e.currentTarget.style.background = th.sectionHover)}
@@ -566,13 +612,19 @@ function NavigationMenu({
                 : <ChevronDown  className="h-3.5 w-3.5 transition-transform" />}
             </button>
 
-            <div className={`space-y-0.5 transition-all duration-200 ${isCollapsed ? "max-h-0 opacity-0 overflow-hidden" : "max-h-[500px] opacity-100"}`}>
-              {section.items.map((item) => {
+            <div
+              id={sectionPanelId}
+              className={`space-y-0.5 transition-all duration-200 ${isCollapsed ? "max-h-0 opacity-0 overflow-hidden" : "max-h-[500px] opacity-100"}`}
+              aria-hidden={isCollapsed}
+            >
+              {!isCollapsed && section.items.map((item) => {
                 const isActive = pathname === item.href;
                 return (
                   <button
                     key={item.href}
                     onClick={() => onNavigate(item.href)}
+                    aria-current={isActive ? "page" : undefined}
+                    data-sidebar-nav-item="true"
                     className="w-full flex items-center justify-between px-3 py-2.5 text-sm rounded-lg relative overflow-hidden group transition-all duration-200"
                     style={{
                       background: isActive ? th.navItemActiveBg : "transparent",
@@ -870,14 +922,17 @@ function MobileMenuOverlay({
     <div
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClose(); }}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClose(); } }}
       className="md:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
         role="dialog"
         tabIndex={0}
-        onKeyDown={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          handleSidebarRovingKeyDown(e);
+          e.stopPropagation();
+        }}
         className="absolute bottom-0 left-0 right-0 rounded-t-3xl shadow-2xl flex flex-col transition-colors duration-500"
         style={{
           maxHeight: "85vh",
@@ -930,6 +985,8 @@ function MobileMenuOverlay({
           </div>
           <button
             onClick={onClose}
+            data-sidebar-nav-item="true"
+            aria-label="Close menu"
             className="p-2 rounded-xl transition-colors active:scale-95 touch-manipulation"
             style={{ background: "transparent" }}
             onMouseEnter={e => (e.currentTarget.style.background = th.overlayItemHover)}
@@ -943,6 +1000,7 @@ function MobileMenuOverlay({
           <div className="p-4 border-b flex-shrink-0" style={{ borderColor: th.overlayMenuBorder }}>
             <button
               onClick={() => onNavigate("/autocityPro/profile")}
+              data-sidebar-nav-item="true"
               className="w-full flex items-center space-x-3 text-left rounded-xl p-3 transition-all touch-manipulation"
               style={{ background: th.overlayItemBg }}
             >
@@ -966,6 +1024,8 @@ function MobileMenuOverlay({
             {hasMessagesAccess && (
               <button
                 onClick={() => onNavigate("/autocityPro/messages")}
+                data-sidebar-nav-item="true"
+                aria-current={pathname === "/autocityPro/messages" ? "page" : undefined}
                 className="w-full flex items-center justify-between mt-3 px-3 py-2.5 text-sm rounded-xl transition-all touch-manipulation"
                 style={{
                   background: pathname === "/autocityPro/messages" ? th.msgActiveBg : th.overlayItemBg,
@@ -1010,6 +1070,8 @@ function MobileMenuOverlay({
                     <button
                       key={item.href}
                       onClick={() => onNavigate(item.href)}
+                      data-sidebar-nav-item="true"
+                      aria-current={isActive ? "page" : undefined}
                       className="w-full flex items-center space-x-3 px-3 py-3 text-sm rounded-xl transition-all active:scale-98 touch-manipulation"
                       style={{
                         background: isActive ? th.overlayItemActiveBg : "transparent",
@@ -1038,6 +1100,7 @@ function MobileMenuOverlay({
         <div className="border-t p-4 flex-shrink-0" style={{ borderColor: th.overlayMenuBorder }}>
           <button
             onClick={onShowHelp}
+            data-sidebar-nav-item="true"
             className="w-full flex items-center justify-center space-x-2 py-3 text-sm rounded-xl transition-all touch-manipulation"
             style={{ background: th.overlayItemBg, color: th.overlayText }}
           >
@@ -1046,6 +1109,7 @@ function MobileMenuOverlay({
           </button>
           <button
             onClick={onLogout}
+            data-sidebar-nav-item="true"
             className="w-full flex items-center justify-center space-x-2 py-3 text-sm rounded-xl text-[color:var(--autocity-accent)] mt-2 transition-all touch-manipulation"
             style={{ background: "var(--autocity-accent-10)" }}
           >
@@ -1300,13 +1364,12 @@ export default function Sidebar({
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (shouldIgnoreGlobalShortcut(e, { allowEscapeFromInputs: true, ignoreInteractiveTargets: false })) return;
 
       const ctrl  = e.ctrlKey || e.metaKey;
-      const shift = e.shiftKey;
       const alt   = e.altKey;
 
-      if (e.key === "?" && !ctrl && !shift && !alt) {
+      if (e.key === "?" && !ctrl && !alt) {
         e.preventDefault();
         setActiveOverlay(prev => prev === 'help' ? null : 'help');
         return;
@@ -1316,7 +1379,7 @@ export default function Sidebar({
       }
 
       let combo = "";
-      if (ctrl && shift) {
+      if (ctrl && e.shiftKey) {
         if      (e.key === "S") combo = "Ctrl+Shift+S";
         else if (e.key === "B") combo = "Ctrl+Shift+B";
         else if (e.key === "T") combo = "Ctrl+Shift+T";

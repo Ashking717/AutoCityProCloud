@@ -6,6 +6,7 @@ import InventoryMovement, { MovementType } from '@/lib/models/InventoryMovement'
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth/jwt';
 import mongoose from 'mongoose';
+import { applyProductLocationStockDelta } from '@/lib/services/locationStockService';
 
 const mapUiType = (movementType: MovementType, quantity: number) => {
   if (movementType === MovementType.ADJUSTMENT) {
@@ -91,7 +92,7 @@ export async function GET(
     
     // Get stock movements with pagination
     const movements = await InventoryMovement.find(query)
-      .select('movementType quantity unitCost totalValue referenceType referenceNumber referenceId balanceAfter date notes ledgerEntriesCreated createdBy')
+      .select('movementType quantity unitCost totalValue referenceType referenceNumber referenceId balanceAfter date notes ledgerEntriesCreated createdBy locationName fromLocationName toLocationName locationBalanceAfter')
       .populate('createdBy', 'name email') // Populate createdBy user info
       .populate('referenceId') // Populate reference document if available
       .sort({ date: -1, createdAt: -1 })
@@ -113,6 +114,10 @@ const history = movements.map((movement: any) => {
     totalValue: movement.totalValue,
     reference: movement.referenceNumber,
     referenceType: movement.referenceType,
+    locationName: movement.locationName,
+    fromLocationName: movement.fromLocationName,
+    toLocationName: movement.toLocationName,
+    locationBalanceAfter: movement.locationBalanceAfter,
     reason: movement.notes,
     performedBy:
       movement.createdBy
@@ -382,47 +387,34 @@ export async function POST(
     const body = await request.json();
     
     // Validate adjustment data
-    const { type, quantity, reason, date } = body;
+    const { type, quantity, reason, date, locationId, locationName } = body;
+    const numericQuantity = Number(quantity);
+    const signedQuantity = type === 'out' ? -Math.abs(numericQuantity) : Math.abs(numericQuantity);
     
-    if (!type || !Object.values(MovementType).includes(type)) {
+    if (!['in', 'out', 'adjustment', MovementType.ADJUSTMENT].includes(type)) {
       return NextResponse.json(
-        { error: 'Valid movement type is required' },
+        { error: 'Valid adjustment type is required' },
         { status: 400 }
       );
     }
     
-    if (!quantity || typeof quantity !== 'number') {
+    if (!Number.isFinite(numericQuantity) || numericQuantity <= 0) {
       return NextResponse.json(
         { error: 'Valid quantity is required' },
         { status: 400 }
       );
     }
     
-    if (type === MovementType.ADJUSTMENT && !reason) {
+    if ((type === 'adjustment' || type === MovementType.ADJUSTMENT) && !reason) {
       return NextResponse.json(
         { error: 'Reason is required for adjustments' },
         { status: 400 }
       );
     }
     
-    // Get current stock from movements (source of truth)
-    const stockAggregation = await InventoryMovement.aggregate([
-      {
-        $match: {
-          outletId: user.outletId,
-          productId: params.id,
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          totalQuantity: { $sum: '$quantity' }
-        }
-      }
-    ]);
-    
-    const currentStock = stockAggregation.length > 0 ? stockAggregation[0].totalQuantity : 0;
-    const newStock = currentStock + quantity;
+    // Product currentStock includes opening stock that may predate movement records.
+    const currentStock = Number(product.currentStock || 0);
+    const newStock = currentStock + signedQuantity;
     
     // Generate reference number for adjustment
     const timestamp = Date.now();
@@ -433,18 +425,30 @@ export async function POST(
     session.startTransaction();
     
     try {
+      const [locationResult] = await applyProductLocationStockDelta({
+        outletId: user.outletId,
+        product,
+        quantityDelta: signedQuantity,
+        locationId,
+        locationName,
+        userId: user.userId,
+      });
+
       // Create inventory movement
       const movement = new InventoryMovement({
         productId: params.id,
         productName: product.name,
         sku: product.sku,
         movementType: MovementType.ADJUSTMENT,
-        quantity,
+        quantity: signedQuantity,
         unitCost: product.costPrice,
-        totalValue: Math.abs(quantity * product.costPrice),
+        totalValue: Math.abs(signedQuantity * product.costPrice),
         referenceType: 'ADJUSTMENT',
         referenceId: new mongoose.Types.ObjectId(),
         referenceNumber,
+        locationId: locationResult?.location?._id,
+        locationName: locationResult?.location?.name,
+        locationBalanceAfter: locationResult?.newQuantity,
         balanceAfter: newStock,
         date: date ? new Date(date) : new Date(),
         notes: reason || `Manual stock adjustment`,
@@ -479,7 +483,7 @@ export async function POST(
           username: user.email,
           actionType: 'adjustment',
           module: 'inventory',
-          description: `Stock adjustment for ${product.name} (${product.sku}): ${quantity > 0 ? '+' : ''}${quantity} units. Reason: ${reason}`,
+          description: `Stock adjustment for ${product.name} (${product.sku}): ${signedQuantity > 0 ? '+' : ''}${signedQuantity} units${locationResult?.location?.name ? ` at ${locationResult.location.name}` : ''}. Reason: ${reason}`,
           outletId: user.outletId,
         }),
       }).catch(err => console.error('Failed to create activity log:', err));
@@ -494,6 +498,8 @@ export async function POST(
           previousStock: currentStock,
           newStock,
           reference: movement.referenceNumber,
+          locationName: movement.locationName,
+          locationBalanceAfter: movement.locationBalanceAfter,
           reason: movement.notes,
           timestamp: movement.date,
         },

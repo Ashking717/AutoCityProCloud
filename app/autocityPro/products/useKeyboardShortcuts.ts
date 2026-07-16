@@ -1,5 +1,6 @@
 // app/autocityPro/products/useKeyboardShortcuts.ts
 "use client";
+import { hasShortcutModifier, shouldIgnoreGlobalShortcut } from "@/lib/utils/keyboard";
 import { useEffect } from "react";
 import toast from "react-hot-toast";
 
@@ -31,16 +32,8 @@ export default function useKeyboardShortcuts({
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if (disabled) return;
-
-      const target = e.target as HTMLElement;
-      if (
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.tagName === "SELECT" ||
-        target.isContentEditable
-      ) {
-        return;
-      }
+      if (shouldIgnoreGlobalShortcut(e)) return;
+      if (hasShortcutModifier(e)) return;
 
       switch (e.key) {
         case "/":

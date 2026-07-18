@@ -737,9 +737,18 @@ export default function AddProductModal({
             </div>
 
             <div>
-              <label htmlFor="add-product-barcode" className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                Barcode
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label htmlFor="add-product-barcode" className="block text-xs md:text-sm font-medium text-gray-300">
+                  Barcode
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, barcode: nextSKU })}
+                  className="text-[11px] font-medium text-[color:var(--autocity-accent)] hover:text-[color:var(--autocity-accent-strong)]"
+                >
+                  Use SKU
+                </button>
+              </div>
               <input
                 id="add-product-barcode"
                 type="text"
@@ -748,8 +757,11 @@ export default function AddProductModal({
                   setFormData({ ...formData, barcode: e.target.value })
                 }
                 className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
-                placeholder="Barcode"
+                placeholder={`Auto generated from SKU ${nextSKU} if blank`}
               />
+              <p className="mt-1 text-[11px] text-gray-500">
+                Leave blank for an internal barcode that scanners can use in sales and purchases.
+              </p>
             </div>
 
             <div>

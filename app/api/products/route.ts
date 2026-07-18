@@ -15,6 +15,10 @@ import {
 import mongoose from 'mongoose';
 import InventoryMovement from '@/lib/models/InventoryMovement';
 import type { SortOrder } from 'mongoose';
+import {
+  getInternalBarcodeFromSku,
+  sanitizeBarcodeValue,
+} from '@/lib/utils/barcode';
 
 
 // ============================================================================
@@ -338,6 +342,34 @@ export async function POST(request: NextRequest) {
 
     console.log(`✅ Final resolved SKU: ${finalSKU}`);
 
+    const inputBarcode = sanitizeBarcodeValue(barcode);
+
+    if (inputBarcode) {
+      const barcodeExists = await Product.exists({
+        barcode: inputBarcode,
+        outletId: outletIdObj,
+      });
+
+      if (barcodeExists) {
+        return NextResponse.json(
+          { error: 'Product with this barcode already exists' },
+          { status: 400 }
+        );
+      }
+    }
+
+    let finalBarcode = inputBarcode || getInternalBarcodeFromSku(finalSKU);
+
+    if (!inputBarcode) {
+      const barcodeBase = finalBarcode;
+      let barcodeSuffix = 2;
+
+      while (await Product.exists({ barcode: finalBarcode, outletId: outletIdObj })) {
+        finalBarcode = `${barcodeBase}-${barcodeSuffix}`;
+        barcodeSuffix += 1;
+      }
+    }
+
     // ─────────────────────────────────────────────
     // VALIDATION
     // ─────────────────────────────────────────────
@@ -406,7 +438,7 @@ export async function POST(request: NextRequest) {
       description,
       category: categoryIdObj,
       sku: finalSKU,
-      barcode,
+      barcode: finalBarcode,
       partNumber,
       isVehicle: isVehicle || false,
       carMake: isVehicle ? carMake : undefined,

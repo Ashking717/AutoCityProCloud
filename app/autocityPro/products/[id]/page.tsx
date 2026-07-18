@@ -130,6 +130,7 @@ export default function ProductDetailPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [generatingBarcode, setGeneratingBarcode] = useState(false);
   const [stockAdjustment, setStockAdjustment] = useState({
     type: "in" as "in" | "out" | "adjustment",
     quantity: 0,
@@ -429,6 +430,41 @@ export default function ProductDetailPage() {
     }
   };
 
+  const ensureProductBarcode = async () => {
+    if (!product) return null;
+    if (product.barcode) return product.barcode;
+
+    try {
+      setGeneratingBarcode(true);
+      const res = await fetch(`/api/products/${productId}/barcode`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.error || "Failed to generate barcode");
+        return null;
+      }
+
+      setProduct((prev) => prev ? { ...prev, barcode: data.barcode } : prev);
+      toast.success("Barcode generated");
+      return data.barcode as string;
+    } catch {
+      toast.error("Failed to generate barcode");
+      return null;
+    } finally {
+      setGeneratingBarcode(false);
+    }
+  };
+
+  const handlePrintBarcode = async () => {
+    const barcode = await ensureProductBarcode();
+    if (!barcode) return;
+
+    router.push(`/autocityPro/products/${productId}/barcode-label`);
+  };
+
   const formatYearRange = (yearFrom?: number, yearTo?: number): string => {
     if (!yearFrom && !yearTo) return "";
     if (yearFrom && !yearTo) return `${yearFrom}+`;
@@ -645,7 +681,18 @@ export default function ProductDetailPage() {
                 </div>
               </div>
               <div className="flex gap-3">
-                
+                <button
+                  onClick={handlePrintBarcode}
+                  disabled={generatingBarcode}
+                  className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm text-white rounded-lg hover:bg-white/20 transition-colors border border-white/10 disabled:opacity-50"
+                >
+                  {generatingBarcode ? (
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <QrCode className="h-4 w-4" />
+                  )}
+                  Print Label
+                </button>
                 <button
                   onClick={() => setShowDeleteModal(true)}
                   className="flex items-center gap-2 px-4 py-2 bg-red-500/10 backdrop-blur-sm text-red-400 rounded-lg hover:bg-red-500/20 transition-colors border border-red-500/20"
@@ -741,20 +788,42 @@ export default function ProductDetailPage() {
                           <Copy className="h-4 w-4 text-gray-400" />
                         </button>
                       </div>
-                      {product.barcode && (
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-xs text-gray-500">Barcode</p>
-                            <p className="text-white">{product.barcode}</p>
-                          </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs text-gray-500">Barcode</p>
+                          <p className="truncate text-white">
+                            {product.barcode || "Not generated yet"}
+                          </p>
+                          {!product.barcode && (
+                            <p className="mt-1 text-xs text-gray-500">
+                              Internal barcode will use this product&apos;s SKU.
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex flex-shrink-0 gap-2">
+                          {product.barcode && (
+                            <button
+                              onClick={handleCopyBarcode}
+                              className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+                              title="Copy barcode"
+                            >
+                              <Copy className="h-4 w-4 text-gray-400" />
+                            </button>
+                          )}
                           <button
-                            onClick={handleCopyBarcode}
-                            className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+                            onClick={handlePrintBarcode}
+                            disabled={generatingBarcode}
+                            className="p-2 rounded-lg bg-[color:var(--autocity-accent-10)] text-[color:var(--autocity-accent)] hover:bg-[color:var(--autocity-accent-20)] transition-colors disabled:opacity-50"
+                            title={product.barcode ? "Print barcode label" : "Generate and print barcode label"}
                           >
-                            <Copy className="h-4 w-4 text-gray-400" />
+                            {generatingBarcode ? (
+                              <RefreshCw className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <QrCode className="h-4 w-4" />
+                            )}
                           </button>
                         </div>
-                      )}
+                      </div>
                     </div>
 
                     {/* Category & Unit */}
@@ -1020,9 +1089,19 @@ export default function ProductDetailPage() {
                   <Copy className="h-5 w-5 text-blue-400 mb-2 group-hover:scale-110 transition-transform" />
                   <p className="text-sm font-medium text-white">Copy SKU</p>
                 </button>
-                <button className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-xl p-4 hover:border-green-500/30 transition-all group">
-                  <ShoppingCart className="h-5 w-5 text-green-400 mb-2 group-hover:scale-110 transition-transform" />
-                  <p className="text-sm font-medium text-white">Quick Sale</p>
+                <button
+                  onClick={handlePrintBarcode}
+                  disabled={generatingBarcode}
+                  className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-xl p-4 hover:border-green-500/30 transition-all group disabled:opacity-50"
+                >
+                  {generatingBarcode ? (
+                    <RefreshCw className="h-5 w-5 text-green-400 mb-2 animate-spin" />
+                  ) : (
+                    <QrCode className="h-5 w-5 text-green-400 mb-2 group-hover:scale-110 transition-transform" />
+                  )}
+                  <p className="text-sm font-medium text-white">
+                    {product.barcode ? "Print Barcode" : "Generate Barcode"}
+                  </p>
                 </button>
               </div>
             </div>
@@ -1368,6 +1447,22 @@ export default function ProductDetailPage() {
                 >
                   <span>Copy SKU</span>
                   <Copy className="h-5 w-5" />
+                </button>
+
+                <button
+                  onClick={async () => {
+                    await handlePrintBarcode();
+                    setShowMobileMenu(false);
+                  }}
+                  disabled={generatingBarcode}
+                  className="w-full p-4 bg-[#0A0A0A] border border-white/10 rounded-2xl text-gray-300 font-semibold hover:bg-white/5 transition-all flex items-center justify-between active:scale-95 disabled:opacity-50"
+                >
+                  <span>{product.barcode ? "Print Barcode Label" : "Generate Barcode Label"}</span>
+                  {generatingBarcode ? (
+                    <RefreshCw className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <QrCode className="h-5 w-5" />
+                  )}
                 </button>
 
                 <button

@@ -3,6 +3,8 @@ import {
   useRouter } from "next/navigation";
 import { Car,
   Edit,
+  QrCode,
+  RefreshCw,
   Trash2,
 } from "lucide-react";
 
@@ -10,11 +12,21 @@ interface ProductCardProps {
   product: any;
   onEdit: (product: any) => void;
   onDelete: (product: any) => void;
+  onPrintLabel?: (product: any) => void;
+  printingLabel?: boolean;
   formatYearRange: (yearFrom?: string | number, yearTo?: string | number) => string;
   isDark: boolean;
 }
 
-export default function ProductCard({ product, onEdit, onDelete, formatYearRange, isDark }: ProductCardProps) {
+export default function ProductCard({
+  product,
+  onEdit,
+  onDelete,
+  onPrintLabel,
+  printingLabel,
+  formatYearRange,
+  isDark,
+}: ProductCardProps) {
   const router = useRouter();
 
   const th = {
@@ -111,6 +123,20 @@ export default function ProductCard({ product, onEdit, onDelete, formatYearRange
           QAR {product.sellingPrice || 0}
         </span>
         <div className="flex gap-2">
+          {onPrintLabel && (
+            <button
+              onClick={e => { e.stopPropagation(); onPrintLabel(product); }}
+              disabled={printingLabel}
+              className="p-2 rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500/20 active:scale-95 transition-all disabled:opacity-50"
+              title={product.barcode ? "Print barcode label" : "Generate and print barcode label"}
+            >
+              {printingLabel ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <QrCode className="h-4 w-4" />
+              )}
+            </button>
+          )}
           <button
             onClick={e => { e.stopPropagation(); onEdit(product); }}
             className="p-2 rounded-lg bg-[color:var(--autocity-accent-10)] text-[color:var(--autocity-accent)] hover:bg-[color:var(--autocity-accent-20)] active:scale-95 transition-all"

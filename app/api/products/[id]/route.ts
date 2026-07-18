@@ -15,6 +15,7 @@ import {
   replaceProductLocationStocks,
 } from '@/lib/services/locationStockService';
 import mongoose  from 'mongoose';
+import { sanitizeBarcodeValue } from '@/lib/utils/barcode';
 
 // GET /api/products/[id]
 export async function GET(
@@ -143,7 +144,7 @@ export async function PUT(
     if (body.categoryId) updateData.category = body.categoryId;
     if (body.category && typeof body.category === 'string') updateData.category = body.category;
     if (body.sku) updateData.sku = body.sku;
-    if (body.barcode !== undefined) updateData.barcode = body.barcode;
+    if (body.barcode !== undefined) updateData.barcode = sanitizeBarcodeValue(body.barcode);
     if (body.partNumber !== undefined) updateData.partNumber = body.partNumber;
     if (body.unit) updateData.unit = body.unit;
     if (body.variant !== undefined) updateData.variant = body.variant;
@@ -261,6 +262,21 @@ export async function PUT(
         { error: 'Product with this SKU already exists' },
         { status: 400 }
       );
+    }
+
+    if (updateData.barcode) {
+      const barcodeExists = await Product.findOne({
+        barcode: updateData.barcode,
+        outletId: user.outletId,
+        _id: { $ne: params.id },
+      });
+
+      if (barcodeExists) {
+        return NextResponse.json(
+          { error: 'Product with this barcode already exists' },
+          { status: 400 }
+        );
+      }
     }
     
     // Validate vehicle-specific fields if it's a vehicle

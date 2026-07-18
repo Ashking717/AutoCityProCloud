@@ -166,6 +166,7 @@ ProductSchema.index(
 ProductSchema.index({ outletId: 1, isActive: 1 });
 ProductSchema.index({ outletId: 1, isVehicle: 1 });
 ProductSchema.index({ outletId: 1, category: 1 });
+ProductSchema.index({ outletId: 1, barcode: 1 });
 ProductSchema.index({ outletId: 1, carMake: 1 });
 ProductSchema.index({ outletId: 1, yearFrom: 1, yearTo: 1 });
 

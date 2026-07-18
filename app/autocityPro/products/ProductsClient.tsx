@@ -25,6 +25,8 @@ import { Search,
   ChevronLeft,
   MoreVertical,
   AlertCircle,
+  QrCode,
+  RefreshCw,
   Zap,
   Box,
   File,
@@ -64,6 +66,7 @@ export default function ProductsClient({
   const [productToDelete, setProductToDelete] = useState<any>(null);
   const [showStockModal, setShowStockModal]   = useState(false);
   const [stockToDecrease, setStockToDecrease] = useState<number>(0);
+  const [printingLabelProductId, setPrintingLabelProductId] = useState<string | null>(null);
 
   const [selectedProductIndex, setSelectedProductIndex] = useState(-1);
   const productRefs    = useRef<(HTMLTableRowElement | null)[]>([]);
@@ -435,6 +438,38 @@ export default function ProductsClient({
 
   const openEditModal = (product: any) => { setEditingProduct(product); setShowEditModal(true); };
 
+  const handlePrintLabel = async (product: any) => {
+    if (!product?._id) return;
+
+    try {
+      setPrintingLabelProductId(product._id);
+
+      if (!product.barcode) {
+        const res = await fetch(`/api/products/${product._id}/barcode`, {
+          method: "POST",
+          credentials: "include",
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          toast.error(data.error || "Failed to generate barcode");
+          return;
+        }
+
+        setProducts(prev => prev.map((item: any) => (
+          item._id === product._id ? { ...item, barcode: data.barcode } : item
+        )));
+        toast.success("Barcode generated");
+      }
+
+      router.push(`/autocityPro/products/${product._id}/barcode-label`);
+    } catch {
+      toast.error("Failed to open barcode label");
+    } finally {
+      setPrintingLabelProductId(null);
+    }
+  };
+
   const handleQuickAddCategory = async () => {
     if (!newCategoryName.trim()) { toast.error("Category name is required"); return; }
     const res = await fetch("/api/categories", { method:"POST", headers:{"Content-Type":"application/json"}, credentials:"include", body:JSON.stringify({name:newCategoryName}) });
@@ -675,6 +710,18 @@ export default function ProductsClient({
                       <td className="px-6 py-4 text-sm text-right font-semibold" style={{ color: th.cellPrimary }}>QAR {product.sellingPrice||0}</td>
                       <td className="px-6 py-4 text-right text-sm">
                         <div className="flex justify-end space-x-2">
+                          <button
+                            onClick={e => { e.stopPropagation(); handlePrintLabel(product); }}
+                            disabled={printingLabelProductId === product._id}
+                            className="text-green-400 hover:text-green-300 p-2 transition-colors disabled:opacity-50"
+                            title={product.barcode ? "Print barcode label" : "Generate and print barcode label"}
+                          >
+                            {printingLabelProductId === product._id ? (
+                              <RefreshCw className="h-5 w-5 animate-spin" />
+                            ) : (
+                              <QrCode className="h-5 w-5" />
+                            )}
+                          </button>
                           <button onClick={e => { e.stopPropagation(); router.push(`/autocityPro/products/${product._id}`); }} className="text-blue-400 hover:text-blue-300 p-2 transition-colors" title="View"><Eye className="h-5 w-5" /></button>
                           <button onClick={e => { e.stopPropagation(); openEditModal(product); }} className="text-[color:var(--autocity-accent)] hover:text-[color:var(--autocity-accent-strong)] p-2 transition-colors" title="Edit"><Edit className="h-5 w-5" /></button>
                           <button onClick={e => { e.stopPropagation(); handleDeleteClick(product); }} className="text-red-400 hover:text-red-300 p-2 transition-colors" title="Delete"><Trash2 className="h-5 w-5" /></button>
@@ -701,7 +748,15 @@ export default function ProductsClient({
                   </div>
                 ) : products.map((product, index) => (
                   <div key={product._id} style={{ borderBottom:`1px solid ${th.tableRowDivider}` }}>
-                    <ProductCard product={product} onEdit={openEditModal} onDelete={handleDeleteClick} formatYearRange={formatYearRange} isDark={isDark} />
+                    <ProductCard
+                      product={product}
+                      onEdit={openEditModal}
+                      onDelete={handleDeleteClick}
+                      onPrintLabel={handlePrintLabel}
+                      printingLabel={printingLabelProductId === product._id}
+                      formatYearRange={formatYearRange}
+                      isDark={isDark}
+                    />
                   </div>
                 ))}
               </div>

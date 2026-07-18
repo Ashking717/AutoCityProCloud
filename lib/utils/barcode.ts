@@ -47,8 +47,23 @@ export function sanitizeBarcodeValue(value: unknown): string {
     .toUpperCase();
 }
 
-export function getInternalBarcodeFromSku(sku: unknown): string {
-  return sanitizeBarcodeValue(sku);
+function getEan13CheckDigit(firstTwelveDigits: string): number {
+  const sum = firstTwelveDigits
+    .split("")
+    .reduce((total, digit, index) => {
+      const value = Number(digit);
+      return total + value * (index % 2 === 0 ? 1 : 3);
+    }, 0);
+
+  return (10 - (sum % 10)) % 10;
+}
+
+export function generateInternalBarcodeCandidate(): string {
+  const timestampPart = Date.now().toString().slice(-7).padStart(7, "0");
+  const randomPart = Math.floor(Math.random() * 1000).toString().padStart(3, "0");
+  const firstTwelveDigits = `20${timestampPart}${randomPart}`;
+
+  return `${firstTwelveDigits}${getEan13CheckDigit(firstTwelveDigits)}`;
 }
 
 function getCode128BValue(char: string): number {

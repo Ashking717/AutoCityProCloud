@@ -1,6 +1,7 @@
 "use client";
 import {
   useRouter } from "next/navigation";
+import { sanitizeBarcodeValue } from "@/lib/utils/barcode";
 import { Car,
   Edit,
   QrCode,
@@ -28,6 +29,10 @@ export default function ProductCard({
   isDark,
 }: ProductCardProps) {
   const router = useRouter();
+  const hasDistinctBarcode = Boolean(
+    product.barcode &&
+    sanitizeBarcodeValue(product.barcode) !== sanitizeBarcodeValue(product.sku)
+  );
 
   const th = {
     cardBg:        'transparent',
@@ -128,7 +133,7 @@ export default function ProductCard({
               onClick={e => { e.stopPropagation(); onPrintLabel(product); }}
               disabled={printingLabel}
               className="p-2 rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500/20 active:scale-95 transition-all disabled:opacity-50"
-              title={product.barcode ? "Print barcode label" : "Generate and print barcode label"}
+              title={hasDistinctBarcode ? "Print barcode label" : "Generate and print barcode label"}
             >
               {printingLabel ? (
                 <RefreshCw className="h-4 w-4 animate-spin" />

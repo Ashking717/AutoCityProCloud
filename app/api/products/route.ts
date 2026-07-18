@@ -16,7 +16,7 @@ import mongoose from 'mongoose';
 import InventoryMovement from '@/lib/models/InventoryMovement';
 import type { SortOrder } from 'mongoose';
 import {
-  getInternalBarcodeFromSku,
+  generateInternalBarcodeCandidate,
   sanitizeBarcodeValue,
 } from '@/lib/utils/barcode';
 
@@ -358,15 +358,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    let finalBarcode = inputBarcode || getInternalBarcodeFromSku(finalSKU);
+    let finalBarcode = inputBarcode || generateInternalBarcodeCandidate();
 
     if (!inputBarcode) {
-      const barcodeBase = finalBarcode;
-      let barcodeSuffix = 2;
-
-      while (await Product.exists({ barcode: finalBarcode, outletId: outletIdObj })) {
-        finalBarcode = `${barcodeBase}-${barcodeSuffix}`;
-        barcodeSuffix += 1;
+      while (
+        finalBarcode === sanitizeBarcodeValue(finalSKU) ||
+        (await Product.exists({ barcode: finalBarcode, outletId: outletIdObj }))
+      ) {
+        finalBarcode = generateInternalBarcodeCandidate();
       }
     }
 

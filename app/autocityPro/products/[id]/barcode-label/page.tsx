@@ -71,7 +71,11 @@ export default function ProductBarcodeLabelPage() {
   const [labelCount, setLabelCount] = useState(1);
 
   const selectedSize = LABEL_SIZES[labelSize];
-  const barcodeValue = sanitizeBarcodeValue(product?.barcode || product?.sku);
+  const hasDistinctBarcode = Boolean(
+    product?.barcode &&
+    sanitizeBarcodeValue(product.barcode) !== sanitizeBarcodeValue(product.sku)
+  );
+  const barcodeValue = hasDistinctBarcode ? sanitizeBarcodeValue(product?.barcode) : "";
 
   const barcodeData = useMemo(() => {
     if (!barcodeValue) return null;
@@ -113,7 +117,7 @@ export default function ProductBarcodeLabelPage() {
 
   const ensureBarcode = async () => {
     if (!product) return null;
-    if (sanitizeBarcodeValue(product.barcode)) return product.barcode;
+    if (hasDistinctBarcode) return product.barcode;
 
     try {
       setGenerating(true);
@@ -248,7 +252,7 @@ export default function ProductBarcodeLabelPage() {
             </button>
             <button
               onClick={handlePrint}
-              disabled={!barcodeData || generating}
+              disabled={generating}
               className="inline-flex items-center gap-2 rounded-xl bg-[color:var(--autocity-accent)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[color:var(--autocity-accent-strong)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Printer className="h-4 w-4" />

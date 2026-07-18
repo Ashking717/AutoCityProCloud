@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import AddProductModal from "@/components/products/AddProductModal";
 import EditProductModal from "@/components/products/EditProductModal";
+import { sanitizeBarcodeValue } from "@/lib/utils/barcode";
 
 import { Search,
   Plus,
@@ -440,11 +441,15 @@ export default function ProductsClient({
 
   const handlePrintLabel = async (product: any) => {
     if (!product?._id) return;
+    const hasDistinctBarcode = Boolean(
+      product.barcode &&
+      sanitizeBarcodeValue(product.barcode) !== sanitizeBarcodeValue(product.sku)
+    );
 
     try {
       setPrintingLabelProductId(product._id);
 
-      if (!product.barcode) {
+      if (!hasDistinctBarcode) {
         const res = await fetch(`/api/products/${product._id}/barcode`, {
           method: "POST",
           credentials: "include",
@@ -714,7 +719,11 @@ export default function ProductsClient({
                             onClick={e => { e.stopPropagation(); handlePrintLabel(product); }}
                             disabled={printingLabelProductId === product._id}
                             className="text-green-400 hover:text-green-300 p-2 transition-colors disabled:opacity-50"
-                            title={product.barcode ? "Print barcode label" : "Generate and print barcode label"}
+                            title={
+                              product.barcode && sanitizeBarcodeValue(product.barcode) !== sanitizeBarcodeValue(product.sku)
+                                ? "Print barcode label"
+                                : "Generate and print barcode label"
+                            }
                           >
                             {printingLabelProductId === product._id ? (
                               <RefreshCw className="h-5 w-5 animate-spin" />

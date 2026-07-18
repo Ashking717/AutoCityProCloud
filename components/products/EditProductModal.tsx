@@ -747,18 +747,9 @@ export default function EditProductModal({
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label htmlFor="edit-product-barcode" className="block text-xs md:text-sm font-medium text-gray-300">
-                  Barcode
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, barcode: formData.sku })}
-                  className="text-[11px] font-medium text-[color:var(--autocity-accent)] hover:text-[color:var(--autocity-accent-strong)]"
-                >
-                  Use SKU
-                </button>
-              </div>
+              <label htmlFor="edit-product-barcode" className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
+                Barcode
+              </label>
                 <input
                   id="edit-product-barcode"
                   type="text"
@@ -766,11 +757,11 @@ export default function EditProductModal({
                   onChange={(e) =>
                     setFormData({ ...formData, barcode: e.target.value })
                   }
-                  placeholder="Use SKU or manufacturer barcode"
+                  placeholder="Manufacturer barcode or distinct internal barcode"
                   className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                 />
               <p className="mt-1 text-[11px] text-gray-500">
-                If this is empty, the print-label action can generate one from the SKU.
+                If this is empty, the print-label action can generate a distinct internal barcode.
               </p>
             </div>
 

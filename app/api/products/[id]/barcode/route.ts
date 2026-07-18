@@ -6,33 +6,48 @@ import { verifyToken } from '@/lib/auth/jwt';
 import ActivityLog from '@/lib/models/ActivityLog';
 import Product from '@/lib/models/ProductEnhanced';
 import {
-  getInternalBarcodeFromSku,
+  generateInternalBarcodeCandidate,
   sanitizeBarcodeValue,
 } from '@/lib/utils/barcode';
 
-async function getUniqueBarcode(
+async function getUniqueBarcodeCandidate(
   outletId: mongoose.Types.ObjectId | string,
   productId: string,
-  preferredValue: string
+  sku: string,
+  preferredValue?: string
 ) {
+  const sanitizedSku = sanitizeBarcodeValue(sku);
   const base = sanitizeBarcodeValue(preferredValue);
 
-  if (!base) {
-    throw new Error('Product SKU is required to generate a barcode');
+  if (base) {
+    const exists = await Product.exists({
+      outletId,
+      barcode: base,
+      _id: { $ne: productId },
+    });
+
+    if (exists) {
+      throw new Error('Product with this barcode already exists');
+    }
+
+    if (base === sanitizedSku) {
+      throw new Error('Barcode must be different from SKU');
+    }
+
+    return base;
   }
 
-  let candidate = base;
-  let suffix = 2;
+  let candidate = generateInternalBarcodeCandidate();
 
   while (
-    await Product.exists({
+    candidate === sanitizedSku ||
+    (await Product.exists({
       outletId,
       barcode: candidate,
       _id: { $ne: productId },
-    })
+    }))
   ) {
-    candidate = `${base}-${suffix}`;
-    suffix += 1;
+    candidate = generateInternalBarcodeCandidate();
   }
 
   return candidate;
@@ -70,8 +85,9 @@ export async function POST(
     const body = await request.json().catch(() => ({}));
     const force = Boolean(body?.force);
     const existingBarcode = sanitizeBarcodeValue(product.barcode);
+    const existingBarcodeMatchesSku = existingBarcode === sanitizeBarcodeValue(product.sku);
 
-    if (existingBarcode && !force) {
+    if (existingBarcode && !existingBarcodeMatchesSku && !force) {
       return NextResponse.json({
         barcode: existingBarcode,
         product,
@@ -79,8 +95,12 @@ export async function POST(
       });
     }
 
-    const preferredBarcode = sanitizeBarcodeValue(body?.barcode) || getInternalBarcodeFromSku(product.sku);
-    const barcode = await getUniqueBarcode(user.outletId, params.id, preferredBarcode);
+    const barcode = await getUniqueBarcodeCandidate(
+      user.outletId,
+      params.id,
+      product.sku,
+      body?.barcode
+    );
 
     product.barcode = barcode;
     await product.save();

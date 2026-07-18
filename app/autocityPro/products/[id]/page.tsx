@@ -9,6 +9,7 @@ import {
 import { useRouter,
   useParams } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
+import { sanitizeBarcodeValue } from "@/lib/utils/barcode";
 import {
   ChevronLeft,
   Package,
@@ -336,6 +337,10 @@ export default function ProductDetailPage() {
   );
   const stockProgressMax = product ? Math.max(product.maxStock || 0, product.currentStock || 0, 1) : 1;
   const locationsAreSynced = !product || locationStockTotal === 0 || locationStockTotal === product.currentStock;
+  const hasDistinctBarcode = Boolean(
+    product?.barcode &&
+    sanitizeBarcodeValue(product.barcode) !== sanitizeBarcodeValue(product.sku)
+  );
 
   useEffect(() => {
     if (!product || stockAdjustment.locationId || locationStocks.length === 0) return;
@@ -432,7 +437,7 @@ export default function ProductDetailPage() {
 
   const ensureProductBarcode = async () => {
     if (!product) return null;
-    if (product.barcode) return product.barcode;
+    if (hasDistinctBarcode) return product.barcode;
 
     try {
       setGeneratingBarcode(true);
@@ -792,16 +797,16 @@ export default function ProductDetailPage() {
                         <div className="min-w-0">
                           <p className="text-xs text-gray-500">Barcode</p>
                           <p className="truncate text-white">
-                            {product.barcode || "Not generated yet"}
+                            {hasDistinctBarcode ? product.barcode : "Not generated yet"}
                           </p>
-                          {!product.barcode && (
+                          {!hasDistinctBarcode && (
                             <p className="mt-1 text-xs text-gray-500">
-                              Internal barcode will use this product&apos;s SKU.
+                              A distinct internal barcode will be generated before printing.
                             </p>
                           )}
                         </div>
                         <div className="flex flex-shrink-0 gap-2">
-                          {product.barcode && (
+                          {hasDistinctBarcode && (
                             <button
                               onClick={handleCopyBarcode}
                               className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
@@ -814,7 +819,7 @@ export default function ProductDetailPage() {
                             onClick={handlePrintBarcode}
                             disabled={generatingBarcode}
                             className="p-2 rounded-lg bg-[color:var(--autocity-accent-10)] text-[color:var(--autocity-accent)] hover:bg-[color:var(--autocity-accent-20)] transition-colors disabled:opacity-50"
-                            title={product.barcode ? "Print barcode label" : "Generate and print barcode label"}
+                            title={hasDistinctBarcode ? "Print barcode label" : "Generate and print barcode label"}
                           >
                             {generatingBarcode ? (
                               <RefreshCw className="h-4 w-4 animate-spin" />
@@ -1100,7 +1105,7 @@ export default function ProductDetailPage() {
                     <QrCode className="h-5 w-5 text-green-400 mb-2 group-hover:scale-110 transition-transform" />
                   )}
                   <p className="text-sm font-medium text-white">
-                    {product.barcode ? "Print Barcode" : "Generate Barcode"}
+                    {hasDistinctBarcode ? "Print Barcode" : "Generate Barcode"}
                   </p>
                 </button>
               </div>
@@ -1457,7 +1462,7 @@ export default function ProductDetailPage() {
                   disabled={generatingBarcode}
                   className="w-full p-4 bg-[#0A0A0A] border border-white/10 rounded-2xl text-gray-300 font-semibold hover:bg-white/5 transition-all flex items-center justify-between active:scale-95 disabled:opacity-50"
                 >
-                  <span>{product.barcode ? "Print Barcode Label" : "Generate Barcode Label"}</span>
+                  <span>{hasDistinctBarcode ? "Print Barcode Label" : "Generate Barcode Label"}</span>
                   {generatingBarcode ? (
                     <RefreshCw className="h-5 w-5 animate-spin" />
                   ) : (

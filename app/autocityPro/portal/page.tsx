@@ -1,6 +1,7 @@
 'use client';
 
 import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
+import { sanitizeBarcodeValue } from "@/lib/utils/barcode";
 import { shouldIgnoreGlobalShortcut } from "@/lib/utils/keyboard";
 import {
   useState,
@@ -38,6 +39,10 @@ import {
   AlertTriangle,
   Zap,
   TrendingDown,
+  Barcode,
+  Printer,
+  QrCode,
+  RefreshCw,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -103,6 +108,9 @@ export default function PurchasesPortalPage() {
   const [showDynamicIsland,   setShowDynamicIsland]   = useState(true);
   const [transferLoading,     setTransferLoading]     = useState(false);
   const [newLocationName,     setNewLocationName]     = useState("");
+  const [barcodeSearchTerm,   setBarcodeSearchTerm]   = useState("");
+  const [barcodeFilter,       setBarcodeFilter]       = useState<"missing" | "ready" | "all">("missing");
+  const [barcodeLoadingId,    setBarcodeLoadingId]    = useState<string | null>(null);
   const [transferForm,        setTransferForm]        = useState({
     productId: "",
     fromLocationId: "",
@@ -375,6 +383,43 @@ export default function PurchasesPortalPage() {
     }
   };
 
+  const hasDistinctBarcode = (product: any) => Boolean(
+    product?.barcode &&
+    sanitizeBarcodeValue(product.barcode) !== sanitizeBarcodeValue(product.sku)
+  );
+
+  const handlePrintBarcodeLabel = async (product: any) => {
+    if (!product?._id) return;
+
+    try {
+      setBarcodeLoadingId(product._id);
+
+      if (!hasDistinctBarcode(product)) {
+        const res = await fetch(`/api/products/${product._id}/barcode`, {
+          method: "POST",
+          credentials: "include",
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          toast.error(data.error || "Failed to generate barcode");
+          return;
+        }
+
+        setTransferProducts((prev) => prev.map((item) => (
+          item._id === product._id ? { ...item, barcode: data.barcode } : item
+        )));
+        toast.success("Distinct barcode generated");
+      }
+
+      router.push(`/autocityPro/products/${product._id}/barcode-label`);
+    } catch {
+      toast.error("Failed to open barcode label");
+    } finally {
+      setBarcodeLoadingId(null);
+    }
+  };
+
   const formatCurrency       = (n: number) => new Intl.NumberFormat('en-QA', { style: 'currency', currency: 'QAR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
   const formatCompactCurrency = (n: number) => n >= 1_000_000 ? `QR${(n / 1_000_000).toFixed(1)}M` : n >= 10_000 ? `QR${(n / 1_000).toFixed(1)}K` : formatCurrency(n);
 
@@ -384,6 +429,30 @@ export default function PurchasesPortalPage() {
     (t.vendor || t.category || '').toLowerCase().includes(searchTerm.toLowerCase()) &&
     (filterType === 'all' || t.type === filterType)
   );
+  const barcodeQuery = barcodeSearchTerm.trim().toLowerCase();
+  const barcodeReadyCount = transferProducts.filter(hasDistinctBarcode).length;
+  const barcodeMissingCount = Math.max(transferProducts.length - barcodeReadyCount, 0);
+  const filteredBarcodeProducts = transferProducts
+    .filter((product) => {
+      const ready = hasDistinctBarcode(product);
+
+      if (barcodeFilter === "missing" && ready) return false;
+      if (barcodeFilter === "ready" && !ready) return false;
+
+      if (!barcodeQuery) return true;
+
+      return [
+        product.name,
+        product.sku,
+        product.barcode,
+        product.partNumber,
+        product.category?.name,
+        product.location,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(barcodeQuery));
+    })
+    .slice(0, 8);
 
   const clearFilters = () => { setFilterType('all'); setSearchTerm(''); };
 
@@ -803,6 +872,156 @@ export default function PurchasesPortalPage() {
             </div>
           </div>
 
+          {/* Barcode Printing */}
+          <div id="barcode-printing" className="mb-6 md:mb-8">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
+              <div>
+                <h2 className="text-lg md:text-xl font-bold flex items-center gap-2" style={{ color: th.sectionTitle }}>
+                  <Barcode className="h-5 w-5 text-[color:var(--autocity-accent)]" />
+                  Barcode Printing
+                </h2>
+                <p className="text-xs md:text-sm mt-1" style={{ color: th.sectionSub }}>
+                  Generate distinct product barcodes and print thermal labels from the portal.
+                </p>
+              </div>
+              <button
+                onClick={() => router.push("/autocityPro/products")}
+                className="w-fit px-3 py-2 rounded-lg text-xs md:text-sm font-medium text-[color:var(--autocity-accent)] active:scale-95 transition-all"
+                style={{ background: th.clearBtnBg, border: `1px solid ${th.clearBtnBorder}` }}
+              >
+                Manage Products
+              </button>
+            </div>
+
+            <div
+              className="rounded-2xl shadow-xl p-4 md:p-5 transition-colors duration-500"
+              style={{ background: `linear-gradient(135deg,${th.actionCardBgFrom},${th.actionCardBgTo})`, border: `1px solid ${th.actionCardBorder}` }}
+            >
+              <div className="grid grid-cols-3 gap-2 md:gap-3 mb-4">
+                {[
+                  { label: "Products", value: transferProducts.length, tone: th.tableCellPrimary },
+                  { label: "Ready", value: barcodeReadyCount, tone: "#22c55e" },
+                  { label: "Need Barcode", value: barcodeMissingCount, tone: "#f97316" },
+                ].map((item) => (
+                  <div
+                    key={item.label}
+                    className="rounded-xl p-3"
+                    style={{ background: th.modalItemBg, border: `1px solid ${th.modalItemBorder}` }}
+                  >
+                    <p className="text-[10px] md:text-xs" style={{ color: th.mobileCardLabel }}>{item.label}</p>
+                    <p className="text-lg md:text-xl font-bold" style={{ color: item.tone }}>{item.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 mb-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-[color:var(--autocity-accent)]" />
+                  <input
+                    type="text"
+                    value={barcodeSearchTerm}
+                    onChange={(e) => setBarcodeSearchTerm(e.target.value)}
+                    placeholder="Search product, SKU, part number, or barcode..."
+                    className="w-full pl-9 pr-3 py-2 rounded-lg text-sm transition-colors duration-500"
+                    style={{ background: th.selectBg, border: `1px solid ${th.selectBorder}`, color: th.selectText }}
+                  />
+                </div>
+                <div className="flex rounded-lg overflow-hidden" style={{ border: `1px solid ${th.selectBorder}` }}>
+                  {[
+                    { label: "Need", value: "missing" as const },
+                    { label: "Ready", value: "ready" as const },
+                    { label: "All", value: "all" as const },
+                  ].map((filter) => (
+                    <button
+                      key={filter.value}
+                      onClick={() => setBarcodeFilter(filter.value)}
+                      className="px-3 py-2 text-xs md:text-sm font-medium transition-all"
+                      style={{
+                        background: barcodeFilter === filter.value ? "var(--autocity-accent)" : th.selectBg,
+                        color: barcodeFilter === filter.value ? "#ffffff" : th.selectText,
+                        borderLeft: filter.value === "missing" ? "0" : `1px solid ${th.selectBorder}`,
+                      }}
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {filteredBarcodeProducts.length > 0 ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                  {filteredBarcodeProducts.map((product) => {
+                    const ready = hasDistinctBarcode(product);
+                    const barcodeText = ready ? sanitizeBarcodeValue(product.barcode) : "Will generate distinct code";
+
+                    return (
+                      <div
+                        key={product._id}
+                        className="rounded-xl p-3 md:p-4 transition-colors"
+                        style={{ background: th.modalItemBg, border: `1px solid ${th.modalItemBorder}` }}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold" style={{ color: th.tableCellPrimary }}>
+                              {product.name}
+                            </p>
+                            <p className="text-xs mt-1" style={{ color: th.mobileCardLabel }}>
+                              SKU: <span className="font-mono">{product.sku}</span>
+                              {product.partNumber && <span> · Part#: {product.partNumber}</span>}
+                            </p>
+                          </div>
+                          <span
+                            className="flex-shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold"
+                            style={{
+                              background: ready ? "rgba(34,197,94,0.12)" : "rgba(249,115,22,0.12)",
+                              color: ready ? "#22c55e" : "#fb923c",
+                              border: `1px solid ${ready ? "rgba(34,197,94,0.25)" : "rgba(249,115,22,0.25)"}`,
+                            }}
+                          >
+                            {ready ? "Ready" : "Needs barcode"}
+                          </span>
+                        </div>
+
+                        <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                          <div className="flex items-center gap-2 rounded-lg px-3 py-2 min-w-0"
+                            style={{ background: th.selectBg, border: `1px solid ${th.selectBorder}` }}>
+                            <QrCode className="h-4 w-4 flex-shrink-0 text-[color:var(--autocity-accent)]" />
+                            <span className="truncate font-mono text-xs" style={{ color: ready ? th.tableCellPrimary : th.mobileCardLabel }}>
+                              {barcodeText}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => handlePrintBarcodeLabel(product)}
+                            disabled={barcodeLoadingId === product._id}
+                            className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs md:text-sm font-semibold text-white active:scale-95 transition-all disabled:opacity-50"
+                            style={{ background: "linear-gradient(135deg,var(--autocity-accent),var(--autocity-accent-strong))" }}
+                          >
+                            {barcodeLoadingId === product._id ? (
+                              <RefreshCw className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Printer className="h-4 w-4" />
+                            )}
+                            {ready ? "Print Label" : "Generate & Print"}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-xl p-6 text-center" style={{ background: th.modalItemBg, border: `1px solid ${th.modalItemBorder}` }}>
+                  <Barcode className="h-10 w-10 mx-auto mb-2" style={{ color: th.emptyIcon }} />
+                  <p className="text-sm font-medium" style={{ color: th.tableCellPrimary }}>
+                    No products found for barcode printing
+                  </p>
+                  <p className="text-xs mt-1" style={{ color: th.emptyText }}>
+                    Change the filter or search term to find another product.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Recent Categories */}
           <div className="mb-6 md:mb-8">
             <div className="flex items-center justify-between mb-4">
@@ -958,6 +1177,15 @@ export default function PurchasesPortalPage() {
               </button>
             </div>
             <div className="space-y-3">
+              <button onClick={() => {
+                setShowMobileMenu(false);
+                setTimeout(() => document.getElementById("barcode-printing")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+              }}
+                className="w-full p-4 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] rounded-2xl text-white font-semibold transition-all flex items-center justify-between active:scale-95"
+              >
+                <span>Barcode Printing</span>
+                <Barcode className="h-5 w-5" />
+              </button>
               {(['categories','suppliers','transactions'] as const).map(t => (
                 <button key={t} onClick={() => { downloadCSV(t); setShowMobileMenu(false); }}
                   className="w-full p-4 rounded-2xl font-semibold transition-all flex items-center justify-between active:scale-95"

@@ -6,10 +6,12 @@ import toast from "react-hot-toast";
 interface AddProductModalProps {
   show: boolean;
   onClose: () => void;
-  onAdd: (productData: any) => Promise<void>;
+  onAdd: (productData: any) => Promise<boolean | void>;
   categories: any[];
   nextSKU: string;
   onQuickAddCategory: () => void;
+  variantOptions?: string[];
+  colorOptions?: string[];
 }
 
 const vehicleVariants = [
@@ -87,6 +89,25 @@ const vehicleColors = [
   "Forest Green",
 ];
 
+const CUSTOM_OPTION_VALUE = "__custom__";
+
+const mergeOptionValues = (...groups: Array<Array<string | undefined | null> | undefined>) => {
+  const seen = new Set<string>();
+  const options: string[] = [];
+
+  groups.flatMap((group) => group || []).forEach((value) => {
+    const option = String(value || "").trim();
+    const key = option.toLowerCase();
+
+    if (!option || key === CUSTOM_OPTION_VALUE || seen.has(key)) return;
+
+    seen.add(key);
+    options.push(option);
+  });
+
+  return options;
+};
+
 interface OpeningStockSplit {
   id: string;
   locationId: string;
@@ -101,6 +122,8 @@ export default function AddProductModal({
   categories,
   nextSKU,
   onQuickAddCategory,
+  variantOptions = [],
+  colorOptions = [],
 }: AddProductModalProps) {
   const [isVehicle, setIsVehicle] = useState(false);
   const [nameSuggestions, setNameSuggestions] = useState<string[]>([]);
@@ -113,8 +136,23 @@ export default function AddProductModal({
   const [addingLocation, setAddingLocation] = useState(false);
   const [selectedLocationQty, setSelectedLocationQty] = useState(0);
   const [openingStockSplits, setOpeningStockSplits] = useState<OpeningStockSplit[]>([]);
+  const [customVariant, setCustomVariant] = useState("");
+  const [customColor, setCustomColor] = useState("");
+  const [learnedVariants, setLearnedVariants] = useState<string[]>([]);
+  const [learnedColors, setLearnedColors] = useState<string[]>([]);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const suggestionRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  const availableVehicleVariants = mergeOptionValues(
+    vehicleVariants,
+    variantOptions,
+    learnedVariants
+  );
+  const availableVehicleColors = mergeOptionValues(
+    vehicleColors,
+    colorOptions,
+    learnedColors
+  );
 
   const [formData, setFormData] = useState({
     name: "",
@@ -334,6 +372,8 @@ export default function AddProductModal({
     setNewLocationName("");
     setShowNewLocation(false);
     setOpeningStockSplits([]);
+    setCustomVariant("");
+    setCustomColor("");
   };
 
   const handleSubmit = async () => {
@@ -347,6 +387,25 @@ export default function AddProductModal({
         toast.error("Year 'From' must be less than or equal to 'To'");
         return;
       }
+    }
+
+    const finalVariant =
+      formData.variant === CUSTOM_OPTION_VALUE
+        ? customVariant.trim()
+        : formData.variant.trim();
+    const finalColor =
+      formData.color === CUSTOM_OPTION_VALUE
+        ? customColor.trim()
+        : formData.color.trim();
+
+    if (isVehicle && formData.variant === CUSTOM_OPTION_VALUE && !finalVariant) {
+      toast.error("Custom variant is required");
+      return;
+    }
+
+    if (isVehicle && formData.color === CUSTOM_OPTION_VALUE && !finalColor) {
+      toast.error("Custom colour is required");
+      return;
     }
 
     const primaryOpeningQty = Number(selectedLocationQty) || 0;
@@ -393,7 +452,7 @@ export default function AddProductModal({
     if (isVehicle && formData.carMake) {
       productData.carMake = formData.carMake;
       productData.carModel = formData.carModel;
-      productData.variant = formData.variant;
+      productData.variant = finalVariant;
       productData.yearFrom = formData.yearFrom
         ? parseInt(formData.yearFrom)
         : undefined;
@@ -401,11 +460,23 @@ export default function AddProductModal({
         ? parseInt(formData.yearTo)
         : undefined;
       productData.partNumber = formData.partNumber;
-      productData.color = formData.color;
+      productData.color = finalColor;
       productData.isVehicle = true;
     }
 
-    await onAdd(productData);
+    const addResult = await onAdd(productData);
+    if (addResult === false) return;
+
+    if (isVehicle) {
+      if (finalVariant) {
+        setLearnedVariants((prev) => mergeOptionValues(prev, [finalVariant]));
+      }
+
+      if (finalColor) {
+        setLearnedColors((prev) => mergeOptionValues(prev, [finalColor]));
+      }
+    }
+
     resetForm();
   };
 
@@ -869,15 +940,17 @@ export default function AddProductModal({
                   Variant
                 <select
                   value={formData.variant}
-                  onChange={(e) =>
-                    setFormData({ ...formData, variant: e.target.value })
-                  }
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setFormData({ ...formData, variant: value });
+                    if (value !== CUSTOM_OPTION_VALUE) setCustomVariant("");
+                  }}
                   className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                 >
                   <option value="" className="text-[#050505]">
                     Select Variant
                   </option>
-                  {vehicleVariants.map((variant) => (
+                  {availableVehicleVariants.map((variant) => (
                     <option
                       key={variant}
                       value={variant}
@@ -886,8 +959,8 @@ export default function AddProductModal({
                       {variant}
                     </option>
                   ))}
-                  <option value="custom" className="text-[#050505]">
-                    Custom...
+                  <option value={CUSTOM_OPTION_VALUE} className="text-[#050505]">
+                    Add custom variant...
                   </option>
                 </select>
                 </label>
@@ -898,15 +971,17 @@ export default function AddProductModal({
                   Color
                 <select
                   value={formData.color}
-                  onChange={(e) =>
-                    setFormData({ ...formData, color: e.target.value })
-                  }
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setFormData({ ...formData, color: value });
+                    if (value !== CUSTOM_OPTION_VALUE) setCustomColor("");
+                  }}
                   className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                 >
                   <option value="" className="text-[#050505]">
                     Select Color
                   </option>
-                  {vehicleColors.map((color) => (
+                  {availableVehicleColors.map((color) => (
                     <option
                       key={color}
                       value={color}
@@ -915,44 +990,43 @@ export default function AddProductModal({
                       {color}
                     </option>
                   ))}
-                  <option value="custom" className="text-[#050505]">
-                    Custom...
+                  <option value={CUSTOM_OPTION_VALUE} className="text-[#050505]">
+                    Add custom colour...
                   </option>
                 </select>
                 </label>
               </div>
 
-              {formData.variant === "custom" && (
+              {formData.variant === CUSTOM_OPTION_VALUE && (
                 <div className="md:col-span-2">
-                  <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
+                  <label htmlFor="add-product-custom-variant" className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                     Custom Variant
-                  <input
-                    type="text"
-                    value={formData.variant === "custom" ? "" : formData.variant}
-                    onChange={(e) =>
-                      setFormData({ ...formData, variant: e.target.value })
-                    }
-                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
-                    placeholder="Enter custom variant"
-                  />
                   </label>
+                  <input
+                    id="add-product-custom-variant"
+                    type="text"
+                    value={customVariant}
+                    onChange={(e) => setCustomVariant(e.target.value)}
+                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
+                    placeholder="e.g., Black Edition, GR-S, VX-R Special"
+                    autoFocus
+                  />
                 </div>
               )}
 
-              {formData.color === "custom" && (
+              {formData.color === CUSTOM_OPTION_VALUE && (
                 <div className="md:col-span-2">
-                  <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                    Custom Color
-                  <input
-                    type="text"
-                    value={formData.color === "custom" ? "" : formData.color}
-                    onChange={(e) =>
-                      setFormData({ ...formData, color: e.target.value })
-                    }
-                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
-                    placeholder="Enter custom color"
-                  />
+                  <label htmlFor="add-product-custom-color" className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
+                    Custom Colour
                   </label>
+                  <input
+                    id="add-product-custom-color"
+                    type="text"
+                    value={customColor}
+                    onChange={(e) => setCustomColor(e.target.value)}
+                    className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
+                    placeholder="e.g., Matte Grey, Pearl Beige, Desert Sand"
+                  />
                 </div>
               )}
 

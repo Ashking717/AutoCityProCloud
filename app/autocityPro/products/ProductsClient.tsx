@@ -425,9 +425,23 @@ export default function ProductsClient({
   const openAddModal = () => setShowAddModal(true);
 
   const handleAddProduct = async (productData: any) => {
-    const res = await fetch("/api/products", { method:"POST", headers:{"Content-Type":"application/json"}, credentials:"include", body:JSON.stringify(productData) });
-    if (res.ok) { toast.success("Product added!"); setShowAddModal(false); fetchProducts(1); }
-    else { const e=await res.json(); toast.error(e.error||"Failed to add product"); }
+    try {
+      const res = await fetch("/api/products", { method:"POST", headers:{"Content-Type":"application/json"}, credentials:"include", body:JSON.stringify(productData) });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok) {
+        toast.success("Product added!");
+        setShowAddModal(false);
+        await fetchProducts(1);
+        return true;
+      }
+
+      toast.error(data.error || "Failed to add product");
+      return false;
+    } catch {
+      toast.error("Failed to add product");
+      return false;
+    }
   };
 
   const handleEditProduct = async (productData: any) => {
@@ -958,7 +972,9 @@ export default function ProductsClient({
       {/* ── Add / Edit Modals ────────────────────────────────────────────── */}
       <AddProductModal show={showAddModal} onClose={() => setShowAddModal(false)}
         onAdd={handleAddProduct} categories={allCategories} nextSKU={currentSKU}
-        onQuickAddCategory={() => setShowQuickAddCategory(true)} />
+        onQuickAddCategory={() => setShowQuickAddCategory(true)}
+        variantOptions={products.map((product: any) => product.variant)}
+        colorOptions={products.map((product: any) => product.color)} />
       <EditProductModal show={showEditModal} onClose={() => { setShowEditModal(false); setEditingProduct(null); }}
         onUpdate={handleEditProduct} categories={allCategories} product={editingProduct}
         onQuickAddCategory={() => setShowQuickAddCategory(true)} />

@@ -4,6 +4,10 @@ import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
 import { sanitizeBarcodeValue } from "@/lib/utils/barcode";
 import { shouldIgnoreGlobalShortcut } from "@/lib/utils/keyboard";
 import {
+  formatProductQuantity,
+  getProductUnitLabel,
+} from "@/lib/utils/productUnit";
+import {
   useState,
   useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -107,6 +111,11 @@ export default function PurchasesPortalPage() {
   const [showMobileMenu,      setShowMobileMenu]      = useState(false);
   const [showDynamicIsland,   setShowDynamicIsland]   = useState(true);
   const [transferLoading,     setTransferLoading]     = useState(false);
+  const [transferProductSearch, setTransferProductSearch] = useState("");
+  const [transferMake,        setTransferMake]        = useState("");
+  const [transferModel,       setTransferModel]       = useState("");
+  const [transferColor,       setTransferColor]       = useState("");
+  const [transferYear,        setTransferYear]        = useState("");
   const [newLocationName,     setNewLocationName]     = useState("");
   const [barcodeSearchTerm,   setBarcodeSearchTerm]   = useState("");
   const [barcodeFilter,       setBarcodeFilter]       = useState<"missing" | "ready" | "all">("missing");
@@ -189,6 +198,7 @@ export default function PurchasesPortalPage() {
     tableRowHover:   isDark ? 'rgba(255,255,255,0.02)'                                   : 'rgba(0,0,0,0.02)',
     tableCellPrimary: isDark ? '#ffffff'                                                 : '#111827',
     tableCellSecondary: isDark ? '#d1d5db'                                               : '#374151',
+    tableCellMuted:  isDark ? '#9ca3af'                                                  : '#6b7280',
     emptyIcon:       isDark ? '#4b5563'                                                  : '#d1d5db',
     emptyText:       isDark ? '#9ca3af'                                                  : '#6b7280',
     // Section headings
@@ -308,17 +318,49 @@ export default function PurchasesPortalPage() {
 
   const handleTransferProductChange = (productId: string) => {
     const product = transferProducts.find((item) => item._id === productId);
-    const productLocations = (product?.locations || []).filter((location: any) => location.locationId);
-    const firstFrom = productLocations[0]?.locationId || "";
-    const firstTo = stockLocations.find((location) => String(location._id) !== String(firstFrom))?._id || "";
+    const productLocations = (product?.locations || []).filter(
+      (location: any) => location.locationId && Number(location.quantity || 0) > 0
+    );
+    const selectedSource = productLocations.some(
+      (location: any) =>
+        String(location.locationId) === String(transferForm.fromLocationId)
+    )
+      ? transferForm.fromLocationId
+      : productLocations[0]?.locationId || "";
+    const destination =
+      transferForm.toLocationId &&
+      String(transferForm.toLocationId) !== String(selectedSource)
+        ? transferForm.toLocationId
+        : stockLocations.find(
+            (location) => String(location._id) !== String(selectedSource)
+          )?._id || "";
 
     setTransferForm({
       productId,
-      fromLocationId: firstFrom,
-      toLocationId: firstTo,
+      fromLocationId: selectedSource,
+      toLocationId: destination,
+      quantity: 1,
+      notes: transferForm.notes,
+    });
+  };
+
+  const handleTransferSourceChange = (fromLocationId: string) => {
+    const toLocationId = stockLocations.find(
+      (location) => String(location._id) !== String(fromLocationId)
+    )?._id || "";
+
+    setTransferForm({
+      productId: "",
+      fromLocationId,
+      toLocationId,
       quantity: 1,
       notes: "",
     });
+    setTransferProductSearch("");
+    setTransferMake("");
+    setTransferModel("");
+    setTransferColor("");
+    setTransferYear("");
   };
 
   const createStockLocation = async () => {
@@ -375,6 +417,11 @@ export default function PurchasesPortalPage() {
       const data = await res.json();
       toast.success(`Transfer saved: ${data.referenceNumber}`);
       setTransferForm({ productId: "", fromLocationId: "", toLocationId: "", quantity: 1, notes: "" });
+      setTransferProductSearch("");
+      setTransferMake("");
+      setTransferModel("");
+      setTransferColor("");
+      setTransferYear("");
       await fetchTransferData();
     } catch {
       toast.error("Failed to transfer stock");
@@ -479,11 +526,84 @@ export default function PurchasesPortalPage() {
     (product) => product._id === transferForm.productId
   );
   const selectedProductLocations = (selectedTransferProduct?.locations || []).filter(
-    (location: any) => location.locationId
+    (location: any) => location.locationId && Number(location.quantity || 0) > 0
   );
   const selectedFromLocation = selectedProductLocations.find(
     (location: any) => location.locationId === transferForm.fromLocationId
   );
+  const transferSearchQuery = transferProductSearch.trim().toLowerCase();
+  const sourceTransferProducts = transferProducts
+    .filter((product) =>
+      (product.locations || []).some(
+        (location: any) =>
+          String(location.locationId) === String(transferForm.fromLocationId) &&
+          Number(location.quantity || 0) > 0
+      )
+    );
+  const availableTransferMakes = [...new Set(
+    sourceTransferProducts.map((product) => product.carMake).filter(Boolean)
+  )].sort() as string[];
+  const availableTransferModels = [...new Set(
+    sourceTransferProducts
+      .filter((product) => !transferMake || product.carMake === transferMake)
+      .map((product) => product.carModel)
+      .filter(Boolean)
+  )].sort() as string[];
+  const availableTransferColors = [...new Set(
+    sourceTransferProducts.map((product) => product.color).filter(Boolean)
+  )].sort() as string[];
+  const availableTransferYears = (() => {
+    const years = new Set<number>();
+    sourceTransferProducts.forEach((product) => {
+      const from = Math.max(1900, Number(product.yearFrom) || 0);
+      const to = Math.min(2100, Number(product.yearTo) || from);
+      if (!from) return;
+      for (let year = from; year <= Math.max(from, to); year += 1) years.add(year);
+    });
+    return [...years].sort((a, b) => b - a);
+  })();
+  const filteredTransferProducts = sourceTransferProducts
+    .filter((product) => !transferMake || product.carMake === transferMake)
+    .filter((product) => !transferModel || product.carModel === transferModel)
+    .filter((product) => !transferColor || product.color === transferColor)
+    .filter((product) => {
+      if (!transferYear) return true;
+      const year = Number(transferYear);
+      const from = Number(product.yearFrom) || 0;
+      const to = Number(product.yearTo) || from;
+      return !!from && year >= from && year <= to;
+    })
+    .filter((product) => {
+      if (!transferSearchQuery) return true;
+      return [
+        product.name,
+        product.sku,
+        product.partNumber,
+        product.carMake,
+        product.carModel,
+        product.variant,
+        product.color,
+        product.yearFrom,
+        product.yearTo,
+        ...(product.locations || []).map((location: any) => location.locationName),
+      ]
+        .filter(Boolean)
+        .some((value) =>
+          String(value).toLowerCase().includes(transferSearchQuery)
+        );
+    })
+    .slice(0, 30);
+
+  const formatTransferYear = (product: any) => {
+    if (product.yearFrom && product.yearTo) {
+      return product.yearFrom === product.yearTo
+        ? String(product.yearFrom)
+        : `${product.yearFrom}-${product.yearTo}`;
+    }
+    if (product.yearFrom) return `${product.yearFrom}+`;
+    if (product.yearTo) return `Up to ${product.yearTo}`;
+    return "";
+  };
 
   return (
     <MainLayout user={user} onLogout={handleLogout}>
@@ -752,57 +872,266 @@ export default function PurchasesPortalPage() {
             <div className="rounded-2xl shadow-xl p-4 md:p-5 transition-colors duration-500"
               style={{ background: `linear-gradient(135deg,${th.actionCardBgFrom},${th.actionCardBgTo})`, border: `1px solid ${th.actionCardBorder}` }}>
               <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
-                <div className="lg:col-span-2">
-                  <label htmlFor="transfer-product" className="block text-xs font-medium mb-1" style={{ color: th.filterLabel }}>Product</label>
-                  <select
-                    id="transfer-product"
-                    value={transferForm.productId}
-                    onChange={(e) => handleTransferProductChange(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-sm transition-colors duration-500"
-                    style={{ background: th.selectBg, border: `1px solid ${th.selectBorder}`, color: th.selectText }}
-                  >
-                    <option value="">Select product</option>
-                    {transferProducts.map((product) => (
-                      <option key={product._id} value={product._id}>
-                        {product.name} - {product.sku} ({product.currentStock || 0})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label htmlFor="transfer-from" className="block text-xs font-medium mb-1" style={{ color: th.filterLabel }}>From</label>
+                <div className="lg:col-span-5">
+                  <label htmlFor="transfer-from" className="block text-xs font-medium mb-1" style={{ color: th.filterLabel }}>
+                    Step 1: Source location
+                  </label>
                   <select
                     id="transfer-from"
                     value={transferForm.fromLocationId}
-                    onChange={(e) => {
-                      const nextFrom = e.target.value;
-                      const nextTo = transferForm.toLocationId === nextFrom
-                        ? stockLocations.find((location) => String(location._id) !== String(nextFrom))?._id || ""
-                        : transferForm.toLocationId;
-                      setTransferForm({ ...transferForm, fromLocationId: nextFrom, toLocationId: nextTo });
-                    }}
+                    onChange={(e) => handleTransferSourceChange(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg text-sm transition-colors duration-500"
                     style={{ background: th.selectBg, border: `1px solid ${th.selectBorder}`, color: th.selectText }}
-                    disabled={!selectedTransferProduct}
                   >
-                    <option value="">Select source</option>
-                    {selectedProductLocations.map((location: any) => (
-                      <option key={location.locationId} value={location.locationId}>
-                        {location.locationName} ({location.quantity})
+                    <option value="">Select the area stock is moving from</option>
+                    {stockLocations.map((location) => (
+                      <option key={location._id} value={location._id}>
+                        {location.name} ({location.productCount || 0} products, {location.quantity || 0} total stock)
                       </option>
                     ))}
                   </select>
                 </div>
 
-                <div>
-                  <label htmlFor="transfer-to" className="block text-xs font-medium mb-1" style={{ color: th.filterLabel }}>To</label>
+                <div className="lg:col-span-5">
+                  <label htmlFor="transfer-product-search" className="block text-xs font-medium mb-1" style={{ color: th.filterLabel }}>
+                    Step 2: Identify the exact product
+                  </label>
+                  {!transferForm.fromLocationId ? (
+                    <div
+                      className="rounded-xl p-4 text-sm"
+                      style={{ background: th.modalItemBg, border: `1px solid ${th.modalItemBorder}`, color: th.tableCellMuted }}
+                    >
+                      Select a source location first. Only products with available stock in that area will be shown.
+                    </div>
+                  ) : selectedTransferProduct ? (
+                    <div
+                      className="rounded-xl p-4"
+                      style={{ background: th.modalItemBg, border: `1px solid var(--autocity-accent-30)` }}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-semibold" style={{ color: th.tableCellPrimary }}>
+                            {selectedTransferProduct.name}
+                          </p>
+                          <p className="mt-1 text-xs" style={{ color: th.tableCellMuted }}>
+                            SKU: {selectedTransferProduct.sku}
+                            {selectedTransferProduct.partNumber ? ` | Part #: ${selectedTransferProduct.partNumber}` : ""}
+                            {` | Unit: ${getProductUnitLabel(selectedTransferProduct.unit)}`}
+                          </p>
+                          {(selectedTransferProduct.carMake ||
+                            selectedTransferProduct.carModel ||
+                            selectedTransferProduct.variant ||
+                            selectedTransferProduct.color ||
+                            formatTransferYear(selectedTransferProduct)) && (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {selectedTransferProduct.carMake && (
+                                <span className="rounded-md bg-blue-500/10 px-2 py-1 text-xs font-medium text-blue-400">
+                                  Make: {selectedTransferProduct.carMake}
+                                </span>
+                              )}
+                              {selectedTransferProduct.carModel && (
+                                <span className="rounded-md bg-cyan-500/10 px-2 py-1 text-xs font-medium text-cyan-400">
+                                  Model: {selectedTransferProduct.carModel}
+                                </span>
+                              )}
+                              {selectedTransferProduct.variant && (
+                                <span className="rounded-md bg-orange-500/10 px-2 py-1 text-xs font-medium text-orange-400">
+                                  Variant: {selectedTransferProduct.variant}
+                                </span>
+                              )}
+                              {selectedTransferProduct.color && (
+                                <span className="rounded-md bg-pink-500/10 px-2 py-1 text-xs font-medium text-pink-400">
+                                  Colour: {selectedTransferProduct.color}
+                                </span>
+                              )}
+                              {formatTransferYear(selectedTransferProduct) && (
+                                <span className="rounded-md bg-green-500/10 px-2 py-1 text-xs font-medium text-green-400">
+                                  Year: {formatTransferYear(selectedTransferProduct)}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {selectedProductLocations.map((location: any) => (
+                              <span
+                                key={location.locationId}
+                                className="rounded-full px-2.5 py-1 text-xs"
+                                style={{ background: th.clearBtnBg, color: th.tableCellSecondary }}
+                              >
+                                {location.locationName}: {formatProductQuantity(location.quantity, selectedTransferProduct.unit)}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTransferForm((current) => ({ ...current, productId: "", quantity: 1 }));
+                            setTransferProductSearch("");
+                          }}
+                          className="flex-shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium text-[color:var(--autocity-accent)]"
+                          style={{ background: th.clearBtnBg, border: `1px solid ${th.clearBtnBorder}` }}
+                        >
+                          Change
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-3 h-4 w-4 text-[color:var(--autocity-accent)]" />
+                        <input
+                          id="transfer-product-search"
+                          type="text"
+                          value={transferProductSearch}
+                          onChange={(e) => setTransferProductSearch(e.target.value)}
+                          placeholder="Search SKU, part number, product name, model, variant..."
+                          className="w-full rounded-lg py-2 pl-10 pr-3 text-sm transition-colors duration-500"
+                          style={{ background: th.selectBg, border: `1px solid ${th.selectBorder}`, color: th.selectText }}
+                        />
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-2 lg:grid-cols-4">
+                        <select
+                          value={transferMake}
+                          onChange={(e) => {
+                            setTransferMake(e.target.value);
+                            setTransferModel("");
+                          }}
+                          className="w-full rounded-lg px-3 py-2 text-xs"
+                          style={{ background: th.selectBg, border: `1px solid ${th.selectBorder}`, color: th.selectText }}
+                        >
+                          <option value="">All makes</option>
+                          {availableTransferMakes.map((make) => (
+                            <option key={make} value={make}>{make}</option>
+                          ))}
+                        </select>
+                        <select
+                          value={transferModel}
+                          onChange={(e) => setTransferModel(e.target.value)}
+                          disabled={!transferMake}
+                          className="w-full rounded-lg px-3 py-2 text-xs disabled:opacity-50"
+                          style={{ background: th.selectBg, border: `1px solid ${th.selectBorder}`, color: th.selectText }}
+                        >
+                          <option value="">All models</option>
+                          {availableTransferModels.map((model) => (
+                            <option key={model} value={model}>{model}</option>
+                          ))}
+                        </select>
+                        <select
+                          value={transferColor}
+                          onChange={(e) => setTransferColor(e.target.value)}
+                          className="w-full rounded-lg px-3 py-2 text-xs"
+                          style={{ background: th.selectBg, border: `1px solid ${th.selectBorder}`, color: th.selectText }}
+                        >
+                          <option value="">All colours</option>
+                          {availableTransferColors.map((color) => (
+                            <option key={color} value={color}>{color}</option>
+                          ))}
+                        </select>
+                        <select
+                          value={transferYear}
+                          onChange={(e) => setTransferYear(e.target.value)}
+                          className="w-full rounded-lg px-3 py-2 text-xs"
+                          style={{ background: th.selectBg, border: `1px solid ${th.selectBorder}`, color: th.selectText }}
+                        >
+                          <option value="">All years</option>
+                          {availableTransferYears.map((year) => (
+                            <option key={year} value={year}>{year}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="mt-2 grid max-h-64 grid-cols-1 gap-2 overflow-y-auto pr-1 md:grid-cols-2">
+                        {filteredTransferProducts.length === 0 ? (
+                          <div
+                            className="rounded-xl p-4 text-sm md:col-span-2"
+                            style={{ background: th.modalItemBg, color: th.tableCellMuted }}
+                          >
+                            No product in this source area matches the selected make, model, colour, year, or search.
+                          </div>
+                        ) : (
+                          filteredTransferProducts.map((product) => {
+                            const year = formatTransferYear(product);
+                            const locations = (product.locations || []).filter(
+                              (location: any) =>
+                                location.locationId && Number(location.quantity || 0) > 0
+                            );
+                            return (
+                              <button
+                                key={product._id}
+                                type="button"
+                                onClick={() => handleTransferProductChange(product._id)}
+                                className="rounded-xl p-3 text-left transition-all hover:border-[color:var(--autocity-accent-30)] active:scale-[0.99]"
+                                style={{ background: th.modalItemBg, border: `1px solid ${th.modalItemBorder}` }}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <p className="min-w-0 font-semibold" style={{ color: th.tableCellPrimary }}>
+                                    {product.name}
+                                  </p>
+                                  <span className="flex-shrink-0 text-[10px] font-mono" style={{ color: th.tableCellMuted }}>
+                                    {product.sku}
+                                  </span>
+                                </div>
+                                {product.partNumber && (
+                                  <p className="mt-1 text-xs" style={{ color: th.tableCellMuted }}>
+                                    Part #: {product.partNumber}
+                                  </p>
+                                )}
+                                {product.carMake || product.carModel || product.variant || product.color || year ? (
+                                  <div className="mt-2 flex flex-wrap gap-1.5">
+                                    {product.carMake && (
+                                      <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-[11px] text-blue-400">
+                                        Make: {product.carMake}
+                                      </span>
+                                    )}
+                                    {product.carModel && (
+                                      <span className="rounded bg-cyan-500/10 px-1.5 py-0.5 text-[11px] text-cyan-400">
+                                        Model: {product.carModel}
+                                      </span>
+                                    )}
+                                    {product.variant && (
+                                      <span className="rounded bg-orange-500/10 px-1.5 py-0.5 text-[11px] text-orange-400">
+                                        Variant: {product.variant}
+                                      </span>
+                                    )}
+                                    {product.color && (
+                                      <span className="rounded bg-pink-500/10 px-1.5 py-0.5 text-[11px] text-pink-400">
+                                        Colour: {product.color}
+                                      </span>
+                                    )}
+                                    {year && (
+                                      <span className="rounded bg-green-500/10 px-1.5 py-0.5 text-[11px] text-green-400">
+                                        Year: {year}
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <p className="mt-1 text-xs" style={{ color: th.tableCellSecondary }}>General product</p>
+                                )}
+                                <div className="mt-2 space-y-1">
+                                  {locations.map((location: any) => (
+                                    <p key={location.locationId} className="text-xs" style={{ color: th.tableCellMuted }}>
+                                      {location.locationName}: {formatProductQuantity(location.quantity, product.unit)}
+                                    </p>
+                                  ))}
+                                </div>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <div className="lg:col-span-2">
+                  <label htmlFor="transfer-to" className="block text-xs font-medium mb-1" style={{ color: th.filterLabel }}>Step 3: Destination location</label>
                   <select
                     id="transfer-to"
                     value={transferForm.toLocationId}
                     onChange={(e) => setTransferForm({ ...transferForm, toLocationId: e.target.value })}
                     className="w-full px-3 py-2 rounded-lg text-sm transition-colors duration-500"
                     style={{ background: th.selectBg, border: `1px solid ${th.selectBorder}`, color: th.selectText }}
+                    disabled={!selectedTransferProduct}
                   >
                     <option value="">Select destination</option>
                     {stockLocations
@@ -817,7 +1146,10 @@ export default function PurchasesPortalPage() {
 
                 <div>
                   <label htmlFor="transfer-quantity" className="block text-xs font-medium mb-1" style={{ color: th.filterLabel }}>
-                    Qty{selectedFromLocation ? ` / ${selectedFromLocation.quantity}` : ""}
+                    Step 4: Quantity
+                    {selectedFromLocation && selectedTransferProduct
+                      ? ` / ${formatProductQuantity(selectedFromLocation.quantity, selectedTransferProduct.unit)} available`
+                      : ""}
                   </label>
                   <input
                     id="transfer-quantity"
@@ -828,6 +1160,7 @@ export default function PurchasesPortalPage() {
                     onChange={(e) => setTransferForm({ ...transferForm, quantity: parseFloat(e.target.value) || 1 })}
                     className="w-full px-3 py-2 rounded-lg text-sm transition-colors duration-500"
                     style={{ background: th.selectBg, border: `1px solid ${th.selectBorder}`, color: th.selectText }}
+                    disabled={!selectedTransferProduct}
                   />
                 </div>
               </div>
@@ -843,7 +1176,13 @@ export default function PurchasesPortalPage() {
                 />
                 <button
                   onClick={handleTransferStock}
-                  disabled={transferLoading}
+                  disabled={
+                    transferLoading ||
+                    !transferForm.productId ||
+                    !transferForm.fromLocationId ||
+                    !transferForm.toLocationId ||
+                    transferForm.quantity <= 0
+                  }
                   className="lg:col-span-2 px-4 py-2 rounded-lg text-white font-semibold active:scale-95 transition-all disabled:opacity-50"
                   style={{ background: 'linear-gradient(135deg,var(--autocity-accent),var(--autocity-accent-strong))' }}
                 >

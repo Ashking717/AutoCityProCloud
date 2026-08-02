@@ -26,6 +26,11 @@ import {
   Loader2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import {
+  formatProductQuantity,
+  getProductUnitLabel,
+  PRODUCT_UNIT_OPTIONS,
+} from '@/lib/utils/productUnit';
 
 // ─── Time-based theme hook ────────────────────────────────────────────────────
 export default function StockPage() {
@@ -35,12 +40,15 @@ export default function StockPage() {
   const [user,             setUser]             = useState<any>(null);
   const [products,         setProducts]         = useState<any[]>([]);
   const [categories,       setCategories]       = useState<any[]>([]);
+  const [stockLocations,   setStockLocations]   = useState<any[]>([]);
   const [loading,          setLoading]          = useState(true);
   const [searchTerm,       setSearchTerm]       = useState('');
   const [showFilters,      setShowFilters]      = useState(false);
   const [showDesktopFilters, setShowDesktopFilters] = useState(false);
   const [activeDesktopFilterMenu, setActiveDesktopFilterMenu] = useState<'search' | 'stock' | 'product' | 'vehicle' | 'active'>('search');
   const [filterStatus,     setFilterStatus]     = useState<string>('all');
+  const [filterUnit,       setFilterUnit]       = useState('');
+  const [filterLocationId, setFilterLocationId] = useState('');
   const [isMobile,         setIsMobile]         = useState(false);
   const [showMobileMenu,   setShowMobileMenu]   = useState(false);
   const [showDynamicIsland,setShowDynamicIsland]= useState(true);
@@ -193,6 +201,13 @@ export default function StockPage() {
     } catch {}
   };
 
+  const fetchStockLocations = async () => {
+    try {
+      const res = await fetch('/api/stock-locations', { credentials: 'include' });
+      if (res.ok) setStockLocations((await res.json()).locations || []);
+    } catch {}
+  };
+
   const fetchProducts = async (page = 1, append = false) => {
     try {
       if (!append) { setCurrentPage(page); setProducts([]); setHasMoreProducts(true); setLoading(true); } else { setIsLoadingMore(true); }
@@ -203,6 +218,10 @@ export default function StockPage() {
       if (filterModel)  params.append('carModel',  filterModel);
       if (filterVariant)params.append('variant',   filterVariant);
       if (filterColor)  params.append('color',     filterColor);
+      if (filterYear)   params.append('year',      filterYear);
+      if (filterUnit)   params.append('unit',      filterUnit);
+      if (filterLocationId) params.append('locationId', filterLocationId);
+      if (filterStatus !== 'all') params.append('stockStatus', filterStatus);
       if (filterIsVehicle !== 'all') params.append('isVehicle', filterIsVehicle === 'vehicle' ? 'true' : 'false');
 
       const res = await fetch(`/api/products?${params}`, { credentials: 'include' });
@@ -229,13 +248,13 @@ export default function StockPage() {
   const handleRefresh    = () => { fetchProducts(1, false); toast.success('Stock data refreshed'); };
 
   useEffect(() => {
-    fetchUser(); fetchCategories(); fetchProducts(1, false);
+    fetchUser(); fetchCategories(); fetchStockLocations(); fetchProducts(1, false);
     const check = () => setIsMobile(window.innerWidth < 768);
     check(); window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  useEffect(() => { fetchProducts(1, false); }, [searchTerm, filterStatus, filterCategory, filterMake, filterModel, filterVariant, filterColor, filterYear, filterIsVehicle]);
+  useEffect(() => { fetchProducts(1, false); }, [searchTerm, filterStatus, filterUnit, filterLocationId, filterCategory, filterMake, filterModel, filterVariant, filterColor, filterYear, filterIsVehicle]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(entries => {
@@ -279,14 +298,16 @@ export default function StockPage() {
   const availableColors  = [...new Set(products.filter(p => p.color).map(p => p.color))].sort() as string[];
   const availableYears   = (() => { const s = new Set<number>(); products.forEach(p => { if (p.yearFrom) { for (let y = p.yearFrom; y <= (p.yearTo || p.yearFrom); y++) s.add(y); } }); return Array.from(s).sort((a,b) => b - a); })();
 
-  const clearFilters = () => { setFilterStatus('all'); setFilterCategory(''); setFilterMake(''); setFilterModel(''); setFilterVariant(''); setFilterColor(''); setFilterYear(''); setFilterIsVehicle('all'); setSearchTerm(''); };
+  const clearFilters = () => { setFilterStatus('all'); setFilterUnit(''); setFilterLocationId(''); setFilterCategory(''); setFilterMake(''); setFilterModel(''); setFilterVariant(''); setFilterColor(''); setFilterYear(''); setFilterIsVehicle('all'); setSearchTerm(''); };
 
-  const activeFilterCount = [filterCategory, filterMake, filterModel, filterVariant, filterColor, filterYear, filterIsVehicle !== 'all', filterStatus !== 'all'].filter(Boolean).length;
+  const activeFilterCount = [filterCategory, filterUnit, filterLocationId, filterMake, filterModel, filterVariant, filterColor, filterYear, filterIsVehicle !== 'all', filterStatus !== 'all'].filter(Boolean).length;
   const stockFilterCount = [filterStatus !== 'all'].filter(Boolean).length;
-  const productFilterCount = [filterCategory, filterIsVehicle !== 'all'].filter(Boolean).length;
+  const productFilterCount = [filterCategory, filterUnit, filterLocationId, filterIsVehicle !== 'all'].filter(Boolean).length;
   const vehicleFilterCount = [filterMake, filterModel, filterVariant, filterColor, filterYear].filter(Boolean).length;
   const activeFilterTags = [
     filterStatus !== 'all' && { label: `Status: ${filterStatus === 'low' ? 'Low Stock' : filterStatus === 'critical' ? 'Critical' : 'Out of Stock'}`, clear: () => setFilterStatus('all') },
+    filterUnit && { label: `Unit: ${getProductUnitLabel(filterUnit)}`, clear: () => setFilterUnit('') },
+    filterLocationId && { label: `Location: ${stockLocations.find(location => String(location._id) === filterLocationId)?.name || 'Selected'}`, clear: () => setFilterLocationId('') },
     filterCategory && { label: `Category: ${categories.find(c => c._id === filterCategory)?.name || 'Selected'}`, clear: () => setFilterCategory('') },
     filterIsVehicle !== 'all' && { label: `Type: ${filterIsVehicle === 'vehicle' ? 'Vehicles/Parts' : 'Non-Vehicle'}`, clear: () => setFilterIsVehicle('all') },
     filterMake && { label: `Make: ${filterMake}`, clear: () => { setFilterMake(''); setFilterModel(''); } },
@@ -303,15 +324,15 @@ export default function StockPage() {
   }> = [
     { id: 'search', label: 'Search', description: 'Name, SKU, location' },
     { id: 'stock', label: 'Stock Status', description: 'Low, critical, out', count: stockFilterCount },
-    { id: 'product', label: 'Product Type', description: 'Category and item type', count: productFilterCount },
+    { id: 'product', label: 'Product & Area', description: 'Type, unit, category, location', count: productFilterCount },
     { id: 'vehicle', label: 'Vehicle Compatibility', description: 'Make, model, year', count: vehicleFilterCount },
     { id: 'active', label: 'Selected Filters', description: 'Review and clear', count: activeFilterTags.length },
   ];
 
   const downloadStockCSV = () => {
     if (!filteredProducts.length) { toast.error('No stock data to export'); return; }
-    const headers = ['SKU','Name','Location','Current Stock','Min Stock','Reorder Point','Stock Value','Make','Model','Variant','Color','Year Range'];
-    const rows    = filteredProducts.map(p => [p.sku||'', `"${(p.name||'').replace(/"/g,'""')}"`, p.location||'', p.currentStock||0, p.minStock||0, p.reorderPoint||0, (p.currentStock*p.costPrice)||0, p.carMake||'', p.carModel||'', p.variant||'', p.color||'', p.yearFrom ? `${p.yearFrom}${p.yearTo?`-${p.yearTo}`:''}` : '']);
+    const headers = ['SKU','Name','Location','Unit','Current Stock','Min Stock','Reorder Point','Stock Value','Make','Model','Variant','Color','Year Range'];
+    const rows    = filteredProducts.map(p => [p.sku||'', `"${(p.name||'').replace(/"/g,'""')}"`, p.location||'', p.unit||'pcs', p.currentStock||0, p.minStock||0, p.reorderPoint||0, (p.currentStock*p.costPrice)||0, p.carMake||'', p.carModel||'', p.variant||'', p.color||'', p.yearFrom ? `${p.yearFrom}${p.yearTo?`-${p.yearTo}`:''}` : '']);
     const csv     = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const link    = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' })), download: `stock_${new Date().toISOString().split('T')[0]}.csv` });
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
@@ -567,8 +588,8 @@ export default function StockPage() {
                         {activeDesktopFilterMenu === 'product' && (
                           <>
                             <div className="px-4 py-3" style={{ borderBottom: `1px solid ${th.stockRowDivider}` }}>
-                              <p className="text-sm font-semibold" style={{ color: th.stockCellPrimary }}>Product Type</p>
-                              <p className="text-xs mt-1" style={{ color: th.stockCellMuted }}>Choose item type and category.</p>
+                              <p className="text-sm font-semibold" style={{ color: th.stockCellPrimary }}>Product & Area</p>
+                              <p className="text-xs mt-1" style={{ color: th.stockCellMuted }}>Choose item type, unit, category, and stock location.</p>
                             </div>
                             <div className="p-4 space-y-4">
                               <div className="grid grid-cols-3 gap-2">
@@ -604,6 +625,36 @@ export default function StockPage() {
                                 >
                                   <option value="">All Categories</option>
                                   {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                                </select>
+                              </div>
+                              <div>
+                                <p className="text-xs uppercase tracking-[0.2em] mb-2" style={{ color: th.stockCellMuted }}>Unit</p>
+                                <select
+                                  value={filterUnit}
+                                  onChange={e => setFilterUnit(e.target.value)}
+                                  className="w-full px-3 py-3 text-sm rounded-xl focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent appearance-none"
+                                  style={selectStyle}
+                                >
+                                  <option value="">All Units</option>
+                                  {PRODUCT_UNIT_OPTIONS.map(unit => (
+                                    <option key={unit.value} value={unit.value}>{unit.label}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div>
+                                <p className="text-xs uppercase tracking-[0.2em] mb-2" style={{ color: th.stockCellMuted }}>Location / Area</p>
+                                <select
+                                  value={filterLocationId}
+                                  onChange={e => setFilterLocationId(e.target.value)}
+                                  className="w-full px-3 py-3 text-sm rounded-xl focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent appearance-none"
+                                  style={selectStyle}
+                                >
+                                  <option value="">All Locations</option>
+                                  {stockLocations.map(location => (
+                                    <option key={location._id} value={location._id}>
+                                      {location.name}
+                                    </option>
+                                  ))}
                                 </select>
                               </div>
                             </div>
@@ -720,13 +771,16 @@ export default function StockPage() {
           {/* Stat Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
             {[
-              { label:'Total Value',   value: totalStockCode, sub: formatCompactCurrency(globalStats.totalValue), color: th.cardValue },
-              { label:'Low Stock',     value: globalStats.lowStockCount,    sub: null, color: th.cardValueRed },
-              { label:'Out of Stock',  value: globalStats.outOfStockCount,  sub: null, color: th.cardValueRed },
-              { label:'Critical',      value: globalStats.criticalCount,    sub: null, color: th.cardValueRed },
-            ].map(({ label, value, sub, color }) => (
-              <div key={label}
-                className="rounded-2xl p-4 transition-all active:scale-[0.98]"
+              { label:'Total Value',   value: totalStockCode, sub: formatCompactCurrency(globalStats.totalValue), color: th.cardValue, status: 'all' },
+              { label:'Low Stock',     value: globalStats.lowStockCount,    sub: null, color: th.cardValueRed, status: 'low' },
+              { label:'Out of Stock',  value: globalStats.outOfStockCount,  sub: null, color: th.cardValueRed, status: 'out' },
+              { label:'Critical',      value: globalStats.criticalCount,    sub: null, color: th.cardValueRed, status: 'critical' },
+            ].map(({ label, value, sub, color, status }) => (
+              <button key={label}
+                type="button"
+                onClick={() => setFilterStatus(status)}
+                aria-pressed={filterStatus === status}
+                className="rounded-2xl p-4 text-left transition-all active:scale-[0.98]"
                 style={{ background: `linear-gradient(135deg,${th.cardBgFrom},${th.cardBgTo})`, border: `1px solid ${th.cardBorder}` }}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--autocity-accent-30)')}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = th.cardBorder)}
@@ -739,7 +793,7 @@ export default function StockPage() {
                 <p className="text-xs mb-1" style={{ color: th.cardLabel }}>{label}</p>
                 <p className="text-lg md:text-xl font-bold truncate" style={{ color }}>{value}</p>
                 {sub && <p className="text-xs mt-1 truncate" style={{ color: th.cardSubText }}>{sub}</p>}
-              </div>
+              </button>
             ))}
           </div>
 
@@ -847,9 +901,9 @@ export default function StockPage() {
                         </div>
                         <div className="grid grid-cols-2 gap-3 py-3" style={{ borderTop: `1px solid ${th.mobileCardDivider}` }}>
                           {[
-                            { label:'Current',   value:`${product.currentStock} ${product.unit}`,  color: th.stockCellPrimary },
-                            { label:'Min Stock', value:`${product.minStock} ${product.unit}`,       color: th.stockCellSecondary },
-                            { label:'Reorder At',value:`${product.reorderPoint} ${product.unit}`,  color: th.stockCellSecondary },
+                            { label:'Current',   value:formatProductQuantity(product.currentStock, product.unit),  color: th.stockCellPrimary },
+                            { label:'Min Stock', value:formatProductQuantity(product.minStock, product.unit),       color: th.stockCellSecondary },
+                            { label:'Reorder At',value:formatProductQuantity(product.reorderPoint, product.unit),  color: th.stockCellSecondary },
                             { label:'Value',     value: pCode,                                      color: th.cardValueRed },
                           ].map(row => (
                             <div key={row.label}>
@@ -910,9 +964,9 @@ export default function StockPage() {
                                 </div>
                               ) : <span className="text-xs" style={{ color: th.stockCellMuted }}>-</span>}
                             </td>
-                            <td className="px-6 py-4 text-sm" style={{ color: th.stockCellSecondary }}>{product.currentStock} {product.unit}</td>
-                            <td className="px-6 py-4 text-sm" style={{ color: th.stockCellSecondary }}>{product.minStock} {product.unit}</td>
-                            <td className="px-6 py-4 text-sm" style={{ color: th.stockCellSecondary }}>{product.reorderPoint} {product.unit}</td>
+                            <td className="px-6 py-4 text-sm" style={{ color: th.stockCellSecondary }}>{formatProductQuantity(product.currentStock, product.unit)}</td>
+                            <td className="px-6 py-4 text-sm" style={{ color: th.stockCellSecondary }}>{formatProductQuantity(product.minStock, product.unit)}</td>
+                            <td className="px-6 py-4 text-sm" style={{ color: th.stockCellSecondary }}>{formatProductQuantity(product.reorderPoint, product.unit)}</td>
                             <td className="px-6 py-4 text-sm font-semibold text-[color:var(--autocity-accent)]">{pCode}</td>
                             <td className="px-6 py-4">
                               <span className={`px-3 py-1.5 inline-flex items-center space-x-2 text-xs font-semibold rounded-full ${s.desktopClass}`}>
@@ -965,6 +1019,8 @@ export default function StockPage() {
             <div className="space-y-4">
               {[
                 { label:'Stock Status', value: filterStatus, onChange: setFilterStatus, opts: [['all','All Status'],['low','Low Stock'],['critical','Critical'],['out','Out of Stock']] },
+                { label:'Unit',         value: filterUnit, onChange: setFilterUnit, opts: [['','All Units'], ...PRODUCT_UNIT_OPTIONS.map(unit => [unit.value, unit.label])] },
+                { label:'Location / Area', value: filterLocationId, onChange: setFilterLocationId, opts: [['','All Locations'], ...stockLocations.map(location => [String(location._id), location.name])] },
                 { label:'Category',     value: filterCategory, onChange: setFilterCategory, opts: [['','All Categories'], ...categories.map(c => [c._id, c.name])] },
                 { label:'Type',         value: filterIsVehicle, onChange: setFilterIsVehicle, opts: [['all','All Types'],['vehicle','Vehicles/Parts'],['non-vehicle','Non-Vehicle']] },
               ].map(s => (

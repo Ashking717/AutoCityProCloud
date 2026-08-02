@@ -3,6 +3,10 @@
 
 import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
 import { hasShortcutModifier, shouldIgnoreGlobalShortcut } from "@/lib/utils/keyboard";
+import {
+  formatProductQuantity,
+  getProductUnitLabel,
+} from "@/lib/utils/productUnit";
 
 import {
   useState,
@@ -1003,7 +1007,9 @@ export default function NewSalePage() {
                             </div>
                             <div className="text-right ml-2">
                               <p className="font-bold text-sm text-[color:var(--autocity-accent)]">QAR {product.sellingPrice}</p>
-                              <p className="text-xs" style={{ color: th.productItemStock }}>Stock: {product.currentStock}</p>
+                              <p className="text-xs" style={{ color: th.productItemStock }}>
+                                Stock: {formatProductQuantity(product.currentStock, product.unit)}
+                              </p>
                               {product.location && (
                                 <p className="text-[10px] max-w-24 truncate" style={{ color: th.productItemStock }}>
                                   {product.location}
@@ -1230,7 +1236,9 @@ export default function NewSalePage() {
                                 </div>
                                 <div className="text-right ml-3 flex-shrink-0">
                                   <p className="font-bold text-[color:var(--autocity-accent)] whitespace-nowrap">QAR {product.sellingPrice}</p>
-                                  <p className="text-xs" style={{ color: th.productItemStock }}>Stock: {product.currentStock}</p>
+                                  <p className="text-xs" style={{ color: th.productItemStock }}>
+                                    Stock: {formatProductQuantity(product.currentStock, product.unit)}
+                                  </p>
                                   {product.location && (
                                     <p className="text-[10px] max-w-32 truncate" style={{ color: th.productItemStock }}>
                                       {product.location}
@@ -1274,6 +1282,9 @@ export default function NewSalePage() {
                                 </p>
                               )}
                               <p className="text-xs mt-1" style={{ color: th.cartItemSku }}>SKU: {item.sku}</p>
+                              <p className="text-xs mt-1 font-medium" style={{ color: th.cartItemMeta }}>
+                                Unit: {getProductUnitLabel(item.unit)}
+                              </p>
                               {!item.isLabor && item.availableLocations && item.availableLocations.length > 1 ? (
                                 <select
                                   value={item.locationId || ""}
@@ -1303,7 +1314,10 @@ export default function NewSalePage() {
                           {!item.isLabor && (
                             <>
                               <div className="grid grid-cols-4 gap-2 mt-3">
-                                <input type="number" value={item.quantity} min="1" placeholder="Qty"
+                                <input type="number" value={item.quantity} min="1"
+                                  aria-label={`Quantity in ${getProductUnitLabel(item.unit)}`}
+                                  title={`Quantity in ${getProductUnitLabel(item.unit)}`}
+                                  placeholder={`Qty (${getProductUnitLabel(item.unit)})`}
                                   onChange={(e) => updateCartItem(item.productId!, "quantity", parseFloat(e.target.value) || 1)}
                                   className="px-3 py-2 rounded text-sm focus:ring-1 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                                   style={inputStyle} />

@@ -11,6 +11,7 @@ import MainLayout from "@/components/layout/MainLayout";
 import AddProductModal from "@/components/products/AddProductModal";
 import EditProductModal from "@/components/products/EditProductModal";
 import { sanitizeBarcodeValue } from "@/lib/utils/barcode";
+import { formatProductQuantity } from "@/lib/utils/productUnit";
 
 import { Search,
   Plus,
@@ -366,13 +367,14 @@ export default function ProductsClient({
         if (!f && !t) return ""; if (f && !t) return `${f}+`; if (!f && t) return `Up to ${t}`; if (f===t) return `${f}`; return `${f}-${t}`;
       };
 
-      const headers = ["SKU","Name","Category","Barcode","Location","Cost Price","Selling Price","Current Stock","Car Make","Car Model","Variant","Year Range","Color","Part Number"];
+      const headers = ["SKU","Name","Category","Barcode","Location","Unit","Cost Price","Selling Price","Current Stock","Car Make","Car Model","Variant","Year Range","Color","Part Number"];
       const csvRows = filtered.map((p: any) => [
         p.sku||"",
         p.name||"",
         p.category?.name||"",
         p.barcode||"",
         p.location||"",
+        p.unit||"pcs",
         p.costPrice||"",
         p.sellingPrice||"",
         p.currentStock||0,
@@ -722,9 +724,11 @@ export default function ProductsClient({
                       </td>
                       <td className="px-6 py-4 text-sm text-right">
                         <span className={(product.currentStock||0)<=(product.minStock||0)?"text-red-400 font-semibold":""} style={(product.currentStock||0)>(product.minStock||0)?{color:th.cellSecondary}:{}}>
-                          {product.currentStock||0}
+                          {formatProductQuantity(product.currentStock, product.unit)}
                         </span>
-                        <div className="text-xs" style={{ color: th.cellFaint }}>Min: {product.minStock||0}</div>
+                        <div className="text-xs" style={{ color: th.cellFaint }}>
+                          Min: {formatProductQuantity(product.minStock, product.unit)}
+                        </div>
                       </td>
                       <td className="px-6 py-4 text-sm text-right font-semibold" style={{ color: th.cellPrimary }}>QAR {product.sellingPrice||0}</td>
                       <td className="px-6 py-4 text-right text-sm">
@@ -872,7 +876,7 @@ export default function ProductsClient({
                 </p>
                 <p style={{ color: th.cellMuted }}>
                   <span style={{ color: th.cellSecondary }} className="font-medium">Columns:</span>{" "}
-                  SKU, Name, Category, Barcode, Cost Price, Selling Price, Stock, Make, Model, Variant, Year Range, Color, Part Number
+                  SKU, Name, Category, Barcode, Location, Unit, Cost Price, Selling Price, Stock, Make, Model, Variant, Year Range, Color, Part Number
                 </p>
                 <p style={{ color: th.cellMuted }}>
                   <span style={{ color: th.cellSecondary }} className="font-medium">Sorted:</span>{" "}

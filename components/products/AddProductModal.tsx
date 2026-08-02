@@ -1,6 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { X, Car, Plus, Tag } from "lucide-react";
 import { CarMake, carMakesModels } from "@/lib/data/carData";
+import {
+  getProductUnitLabel,
+  PRODUCT_UNIT_OPTIONS,
+} from "@/lib/utils/productUnit";
 import toast from "react-hot-toast";
 
 interface AddProductModalProps {
@@ -826,37 +830,48 @@ export default function AddProductModal({
               </p>
             </div>
 
-            <div>
-              <label htmlFor="add-product-unit" className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                Unit
-              </label>
-              <select
-                id="add-product-unit"
-                value={formData.unit}
-                onChange={(e) =>
-                  setFormData({ ...formData, unit: e.target.value })
-                }
-                className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
-              >
-                <option value="pcs" className="text-[#050505]">
-                  Pieces
-                </option>
-                <option value="set" className="text-[#050505]">
-                  Set
-                </option>
-                <option value="kg" className="text-[#050505]">
-                  Kilogram
-                </option>
-                <option value="liter" className="text-[#050505]">
-                  Liter
-                </option>
-                <option value="meter" className="text-[#050505]">
-                  Meter
-                </option>
-                <option value="box" className="text-[#050505]">
-                  Box
-                </option>
-              </select>
+            <div className="md:col-span-2">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <label className="block text-xs md:text-sm font-medium text-gray-300">
+                  Stock unit
+                </label>
+                <span className="rounded-full border border-[color:var(--autocity-accent-30)] bg-[color:var(--autocity-accent-10)] px-2.5 py-1 text-xs font-semibold text-[color:var(--autocity-accent)]">
+                  Selected: {getProductUnitLabel(formData.unit)}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {PRODUCT_UNIT_OPTIONS.map((unitOption) => {
+                  const isSelected = formData.unit === unitOption.value;
+                  return (
+                    <button
+                      key={unitOption.value}
+                      type="button"
+                      aria-pressed={isSelected}
+                      onClick={() =>
+                        setFormData((current) => ({
+                          ...current,
+                          unit: unitOption.value,
+                        }))
+                      }
+                      className={`rounded-lg border px-3 py-2 text-left transition-all ${
+                        isSelected
+                          ? "border-[color:var(--autocity-accent)] bg-[color:var(--autocity-accent-10)] text-white ring-1 ring-[color:var(--autocity-accent-30)]"
+                          : "border-white/10 bg-[#050505] text-gray-300 hover:border-white/25"
+                      }`}
+                    >
+                      <span className="block text-sm font-semibold">
+                        {unitOption.label}
+                      </span>
+                      <span className="block text-[11px] text-gray-500">
+                        {unitOption.shortLabel}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-[11px] text-gray-500">
+                Choose how stock is counted. For example, 5 sets means five complete sets; 5 pieces means five individual items.
+              </p>
             </div>
           </div>
 

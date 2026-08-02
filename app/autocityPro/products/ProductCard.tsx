@@ -2,6 +2,7 @@
 import {
   useRouter } from "next/navigation";
 import { sanitizeBarcodeValue } from "@/lib/utils/barcode";
+import { formatProductQuantity } from "@/lib/utils/productUnit";
 import { Car,
   Edit,
   QrCode,
@@ -87,10 +88,10 @@ export default function ProductCard({
             }`}
             style={(product.currentStock || 0) > (product.minStock || 0) ? { color: th.textSecondary } : {}}
           >
-            {product.currentStock || 0}
+            {formatProductQuantity(product.currentStock, product.unit)}
           </span>
           <div className="text-xs" style={{ color: th.textFaint }}>
-            Min: {product.minStock || 0}
+            Min: {formatProductQuantity(product.minStock, product.unit)}
           </div>
         </div>
       </div>

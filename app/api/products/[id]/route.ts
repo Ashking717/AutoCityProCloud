@@ -16,6 +16,7 @@ import {
 } from '@/lib/services/locationStockService';
 import mongoose  from 'mongoose';
 import { sanitizeBarcodeValue } from '@/lib/utils/barcode';
+import { normalizeProductUnit } from '@/lib/utils/productUnit';
 
 // GET /api/products/[id]
 export async function GET(
@@ -146,7 +147,7 @@ export async function PUT(
     if (body.sku) updateData.sku = body.sku;
     if (body.barcode !== undefined) updateData.barcode = sanitizeBarcodeValue(body.barcode);
     if (body.partNumber !== undefined) updateData.partNumber = body.partNumber;
-    if (body.unit) updateData.unit = body.unit;
+    if (body.unit !== undefined) updateData.unit = normalizeProductUnit(body.unit);
     if (body.variant !== undefined) updateData.variant = body.variant;
     if (body.color !== undefined) updateData.color = body.color;
     

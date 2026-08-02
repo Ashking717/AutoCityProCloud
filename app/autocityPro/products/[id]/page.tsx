@@ -11,6 +11,10 @@ import { useRouter,
 import MainLayout from "@/components/layout/MainLayout";
 import { sanitizeBarcodeValue } from "@/lib/utils/barcode";
 import {
+  formatProductQuantity,
+  getProductUnitLabel,
+} from "@/lib/utils/productUnit";
+import {
   ChevronLeft,
   Package,
   Car,
@@ -627,7 +631,7 @@ export default function ProductDetailPage() {
                     lowStockAlert ? "text-red-400" : "text-green-400"
                   }`}
                 >
-                  {product.currentStock}
+                  {formatProductQuantity(product.currentStock, product.unit)}
                 </p>
               </div>
               <div className="bg-[#0A0A0A]/50 rounded-lg p-2 border border-white/5">
@@ -844,7 +848,9 @@ export default function ProductDetailPage() {
                       </div>
                       <div>
                         <p className="text-xs text-gray-500">Unit</p>
-                        <p className="text-white">{product.unit}</p>
+                        <p className="font-semibold text-white">
+                          {getProductUnitLabel(product.unit)}
+                        </p>
                       </div>
                     </div>
 
@@ -962,16 +968,20 @@ export default function ProductDetailPage() {
                               lowStockAlert ? "text-red-400" : "text-green-400"
                             }`}
                           >
-                            {product.currentStock}
+                            {formatProductQuantity(product.currentStock, product.unit)}
                           </p>
                         </div>
                         <div className="bg-[#0A0A0A]/50 rounded-lg p-3 border border-white/5">
                           <p className="text-xs text-gray-500">Min</p>
-                          <p className="text-white">{product.minStock}</p>
+                          <p className="text-white">
+                            {formatProductQuantity(product.minStock, product.unit)}
+                          </p>
                         </div>
                         <div className="bg-[#0A0A0A]/50 rounded-lg p-3 border border-white/5">
                           <p className="text-xs text-gray-500">Max</p>
-                          <p className="text-white">{product.maxStock}</p>
+                          <p className="text-white">
+                            {formatProductQuantity(product.maxStock, product.unit)}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -984,7 +994,7 @@ export default function ProductDetailPage() {
                           <h3 className="font-semibold text-white">Location Stock</h3>
                         </div>
                         <span className="text-xs text-gray-400">
-                          Total: {locationStockTotal || product.currentStock}
+                          Total: {formatProductQuantity(locationStockTotal || product.currentStock, product.unit)}
                         </span>
                       </div>
 
@@ -1520,7 +1530,9 @@ export default function ProductDetailPage() {
                       </p>
                       <p className="text-xs text-gray-400 mt-1">
                         Current Stock:{" "}
-                        <span className="text-white">{product.currentStock}</span>
+                        <span className="text-white">
+                          {formatProductQuantity(product.currentStock, product.unit)}
+                        </span>
                       </p>
                     </div>
                   </div>

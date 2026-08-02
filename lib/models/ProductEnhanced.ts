@@ -1,5 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import './Category';
+import { normalizeProductUnit } from '@/lib/utils/productUnit';
 
 export interface IProduct extends Document {
   name: string;
@@ -130,7 +131,7 @@ const ProductSchema = new Schema(
     maxStock: { type: Number, default: 1000 },
     reorderPoint: { type: Number, default: 0 },
 
-    unit: { type: String, default: 'pcs' },
+    unit: { type: String, default: 'pcs', set: normalizeProductUnit },
 
     images: { type: [String], default: [] },
     primaryImage: { type: String, default: '' },

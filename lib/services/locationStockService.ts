@@ -201,7 +201,9 @@ export async function materializeLegacyLocationStocksForProducts(
 
   const outletId = toObjectId(outletIdInput);
   const candidates = products.filter(
-    (product) => product?._id && Number(product.currentStock || 0) > 0
+    (product) =>
+      product?._id &&
+      (Number(product.currentStock || 0) > 0 || String(product.location || '').trim())
   );
 
   if (candidates.length === 0) return { migratedCount: 0 };
@@ -444,7 +446,7 @@ export async function replaceProductLocationStocks(input: ReplaceLocationSplitIn
 
   for (const split of input.splits) {
     const quantity = Number(split.quantity) || 0;
-    if (quantity <= 0) continue;
+    if (quantity < 0 || (!split.locationId && !split.locationName)) continue;
 
     const location = await getOrCreateStockLocation({
       outletId,
@@ -637,6 +639,41 @@ export async function findProductIdsByLocationSearch(
   }).select('productId');
 
   return stocks.map((stock) => stock.productId);
+}
+
+export async function findProductsByStockLocation(
+  outletIdInput: ObjectIdLike,
+  locationIdInput: ObjectIdLike
+) {
+  const outletId = toObjectId(outletIdInput);
+  if (
+    !locationIdInput ||
+    !mongoose.Types.ObjectId.isValid(String(locationIdInput))
+  ) {
+    return { productIds: [], locationName: "" };
+  }
+
+  const location: any = await StockLocation.findOne({
+    _id: toObjectId(locationIdInput),
+    outletId,
+    isActive: true,
+  })
+    .select("_id name")
+    .lean();
+
+  if (!location) return { productIds: [], locationName: "" };
+
+  const stocks = await ProductLocationStock.find({
+    outletId,
+    locationId: location._id,
+  })
+    .select("productId")
+    .lean();
+
+  return {
+    productIds: stocks.map((stock) => stock.productId),
+    locationName: location.name,
+  };
 }
 
 export async function transferProductBetweenLocations(input: TransferInput) {

@@ -10,6 +10,7 @@ import {
   adjustProductLocationStock,
   attachLocationDataToProducts,
   findProductIdsByLocationSearch,
+  findProductsByStockLocation,
   materializeLegacyLocationStocksForProducts,
 } from '@/lib/services/locationStockService';
 import mongoose from 'mongoose';
@@ -19,6 +20,7 @@ import {
   generateInternalBarcodeCandidate,
   sanitizeBarcodeValue,
 } from '@/lib/utils/barcode';
+import { normalizeProductUnit } from '@/lib/utils/productUnit';
 
 
 // ============================================================================
@@ -106,11 +108,62 @@ export async function GET(request: NextRequest) {
     if (variant) {
       query.variant = variant;
     }
+
+    const unit = searchParams.get('unit');
+    if (unit) {
+      const normalizedUnit = normalizeProductUnit(unit);
+      query.unit =
+        normalizedUnit === 'pcs'
+          ? { $in: ['pcs', 'pc', 'piece', 'pieces'] }
+          : normalizedUnit === 'set'
+          ? { $in: ['set', 'sets'] }
+          : normalizedUnit;
+    }
+
+    const stockStatus = searchParams.get('stockStatus');
+    if (stockStatus === 'out') {
+      query.currentStock = { $lte: 0 };
+    } else if (stockStatus === 'critical') {
+      query.currentStock = { $gt: 0 };
+      query.$expr = { $lte: ['$currentStock', '$minStock'] };
+    } else if (stockStatus === 'low') {
+      query.currentStock = { $gt: 0 };
+      query.$expr = { $lte: ['$currentStock', '$reorderPoint'] };
+    }
+
+    const locationId = searchParams.get('locationId');
+    if (locationId) {
+      const locationFilter = await findProductsByStockLocation(
+        outletIdObj,
+        locationId
+      );
+      const escapedLocationName = locationFilter.locationName.replace(
+        /[.*+?^${}()|[\]\\]/g,
+        '\\$&'
+      );
+      query.$and = [
+        ...(query.$and || []),
+        {
+          $or: [
+            { _id: { $in: locationFilter.productIds } },
+            ...(locationFilter.locationName
+              ? [{
+                  location: {
+                    $regex: `^${escapedLocationName}$`,
+                    $options: 'i',
+                  },
+                }]
+              : []),
+          ],
+        },
+      ];
+    }
     
     const year = searchParams.get('year');
     if (year) {
       const yearNum = parseInt(year);
       query.$and = [
+        ...(query.$and || []),
         { $or: [{ yearFrom: { $lte: yearNum } }, { yearFrom: null }] },
         { $or: [{ yearTo: { $gte: yearNum } }, { yearTo: null }] }
       ];
@@ -424,6 +477,17 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    if (
+      openingStockEntries.length === 0 &&
+      (locationId || locationName || location)
+    ) {
+      openingStockEntries.push({
+        locationId,
+        locationName: locationName || location,
+        quantity: 0,
+      });
+    }
+
     const stockQty = openingStockEntries.reduce(
       (sum, entry) => sum + (Number(entry.quantity) || 0),
       0
@@ -435,6 +499,7 @@ export async function POST(request: NextRequest) {
     const product = await Product.create({
       name,
       description,
+      location: locationName || location || '',
       category: categoryIdObj,
       sku: finalSKU,
       barcode: finalBarcode,
@@ -454,7 +519,7 @@ export async function POST(request: NextRequest) {
       minStock: Number(minStock) || 0,
       maxStock: Number(maxStock) || 1000,
       reorderPoint: Number(minStock) || 0,
-      unit: unit || 'pcs',
+      unit: normalizeProductUnit(unit),
       outletId: outletIdObj,
       isActive: true,
     });

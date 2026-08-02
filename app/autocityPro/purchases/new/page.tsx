@@ -2,6 +2,10 @@
 "use client";
 
 import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
+import {
+  formatProductQuantity,
+  getProductUnitLabel,
+} from "@/lib/utils/productUnit";
 
 import {
   useState,
@@ -657,7 +661,9 @@ export default function NewPurchasePage() {
                             <div className="flex items-center justify-between pt-2 mt-2 border-t" style={{ borderColor: th.divider }}>
                               <span className="text-[color:var(--autocity-accent)] font-bold">{formatCurrency(product.costPrice || product.sellingPrice)}</span>
                               <div className="text-right">
-                                <span className="text-xs" style={{ color: th.textMuted }}>Stock: {product.currentStock}</span>
+                                <span className="text-xs" style={{ color: th.textMuted }}>
+                                  Stock: {formatProductQuantity(product.currentStock, product.unit)}
+                                </span>
                                 {product.location && (
                                   <p className="text-[10px] max-w-32 truncate" style={{ color: th.textMuted }}>
                                     {product.location}
@@ -747,7 +753,7 @@ export default function NewPurchasePage() {
                           <div>
                             <span className="text-[10px] mb-1 block" style={{ color: th.textMuted }}>Unit</span>
                             <div className="px-2 py-2 rounded-lg text-sm flex items-center justify-center border"
-                              style={{ background: th.itemBg, borderColor: th.itemBorder, color: th.textPrimary }}>{item.unit}</div>
+                              style={{ background: th.itemBg, borderColor: th.itemBorder, color: th.textPrimary }}>{getProductUnitLabel(item.unit)}</div>
                           </div>
                         </div>
                         <div className="flex justify-between items-center pt-3 border-t" style={{ borderColor: th.divider }}>
@@ -1000,7 +1006,7 @@ export default function NewPurchasePage() {
                             <div>
                               <span className="text-[10px] mb-1 block" style={{ color: th.textMuted }}>Unit</span>
                               <div className="px-3 py-2 rounded-lg text-sm flex items-center justify-center border h-[38px]"
-                                style={{ background: th.itemBg, borderColor: th.itemBorder, color: th.textPrimary }}>{item.unit}</div>
+                                style={{ background: th.itemBg, borderColor: th.itemBorder, color: th.textPrimary }}>{getProductUnitLabel(item.unit)}</div>
                             </div>
                           </div>
                           <button onClick={() => setEditingItem(null)}

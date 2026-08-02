@@ -1,6 +1,10 @@
 import { useState, useEffect } from "react";
 import { X, Car, Plus } from "lucide-react";
 import { CarMake, carMakesModels } from "@/lib/data/carData";
+import {
+  getProductUnitLabel,
+  PRODUCT_UNIT_OPTIONS,
+} from "@/lib/utils/productUnit";
 import toast from "react-hot-toast";
 
 interface EditProductModalProps {
@@ -87,6 +91,8 @@ const vehicleColors = [
   "Forest Green",
 ];
 
+const CUSTOM_OPTION_VALUE = "__custom__";
+
 interface LocationStockSplit {
   id: string;
   locationId: string;
@@ -109,6 +115,8 @@ export default function EditProductModal({
   const [newLocationName, setNewLocationName] = useState("");
   const [addingLocation, setAddingLocation] = useState(false);
   const [locationSplits, setLocationSplits] = useState<LocationStockSplit[]>([]);
+  const [customVariant, setCustomVariant] = useState("");
+  const [customColor, setCustomColor] = useState("");
   const [formData, setFormData] = useState({
     _id: "",
     name: "",
@@ -136,6 +144,12 @@ export default function EditProductModal({
 
   useEffect(() => {
     if (product && show) {
+      const existingVariant = String(product.variant || "").trim();
+      const existingColor = String(product.color || "").trim();
+      const usesCustomVariant =
+        !!existingVariant && !vehicleVariants.includes(existingVariant);
+      const usesCustomColor =
+        !!existingColor && !vehicleColors.includes(existingColor);
       const productLocations = (product.locations || []).filter(
         (location: any) => location.locationId || location.locationName
       );
@@ -177,13 +191,15 @@ export default function EditProductModal({
         maxStock: product.maxStock || 1000,
         carMake: product.carMake || "",
         carModel: product.carModel || "",
-        variant: product.variant || "",
+        variant: usesCustomVariant ? CUSTOM_OPTION_VALUE : existingVariant,
         yearFrom: product.yearFrom || "",
         yearTo: product.yearTo || "",
         partNumber: product.partNumber || "",
-        color: product.color || "",
+        color: usesCustomColor ? CUSTOM_OPTION_VALUE : existingColor,
         isVehicle: product.isVehicle || false,
       });
+      setCustomVariant(usesCustomVariant ? existingVariant : "");
+      setCustomColor(usesCustomColor ? existingColor : "");
       setSelectedLocationId(primaryLocation?.locationId || "");
       setLocationSplits(initialLocationSplits);
       setIsVehicle(product.isVehicle || false);
@@ -452,12 +468,31 @@ export default function EditProductModal({
       }
     }
 
+    const finalVariant =
+      formData.variant === CUSTOM_OPTION_VALUE
+        ? customVariant.trim()
+        : formData.variant.trim();
+    const finalColor =
+      formData.color === CUSTOM_OPTION_VALUE
+        ? customColor.trim()
+        : formData.color.trim();
+
+    if (isVehicle && formData.variant === CUSTOM_OPTION_VALUE && !finalVariant) {
+      toast.error("Custom variant is required");
+      return;
+    }
+
+    if (isVehicle && formData.color === CUSTOM_OPTION_VALUE && !finalColor) {
+      toast.error("Custom colour is required");
+      return;
+    }
+
     const normalizedLocationSplits = locationSplits
-      .filter((split) => (Number(split.quantity) || 0) > 0)
+      .filter((split) => split.locationId || split.locationName)
       .map((split) => ({
         locationId: split.locationId || undefined,
         locationName: split.locationName || undefined,
-        quantity: Number(split.quantity) || 0,
+        quantity: Math.max(0, Number(split.quantity) || 0),
       }));
     const splitTotal = normalizedLocationSplits.reduce(
       (sum, split) => sum + (Number(split.quantity) || 0),
@@ -489,7 +524,7 @@ export default function EditProductModal({
     if (isVehicle && formData.carMake) {
       productData.carMake = formData.carMake;
       productData.carModel = formData.carModel;
-      productData.variant = formData.variant;
+      productData.variant = finalVariant;
       productData.yearFrom = formData.yearFrom
         ? parseInt(formData.yearFrom)
         : undefined;
@@ -497,7 +532,7 @@ export default function EditProductModal({
         ? parseInt(formData.yearTo)
         : undefined;
       productData.partNumber = formData.partNumber;
-      productData.color = formData.color;
+      productData.color = finalColor;
       productData.isVehicle = true;
     } else {
       productData.isVehicle = false;
@@ -765,33 +800,48 @@ export default function EditProductModal({
               </p>
             </div>
 
-            <div>
-              <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
-                Unit
-                <select
-                  value={formData.unit}
-                  onChange={(e) =>
-                    setFormData({ ...formData, unit: e.target.value })
-                  }
-                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
-                >
-                  <option value="pcs" className="text-[#050505]">
-                    Pieces
-                  </option>
-                  <option value="kg" className="text-[#050505]">
-                    Kilogram
-                  </option>
-                  <option value="liter" className="text-[#050505]">
-                    Liter
-                  </option>
-                  <option value="meter" className="text-[#050505]">
-                    Meter
-                  </option>
-                  <option value="box" className="text-[#050505]">
-                    Box
-                  </option>
-                </select>
-              </label>
+            <div className="md:col-span-2">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <label className="block text-xs md:text-sm font-medium text-gray-300">
+                  Stock unit
+                </label>
+                <span className="rounded-full border border-[color:var(--autocity-accent-30)] bg-[color:var(--autocity-accent-10)] px-2.5 py-1 text-xs font-semibold text-[color:var(--autocity-accent)]">
+                  Selected: {getProductUnitLabel(formData.unit)}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {PRODUCT_UNIT_OPTIONS.map((unitOption) => {
+                  const isSelected = formData.unit === unitOption.value;
+                  return (
+                    <button
+                      key={unitOption.value}
+                      type="button"
+                      aria-pressed={isSelected}
+                      onClick={() =>
+                        setFormData((current) => ({
+                          ...current,
+                          unit: unitOption.value,
+                        }))
+                      }
+                      className={`rounded-lg border px-3 py-2 text-left transition-all ${
+                        isSelected
+                          ? "border-[color:var(--autocity-accent)] bg-[color:var(--autocity-accent-10)] text-white ring-1 ring-[color:var(--autocity-accent-30)]"
+                          : "border-white/10 bg-[#050505] text-gray-300 hover:border-white/25"
+                      }`}
+                    >
+                      <span className="block text-sm font-semibold">
+                        {unitOption.label}
+                      </span>
+                      <span className="block text-[11px] text-gray-500">
+                        {unitOption.shortLabel}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-[11px] text-gray-500">
+                Changing this updates how the product quantity is described across products, stock, sales, and purchases.
+              </p>
             </div>
           </div>
 
@@ -892,7 +942,7 @@ export default function EditProductModal({
                         {variant}
                       </option>
                     ))}
-                    <option value="custom" className="text-[#050505]">
+                    <option value={CUSTOM_OPTION_VALUE} className="text-[#050505]">
                       Custom...
                     </option>
                   </select>
@@ -921,23 +971,21 @@ export default function EditProductModal({
                         {color}
                       </option>
                     ))}
-                    <option value="custom" className="text-[#050505]">
+                    <option value={CUSTOM_OPTION_VALUE} className="text-[#050505]">
                       Custom...
                     </option>
                   </select>
                 </label>
               </div>
 
-              {formData.variant === "custom" && (
+              {formData.variant === CUSTOM_OPTION_VALUE && (
                 <div className="md:col-span-2">
                   <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                     Custom Variant
                     <input
                       type="text"
-                      value={formData.variant === "custom" ? "" : formData.variant}
-                      onChange={(e) =>
-                        setFormData({ ...formData, variant: e.target.value })
-                      }
+                      value={customVariant}
+                      onChange={(e) => setCustomVariant(e.target.value)}
                       className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                       placeholder="Enter custom variant"
                     />
@@ -945,16 +993,14 @@ export default function EditProductModal({
                 </div>
               )}
 
-              {formData.color === "custom" && (
+              {formData.color === CUSTOM_OPTION_VALUE && (
                 <div className="md:col-span-2">
                   <label className="block text-xs md:text-sm font-medium text-gray-300 mb-1">
                     Custom Color
                     <input
                       type="text"
-                      value={formData.color === "custom" ? "" : formData.color}
-                      onChange={(e) =>
-                        setFormData({ ...formData, color: e.target.value })
-                      }
+                      value={customColor}
+                      onChange={(e) => setCustomColor(e.target.value)}
                       className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                       placeholder="Enter custom color"
                     />

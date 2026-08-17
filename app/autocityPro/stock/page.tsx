@@ -24,6 +24,9 @@ import {
   Palette,
   Calendar,
   Loader2,
+  LayoutGrid,
+  List,
+  Eye,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -66,6 +69,8 @@ export default function StockPage() {
   const [totalProducts,    setTotalProducts]    = useState(0);
   const [isLoadingMore,    setIsLoadingMore]    = useState(false);
   const [globalStats,      setGlobalStats]      = useState({ totalValue: 0, lowStockCount: 0, outOfStockCount: 0, criticalCount: 0 });
+  const [stockView,        setStockView]        = useState<'table' | 'selection'>('table');
+  const [selectedStockProductId, setSelectedStockProductId] = useState('');
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const desktopFilterButtonRef = useRef<HTMLButtonElement>(null);
@@ -283,6 +288,12 @@ export default function StockPage() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showDesktopFilters]);
+
+  useEffect(() => {
+    if (selectedStockProductId && !products.some(product => product._id === selectedStockProductId)) {
+      setSelectedStockProductId('');
+    }
+  }, [products, selectedStockProductId]);
 
   const yearFilteredProducts = products.filter(p => isYearInRange(p, filterYear));
   const filteredProducts     = yearFilteredProducts.filter(p =>
@@ -846,6 +857,40 @@ export default function StockPage() {
             </div>
           )}
 
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+            <div>
+              <p className="text-sm font-semibold" style={{ color: th.stockCellPrimary }}>Inventory Results</p>
+              <p className="text-xs mt-0.5" style={{ color: th.stockCellMuted }}>
+                {filteredProducts.length} loaded result{filteredProducts.length === 1 ? '' : 's'}
+                {stockView === 'selection' && selectedStockProductId ? ' • 1 product selected' : ''}
+              </p>
+            </div>
+            <div className="inline-flex self-start sm:self-auto rounded-xl p-1" style={{ background: th.stockTableHeadBg, border: `1px solid ${th.stockContainerBorder}` }}>
+              {[
+                { value: 'table', label: 'Table View', icon: List },
+                { value: 'selection', label: 'Selection View', icon: LayoutGrid },
+              ].map(({ value, label, icon: Icon }) => {
+                const active = stockView === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setStockView(value as 'table' | 'selection')}
+                    aria-pressed={active}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-colors"
+                    style={{
+                      background: active ? 'var(--autocity-accent)' : 'transparent',
+                      color: active ? '#ffffff' : th.stockCellSecondary,
+                    }}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Stock List */}
           <div className="rounded-2xl shadow-xl overflow-hidden transition-colors duration-500"
             style={{ background: th.stockContainerBg, border: `1px solid ${th.stockContainerBorder}` }}
@@ -865,6 +910,98 @@ export default function StockPage() {
                 )}
               </div>
             ) : (
+              stockView === 'selection' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-4 md:p-5">
+                  {filteredProducts.map(product => {
+                    const s = statusConfig(product);
+                    const selected = selectedStockProductId === product._id;
+                    const yr = product.yearFrom ? `${product.yearFrom}${product.yearTo ? `-${product.yearTo}` : '+'}` : '';
+                    return (
+                      <article
+                        key={product._id}
+                        className="rounded-2xl p-4 transition-all"
+                        style={{
+                          background: `linear-gradient(135deg,${th.mobileCardBgFrom},${th.mobileCardBgTo})`,
+                          border: selected ? '2px solid var(--autocity-accent)' : `1px solid ${th.mobileCardBorder}`,
+                          boxShadow: selected ? '0 12px 30px var(--autocity-accent-10)' : 'none',
+                        }}
+                      >
+                        <button
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() => setSelectedStockProductId(product._id)}
+                          className="w-full text-left outline-none rounded-xl focus:ring-2 focus:ring-[color:var(--autocity-accent)]"
+                        >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              {product.isVehicle && <Car className="h-4 w-4 flex-shrink-0 text-[color:var(--autocity-accent)]" />}
+                              <h3 className="font-bold truncate" style={{ color: th.stockCellPrimary }}>{product.name}</h3>
+                            </div>
+                            <p className="text-xs font-mono mt-1" style={{ color: th.stockCellMuted }}>SKU {product.sku}</p>
+                            {product.partNumber && <p className="text-xs mt-1" style={{ color: th.stockCellMuted }}>Part {product.partNumber}</p>}
+                          </div>
+                          <span className={`px-2 py-1 rounded-full text-[10px] font-semibold ${s.mobileBg} ${s.mobileText}`}>{s.text}</span>
+                        </div>
+
+                        {(product.carMake || product.carModel || product.variant || product.color || yr) && (
+                          <div className="flex flex-wrap gap-1.5 mt-4">
+                            {[product.carMake, product.carModel, product.variant, product.color, yr].filter(Boolean).map((detail, index) => (
+                              <span key={`${detail}-${index}`} className="px-2 py-1 rounded-lg text-xs" style={{ background: th.stockTableHeadBg, color: th.stockCellSecondary }}>
+                                {detail}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-3 mt-4 pt-4" style={{ borderTop: `1px solid ${th.mobileCardDivider}` }}>
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wider" style={{ color: th.mobileCardLabel }}>Location / Area</p>
+                            <p className="text-sm font-semibold mt-1 truncate" style={{ color: th.stockCellSecondary }}>{product.location || 'Not assigned'}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wider" style={{ color: th.mobileCardLabel }}>Available Stock</p>
+                            <p className="text-sm font-bold mt-1" style={{ color: th.stockCellPrimary }}>{formatProductQuantity(product.currentStock, product.unit)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wider" style={{ color: th.mobileCardLabel }}>Minimum</p>
+                            <p className="text-sm mt-1" style={{ color: th.stockCellSecondary }}>{formatProductQuantity(product.minStock, product.unit)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wider" style={{ color: th.mobileCardLabel }}>Reorder At</p>
+                            <p className="text-sm mt-1" style={{ color: th.stockCellSecondary }}>{formatProductQuantity(product.reorderPoint, product.unit)}</p>
+                          </div>
+                        </div>
+                        </button>
+
+                        {selected && (
+                          <button
+                            type="button"
+                            onClick={event => {
+                              event.stopPropagation();
+                              router.push(`/autocityPro/products/${product._id}`);
+                            }}
+                            className="w-full flex items-center justify-center gap-2 mt-4 px-3 py-2.5 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90"
+                            style={{ background: 'var(--autocity-accent)' }}
+                          >
+                            <Eye className="h-4 w-4" /> View Selected Product
+                          </button>
+                        )}
+                      </article>
+                    );
+                  })}
+                  {isLoadingMore && (
+                    <div className="col-span-full flex items-center justify-center gap-2 py-5">
+                      <Loader2 className="h-5 w-5 animate-spin text-[color:var(--autocity-accent)]" />
+                      <span className="text-sm" style={{ color: th.loaderText }}>Loading more products...</span>
+                    </div>
+                  )}
+                  <div ref={bottomRef} className="col-span-full h-1" />
+                  {!hasMoreProducts && products.length > 0 && (
+                    <p className="col-span-full text-center py-3 text-sm" style={{ color: th.endText }}>All {products.length} products loaded</p>
+                  )}
+                </div>
+              ) : (
               <>
                 {/* Mobile Cards */}
                 <div className="md:hidden divide-y p-4 space-y-3" style={{ borderColor: th.stockRowDivider }}>
@@ -995,6 +1132,7 @@ export default function StockPage() {
                   </div>
                 )}
               </>
+              )
             )}
           </div>
         </div>

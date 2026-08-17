@@ -11,7 +11,11 @@ import MainLayout from "@/components/layout/MainLayout";
 import AddProductModal from "@/components/products/AddProductModal";
 import EditProductModal from "@/components/products/EditProductModal";
 import { sanitizeBarcodeValue } from "@/lib/utils/barcode";
-import { formatProductQuantity } from "@/lib/utils/productUnit";
+import {
+  formatProductQuantity,
+  getProductUnitLabel,
+  PRODUCT_UNIT_OPTIONS,
+} from "@/lib/utils/productUnit";
 
 import { Search,
   Plus,
@@ -33,6 +37,9 @@ import { Search,
   Box,
   File,
   FileSpreadsheet,
+  ChevronRight,
+  Palette,
+  Calendar,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import ProductCard from "./ProductCard";
@@ -73,11 +80,23 @@ export default function ProductsClient({
   const [selectedProductIndex, setSelectedProductIndex] = useState(-1);
   const productRefs    = useRef<(HTMLTableRowElement | null)[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const desktopFilterButtonRef = useRef<HTMLButtonElement>(null);
+  const desktopFilterMenuRef = useRef<HTMLDivElement>(null);
 
   const [filterCategory,  setFilterCategory]  = useState("");
   const [filterMake,      setFilterMake]       = useState("");
+  const [filterModel,     setFilterModel]      = useState("");
+  const [filterVariant,   setFilterVariant]    = useState("");
+  const [filterColor,     setFilterColor]      = useState("");
+  const [filterYear,      setFilterYear]       = useState("");
+  const [filterUnit,      setFilterUnit]       = useState("");
+  const [filterLocationId,setFilterLocationId] = useState("");
+  const [filterStatus,    setFilterStatus]     = useState("all");
   const [filterIsVehicle, setFilterIsVehicle]  = useState<string>("all");
   const [showFilters,     setShowFilters]      = useState(false);
+  const [showDesktopFilters, setShowDesktopFilters] = useState(false);
+  const [activeDesktopFilterMenu, setActiveDesktopFilterMenu] = useState<'search' | 'stock' | 'product' | 'vehicle' | 'active'>('search');
+  const [stockLocations, setStockLocations] = useState<any[]>([]);
 
   const [isMobile,          setIsMobile]          = useState(false);
   const [showMobileMenu,    setShowMobileMenu]    = useState(false);
@@ -173,6 +192,31 @@ export default function ProductsClient({
     return () => window.removeEventListener("resize", checkIfMobile);
   }, []);
 
+  useEffect(() => {
+    const fetchStockLocations = async () => {
+      try {
+        const res = await fetch('/api/stock-locations', { credentials: 'include' });
+        if (res.ok) setStockLocations((await res.json()).locations || []);
+      } catch {
+        setStockLocations([]);
+      }
+    };
+    fetchStockLocations();
+  }, []);
+
+  useEffect(() => {
+    if (!showDesktopFilters) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (desktopFilterMenuRef.current?.contains(target) || desktopFilterButtonRef.current?.contains(target)) return;
+      setShowDesktopFilters(false);
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showDesktopFilters]);
+
   const handleDeleteClick = (product: any) => {
     if (product.currentStock > 0) {
       setProductToDelete(product);
@@ -185,9 +229,20 @@ export default function ProductsClient({
   };
 
   useKeyboardShortcuts({
-    onSearch: () => searchInputRef.current?.focus(),
+    onSearch: () => {
+      if (!isMobile) {
+        setShowDesktopFilters(true);
+        setActiveDesktopFilterMenu('search');
+        window.setTimeout(() => searchInputRef.current?.focus(), 0);
+        return;
+      }
+      searchInputRef.current?.focus();
+    },
     onNewProduct: () => openAddModal(),
-    onToggleFilters: () => setShowFilters(prev => !prev),
+    onToggleFilters: () => {
+      if (isMobile) setShowFilters(prev => !prev);
+      else setShowDesktopFilters(prev => !prev);
+    },
     onExport: () => setShowCSVModal(true),
     selectedIndex: selectedProductIndex,
     setSelectedIndex: setSelectedProductIndex,
@@ -222,15 +277,27 @@ export default function ProductsClient({
   }, [selectedProductIndex, isMobile, products.length]);
 
   // ── Data fetching ─────────────────────────────────────────────────────────
+  const appendProductFilters = (params: URLSearchParams) => {
+    if (searchTerm)      params.append("search", searchTerm);
+    if (filterCategory)  params.append("categoryId", filterCategory);
+    if (filterMake)      params.append("carMake", filterMake);
+    if (filterModel)     params.append("carModel", filterModel);
+    if (filterVariant)   params.append("variant", filterVariant);
+    if (filterColor)     params.append("color", filterColor);
+    if (filterYear)      params.append("year", filterYear);
+    if (filterUnit)      params.append("unit", filterUnit);
+    if (filterLocationId) params.append("locationId", filterLocationId);
+    if (filterStatus !== "all") params.append("stockStatus", filterStatus);
+    if (filterIsVehicle !== "all") {
+      params.append("isVehicle", filterIsVehicle === "vehicle" ? "true" : "false");
+    }
+    return params;
+  };
+
   const fetchProducts = async (page = 1, append = false) => {
     try {
       if (!append) setIsLoadingMore(true);
-      const params = new URLSearchParams({ page: page.toString(), limit: "50" });
-      if (searchTerm)     params.append("search",     searchTerm);
-      if (filterCategory) params.append("categoryId", filterCategory);
-      if (filterMake)     params.append("carMake",    filterMake);
-      if (filterIsVehicle !== "all")
-        params.append("isVehicle", filterIsVehicle === "vehicle" ? "true" : "false");
+      const params = appendProductFilters(new URLSearchParams({ page: page.toString(), limit: "50" }));
       const res = await fetch(`/api/products?${params}`, { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
@@ -249,7 +316,9 @@ export default function ProductsClient({
     if (!isLoadingMore && pagination.hasMore) fetchProducts(pagination.page + 1, true);
   };
 
-  useEffect(() => { fetchProducts(1); }, [searchTerm, filterCategory, filterMake, filterIsVehicle]);
+  useEffect(() => {
+    fetchProducts(1);
+  }, [searchTerm, filterStatus, filterUnit, filterLocationId, filterCategory, filterMake, filterModel, filterVariant, filterColor, filterYear, filterIsVehicle]);
 
   // ── PDF Export (unchanged) ────────────────────────────────────────────────
   const downloadProductsPDF = async () => {
@@ -258,12 +327,7 @@ export default function ProductsClient({
       const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
         import("jspdf"), import("jspdf-autotable"),
       ]);
-      const params = new URLSearchParams({ export: "true" });
-      if (searchTerm)     params.append("search",     searchTerm);
-      if (filterCategory) params.append("categoryId", filterCategory);
-      if (filterMake)     params.append("carMake",    filterMake);
-      if (filterIsVehicle !== "all")
-        params.append("isVehicle", filterIsVehicle === "vehicle" ? "true" : "false");
+      const params = appendProductFilters(new URLSearchParams({ export: "true" }));
       const res = await fetch(`/api/products?${params}`, { credentials: "include" });
       if (!res.ok) throw new Error("Export fetch failed");
       const { products: allProducts } = await res.json();
@@ -323,12 +387,7 @@ export default function ProductsClient({
     try {
       toast.loading("Preparing CSV export...");
 
-      const params = new URLSearchParams({ export: "true" });
-      if (searchTerm)     params.append("search",     searchTerm);
-      if (filterCategory) params.append("categoryId", filterCategory);
-      if (filterMake)     params.append("carMake",    filterMake);
-      if (filterIsVehicle !== "all")
-        params.append("isVehicle", filterIsVehicle === "vehicle" ? "true" : "false");
+      const params = appendProductFilters(new URLSearchParams({ export: "true" }));
 
       const res = await fetch(`/api/products?${params}`, { credentials: "include" });
       if (!res.ok) throw new Error("Export fetch failed");
@@ -498,10 +557,74 @@ export default function ProductsClient({
     else { const e=await res.json(); toast.error(e.error||"Failed to add category"); }
   };
 
-  const clearFilters = () => { setFilterCategory(""); setFilterMake(""); setFilterIsVehicle("all"); setSearchTerm(""); };
+  const clearFilters = () => {
+    setFilterStatus("all");
+    setFilterUnit("");
+    setFilterLocationId("");
+    setFilterCategory("");
+    setFilterMake("");
+    setFilterModel("");
+    setFilterVariant("");
+    setFilterColor("");
+    setFilterYear("");
+    setFilterIsVehicle("all");
+    setSearchTerm("");
+  };
   const handleLogout = async () => { await fetch("/api/auth/logout",{method:"POST",credentials:"include"}); window.location.href="/autocityPro/login"; };
 
   const availableMakes = [...new Set(products.filter(p => p.carMake).map(p => p.carMake))].sort() as string[];
+  const availableModels = filterMake
+    ? [...new Set(products.filter(p => p.carMake === filterMake && p.carModel).map(p => p.carModel))].sort() as string[]
+    : [];
+  const availableVariants = [...new Set(products.filter(p => p.variant).map(p => p.variant))].sort() as string[];
+  const availableColors = [...new Set(products.filter(p => p.color).map(p => p.color))].sort() as string[];
+  const availableYears = [...new Set(products.flatMap(p => {
+    if (!p.yearFrom && !p.yearTo) return [];
+    const from = Number(p.yearFrom || p.yearTo);
+    const to = Number(p.yearTo || p.yearFrom);
+    if (!Number.isFinite(from) || !Number.isFinite(to)) return [];
+    return Array.from({ length: Math.max(0, to - from + 1) }, (_, index) => from + index);
+  }))].sort((a, b) => b - a);
+
+  const activeFilterCount = [
+    filterStatus !== "all",
+    filterUnit,
+    filterLocationId,
+    filterCategory,
+    filterIsVehicle !== "all",
+    filterMake,
+    filterModel,
+    filterVariant,
+    filterColor,
+    filterYear,
+  ].filter(Boolean).length;
+  const stockFilterCount = filterStatus === "all" ? 0 : 1;
+  const productFilterCount = [filterCategory, filterUnit, filterLocationId, filterIsVehicle !== "all"].filter(Boolean).length;
+  const vehicleFilterCount = [filterMake, filterModel, filterVariant, filterColor, filterYear].filter(Boolean).length;
+  const activeFilterTags = [
+    filterStatus !== "all" && { label: `Status: ${filterStatus === "low" ? "Low Stock" : filterStatus === "critical" ? "Critical" : "Out of Stock"}`, clear: () => setFilterStatus("all") },
+    filterUnit && { label: `Unit: ${getProductUnitLabel(filterUnit)}`, clear: () => setFilterUnit("") },
+    filterLocationId && { label: `Location: ${stockLocations.find(location => String(location._id) === filterLocationId)?.name || "Selected"}`, clear: () => setFilterLocationId("") },
+    filterCategory && { label: `Category: ${allCategories.find(category => category._id === filterCategory)?.name || "Selected"}`, clear: () => setFilterCategory("") },
+    filterIsVehicle !== "all" && { label: `Type: ${filterIsVehicle === "vehicle" ? "Vehicles/Parts" : "Non-Vehicle"}`, clear: () => setFilterIsVehicle("all") },
+    filterMake && { label: `Make: ${filterMake}`, clear: () => { setFilterMake(""); setFilterModel(""); } },
+    filterModel && { label: `Model: ${filterModel}`, clear: () => setFilterModel("") },
+    filterVariant && { label: `Variant: ${filterVariant}`, clear: () => setFilterVariant("") },
+    filterColor && { label: `Color: ${filterColor}`, clear: () => setFilterColor("") },
+    filterYear && { label: `Year: ${filterYear}`, clear: () => setFilterYear("") },
+  ].filter(Boolean) as Array<{ label: string; clear: () => void }>;
+  const desktopFilterMenuItems: Array<{
+    id: 'search' | 'stock' | 'product' | 'vehicle' | 'active';
+    label: string;
+    description: string;
+    count: number;
+  }> = [
+    { id: 'search', label: 'Search', description: 'Name, SKU, barcode, vehicle', count: searchTerm ? 1 : 0 },
+    { id: 'stock', label: 'Stock Status', description: 'Low, critical, out', count: stockFilterCount },
+    { id: 'product', label: 'Product & Area', description: 'Type, unit, category, location', count: productFilterCount },
+    { id: 'vehicle', label: 'Vehicle Compatibility', description: 'Make, model, year', count: vehicleFilterCount },
+    { id: 'active', label: 'Selected Filters', description: 'Review and clear', count: activeFilterTags.length },
+  ];
   const formatYearRange = (f?: string|number, t?: string|number) => {
     if (!f && !t) return ""; if (f && !t) return `${f}+`; if (!f && t) return `Up to ${t}`; if (f===t) return `${f}`; return `${f}-${t}`;
   };
@@ -579,10 +702,198 @@ export default function ProductsClient({
               <h1 className="text-3xl font-bold transition-colors duration-500" style={{ color: th.headerTitle }}>Products</h1>
               <p className="mt-1 transition-colors duration-500" style={{ color: th.headerSub }}>
                 {products.length} of {pagination.total||0} products loaded
-                {(filterCategory||filterMake||filterIsVehicle!=="all"||searchTerm) && " (filtered)"}
+                {(activeFilterCount > 0 || searchTerm) && ` • ${activeFilterCount + (searchTerm ? 1 : 0)} filter${activeFilterCount + (searchTerm ? 1 : 0) === 1 ? '' : 's'} active`}
               </p>
             </div>
             <div className="flex gap-3">
+              <div className="relative">
+                <button
+                  ref={desktopFilterButtonRef}
+                  type="button"
+                  onClick={() => {
+                    setShowDesktopFilters(previous => {
+                      const next = !previous;
+                      if (next) setActiveDesktopFilterMenu('search');
+                      return next;
+                    });
+                  }}
+                  className="relative flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors"
+                  style={{ background: showDesktopFilters ? 'rgba(255,255,255,0.20)' : th.headerBtnBg, border: `1px solid ${th.headerBtnBorder}`, color: th.headerBtnText }}
+                >
+                  <Filter className="h-5 w-5" />
+                  <span>Filters</span>
+                  {(activeFilterCount > 0 || searchTerm) && (
+                    <span className="absolute -top-2 -right-2 min-w-5 h-5 px-1 rounded-full bg-[color:var(--autocity-accent)] text-white text-xs flex items-center justify-center">
+                      {activeFilterCount + (searchTerm ? 1 : 0)}
+                    </span>
+                  )}
+                </button>
+
+                {showDesktopFilters && (
+                  <div ref={desktopFilterMenuRef} className="absolute right-0 top-full mt-3 z-50 flex items-start">
+                    <div className="w-64 rounded-2xl shadow-2xl overflow-hidden" style={{ background: th.containerBg, border: `1px solid ${th.containerBorder}` }}>
+                      <div className="p-2">
+                        {desktopFilterMenuItems.map(item => {
+                          const active = activeDesktopFilterMenu === item.id;
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => setActiveDesktopFilterMenu(item.id)}
+                              onMouseEnter={() => setActiveDesktopFilterMenu(item.id)}
+                              className="w-full flex items-center justify-between gap-3 px-3 py-3 rounded-xl text-left transition-colors"
+                              style={{ background: active ? 'var(--autocity-accent-10)' : 'transparent', color: active ? th.cellPrimary : th.cellSecondary }}
+                            >
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold truncate">{item.label}</p>
+                                <p className="text-xs mt-0.5 truncate" style={{ color: th.cellMuted }}>{item.description}</p>
+                              </div>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                {!!item.count && <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: 'var(--autocity-accent-10)', color: 'var(--autocity-accent)' }}>{item.count}</span>}
+                                <ChevronRight className="h-4 w-4" style={{ color: th.cellMuted }} />
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="px-4 py-3" style={{ borderTop: `1px solid ${th.tableRowDivider}` }}>
+                        <button type="button" onClick={clearFilters} className="w-full px-3 py-2 rounded-xl text-sm transition-colors" style={{ background: th.filterBtnBg, border: `1px solid ${th.filterBtnBorder}`, color: th.filterText }}>
+                          Clear All Filters
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="w-[360px] ml-2 rounded-2xl shadow-2xl overflow-hidden" style={{ background: th.filterBg, border: `1px solid ${th.filterBorder}` }}>
+                      {activeDesktopFilterMenu === 'search' && (
+                        <>
+                          <div className="px-4 py-3" style={{ borderBottom: `1px solid ${th.tableRowDivider}` }}>
+                            <p className="text-sm font-semibold" style={{ color: th.cellPrimary }}>Search Products</p>
+                            <p className="text-xs mt-1" style={{ color: th.cellMuted }}>Search by name, SKU, barcode, make, model, variant, or colour.</p>
+                          </div>
+                          <div className="p-4">
+                            <div className="relative">
+                              <Search className="absolute left-3 top-3 h-4 w-4 text-[color:var(--autocity-accent)]" />
+                              <input ref={searchInputRef} type="text" value={searchTerm} onChange={event => setSearchTerm(event.target.value)} placeholder="Search products..." className="w-full pl-10 pr-4 py-3 text-sm rounded-xl focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent" style={selectStyle} />
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                      {activeDesktopFilterMenu === 'stock' && (
+                        <>
+                          <div className="px-4 py-3" style={{ borderBottom: `1px solid ${th.tableRowDivider}` }}>
+                            <p className="text-sm font-semibold" style={{ color: th.cellPrimary }}>Stock Status</p>
+                            <p className="text-xs mt-1" style={{ color: th.cellMuted }}>Show healthy, low, critical, or out-of-stock products.</p>
+                          </div>
+                          <div className="p-4 grid grid-cols-2 gap-2">
+                            {[["all", "All Status"], ["low", "Low Stock"], ["critical", "Critical"], ["out", "Out of Stock"]].map(([value, label]) => {
+                              const active = filterStatus === value;
+                              return (
+                                <button key={value} type="button" onClick={() => setFilterStatus(value)} className="px-3 py-2.5 rounded-xl text-sm text-left transition-colors" style={{ background: active ? 'var(--autocity-accent-10)' : th.filterBg, border: active ? '1px solid var(--autocity-accent-30)' : `1px solid ${th.filterBorder}`, color: active ? 'var(--autocity-accent)' : th.filterText }}>
+                                  {label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
+
+                      {activeDesktopFilterMenu === 'product' && (
+                        <>
+                          <div className="px-4 py-3" style={{ borderBottom: `1px solid ${th.tableRowDivider}` }}>
+                            <p className="text-sm font-semibold" style={{ color: th.cellPrimary }}>Product & Area</p>
+                            <p className="text-xs mt-1" style={{ color: th.cellMuted }}>Choose item type, category, unit, and location.</p>
+                          </div>
+                          <div className="p-4 space-y-4">
+                            <div className="grid grid-cols-3 gap-2">
+                              {[["all", "All"], ["vehicle", "Vehicles"], ["non-vehicle", "Non-Vehicle"]].map(([value, label]) => {
+                                const active = filterIsVehicle === value;
+                                return (
+                                  <button key={value} type="button" onClick={() => setFilterIsVehicle(value)} className="px-2 py-2.5 rounded-xl text-xs transition-colors" style={{ background: active ? 'var(--autocity-accent-10)' : th.filterBg, border: active ? '1px solid var(--autocity-accent-30)' : `1px solid ${th.filterBorder}`, color: active ? 'var(--autocity-accent)' : th.filterText }}>
+                                    {label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {[
+                              { label: 'Category', value: filterCategory, onChange: setFilterCategory, options: [['', 'All Categories'], ...allCategories.map(category => [category._id, category.name])] },
+                              { label: 'Unit', value: filterUnit, onChange: setFilterUnit, options: [['', 'All Units'], ...PRODUCT_UNIT_OPTIONS.map(unit => [unit.value, unit.label])] },
+                              { label: 'Location / Area', value: filterLocationId, onChange: setFilterLocationId, options: [['', 'All Locations'], ...stockLocations.map(location => [String(location._id), location.name])] },
+                            ].map(field => (
+                              <div key={field.label}>
+                                <p className="text-xs uppercase tracking-[0.2em] mb-2" style={{ color: th.cellMuted }}>{field.label}</p>
+                                <select value={field.value} onChange={event => field.onChange(event.target.value)} className="w-full px-3 py-3 text-sm rounded-xl focus:ring-2 focus:ring-[color:var(--autocity-accent)] appearance-none" style={selectStyle}>
+                                  {field.options.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                                </select>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+
+                      {activeDesktopFilterMenu === 'vehicle' && (
+                        <>
+                          <div className="px-4 py-3" style={{ borderBottom: `1px solid ${th.tableRowDivider}` }}>
+                            <p className="text-sm font-semibold" style={{ color: th.cellPrimary }}>Vehicle Compatibility</p>
+                            <p className="text-xs mt-1" style={{ color: th.cellMuted }}>Narrow by make, model, variant, colour, and year.</p>
+                          </div>
+                          <div className="p-4 grid grid-cols-1 gap-3">
+                            <div className="relative">
+                              <Car className="absolute left-3 top-3 h-4 w-4 text-[color:var(--autocity-accent)]" />
+                              <select value={filterMake} onChange={event => { setFilterMake(event.target.value); setFilterModel(''); }} className="w-full pl-10 pr-3 py-3 text-sm rounded-xl focus:ring-2 focus:ring-[color:var(--autocity-accent)] appearance-none" style={selectStyle}>
+                                <option value="">All Makes</option>
+                                {availableMakes.map(make => <option key={make} value={make}>{make}</option>)}
+                              </select>
+                            </div>
+                            <select value={filterModel} onChange={event => setFilterModel(event.target.value)} disabled={!filterMake} className="w-full px-3 py-3 text-sm rounded-xl focus:ring-2 focus:ring-[color:var(--autocity-accent)] appearance-none disabled:opacity-50" style={selectStyle}>
+                              <option value="">All Models</option>
+                              {availableModels.map(model => <option key={model} value={model}>{model}</option>)}
+                            </select>
+                            <select value={filterVariant} onChange={event => setFilterVariant(event.target.value)} className="w-full px-3 py-3 text-sm rounded-xl focus:ring-2 focus:ring-[color:var(--autocity-accent)] appearance-none" style={selectStyle}>
+                              <option value="">All Variants</option>
+                              {availableVariants.map(variant => <option key={variant} value={variant}>{variant}</option>)}
+                            </select>
+                            <div className="relative">
+                              <Palette className="absolute left-3 top-3 h-4 w-4 text-[color:var(--autocity-accent)]" />
+                              <select value={filterColor} onChange={event => setFilterColor(event.target.value)} className="w-full pl-10 pr-3 py-3 text-sm rounded-xl focus:ring-2 focus:ring-[color:var(--autocity-accent)] appearance-none" style={selectStyle}>
+                                <option value="">All Colours</option>
+                                {availableColors.map(color => <option key={color} value={color}>{color}</option>)}
+                              </select>
+                            </div>
+                            <div className="relative">
+                              <Calendar className="absolute left-3 top-3 h-4 w-4 text-[color:var(--autocity-accent)]" />
+                              <select value={filterYear} onChange={event => setFilterYear(event.target.value)} className="w-full pl-10 pr-3 py-3 text-sm rounded-xl focus:ring-2 focus:ring-[color:var(--autocity-accent)] appearance-none" style={selectStyle}>
+                                <option value="">All Years</option>
+                                {availableYears.map(year => <option key={year} value={year}>{year}</option>)}
+                              </select>
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                      {activeDesktopFilterMenu === 'active' && (
+                        <>
+                          <div className="px-4 py-3" style={{ borderBottom: `1px solid ${th.tableRowDivider}` }}>
+                            <p className="text-sm font-semibold" style={{ color: th.cellPrimary }}>Selected Filters</p>
+                            <p className="text-xs mt-1" style={{ color: th.cellMuted }}>Remove individual filters or clear the complete search.</p>
+                          </div>
+                          <div className="p-4 space-y-4">
+                            {(activeFilterTags.length > 0 || searchTerm) ? (
+                              <>
+                                <div className="flex flex-wrap gap-2">
+                                  {searchTerm && <button type="button" onClick={() => setSearchTerm('')} className="px-3 py-1.5 text-xs rounded-full flex items-center gap-2" style={{ background: 'var(--autocity-accent-10)', color: 'var(--autocity-accent)' }}><span>Search: {searchTerm}</span><X className="h-3 w-3" /></button>}
+                                  {activeFilterTags.map(tag => <button key={tag.label} type="button" onClick={tag.clear} className="px-3 py-1.5 text-xs rounded-full flex items-center gap-2" style={{ background: 'var(--autocity-accent-10)', color: 'var(--autocity-accent)' }}><span>{tag.label}</span><X className="h-3 w-3" /></button>)}
+                                </div>
+                                <button type="button" onClick={clearFilters} className="w-full px-3 py-2.5 rounded-xl text-sm" style={{ background: th.filterBtnBg, border: `1px solid ${th.filterBtnBorder}`, color: th.filterText }}>Clear All</button>
+                              </>
+                            ) : <p className="text-sm" style={{ color: th.cellMuted }}>No filters selected yet.</p>}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
               {[
                 { label:"CSV", icon:<FileDown className="h-5 w-5"/>, action: () => setShowCSVModal(true) },
                 { label:"PDF", icon:<FileDown className="h-5 w-5"/>, action: downloadProductsPDF },
@@ -612,53 +923,18 @@ export default function ProductsClient({
 
         {/* ── Main Content ──────────────────────────────────────────────── */}
         <div className="px-4 md:px-6 pt-[220px] md:pt-6 pb-6 transition-colors duration-500" style={{ background: th.pageBg }}>
-          <div className="hidden md:block space-y-4 mb-6">
-            <div className="flex gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-3 h-5 w-5 text-[color:var(--autocity-accent)]" />
-                <input ref={searchInputRef} type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                  placeholder="Search by name, SKU, barcode, make, model, variant, or color... (press / to focus)"
-                  className="w-full pl-10 pr-4 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent transition-colors duration-500"
-                  style={selectStyle} />
-              </div>
-              <button onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors"
-                style={{ background: showFilters ? 'var(--autocity-accent-20)' : 'transparent', border:`1px solid ${showFilters ? 'var(--autocity-accent-30)' : th.filterBorder}`, color: th.filterText }}>
-                <Filter className="h-5 w-5" /><span>Filters</span>
-                {(filterCategory||filterMake||filterIsVehicle!=="all") && (
-                  <span className="ml-2 px-2 py-0.5 bg-[color:var(--autocity-accent)] text-white text-xs rounded-full">
-                    {[filterCategory,filterMake,filterIsVehicle!=="all"].filter(Boolean).length}
-                  </span>
-                )}
-              </button>
-            </div>
-            {showFilters && (
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4 transition-colors duration-500"
-                style={{ borderTop:`1px solid ${th.filterDivider}` }}>
-                {[
-                  { label:"Type",     value:filterIsVehicle, onChange:setFilterIsVehicle, opts:[["all","All Products"],["vehicle","Vehicles/Parts Only"],["non-vehicle","Non-Vehicle Products"]] },
-                  { label:"Category", value:filterCategory,  onChange:setFilterCategory,  opts:[["","All Categories"],...allCategories.map(c=>[c._id,`${c.name} (${c.productCount})`])] },
-                  { label:"Car Make", value:filterMake,      onChange:setFilterMake,      opts:[["","All Makes"],...availableMakes.map(m=>[m,m])] },
-                ].map(s => (
-                  <div key={s.label}>
-                    <label className="block text-sm font-medium mb-1" style={{ color: th.filterLabel }}>{s.label}</label>
-                    <select value={s.value} onChange={e => s.onChange(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg appearance-none transition-colors duration-500" style={selectStyle}>
-                      {s.opts.map(([v,l]) => <option key={v} value={v}>{l}</option>)}
-                    </select>
-                  </div>
-                ))}
-                <div className="flex items-end">
-                  <button onClick={clearFilters} className="w-full px-4 py-2 rounded-lg transition-colors text-white"
-                    style={{ background: th.filterBtnBg, border:`1px solid ${th.filterBtnBorder}` }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--autocity-accent-20)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = th.filterBtnBg)}>
-                    Clear Filters
-                  </button>
+          {(activeFilterTags.length > 0 || searchTerm) && (
+            <div className="hidden md:flex items-start justify-between gap-4 rounded-2xl p-4 mb-4" style={{ background: th.filterBg, border: `1px solid ${th.filterBorder}` }}>
+              <div className="flex-1">
+                <p className="text-xs uppercase tracking-[0.2em] mb-2" style={{ color: th.cellMuted }}>Active Filters</p>
+                <div className="flex flex-wrap gap-2">
+                  {searchTerm && <button type="button" onClick={() => setSearchTerm('')} className="px-3 py-1.5 text-xs rounded-full flex items-center gap-2" style={{ background: 'var(--autocity-accent-10)', color: 'var(--autocity-accent)' }}><span>Search: {searchTerm}</span><X className="h-3 w-3" /></button>}
+                  {activeFilterTags.map(tag => <button key={tag.label} type="button" onClick={tag.clear} className="px-3 py-1.5 text-xs rounded-full flex items-center gap-2" style={{ background: 'var(--autocity-accent-10)', color: 'var(--autocity-accent)' }}><span>{tag.label}</span><X className="h-3 w-3" /></button>)}
                 </div>
               </div>
-            )}
-          </div>
+              <button type="button" onClick={clearFilters} className="px-4 py-2 text-sm rounded-lg whitespace-nowrap" style={{ background: th.filterBtnBg, border: `1px solid ${th.filterBtnBorder}`, color: th.filterText }}>Clear All</button>
+            </div>
+          )}
 
           <div className="rounded-2xl shadow-xl overflow-hidden transition-colors duration-500"
             style={{ background: th.containerBg, border:`1px solid ${th.containerBorder}` }}>
@@ -687,7 +963,7 @@ export default function ProductsClient({
                     <tr><td colSpan={7} className="px-6 py-12 text-center">
                       <Package className="h-12 w-12 mx-auto mb-2" style={{ color: th.cellFaint }} />
                       <p style={{ color: th.cellMuted }}>No products found</p>
-                      {(filterCategory||filterMake||filterIsVehicle!=="all") && (
+                      {(activeFilterCount > 0 || searchTerm) && (
                         <button onClick={clearFilters} className="mt-2 text-[color:var(--autocity-accent)] hover:text-[color:var(--autocity-accent-strong)] text-sm transition-colors">Clear filters</button>
                       )}
                     </td></tr>
@@ -769,7 +1045,7 @@ export default function ProductsClient({
                   <div className="p-6 text-center">
                     <Package className="h-12 w-12 mx-auto mb-2" style={{ color: th.cellFaint }} />
                     <p className="text-sm" style={{ color: th.cellMuted }}>No products found</p>
-                    {(filterCategory||filterMake||filterIsVehicle!=="all") && (
+                    {(activeFilterCount > 0 || searchTerm) && (
                       <button onClick={clearFilters} className="mt-2 text-[color:var(--autocity-accent)] text-sm active:scale-95 transition-all">Clear filters</button>
                     )}
                   </div>
@@ -909,19 +1185,24 @@ export default function ProductsClient({
 
       {/* ── Mobile Filter Modal ──────────────────────────────────────────── */}
       {showFilters && (
-        <div className="md:hidden fixed inset-0 bg-black/80 backdrop-blur-md z-50">
-          <div className="absolute bottom-0 left-0 right-0 rounded-t-3xl shadow-2xl p-6 transition-colors duration-500"
+        <div className="md:hidden fixed inset-0 bg-black/80 backdrop-blur-md z-50 overflow-y-auto">
+          <div className="absolute bottom-0 left-0 right-0 rounded-t-3xl shadow-2xl p-6 transition-colors duration-500 max-h-[90vh] overflow-y-auto"
             style={{ background: th.overlayBg, borderTop:`1px solid ${th.overlayBorder}` }}>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-bold" style={{ color: th.overlayTitle }}>Filters</h2>
+              <div>
+                <h2 className="text-lg font-bold" style={{ color: th.overlayTitle }}>Filters</h2>
+                {(activeFilterCount > 0 || searchTerm) && <p className="text-xs mt-1" style={{ color: th.cellMuted }}>{activeFilterCount + (searchTerm ? 1 : 0)} active</p>}
+              </div>
               <button onClick={() => setShowFilters(false)} className="p-2 rounded-xl active:scale-95 transition-all"
                 style={{ background: th.overlayCloseBg, color: th.overlayClose }}><X className="h-5 w-5" /></button>
             </div>
             <div className="space-y-4">
               {[
-                { label:"Type",     value:filterIsVehicle, onChange:setFilterIsVehicle, opts:[["all","All Products"],["vehicle","Vehicles Only"],["non-vehicle","Non-Vehicle"]] },
-                { label:"Category", value:filterCategory,  onChange:setFilterCategory,  opts:[["","All Categories"],...allCategories.map(c=>[c._id,c.name])] },
-                { label:"Car Make", value:filterMake,      onChange:setFilterMake,      opts:[["","All Makes"],...availableMakes.map(m=>[m,m])] },
+                { label:"Stock Status", value:filterStatus, onChange:setFilterStatus, opts:[["all","All Status"],["low","Low Stock"],["critical","Critical"],["out","Out of Stock"]] },
+                { label:"Type", value:filterIsVehicle, onChange:setFilterIsVehicle, opts:[["all","All Products"],["vehicle","Vehicles/Parts"],["non-vehicle","Non-Vehicle"]] },
+                { label:"Category", value:filterCategory, onChange:setFilterCategory, opts:[["","All Categories"],...allCategories.map(c=>[c._id,c.name])] },
+                { label:"Unit", value:filterUnit, onChange:setFilterUnit, opts:[["","All Units"],...PRODUCT_UNIT_OPTIONS.map(unit=>[unit.value,unit.label])] },
+                { label:"Location / Area", value:filterLocationId, onChange:setFilterLocationId, opts:[["","All Locations"],...stockLocations.map(location=>[String(location._id),location.name])] },
               ].map(s => (
                 <div key={s.label}>
                   <label className="block text-sm font-medium mb-2" style={{ color: th.filterLabel }}>{s.label}</label>
@@ -931,6 +1212,25 @@ export default function ProductsClient({
                   </select>
                 </div>
               ))}
+              <div className="pt-4" style={{ borderTop: `1px solid ${th.overlayItemBorder}` }}>
+                <h3 className="text-sm font-medium mb-3 flex items-center gap-2" style={{ color: th.filterLabel }}><Car className="h-4 w-4" />Vehicle Filters</h3>
+                <div className="space-y-3">
+                  {[
+                    { label:"Make", value:filterMake, onChange:(value: string) => { setFilterMake(value); setFilterModel(''); }, opts:[["","All Makes"],...availableMakes.map(make=>[make,make])] },
+                    { label:"Model", value:filterModel, onChange:setFilterModel, opts:[["","All Models"],...availableModels.map(model=>[model,model])], disabled:!filterMake },
+                    { label:"Variant", value:filterVariant, onChange:setFilterVariant, opts:[["","All Variants"],...availableVariants.map(variant=>[variant,variant])] },
+                    { label:"Colour", value:filterColor, onChange:setFilterColor, opts:[["","All Colours"],...availableColors.map(color=>[color,color])] },
+                    { label:"Year", value:filterYear, onChange:setFilterYear, opts:[["","All Years"],...availableYears.map(year=>[String(year),String(year)])] },
+                  ].map(field => (
+                    <div key={field.label}>
+                      <label className="block text-xs mb-1" style={{ color: th.cellMuted }}>{field.label}</label>
+                      <select value={field.value} onChange={event => field.onChange(event.target.value)} disabled={(field as any).disabled} className="w-full px-3 py-2 rounded-lg text-sm disabled:opacity-50" style={{ background: th.overlayItemBg, border:`1px solid ${th.overlayItemBorder}`, color: th.overlayTitle }}>
+                        {field.opts.map(([value,label]) => <option key={value} value={value}>{label}</option>)}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              </div>
               <div className="flex gap-3 pt-4">
                 <button onClick={() => { clearFilters(); setShowFilters(false); }} className="flex-1 px-4 py-3 rounded-xl transition-colors active:scale-95"
                   style={{ background: th.overlayItemBg, border:`1px solid ${th.overlayItemBorder}`, color: th.overlayItemText }}>Clear</button>

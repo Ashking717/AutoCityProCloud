@@ -108,6 +108,7 @@ export default function NewPurchasePage() {
 
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
+  const [pendingPurchaseKey, setPendingPurchaseKey] = useState<string | null>(null);
   const [products, setProducts] = useState<any[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
   const [suppliers, setSuppliers] = useState<any[]>([]);
@@ -452,11 +453,13 @@ export default function NewPurchasePage() {
     if (!selectedSupplier) { toast.error("Please select a supplier"); return; }
     const { total } = calculateTotals();
     if (amountPaid > total) { toast.error(`Amount paid cannot exceed total (${formatCurrency(total)})`); return; }
+    const idempotencyKey = pendingPurchaseKey || crypto.randomUUID();
+    setPendingPurchaseKey(idempotencyKey);
     setLoading(true);
     try {
       const res = await fetch("/api/purchases", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
         credentials: "include",
         body: JSON.stringify({
           supplierId: selectedSupplier._id, supplierName: selectedSupplier.name,
@@ -471,14 +474,14 @@ export default function NewPurchasePage() {
             unitPrice: i.unitPrice,
             taxRate: i.taxRate,
           })),
-          paymentMethod: getEffectivePaymentMethod(), amountPaid, notes: "",
+          paymentMethod: getEffectivePaymentMethod(), amountPaid, notes: "", idempotencyKey,
         }),
       });
       if (res.ok) {
         const data = await res.json();
         if (data.purchase.balanceDue > 0) toast.success(`Purchase ${data.purchase.purchaseNumber} created! Balance: ${formatCurrency(data.purchase.balanceDue)}`, { duration: 5000 });
         else toast.success(`Purchase ${data.purchase.purchaseNumber} created!`);
-        setCart([]); setSelectedSupplier(null); setAmountPaid(0);
+        setCart([]); setSelectedSupplier(null); setAmountPaid(0); setPendingPurchaseKey(null);
         fetchProducts();
         router.push("/autocityPro/purchases");
       } else toast.error((await res.json()).error || "Failed to create purchase");

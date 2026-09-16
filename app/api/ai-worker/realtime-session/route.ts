@@ -1,11 +1,9 @@
-import OpenAI from "openai";
 import { NextRequest, NextResponse } from "next/server";
 import { cookies, headers } from "next/headers";
 import { verifyToken } from "@/lib/auth/jwt";
 import { aiWorkerTools } from "@/lib/ai-worker/tools";
 import { executeTool, ExecutorContext } from "@/lib/ai-worker/executor";
-
-const openai = new OpenAI();
+import { getAIClient } from "@/lib/ai-worker/getAIClient";
 
 const SYSTEM_PROMPT = `
 You are the AutoCity ERP AI assistant.
@@ -70,11 +68,14 @@ export async function GET() {
   if (!token)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  let user: ReturnType<typeof verifyToken>;
   try {
-    verifyToken(token);
+    user = verifyToken(token);
   } catch {
     return NextResponse.json({ error: "Invalid token" }, { status: 401 });
   }
+  if (!user.outletId)
+    return NextResponse.json({ error: "No outlet" }, { status: 400 });
 
   // Typed as `any` — Realtime SessionCreateParams is not exported in all
   // openai SDK versions and the type name changed between releases.
@@ -97,8 +98,17 @@ export async function GET() {
     },
   };
 
-  const session = await openai.beta.realtime.sessions.create(sessionParams);
-  return NextResponse.json(session);
+  try {
+    const resolved = await getAIClient(user.outletId);
+    if (resolved.provider !== 'openai') {
+      return NextResponse.json({ error: 'Realtime voice requires an OpenAI provider configuration' }, { status: 400 });
+    }
+    const session = await resolved.client.beta.realtime.sessions.create(sessionParams);
+    return NextResponse.json(session);
+  } catch (error: any) {
+    console.error('[Realtime Session]', error);
+    return NextResponse.json({ error: error.message || 'Failed to create realtime session' }, { status: 500 });
+  }
 }
 
 // ── POST /api/realtime — execute a tool call forwarded from the client ─────────

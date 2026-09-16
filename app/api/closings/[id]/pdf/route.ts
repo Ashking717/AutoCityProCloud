@@ -1,5 +1,6 @@
 // app/api/closings/[id]/pdf/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import { connectDB } from '@/lib/db/mongodb';
 import Closing from '@/lib/models/Closing';
 import Sale from '@/lib/models/Sale';
@@ -9,6 +10,7 @@ import Product from '@/lib/models/ProductEnhanced';
 import Outlet from '@/lib/models/Outlet';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth/jwt';
+import { hasPermission } from '@/lib/types/roles';
 
 export async function GET(
   request: NextRequest,
@@ -25,7 +27,16 @@ export async function GET(
     }
 
     const user = verifyToken(token);
+    if (!hasPermission(user.role, 'canViewFinancials')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!user.outletId || !mongoose.Types.ObjectId.isValid(user.outletId)) {
+      return NextResponse.json({ error: 'Outlet is required' }, { status: 400 });
+    }
     const closingId = params.id;
+    if (!mongoose.Types.ObjectId.isValid(closingId)) {
+      return NextResponse.json({ error: 'Invalid closing ID' }, { status: 400 });
+    }
 
     // Fetch closing data
     const closing = await Closing.findOne({
@@ -50,11 +61,11 @@ export async function GET(
         outletId: user.outletId,
         saleDate: {
           $gte: new Date(closing.periodStart),
-          $lte: new Date(closing.periodEnd),
+          $lt: new Date(closing.periodEnd),
         },
-        status: 'COMPLETED',
+        status: { $in: ['COMPLETED', 'REFUNDED'] },
       })
-        .select('invoiceNumber saleDate customerName grandTotal paymentMethod items')
+        .select('invoiceNumber saleDate customerName grandTotal paymentMethod items returns')
         .lean();
     }
 
@@ -63,18 +74,18 @@ export async function GET(
       outletId: user.outletId,
       purchaseDate: {
         $gte: new Date(closing.periodStart),
-        $lte: new Date(closing.periodEnd),
+        $lt: new Date(closing.periodEnd),
       },
-      status: { $in: ['PAID', 'COMPLETED'] },
+      status: { $ne: 'CANCELLED' },
     })
-      .select('purchaseNumber purchaseDate supplierName amountPaid totalAmount')
+      .select('purchaseNumber purchaseDate supplierName amountPaid grandTotal')
       .lean();
 
     const purchases = purchasesData.map((p: any) => ({
       voucherNumber: p.purchaseNumber || 'N/A',
       date: p.purchaseDate,
       supplierName: p.supplierName || 'Unknown',
-      amount: p.amountPaid || p.totalAmount || 0,
+      amount: p.grandTotal || 0,
     }));
 
     // Fetch expenses
@@ -82,18 +93,18 @@ export async function GET(
       outletId: user.outletId,
       expenseDate: {
         $gte: new Date(closing.periodStart),
-        $lte: new Date(closing.periodEnd),
+        $lt: new Date(closing.periodEnd),
       },
-      status: { $in: ['PAID', 'PARTIALLY_PAID'] },
+      status: { $ne: 'CANCELLED' },
     })
-      .select('expenseNumber expenseDate description category amountPaid totalAmount')
+      .select('expenseNumber expenseDate description category amountPaid grandTotal')
       .lean();
 
     const expenses = expensesData.map((e: any) => ({
       voucherNumber: e.expenseNumber || 'N/A',
       date: e.expenseDate,
       description: e.description || 'Expense',
-      amount: e.amountPaid || e.totalAmount || 0,
+      amount: e.grandTotal || 0,
       category: e.category || 'General',
     }));
 
@@ -129,7 +140,7 @@ export async function GET(
       totalCOGS: closing.totalCOGS ?? 0,
       totalPurchases: closing.totalPurchases || 0,
       totalExpenses: closing.totalExpenses || 0,
-      totalCosts: (closing.totalCOGS ?? 0) + (closing.totalPurchases || 0) + (closing.totalExpenses || 0),
+      totalCosts: (closing.totalCOGS ?? 0) + (closing.totalExpenses || 0),
       
       // Profit
       grossProfit: closing.grossProfit ?? (closing.totalRevenue - (closing.totalCOGS ?? 0)),
@@ -199,7 +210,10 @@ export async function GET(
         invoiceNumber: s.invoiceNumber,
         saleDate: s.saleDate,
         customerName: s.customerName,
-        grandTotal: s.grandTotal,
+        grandTotal: Math.max(0, Number(s.grandTotal || 0) - (s.returns || []).reduce(
+          (sum: number, entry: any) => sum + Number(entry.totalAmount || 0),
+          0
+        )),
         paymentMethod: s.paymentMethod,
         items: s.items,
       })),
@@ -213,6 +227,6 @@ export async function GET(
     return NextResponse.json({ data: pdfData });
   } catch (error: any) {
     console.error('Error generating PDF data:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to load closing export data' }, { status: 500 });
   }
 }

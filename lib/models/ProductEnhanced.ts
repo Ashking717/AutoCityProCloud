@@ -33,6 +33,7 @@ export interface IProduct extends Document {
   outletId: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
+  operationKey?: string;
   yearRange?: string; // Virtual property
 }
 
@@ -123,8 +124,8 @@ const ProductSchema = new Schema(
     costPrice: { type: Number, required: true, min: 0 },
     sellingPrice: { type: Number, required: true, min: 0 },
 
-    taxRate: { type: Number, default: 0, min: 0 },
-    discount: { type: Number, default: 0 },
+    taxRate: { type: Number, default: 0, min: 0, max: 100 },
+    discount: { type: Number, default: 0, min: 0 },
 
     currentStock: { type: Number, required: true, default: 0 },
     minStock: { type: Number, default: 0 },
@@ -142,7 +143,8 @@ const ProductSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: 'Outlet',
       required: true
-    }
+    },
+    operationKey: { type: String, trim: true },
   },
   { timestamps: true }
 );
@@ -158,7 +160,10 @@ ProductSchema.index(
   {
     unique: true,
     partialFilterExpression: {
-      partNumber: { $exists: true, $ne: '' }
+      // MongoDB partial indexes do not support $ne. Since saved part numbers
+      // are trimmed strings, $gt: '' includes only non-empty values while
+      // allowing any number of legacy products with an empty part number.
+      partNumber: { $gt: '' }
     }
   }
 );
@@ -170,6 +175,10 @@ ProductSchema.index({ outletId: 1, category: 1 });
 ProductSchema.index({ outletId: 1, barcode: 1 });
 ProductSchema.index({ outletId: 1, carMake: 1 });
 ProductSchema.index({ outletId: 1, yearFrom: 1, yearTo: 1 });
+ProductSchema.index(
+  { outletId: 1, operationKey: 1 },
+  { unique: true, partialFilterExpression: { operationKey: { $type: 'string' } } }
+);
 
 /* ===================== VIRTUALS ===================== */
 

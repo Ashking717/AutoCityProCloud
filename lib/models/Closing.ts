@@ -18,7 +18,7 @@ export interface IClosing extends Document {
   
   // Profit Metrics
   grossProfit: number;          // Revenue - COGS
-  netProfit: number;            // Revenue - (COGS + Purchases + Expenses)
+  netProfit: number;            // Revenue - COGS - operating expenses
 
   // Cash & Bank (LEDGER-DRIVEN)
   openingCash: number;
@@ -76,6 +76,7 @@ export interface IClosing extends Document {
 
   // Outlet
   outletId: mongoose.Types.ObjectId;
+  closingKey?: string;
 
   // Timestamps
   createdAt: Date;
@@ -148,6 +149,7 @@ export interface IClosingLean {
   notes?: string;
 
   outletId: mongoose.Types.ObjectId;
+  closingKey?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -261,6 +263,7 @@ const ClosingSchema = new Schema<IClosing, IClosingModel>(
 
     // Outlet
     outletId: { type: Schema.Types.ObjectId, ref: 'Outlet', required: true },
+    closingKey: { type: String, trim: true },
   },
   { timestamps: true }
 );
@@ -274,6 +277,10 @@ ClosingSchema.index({ outletId: 1, closingType: 1, closingDate: -1 });
 ClosingSchema.index({ outletId: 1, status: 1 });
 ClosingSchema.index({ periodStart: 1, periodEnd: 1 });
 ClosingSchema.index({ outletId: 1, trialBalanceMatched: 1 }); // For finding unbalanced closings
+ClosingSchema.index(
+  { outletId: 1, closingKey: 1 },
+  { unique: true, partialFilterExpression: { closingKey: { $type: 'string' } } }
+);
 
 /* =========================================================
    Virtuals
@@ -324,7 +331,7 @@ ClosingSchema.virtual('netMovement').get(function () {
 });
 
 ClosingSchema.virtual('totalCosts').get(function () {
-  return (this.totalCOGS || 0) + (this.totalPurchases || 0) + (this.totalExpenses || 0);
+  return (this.totalCOGS || 0) + (this.totalExpenses || 0);
 });
 
 /* =========================================================
@@ -395,21 +402,9 @@ ClosingSchema.pre('save', function (next) {
   this.totalOpeningBalance = (this.openingCash || 0) + (this.openingBank || 0);
   this.totalClosingBalance = (this.closingCash || 0) + (this.closingBank || 0);
 
-  // Auto-calculate profit if not set (for backwards compatibility)
-  if (this.totalRevenue > 0) {
-    // Calculate gross profit if COGS exists
-    if (this.totalCOGS !== undefined && this.grossProfit === 0) {
-      this.grossProfit = this.totalRevenue - this.totalCOGS;
-    }
-    
-    // Calculate net profit
-    if (this.netProfit === 0) {
-      const cogs = this.totalCOGS || 0;
-      const purchases = this.totalPurchases || 0;
-      const expenses = this.totalExpenses || 0;
-      this.netProfit = this.totalRevenue - (cogs + purchases + expenses);
-    }
-  }
+  // Purchases are inventory acquisitions, not an additional P&L expense.
+  this.grossProfit = (this.totalRevenue || 0) - (this.totalCOGS || 0);
+  this.netProfit = this.grossProfit - (this.totalExpenses || 0);
 
   next();
 });

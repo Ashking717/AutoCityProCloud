@@ -5,6 +5,7 @@ import Account from '@/lib/models/Account';
 import LedgerEntry from '@/lib/models/LedgerEntry';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth/jwt';
+import { hasPermission } from '@/lib/types/roles';
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,16 +19,19 @@ export async function GET(request: NextRequest) {
     }
     
     const user = verifyToken(token);
+    if (!hasPermission(user.role, 'canViewFinancials')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     const { searchParams } = new URL(request.url);
     
     const asOfDate = new Date(searchParams.get('asOfDate') || new Date());
     asOfDate.setHours(23, 59, 59, 999);
+    if (Number.isNaN(asOfDate.getTime())) {
+      return NextResponse.json({ error: 'Invalid as-of date' }, { status: 400 });
+    }
     
-    // Get all active accounts
-    const accounts = await Account.find({ 
-      outletId: user.outletId,
-      isActive: true 
-    }).lean();
+    // Historical ledger postings remain reportable even if an account is inactive.
+    const accounts = await Account.find({ outletId: user.outletId }).lean();
     
     console.log('📊 Total accounts found:', accounts.length);
     
@@ -75,6 +79,7 @@ export async function GET(request: NextRequest) {
           subType === 'bank' ||
           subType === 'inventory' ||
           subType === 'accounts_receivable' ||
+          subType === 'vat_receivable' ||
           account.code?.startsWith('CASH') ||
           account.code?.startsWith('BANK') ||
           account.code?.startsWith('AR') ||
@@ -106,6 +111,7 @@ export async function GET(request: NextRequest) {
         const subType = account.subType?.toString().toLowerCase();
         const isCurrentLiability = 
           subType === 'accounts_payable' ||
+          subType === 'vat_payable' ||
           account.code?.startsWith('AP') ||
           account.code?.startsWith('CL');
         

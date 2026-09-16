@@ -1,202 +1,133 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectDB } from '@/lib/db/mongodb';
-import Account from '@/lib/models/Account';
-import Product from '@/lib/models/ProductEnhanced';
-import Sale from '@/lib/models/Sale';
-import Outlet from '@/lib/models/Outlet';
 import { cookies } from 'next/headers';
-import { verifyToken } from '@/lib/auth/jwt';
+import mongoose from 'mongoose';
 import ExcelJS from 'exceljs';
+
+import Account, { AccountSubType, AccountType } from '@/lib/models/Account';
+import LedgerEntry from '@/lib/models/LedgerEntry';
+import Outlet from '@/lib/models/Outlet';
+import { verifyToken } from '@/lib/auth/jwt';
+import { connectDB } from '@/lib/db/mongodb';
+import { calculateBalanceChange } from '@/lib/services/balanceEngine';
+import { hasPermission } from '@/lib/types/roles';
+
+function round(value: number) {
+  return Number(value.toFixed(2));
+}
 
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
-    
-    const cookieStore = cookies();
-    const token = cookieStore.get('auth-token')?.value;
-    
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
+    const token = cookies().get('auth-token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const user = verifyToken(token);
-    const { searchParams } = new URL(request.url);
-    
-    const asOfDate = new Date(searchParams.get('asOfDate') || new Date());
-    const format = searchParams.get('format') as 'pdf' | 'excel' | null;
-    
-    // Only handle Excel export server-side
-    if (!format || format !== 'excel') {
-      return NextResponse.json({ 
-        error: 'PDF export is handled client-side. Use format=excel for server export.' 
-      }, { status: 400 });
+    if (!hasPermission(user.role, 'canViewFinancials')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-    
-    // Fetch outlet information
-    const outlet = await Outlet.findById(user.outletId).lean();
-    
-    // Fetch balance sheet data
-    const accounts = await Account.find({ outletId: user.outletId }).lean();
-    const products = await Product.find({ outletId: user.outletId }).lean();
-    const unpaidSales = await Sale.find({
-      outletId: user.outletId,
-      status: 'COMPLETED',
-      balanceDue: { $gt: 0 },
-    }).lean();
-    
-    // Process data
-    const assetAccounts = accounts.filter(a => a.accountType === 'asset');
-    const liabilityAccounts = accounts.filter(a => a.accountType === 'liability');
-    const equityAccounts = accounts.filter(a => a.accountType === 'equity');
-    
-    const currentAssets: { [key: string]: number } = {};
-    const fixedAssets: { [key: string]: number } = {};
-    
-    assetAccounts.forEach(account => {
-      const balance = account.currentBalance || 0;
-      if (account.accountGroup === 'Current Assets' || account.accountGroup === 'Cash & Bank') {
-        currentAssets[account.accountName] = balance;
-      } else {
-        fixedAssets[account.accountName] = balance;
-      }
-    });
-    
-    const inventoryValue = products.reduce((sum, p) => {
-      return sum + ((p.currentStock || 0) * (p.costPrice || 0));
-    }, 0);
-    currentAssets['Inventory'] = inventoryValue;
-    
-    const accountsReceivable = unpaidSales.reduce((sum, sale) => sum + (sale.balanceDue || 0), 0);
-    currentAssets['Accounts Receivable'] = accountsReceivable;
-    
-    const currentLiabilities: { [key: string]: number } = {};
-    const longTermLiabilities: { [key: string]: number } = {};
-    
-    liabilityAccounts.forEach(account => {
-      const balance = account.currentBalance || 0;
-      if (account.accountGroup === 'Current Liabilities') {
-        currentLiabilities[account.accountName] = balance;
-      } else {
-        longTermLiabilities[account.accountName] = balance;
-      }
-    });
-    
-    const equity: { [key: string]: number } = {};
-    equityAccounts.forEach(account => {
-      equity[account.accountName] = account.currentBalance || 0;
-    });
-    
-    const totalCurrentAssets = Object.values(currentAssets).reduce((sum, val) => sum + val, 0);
-    const totalFixedAssets = Object.values(fixedAssets).reduce((sum, val) => sum + val, 0);
-    const totalAssets = totalCurrentAssets + totalFixedAssets;
-    
-    const totalCurrentLiabilities = Object.values(currentLiabilities).reduce((sum, val) => sum + val, 0);
-    const totalLongTermLiabilities = Object.values(longTermLiabilities).reduce((sum, val) => sum + val, 0);
-    const totalLiabilities = totalCurrentLiabilities + totalLongTermLiabilities;
-    
-    const totalEquity = Object.values(equity).reduce((sum, val) => sum + val, 0);
-    const isBalanced = Math.abs(totalAssets - (totalLiabilities + totalEquity)) < 0.01;
-    
+    if (!user.outletId || !mongoose.Types.ObjectId.isValid(user.outletId)) {
+      return NextResponse.json({ error: 'Outlet is required' }, { status: 400 });
+    }
+    const { searchParams } = new URL(request.url);
+    if (searchParams.get('format') !== 'excel') {
+      return NextResponse.json({ error: 'Use format=excel for server export' }, { status: 400 });
+    }
+    const asOfDate = new Date(searchParams.get('asOfDate') || new Date());
+    asOfDate.setHours(23, 59, 59, 999);
+    if (Number.isNaN(asOfDate.getTime())) return NextResponse.json({ error: 'Invalid as-of date' }, { status: 400 });
+    const outletId = new mongoose.Types.ObjectId(user.outletId);
+    const [outlet, accounts, rows] = await Promise.all([
+      Outlet.findOne({ _id: outletId }).lean(),
+      Account.find({ outletId }).lean(),
+      LedgerEntry.aggregate([
+        { $match: { outletId, date: { $lte: asOfDate } } },
+        { $group: { _id: '$accountId', debit: { $sum: '$debit' }, credit: { $sum: '$credit' } } },
+      ]),
+    ]);
+    const totals = new Map(rows.map((row: any) => [String(row._id), row]));
+    const currentAssets: Record<string, number> = {};
+    const fixedAssets: Record<string, number> = {};
+    const currentLiabilities: Record<string, number> = {};
+    const longTermLiabilities: Record<string, number> = {};
+    const equity: Record<string, number> = {};
+    let revenue = 0;
+    let expenses = 0;
+    for (const account of accounts as any[]) {
+      const row: any = totals.get(String(account._id)) || { debit: 0, credit: 0 };
+      const balance = round(calculateBalanceChange(account.type, row.debit, row.credit));
+      if (Math.abs(balance) <= 0.001) continue;
+      if (account.type === AccountType.ASSET) {
+        const isCurrent = [
+          AccountSubType.CASH, AccountSubType.BANK, AccountSubType.INVENTORY,
+          AccountSubType.ACCOUNTS_RECEIVABLE, AccountSubType.VAT_RECEIVABLE,
+        ].includes(account.subType);
+        (isCurrent ? currentAssets : fixedAssets)[account.name] = balance;
+      } else if (account.type === AccountType.LIABILITY) {
+        const isCurrent = [AccountSubType.ACCOUNTS_PAYABLE, AccountSubType.VAT_PAYABLE].includes(account.subType);
+        (isCurrent ? currentLiabilities : longTermLiabilities)[account.name] = balance;
+      } else if (account.type === AccountType.EQUITY) equity[account.name] = balance;
+      else if (account.type === AccountType.REVENUE) revenue += balance;
+      else if (account.type === AccountType.EXPENSE) expenses += balance;
+    }
+    const retainedEarnings = round(revenue - expenses);
+    if (Math.abs(retainedEarnings) > 0.001) equity['Retained Earnings (Net Income)'] = retainedEarnings;
+    const sum = (values: Record<string, number>) => round(Object.values(values).reduce((total, value) => total + value, 0));
+    const totalAssets = round(sum(currentAssets) + sum(fixedAssets));
+    const totalLiabilities = round(sum(currentLiabilities) + sum(longTermLiabilities));
+    const totalEquity = sum(equity);
     const reportData = {
-      assets: {
-        currentAssets: { items: currentAssets, total: totalCurrentAssets },
-        fixedAssets: { items: fixedAssets, total: totalFixedAssets },
-        totalAssets,
-      },
-      liabilities: {
-        currentLiabilities: { items: currentLiabilities, total: totalCurrentLiabilities },
-        longTermLiabilities: { items: longTermLiabilities, total: totalLongTermLiabilities },
-        totalLiabilities,
-      },
-      equity: { items: equity, total: totalEquity },
-      isBalanced,
-      metadata: {
-        outletName: outlet?.name || 'AutoCity',
-        outletId: user.outletId,
-        generatedAt: new Date().toISOString(),
-        asOfDate: asOfDate.toISOString(),
-      },
+      assets: { currentAssets, fixedAssets, totalAssets },
+      liabilities: { currentLiabilities, longTermLiabilities, totalLiabilities },
+      equity,
+      totalEquity,
+      isBalanced: Math.abs(totalAssets - totalLiabilities - totalEquity) < 0.01,
+      asOfDate,
     };
-    
-    return generateExcel(reportData, outlet);
-    
+    return generateExcel(reportData, (outlet as any)?.name || 'AutoCity');
   } catch (error: any) {
-    console.error('Error exporting balance sheet:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-async function generateExcel(data: any, outlet: any) {
+async function generateExcel(data: any, outletName: string) {
   const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet('Balance Sheet');
-  
-  // Title
-  worksheet.mergeCells('A1:D1');
-  const titleCell = worksheet.getCell('A1');
-  titleCell.value = 'BALANCE SHEET';
-  titleCell.font = { size: 18, bold: true, color: { argb: 'FF4F46E5' } };
-  titleCell.alignment = { horizontal: 'center' };
-  
-  // Subtitle
-  worksheet.mergeCells('A2:D2');
-  const subtitleCell = worksheet.getCell('A2');
-  subtitleCell.value = `Outlet: ${outlet?.outletName || 'AutoCity'}`;
-  subtitleCell.font = { size: 11, color: { argb: 'FF6B7280' } };
-  subtitleCell.alignment = { horizontal: 'center' };
-  
-  // Date
-  worksheet.mergeCells('A3:D3');
-  const dateCell = worksheet.getCell('A3');
-  dateCell.value = `As of: ${new Date(data.metadata.asOfDate).toLocaleDateString()}`;
-  dateCell.font = { size: 11, color: { argb: 'FF6B7280' } };
-  dateCell.alignment = { horizontal: 'center' };
-  
+  const sheet = workbook.addWorksheet('Balance Sheet');
+  sheet.columns = [{ width: 42 }, { width: 20 }];
+  sheet.mergeCells('A1:B1');
+  sheet.getCell('A1').value = 'BALANCE SHEET';
+  sheet.getCell('A1').font = { size: 18, bold: true };
+  sheet.getCell('A2').value = 'Outlet';
+  sheet.getCell('B2').value = outletName;
+  sheet.getCell('A3').value = 'As of';
+  sheet.getCell('B3').value = data.asOfDate;
+  sheet.getCell('B3').numFmt = 'yyyy-mm-dd';
   let row = 5;
-  
-  // Assets Section
-  worksheet.mergeCells(`A${row}:D${row}`);
-  const assetsHeader = worksheet.getCell(`A${row}`);
-  assetsHeader.value = 'ASSETS';
-  assetsHeader.font = { size: 14, bold: true, color: { argb: 'FF1E40AF' } };
-  assetsHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E7FF' } };
-  row++;
-  
-  // Current Assets
-  worksheet.getCell(`A${row}`).value = 'Current Assets';
-  worksheet.getCell(`A${row}`).font = { size: 12, bold: true, color: { argb: 'FF374151' } };
-  row++;
-  
-  Object.entries(data.assets.currentAssets.items).forEach(([name, value]) => {
-    worksheet.getCell(`A${row}`).value = name;
-    worksheet.getCell(`D${row}`).value = value as number;
-    worksheet.getCell(`D${row}`).numFmt = '#,##0.00 "QAR"';
-    row++;
-  });
-  
-  worksheet.getCell(`A${row}`).value = 'Total Current Assets';
-  worksheet.getCell(`A${row}`).font = { bold: true, color: { argb: 'FF1E40AF' } };
-  worksheet.getCell(`D${row}`).value = data.assets.currentAssets.total;
-  worksheet.getCell(`D${row}`).numFmt = '#,##0.00 "QAR"';
-  worksheet.getCell(`D${row}`).font = { bold: true, color: { argb: 'FF1E40AF' } };
-  row += 2;
-  
-  // Continue with the rest of the Excel generation...
-  // (Similar to previous Excel generation code)
-  
-  // Adjust column widths
-  worksheet.columns = [
-    { width: 40 },
-    { width: 20 },
-    { width: 20 },
-    { width: 20 },
-  ];
-  
-  // Generate buffer
+  const addSection = (title: string, items: Record<string, number>, totalLabel: string) => {
+    sheet.getCell(`A${row}`).value = title;
+    sheet.getCell(`A${row}`).font = { bold: true, size: 13 };
+    row += 1;
+    for (const [name, value] of Object.entries(items)) {
+      sheet.getCell(`A${row}`).value = name;
+      sheet.getCell(`B${row}`).value = value;
+      sheet.getCell(`B${row}`).numFmt = '#,##0.00 "QAR"';
+      row += 1;
+    }
+    sheet.getCell(`A${row}`).value = totalLabel;
+    sheet.getCell(`A${row}`).font = { bold: true };
+    sheet.getCell(`B${row}`).value = round(Object.values(items).reduce((sum, value) => sum + value, 0));
+    sheet.getCell(`B${row}`).numFmt = '#,##0.00 "QAR"';
+    sheet.getCell(`B${row}`).font = { bold: true };
+    row += 2;
+  };
+  addSection('CURRENT ASSETS', data.assets.currentAssets, 'Total Current Assets');
+  addSection('FIXED ASSETS', data.assets.fixedAssets, 'Total Fixed Assets');
+  addSection('CURRENT LIABILITIES', data.liabilities.currentLiabilities, 'Total Current Liabilities');
+  addSection('LONG-TERM LIABILITIES', data.liabilities.longTermLiabilities, 'Total Long-term Liabilities');
+  addSection('EQUITY', data.equity, 'Total Equity');
+  sheet.getCell(`A${row}`).value = 'Accounting equation balanced';
+  sheet.getCell(`B${row}`).value = data.isBalanced ? 'Yes' : 'No';
   const buffer = await workbook.xlsx.writeBuffer();
-  
   const response = new NextResponse(buffer);
   response.headers.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   response.headers.set('Content-Disposition', `attachment; filename="balance-sheet-${new Date().toISOString().split('T')[0]}.xlsx"`);
-  
   return response;
 }

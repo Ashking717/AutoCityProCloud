@@ -1,75 +1,37 @@
-import { NextRequest, NextResponse } from 'next/server';
-import Account from '@/lib/models/Account';
-import { defaultAccounts } from '@/lib/data/defaultAccounts';
+import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import mongoose from 'mongoose';
+
+import Account from '@/lib/models/Account';
+import { seedSystemAccounts } from '@/lib/accounting/seedSystemAccounts';
 import { verifyToken } from '@/lib/auth/jwt';
 import { connectDB } from '@/lib/db/mongodb';
+import { hasPermission } from '@/lib/types/roles';
 
-// POST /api/accounts/initialize
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     await connectDB();
-
-    const cookieStore = cookies();
-    const token = cookieStore.get('auth-token')?.value;
-
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
+    const token = cookies().get('auth-token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const user = verifyToken(token);
-
-    // ✅ Guard against null outletId
-    if (!user.outletId) {
-      return NextResponse.json(
-        { error: 'Invalid token: outlet not found' },
-        { status: 401 }
-      );
+    if (!hasPermission(user.role, 'canManageAccounting')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-
-    const outletId = user.outletId;
-
-    // Check if accounts already exist
-    const existingCount = await Account.countDocuments({ outletId });
-    if (existingCount > 0) {
-      return NextResponse.json(
-        { error: 'Accounts already initialized' },
-        { status: 400 }
-      );
+    if (!user.outletId || !mongoose.Types.ObjectId.isValid(user.outletId)) {
+      return NextResponse.json({ error: 'Outlet is required' }, { status: 400 });
     }
-
-    // Create default accounts
-    const accounts = await Account.insertMany(
-      defaultAccounts.map(acc => ({
-        ...acc,
-        accountNumber: acc.code,
-        accountCode: `${outletId.slice(-4)}-${acc.code}`,
-        accountName: acc.name,
-        accountType: acc.type,
-        accountGroup: acc.group,
-        outletId,
-        isSystem: true,
-      }))
-    );
-
-    return NextResponse.json(
-      {
-        message: 'Accounts initialized successfully',
-        count: accounts.length,
-      },
-      { status: 201 }
-    );
-  } catch (error: unknown) {
-    console.error('Error initializing accounts:', error);
-
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : 'Internal server error',
-      },
-      { status: 500 }
-    );
+    const outletId = new mongoose.Types.ObjectId(user.outletId);
+    const before = await Account.countDocuments({ outletId, isSystem: true, isActive: true });
+    await seedSystemAccounts(outletId);
+    const after = await Account.countDocuments({ outletId, isSystem: true, isActive: true });
+    return NextResponse.json({
+      message: 'System accounts initialized successfully',
+      systemAccounts: after,
+      created: Math.max(0, after - before),
+      idempotent: before === after,
+    });
+  } catch (error: any) {
+    console.error('Error initializing system accounts:', error);
+    return NextResponse.json({ error: 'Failed to initialize system accounts' }, { status: 500 });
   }
 }

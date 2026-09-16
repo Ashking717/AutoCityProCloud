@@ -44,6 +44,8 @@ export default function SuppliersPage() {
     address: '', taxNumber: '', creditLimit: 0, paymentTerms: '',
     openingBalance: 0, openingBalanceDate: new Date().toISOString().split('T')[0],
   });
+  const [pendingSupplierKey, setPendingSupplierKey] = useState(() => crypto.randomUUID());
+  const [pendingPaymentKey, setPendingPaymentKey] = useState(() => crypto.randomUUID());
   const [paymentForm, setPaymentForm] = useState({
     amount: '',
     paymentMethod: 'CASH',
@@ -146,14 +148,15 @@ export default function SuppliersPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const supplierData = { ...formData, code: formData.code || generateSupplierCode(formData.name) };
+    const supplierData = { ...formData, code: formData.code || generateSupplierCode(formData.name), operationKey: pendingSupplierKey };
     try {
       const url = editingSupplier ? `/api/suppliers/${editingSupplier._id}` : '/api/suppliers';
-      const res = await fetch(url, { method: editingSupplier ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(supplierData) });
+      const res = await fetch(url, { method: editingSupplier ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json', ...(editingSupplier ? {} : { 'Idempotency-Key': pendingSupplierKey }) }, credentials: 'include', body: JSON.stringify(supplierData) });
       if (res.ok) {
         toast.success(editingSupplier ? 'Supplier updated!' : 'Supplier created!');
         setShowAddModal(false); setEditingSupplier(null);
         setFormData({ code:'', name:'', contactPerson:'', phone:'', email:'', address:'', taxNumber:'', creditLimit:0, paymentTerms:'', openingBalance:0, openingBalanceDate:new Date().toISOString().split('T')[0] });
+        if (!editingSupplier) setPendingSupplierKey(crypto.randomUUID());
         fetchSuppliers();
       } else { toast.error((await res.json()).error || 'Failed to save supplier'); }
     } catch { toast.error('Failed to save supplier'); }
@@ -215,7 +218,7 @@ export default function SuppliersPage() {
     try {
       const res = await fetch(`/api/suppliers/${paymentSupplier._id}/payments`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': pendingPaymentKey },
         credentials: 'include',
         body: JSON.stringify({
           amount: paymentAmount,
@@ -223,12 +226,14 @@ export default function SuppliersPage() {
           paymentDate: paymentForm.paymentDate,
           referenceNumber: paymentForm.referenceNumber,
           notes: paymentForm.notes,
+          paymentKey: pendingPaymentKey,
         }),
       });
 
       if (res.ok) {
         const data = await res.json();
         toast.success(data.message || 'Supplier payment recorded successfully');
+        setPendingPaymentKey(crypto.randomUUID());
         closePaymentModal();
         fetchSuppliers();
       } else {

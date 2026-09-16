@@ -1,354 +1,198 @@
-// app/api/vouchers/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { connectDB } from '@/lib/db/mongodb';
-import Voucher from '@/lib/models/Voucher';
-import Account from '@/lib/models/Account';
-import LedgerEntry from '@/lib/models/LedgerEntry';
-import ActivityLog from '@/lib/models/ActivityLog';
 import { cookies } from 'next/headers';
-import { verifyToken } from '@/lib/auth/jwt';
-import { applyVoucherBalances } from '@/lib/services/balanceEngine';
+import mongoose from 'mongoose';
 
-// GET /api/vouchers
+import Account from '@/lib/models/Account';
+import ActivityLog from '@/lib/models/ActivityLog';
+import Voucher, { VoucherType } from '@/lib/models/Voucher';
+import { verifyToken } from '@/lib/auth/jwt';
+import { hasPermission } from '@/lib/types/roles';
+import { connectDB } from '@/lib/db/mongodb';
+import {
+  createCollisionResistantVoucherNumber,
+  createPostedVoucher,
+  postDraftVoucher,
+  reversePostedVoucher,
+} from '@/lib/services/voucherPostingService';
+
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
-
-    const cookieStore = cookies();
-    const token = cookieStore.get('auth-token')?.value;
-
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+    const token = cookies().get('auth-token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const user = verifyToken(token);
-
+    if (!hasPermission(user.role, 'canViewFinancials')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     const { searchParams } = new URL(request.url);
-
-    const query: any = {
-      outletId: user.outletId,
-    };
-
-    const voucherType = searchParams.get('voucherType');
-    if (voucherType) {
-      query.voucherType = voucherType;
-    }
-
-    const status = searchParams.get('status');
-    if (status) {
-      query.status = status;
-    }
-
-    const fromDate = searchParams.get('fromDate');
-    const toDate = searchParams.get('toDate');
-
-    if (fromDate && toDate) {
+    const query: any = { outletId: user.outletId };
+    if (searchParams.get('voucherType')) query.voucherType = searchParams.get('voucherType');
+    if (searchParams.get('status')) query.status = searchParams.get('status');
+    if (searchParams.get('fromDate') && searchParams.get('toDate')) {
       query.date = {
-        $gte: new Date(fromDate),
-        $lte: new Date(toDate),
+        $gte: new Date(searchParams.get('fromDate')!),
+        $lte: new Date(searchParams.get('toDate')!),
       };
     }
-
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
-    const skip = (page - 1) * limit;
-
+    const page = Math.max(1, Number(searchParams.get('page') || 1));
+    const limit = Math.min(100, Math.max(1, Number(searchParams.get('limit') || 20)));
     const [vouchers, total] = await Promise.all([
       Voucher.find(query)
         .populate('createdBy', 'firstName lastName')
         .sort({ date: -1, createdAt: -1 })
-        .skip(skip)
+        .skip((page - 1) * limit)
         .limit(limit)
         .lean(),
       Voucher.countDocuments(query),
     ]);
-
     return NextResponse.json({
       vouchers,
-      pagination: {
-        total,
-        page,
-        limit,
-        pages: Math.ceil(total / limit),
-      },
+      pagination: { total, page, limit, pages: Math.ceil(total / limit) },
     });
   } catch (error: any) {
-    console.error('Error fetching vouchers:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// POST /api/vouchers
 export async function POST(request: NextRequest) {
   try {
     await connectDB();
-
-    const cookieStore = cookies();
-    const token = cookieStore.get('auth-token')?.value;
-
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+    const token = cookies().get('auth-token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const user = verifyToken(token);
+    if (!hasPermission(user.role, 'canManageAccounting')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!user.outletId) return NextResponse.json({ error: 'Outlet is required' }, { status: 400 });
     const body = await request.json();
-
-    const { voucherType, date, narration, entries } = body;
-
-    if (!voucherType || !date || !entries || entries.length === 0) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
+    if (!Object.values(VoucherType).includes(body.voucherType) || !body.date || !Array.isArray(body.entries) || !body.entries.length) {
+      return NextResponse.json({ error: 'Voucher type, date, and entries are required' }, { status: 400 });
+    }
+    const operationKey = String(
+      request.headers.get('idempotency-key') || body.idempotencyKey || ''
+    ).trim();
+    if (body.status === 'posted' && !operationKey) {
+      return NextResponse.json({ error: 'A valid idempotencyKey is required for posted vouchers' }, { status: 400 });
     }
 
-    // Validate double-entry: total debits must equal total credits
-    const totalDebit = entries.reduce(
-      (sum: number, e: any) => sum + (e.debit || 0),
-      0
-    );
-    const totalCredit = entries.reduce(
-      (sum: number, e: any) => sum + (e.credit || 0),
-      0
-    );
-
-    if (Math.abs(totalDebit - totalCredit) > 0.01) {
-      return NextResponse.json(
-        { error: 'Total debits must equal total credits' },
-        { status: 400 }
-      );
-    }
-
-    // Fetch account details for all entries
-    const enrichedEntries = await Promise.all(
-      entries.map(async (entry: any) => {
-        const account = (await Account.findById(entry.accountId).lean()) as any;
-        if (!account) {
-          throw new Error(`Account not found: ${entry.accountId}`);
-        }
-        return {
-          accountId: entry.accountId,
-          accountNumber: account.code || account.accountNumber,
-          accountName: account.name || account.accountName,
-          debit: entry.debit || 0,
-          credit: entry.credit || 0,
-          narration: entry.narration || '',
-        };
-      })
-    );
-
-    // Generate voucher number
-    const count = await Voucher.countDocuments({
-      outletId: user.outletId,
-      voucherType,
-    });
-
-    const prefix = voucherType.toUpperCase().substring(0, 3);
-    const voucherNumber = `${prefix}-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(count + 1).padStart(5, '0')}`;
-
-    // Create voucher
-    const voucher = await Voucher.create({
-      voucherNumber,
-      voucherType,
-      date: new Date(date),
-      narration,
-      entries: enrichedEntries.map((e) => ({
-        accountId: e.accountId,
-        accountNumber: e.accountNumber,
-        accountName: e.accountName,
-        debit: e.debit,
-        credit: e.credit,
-        narration: e.narration,
-      })),
-      totalDebit,
-      totalCredit,
-      status: 'draft',
-      referenceType: body.referenceType || 'ADJUSTMENT', // Use valid enum value
-      outletId: user.outletId,
-      createdBy: user.userId,
-    });
-
-    // Update account balances if status is posted
+    let voucher: any;
     if (body.status === 'posted') {
-      voucher.status = 'posted';
-      await voucher.save();
-
-      // ✅ Use shared balance service
-      await applyVoucherBalances(voucher);
-
-      // Create ledger entries for posted vouchers
-      const ledgerEntries = enrichedEntries.map((entry) => ({
-        voucherId: voucher._id,
-        voucherNumber: voucher.voucherNumber,
-        voucherType: voucher.voucherType,
-        accountId: entry.accountId,
-        accountNumber: entry.accountNumber,
-        accountName: entry.accountName,
-        debit: entry.debit,
-        credit: entry.credit,
-        narration: voucher.narration,
-        date: voucher.date,
-        referenceType: body.referenceType || 'ADJUSTMENT',
+      const result = await createPostedVoucher({
+        voucherType: body.voucherType,
+        date: new Date(body.date),
+        narration: body.narration || 'Manual voucher',
+        entries: body.entries,
+        referenceType: body.referenceType || 'MANUAL',
+        referenceId: body.referenceId,
+        referenceNumber: body.referenceNumber,
+        postingKey: `manual:${operationKey}`,
         outletId: user.outletId,
         createdBy: user.userId,
-      }));
-
-      await LedgerEntry.insertMany(ledgerEntries);
+      });
+      voucher = result.voucher;
+    } else {
+      const accountIds = [...new Set(body.entries.map((entry: any) => String(entry.accountId)))];
+      const accounts = await Account.find({
+        _id: { $in: accountIds },
+        outletId: user.outletId,
+        isActive: true,
+      });
+      if (accounts.length !== accountIds.length) {
+        return NextResponse.json({ error: 'Every account must belong to this outlet' }, { status: 400 });
+      }
+      const accountMap = new Map(accounts.map((account) => [String(account._id), account]));
+      voucher = await Voucher.create({
+        voucherNumber: createCollisionResistantVoucherNumber(body.voucherType, new Date(body.date)),
+        voucherType: body.voucherType,
+        date: new Date(body.date),
+        narration: body.narration || 'Manual voucher',
+        entries: body.entries.map((entry: any) => ({
+          accountId: entry.accountId,
+          accountNumber: accountMap.get(String(entry.accountId))!.code,
+          accountName: accountMap.get(String(entry.accountId))!.name,
+          debit: Number(entry.debit || 0),
+          credit: Number(entry.credit || 0),
+          narration: entry.narration,
+        })),
+        status: 'draft',
+        referenceType: body.referenceType || 'MANUAL',
+        referenceId: body.referenceId,
+        referenceNumber: body.referenceNumber,
+        postingKey: operationKey ? `draft:${operationKey}` : undefined,
+        outletId: user.outletId,
+        createdBy: user.userId,
+      });
     }
-
-    await ActivityLog.create({
+    ActivityLog.create({
       userId: user.userId,
       username: user.email,
       actionType: 'create',
       module: 'vouchers',
-      description: `Created ${voucherType} voucher: ${voucherNumber}`,
+      description: `Created ${body.voucherType} voucher: ${voucher.voucherNumber}`,
       outletId: user.outletId,
       timestamp: new Date(),
-    });
-
+    }).catch((error) => console.error('Voucher activity log failed:', error));
     return NextResponse.json({ voucher }, { status: 201 });
   } catch (error: any) {
     console.error('Error creating voucher:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const status = /required|account|balanced|entry|voucher/i.test(error.message) ? 400 : 500;
+    return NextResponse.json({ error: error.message }, { status });
   }
 }
 
-// PATCH /api/vouchers - Post draft voucher
 export async function PATCH(request: NextRequest) {
   try {
     await connectDB();
-
-    const cookieStore = cookies();
-    const token = cookieStore.get('auth-token')?.value;
-
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+    const token = cookies().get('auth-token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const user = verifyToken(token);
+    if (!hasPermission(user.role, 'canManageAccounting')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!user.outletId) return NextResponse.json({ error: 'Outlet is required' }, { status: 400 });
     const body = await request.json();
+    if (!body.voucherId) return NextResponse.json({ error: 'Voucher ID is required' }, { status: 400 });
 
-    const { voucherId, action } = body;
-
-    if (!voucherId) {
-      return NextResponse.json(
-        { error: 'Voucher ID is required' },
-        { status: 400 }
-      );
+    let voucher: any;
+    let message: string;
+    if (body.action === 'post') {
+      const result = await postDraftVoucher(body.voucherId, user.outletId);
+      voucher = result.voucher;
+      message = 'Voucher posted successfully';
+    } else if (body.action === 'cancel') {
+      const existing = await Voucher.findOne({ _id: body.voucherId, outletId: user.outletId });
+      if (!existing) return NextResponse.json({ error: 'Voucher not found' }, { status: 404 });
+      if (existing.status === 'draft') {
+        existing.status = 'cancelled';
+        await existing.save();
+        voucher = existing;
+      } else {
+        const result = await reversePostedVoucher(
+          body.voucherId,
+          user.outletId,
+          user.userId,
+          body.reason || 'Voucher cancelled'
+        );
+        voucher = result.voucher;
+      }
+      message = 'Voucher cancelled with an immutable reversal';
+    } else {
+      return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
 
-    const voucher = await Voucher.findOne({
-      _id: voucherId,
+    ActivityLog.create({
+      userId: user.userId,
+      username: user.email,
+      actionType: 'update',
+      module: 'vouchers',
+      description: `${body.action} voucher: ${voucher.voucherNumber}`,
       outletId: user.outletId,
-    });
-
-    if (!voucher) {
-      return NextResponse.json({ error: 'Voucher not found' }, { status: 404 });
-    }
-
-    if (action === 'post') {
-      if (voucher.status !== 'draft') {
-        return NextResponse.json(
-          { error: 'Only draft vouchers can be posted' },
-          { status: 400 }
-        );
-      }
-
-      voucher.status = 'posted';
-      await voucher.save();
-
-      // ✅ Apply balance changes using shared service
-      await applyVoucherBalances(voucher);
-
-      // Create ledger entries
-      const ledgerEntries = voucher.entries.map((entry: any) => ({
-        voucherId: voucher._id,
-        voucherNumber: voucher.voucherNumber,
-        voucherType: voucher.voucherType,
-        accountId: entry.accountId,
-        accountNumber: entry.accountNumber,
-        accountName: entry.accountName,
-        debit: entry.debit,
-        credit: entry.credit,
-        narration: voucher.narration,
-        date: voucher.date,
-        referenceType: voucher.referenceType || 'ADJUSTMENT',
-        outletId: user.outletId,
-        createdBy: user.userId,
-      }));
-
-      await LedgerEntry.insertMany(ledgerEntries);
-
-      await ActivityLog.create({
-        userId: user.userId,
-        username: user.email,
-        actionType: 'update',
-        module: 'vouchers',
-        description: `Posted voucher: ${voucher.voucherNumber}`,
-        outletId: user.outletId,
-        timestamp: new Date(),
-      });
-
-      return NextResponse.json({
-        success: true,
-        message: 'Voucher posted successfully',
-        voucher,
-      });
-    }
-
-    if (action === 'cancel') {
-      if (voucher.status === 'cancelled') {
-        return NextResponse.json(
-          { error: 'Voucher is already cancelled' },
-          { status: 400 }
-        );
-      }
-
-      // If voucher was posted, we need to reverse the balances
-      if (voucher.status === 'posted') {
-        // Create reversal entries (swap debit and credit)
-        const reversalEntries = voucher.entries.map((entry: any) => ({
-          accountId: entry.accountId,
-          accountNumber: entry.accountNumber,
-          accountName: entry.accountName,
-          debit: entry.credit,
-          credit: entry.debit,
-        }));
-
-        // Apply reversal to balances
-        const reversalVoucher = { entries: reversalEntries };
-        await applyVoucherBalances(reversalVoucher);
-
-        // Mark ledger entries as reversed
-        await LedgerEntry.updateMany(
-          { voucherId: voucher._id },
-          { $set: { isReversal: true, reversalReason: 'Voucher cancelled' } }
-        );
-      }
-
-      voucher.status = 'cancelled';
-      await voucher.save();
-
-      await ActivityLog.create({
-        userId: user.userId,
-        username: user.email,
-        actionType: 'update',
-        module: 'vouchers',
-        description: `Cancelled voucher: ${voucher.voucherNumber}`,
-        outletId: user.outletId,
-        timestamp: new Date(),
-      });
-
-      return NextResponse.json({
-        success: true,
-        message: 'Voucher cancelled successfully',
-        voucher,
-      });
-    }
-
-    return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+      timestamp: new Date(),
+    }).catch((error) => console.error('Voucher activity log failed:', error));
+    return NextResponse.json({ success: true, message, voucher });
   } catch (error: any) {
     console.error('Error updating voucher:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const status = /not found|only draft|incomplete|invalid|requires reconciliation/i.test(error.message) ? 400 : 500;
+    return NextResponse.json({ error: error.message }, { status });
   }
 }

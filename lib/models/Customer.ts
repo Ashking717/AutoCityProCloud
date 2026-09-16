@@ -26,6 +26,7 @@ export interface ICustomer extends Document {
   currentBalance: number; // Positive = customer owes, Negative = advance payment
   isActive: boolean;
   notes?: string;
+  operationKey?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -114,6 +115,7 @@ const CustomerSchema = new Schema<ICustomer>(
       type: String,
       trim: true,
     },
+    operationKey: { type: String, trim: true },
   },
   {
     timestamps: true,
@@ -124,6 +126,10 @@ const CustomerSchema = new Schema<ICustomer>(
 CustomerSchema.index({ outletId: 1, code: 1 }, { unique: true });
 CustomerSchema.index({ outletId: 1, isActive: 1 });
 CustomerSchema.index({ outletId: 1, email: 1 }, { sparse: true });
+CustomerSchema.index(
+  { outletId: 1, operationKey: 1 },
+  { unique: true, partialFilterExpression: { operationKey: { $type: 'string' } } }
+);
 CustomerSchema.index({ name: 'text', email: 'text', phone: 'text', vehicleRegistrationNumber: 'text' });
 
 const Customer: Model<ICustomer> = mongoose.models.Customer || mongoose.model<ICustomer>('Customer', CustomerSchema);

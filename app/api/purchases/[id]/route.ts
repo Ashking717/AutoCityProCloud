@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import Purchase from "@/lib/models/Purchase";
 import { verifyToken } from "@/lib/auth/jwt";
 import { connectDB } from "@/lib/db/mongodb";
+import { hasPermission } from "@/lib/types/roles";
 
 /**
  * GET - Fetch a single purchase by ID
@@ -23,6 +24,12 @@ export async function GET(
     }
 
     const user = verifyToken(token);
+    if (!hasPermission(user.role, "canProcessPurchases") && !hasPermission(user.role, "canViewFinancials")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (!user.outletId || !mongoose.Types.ObjectId.isValid(user.outletId) || !mongoose.Types.ObjectId.isValid(params.id)) {
+      return NextResponse.json({ error: "Invalid outlet or purchase ID" }, { status: 400 });
+    }
     const outletId = new mongoose.Types.ObjectId(user.outletId || "");
 
     const purchase = await Purchase.findOne({

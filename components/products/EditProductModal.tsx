@@ -487,28 +487,9 @@ export default function EditProductModal({
       return;
     }
 
-    const normalizedLocationSplits = locationSplits
-      .filter((split) => split.locationId || split.locationName)
-      .map((split) => ({
-        locationId: split.locationId || undefined,
-        locationName: split.locationName || undefined,
-        quantity: Math.max(0, Number(split.quantity) || 0),
-      }));
-    const splitTotal = normalizedLocationSplits.reduce(
-      (sum, split) => sum + (Number(split.quantity) || 0),
-      0
-    );
-    const primarySplit = normalizedLocationSplits[0];
-
     const productData: any = {
       name: formData.name,
       description: formData.description,
-      locationId: primarySplit?.locationId || selectedLocationId || undefined,
-      locationName: primarySplit?.locationName || formData.location.trim() || undefined,
-      location: primarySplit?.locationName || formData.location.trim(),
-      moveSingleLocationStock: false,
-      replaceLocationSplits: true,
-      locationSplits: normalizedLocationSplits,
       categoryId: formData.categoryId || undefined,
       sku: formData.sku.toUpperCase(),
       barcode: formData.barcode || undefined,
@@ -516,7 +497,6 @@ export default function EditProductModal({
       costPrice: parseFloat(formData.costPrice as any) || 0,
       sellingPrice: parseFloat(formData.sellingPrice as any) || 0,
       taxRate: parseFloat(formData.taxRate as any) || 0,
-      currentStock: splitTotal,
       minStock: parseFloat(formData.minStock as any) || 0,
       maxStock: parseFloat(formData.maxStock as any) || 1000,
     };
@@ -643,8 +623,8 @@ export default function EditProductModal({
                 <div className="flex gap-2">
                   <select
                     value={selectedLocationId}
-                    onChange={(e) => handleLocationChange(e.target.value)}
-                    className="flex-1 px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
+                    disabled
+                    className="flex-1 px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base opacity-70 cursor-not-allowed"
                   >
                     {!selectedLocationId && formData.location && (
                       <option value="" className="text-[#050505]">
@@ -666,9 +646,9 @@ export default function EditProductModal({
                   </select>
                   <button
                     type="button"
-                    onClick={() => setShowNewLocation((value) => !value)}
-                    className="px-3 py-2 bg-[color:var(--autocity-accent-10)] border border-[color:var(--autocity-accent-30)] rounded-lg hover:bg-[color:var(--autocity-accent-20)] transition-colors text-white active:scale-95"
-                    title="Add Location"
+                    disabled
+                    className="px-3 py-2 bg-[color:var(--autocity-accent-10)] border border-[color:var(--autocity-accent-30)] rounded-lg text-white opacity-40 cursor-not-allowed"
+                    title="Use stock transfer to manage locations"
                   >
                     <Plus className="h-4 w-4" />
                   </button>
@@ -695,7 +675,7 @@ export default function EditProductModal({
                 </div>
               )}
               <p className="mt-1 text-[11px] text-gray-500">
-                Edit the rows below to set the exact stock in each location.
+                Locations and quantities are read-only here. Use Stock Transfer or Stock Adjustment for audited changes.
               </p>
               <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.03] p-3">
                 <div className="flex items-center justify-between gap-3">
@@ -709,10 +689,10 @@ export default function EditProductModal({
                   </div>
                   <button
                     type="button"
-                    onClick={addLocationSplit}
-                    className="px-2.5 py-1.5 text-xs rounded-lg bg-[color:var(--autocity-accent-10)] border border-[color:var(--autocity-accent-30)] text-white hover:bg-[color:var(--autocity-accent-20)] active:scale-95 transition-all"
+                    disabled
+                    className="px-2.5 py-1.5 text-xs rounded-lg bg-[color:var(--autocity-accent-10)] border border-[color:var(--autocity-accent-30)] text-white opacity-50 cursor-not-allowed"
                   >
-                    Add Split
+                    Managed in Stock
                   </button>
                 </div>
                 {locationSplits.length > 0 ? (
@@ -721,10 +701,8 @@ export default function EditProductModal({
                       <div key={split.id} className="grid grid-cols-[1fr_90px_34px] gap-2">
                         <select
                           value={split.locationId}
-                          onChange={(e) =>
-                            updateLocationSplit(split.id, "locationId", e.target.value)
-                          }
-                          className="px-2 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-xs focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
+                          disabled
+                          className="px-2 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-xs opacity-70 cursor-not-allowed"
                         >
                           {!split.locationId && split.locationName && (
                             <option value="" className="text-[#050505]">
@@ -748,17 +726,15 @@ export default function EditProductModal({
                           type="number"
                           min="0"
                           value={split.quantity}
-                          onChange={(e) =>
-                            updateLocationSplit(split.id, "quantity", e.target.value)
-                          }
-                          className="px-2 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-xs focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
+                          readOnly
+                          className="px-2 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-xs opacity-70 cursor-not-allowed"
                           placeholder="Qty"
                         />
                         <button
                           type="button"
-                          onClick={() => removeLocationSplit(split.id)}
-                          className="rounded-lg border border-red-500/20 bg-red-500/10 text-red-300 hover:bg-red-500/20 active:scale-95 transition-all flex items-center justify-center"
-                          title="Remove split"
+                          disabled
+                          className="rounded-lg border border-white/10 bg-white/[0.03] text-gray-600 flex items-center justify-center cursor-not-allowed"
+                          title="Use stock transfer to manage locations"
                         >
                           <X className="h-3.5 w-3.5" />
                         </button>
@@ -817,16 +793,11 @@ export default function EditProductModal({
                       key={unitOption.value}
                       type="button"
                       aria-pressed={isSelected}
-                      onClick={() =>
-                        setFormData((current) => ({
-                          ...current,
-                          unit: unitOption.value,
-                        }))
-                      }
+                      disabled
                       className={`rounded-lg border px-3 py-2 text-left transition-all ${
                         isSelected
                           ? "border-[color:var(--autocity-accent)] bg-[color:var(--autocity-accent-10)] text-white ring-1 ring-[color:var(--autocity-accent-30)]"
-                          : "border-white/10 bg-[#050505] text-gray-300 hover:border-white/25"
+                          : "border-white/10 bg-[#050505] text-gray-500"
                       }`}
                     >
                       <span className="block text-sm font-semibold">
@@ -840,7 +811,7 @@ export default function EditProductModal({
                 })}
               </div>
               <p className="mt-2 text-[11px] text-gray-500">
-                Changing this updates how the product quantity is described across products, stock, sales, and purchases.
+                Stock unit is immutable after creation so historical movements retain their meaning.
               </p>
             </div>
           </div>
@@ -1076,6 +1047,7 @@ export default function EditProductModal({
                 <input
                   type="number"
                   value={formData.costPrice}
+                  readOnly={Number(product.currentStock || 0) > 0}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
@@ -1084,7 +1056,7 @@ export default function EditProductModal({
                   }
                   min="0"
                   step="0.01"
-                  className="w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
+                  className={`w-full px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent ${Number(product.currentStock || 0) > 0 ? "opacity-70 cursor-not-allowed" : ""}`}
                 />
               </label>
             </div>

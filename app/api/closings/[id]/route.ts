@@ -4,6 +4,8 @@ import { cookies } from 'next/headers';
 import { connectDB } from '@/lib/db/mongodb';
 import { verifyToken } from '@/lib/auth/jwt';
 import Closing from '@/lib/models/Closing';
+import mongoose from 'mongoose';
+import { hasPermission } from '@/lib/types/roles';
 
 /* =========================================================
    GET - Fetch single closing by ID
@@ -21,7 +23,13 @@ export async function GET(
     }
 
     const user = verifyToken(token);
+    if (!hasPermission(user.role, 'canViewFinancials')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     const closingId = params.id;
+    if (!mongoose.Types.ObjectId.isValid(closingId)) {
+      return NextResponse.json({ error: 'Invalid closing ID' }, { status: 400 });
+    }
 
     // Fetch closing with populated fields
     const closing = await Closing.findOne({
@@ -46,27 +54,21 @@ export async function GET(
       // Ensure COGS is present (defaults to 0 for old closings)
       totalCOGS: closing.totalCOGS ?? 0,
       
-      // Calculate gross profit if missing
-      grossProfit: closing.grossProfit ?? (closing.totalRevenue - (closing.totalCOGS || 0)),
+      grossProfit: closing.totalRevenue - (closing.totalCOGS || 0),
       
-      // Calculate net profit if missing (use new formula, fallback to old)
-      netProfit: closing.netProfit ?? (
-        closing.totalCOGS !== undefined 
-          ? closing.totalRevenue - ((closing.totalCOGS || 0) + closing.totalPurchases + closing.totalExpenses)
-          : closing.totalRevenue - (closing.totalPurchases + closing.totalExpenses)
-      ),
+      netProfit: closing.totalRevenue - (closing.totalCOGS || 0) - closing.totalExpenses,
       
       // Add calculated margins for convenience
       grossProfitMargin: closing.totalRevenue > 0 
-        ? ((closing.grossProfit ?? (closing.totalRevenue - (closing.totalCOGS || 0))) / closing.totalRevenue) * 100 
+        ? ((closing.totalRevenue - (closing.totalCOGS || 0)) / closing.totalRevenue) * 100
         : 0,
       
       netProfitMargin: closing.totalRevenue > 0 
-        ? ((closing.netProfit ?? 0) / closing.totalRevenue) * 100 
+        ? ((closing.totalRevenue - (closing.totalCOGS || 0) - closing.totalExpenses) / closing.totalRevenue) * 100
         : 0,
       
       // Add total costs for display
-      totalCosts: (closing.totalCOGS || 0) + closing.totalPurchases + closing.totalExpenses,
+      totalCosts: (closing.totalCOGS || 0) + closing.totalExpenses,
       
       // Add movements for convenience
       cashMovement: closing.closingCash - closing.openingCash,
@@ -104,7 +106,13 @@ export async function PATCH(
     }
 
     const user = verifyToken(token);
+    if (!hasPermission(user.role, 'canManageAccounting')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     const closingId = params.id;
+    if (!mongoose.Types.ObjectId.isValid(closingId)) {
+      return NextResponse.json({ error: 'Invalid closing ID' }, { status: 400 });
+    }
     const body = await request.json();
 
     // Check if closing exists and belongs to user's outlet
@@ -129,7 +137,7 @@ export async function PATCH(
     }
 
     // Allow updating specific fields only
-    const allowedUpdates = ['notes', 'status', 'verifiedBy', 'verifiedAt'];
+    const allowedUpdates = ['notes'];
     const updates: any = {};
 
     for (const key of allowedUpdates) {
@@ -171,14 +179,15 @@ export async function PATCH(
     const enrichedClosing = {
       ...updatedClosing,
       totalCOGS: updatedClosing.totalCOGS ?? 0,
-      grossProfit: updatedClosing.grossProfit ?? (updatedClosing.totalRevenue - (updatedClosing.totalCOGS || 0)),
+      grossProfit: updatedClosing.totalRevenue - (updatedClosing.totalCOGS || 0),
+      netProfit: updatedClosing.totalRevenue - (updatedClosing.totalCOGS || 0) - updatedClosing.totalExpenses,
       grossProfitMargin: updatedClosing.totalRevenue > 0 
-        ? ((updatedClosing.grossProfit ?? (updatedClosing.totalRevenue - (updatedClosing.totalCOGS || 0))) / updatedClosing.totalRevenue) * 100 
+        ? ((updatedClosing.totalRevenue - (updatedClosing.totalCOGS || 0)) / updatedClosing.totalRevenue) * 100
         : 0,
       netProfitMargin: updatedClosing.totalRevenue > 0 
-        ? ((updatedClosing.netProfit ?? 0) / updatedClosing.totalRevenue) * 100 
+        ? ((updatedClosing.totalRevenue - (updatedClosing.totalCOGS || 0) - updatedClosing.totalExpenses) / updatedClosing.totalRevenue) * 100
         : 0,
-      totalCosts: (updatedClosing.totalCOGS || 0) + updatedClosing.totalPurchases + updatedClosing.totalExpenses,
+      totalCosts: (updatedClosing.totalCOGS || 0) + updatedClosing.totalExpenses,
     };
 
     return NextResponse.json({
@@ -203,92 +212,8 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
-    await connectDB();
-
-    const token = cookies().get('auth-token')?.value;
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const user = verifyToken(token);
-    const closingId = params.id;
-
-    // Check if closing exists and belongs to user's outlet
-    const closing = await Closing.findOne({
-      _id: closingId,
-      outletId: user.outletId,
-    });
-
-    if (!closing) {
-      return NextResponse.json(
-        { error: 'Closing not found' },
-        { status: 404 }
-      );
-    }
-
-    // Check if closing is locked
-    if (closing.status === 'locked') {
-      return NextResponse.json(
-        { error: 'Cannot delete a locked closing. Unlock it first.' },
-        { status: 400 }
-      );
-    }
-
-    // Safety check: Only allow deletion of the most recent closing
-    // This prevents deleting closings that other closings depend on
-    const mostRecentClosing = await Closing.findOne({
-      outletId: user.outletId,
-      closingType: closing.closingType,
-    })
-      .sort({ closingDate: -1 })
-      .lean();
-
-    if (mostRecentClosing?._id.toString() !== closingId) {
-      return NextResponse.json(
-        { 
-          error: 'Can only delete the most recent closing to maintain period integrity',
-          mostRecentClosing: {
-            id: mostRecentClosing?._id,
-            date: mostRecentClosing?.closingDate,
-          }
-        },
-        { status: 400 }
-      );
-    }
-
-    // Check if there are any subsequent closings (shouldn't be, but double-check)
-    const subsequentClosing = await Closing.findOne({
-      outletId: user.outletId,
-      closingType: closing.closingType,
-      closingDate: { $gt: closing.closingDate },
-    });
-
-    if (subsequentClosing) {
-      return NextResponse.json(
-        { error: 'Cannot delete closing - subsequent closings exist' },
-        { status: 400 }
-      );
-    }
-
-    // Delete the closing
-    await Closing.deleteOne({ _id: closingId });
-
-    return NextResponse.json({
-      success: true,
-      message: 'Closing deleted successfully',
-      deletedClosing: {
-        id: closingId,
-        type: closing.closingType,
-        date: closing.closingDate,
-      },
-    });
-    
-  } catch (error: any) {
-    console.error('DELETE closing error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to delete closing' },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json(
+    { error: 'Closing snapshots are immutable and cannot be deleted' },
+    { status: 405, headers: { Allow: 'GET, PATCH' } }
+  );
 }

@@ -11,7 +11,6 @@ import {
   attachLocationDataToProducts,
   findProductIdsByLocationSearch,
   findProductsByStockLocation,
-  materializeLegacyLocationStocksForProducts,
 } from '@/lib/services/locationStockService';
 import mongoose from 'mongoose';
 import InventoryMovement from '@/lib/models/InventoryMovement';
@@ -21,6 +20,9 @@ import {
   sanitizeBarcodeValue,
 } from '@/lib/utils/barcode';
 import { normalizeProductUnit } from '@/lib/utils/productUnit';
+import Category from '@/lib/models/Category';
+import { hasPermission } from '@/lib/types/roles';
+import { postInventoryAdjustmentAccounting } from '@/lib/services/transactionalAccountingService';
 
 
 // ============================================================================
@@ -38,6 +40,9 @@ export async function GET(request: NextRequest) {
     }
     
     const user = verifyToken(token);
+    if (!user.outletId || !mongoose.Types.ObjectId.isValid(user.outletId)) {
+      return NextResponse.json({ error: 'Outlet is required' }, { status: 400 });
+    }
     
     // Ensure outletId is properly typed as ObjectId
     const outletIdObj = typeof user.outletId === 'string' 
@@ -276,12 +281,6 @@ export async function GET(request: NextRequest) {
       Product.countDocuments(query),
     ]);
 
-    await materializeLegacyLocationStocksForProducts(
-      products,
-      outletIdObj,
-      user.userId
-    );
-
     const productsWithLocations = await attachLocationDataToProducts(
       products,
       outletIdObj
@@ -312,7 +311,7 @@ export async function GET(request: NextRequest) {
 // ============================================================================
 // POST /api/products - Create a new product (CONCURRENCY SAFE SKU)
 // ============================================================================
-export async function POST(request: NextRequest) {
+async function legacyPOST(request: NextRequest) {
   try {
     await connectDB();
 
@@ -649,5 +648,198 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('❌ Error creating product:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  let session: mongoose.ClientSession | undefined;
+  try {
+    await connectDB();
+    const token = cookies().get('auth-token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = verifyToken(token);
+    if (!hasPermission(user.role, 'canManageInventory')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!user.outletId) return NextResponse.json({ error: 'Outlet is required' }, { status: 400 });
+    const body = await request.json();
+    const operationKey = String(request.headers.get('idempotency-key') || body.idempotencyKey || '').trim();
+    if (!operationKey || !body.name || !body.categoryId || !body.sku) {
+      return NextResponse.json({ error: 'idempotencyKey, name, category, and SKU are required' }, { status: 400 });
+    }
+    const cost = Number(body.costPrice);
+    const sellingPrice = Number(body.sellingPrice);
+    const taxRate = Number(body.taxRate || 0);
+    if (!Number.isFinite(cost) || cost < 0 || !Number.isFinite(sellingPrice) || sellingPrice < 0) {
+      return NextResponse.json({ error: 'Cost and selling price must be non-negative numbers' }, { status: 400 });
+    }
+    if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate > 100) {
+      return NextResponse.json({ error: 'Tax rate must be between 0 and 100' }, { status: 400 });
+    }
+    if (!Array.isArray(body.openingLocations) && Number(body.currentStock || 0) < 0) {
+      return NextResponse.json({ error: 'Opening stock cannot be negative' }, { status: 400 });
+    }
+
+    const outletId = new mongoose.Types.ObjectId(user.outletId);
+    const userId = new mongoose.Types.ObjectId(user.userId);
+    const existing = await Product.findOne({ outletId, operationKey });
+    if (existing) return NextResponse.json({ product: existing, idempotent: true });
+
+    session = await mongoose.startSession();
+    let createdProduct: any;
+    let voucherId: mongoose.Types.ObjectId | undefined;
+    await session.withTransaction(async () => {
+      const duplicate = await Product.findOne({ outletId, operationKey }).session(session!);
+      if (duplicate) {
+        createdProduct = duplicate;
+        return;
+      }
+      const category = await Category.findOne({ _id: body.categoryId, outletId, isActive: true }).session(session!);
+      if (!category) throw new Error('Active category not found in this outlet');
+      if (body.isVehicle && !body.carMake) throw new Error('Car make is required for vehicle products');
+
+      const sku = String(body.sku).trim().toUpperCase();
+      const barcode = sanitizeBarcodeValue(body.barcode) || generateInternalBarcodeCandidate();
+      if (await Product.exists({ outletId, $or: [{ sku }, { barcode }] }).session(session!)) {
+        throw new Error('SKU or barcode already exists in this outlet');
+      }
+
+      const accumulator = new Map<string, { locationId?: string; locationName?: string; quantity: number }>();
+      const requestedLocations = Array.isArray(body.openingLocations) ? body.openingLocations : [];
+      for (const entry of requestedLocations) {
+        const quantity = Number(entry.quantity || 0);
+        if (!Number.isFinite(quantity) || quantity < 0) throw new Error('Opening quantities cannot be negative');
+        if (quantity === 0) continue;
+        const key = entry.locationId
+          ? `id:${entry.locationId}`
+          : `name:${String(entry.locationName || entry.location || 'Main Store').trim().toLowerCase()}`;
+        const prior = accumulator.get(key);
+        if (prior) prior.quantity += quantity;
+        else accumulator.set(key, {
+          locationId: entry.locationId,
+          locationName: entry.locationName || entry.location,
+          quantity,
+        });
+      }
+      if (!accumulator.size && Number(body.currentStock || 0) > 0) {
+        accumulator.set('fallback', {
+          locationId: body.locationId,
+          locationName: body.locationName || body.location,
+          quantity: Number(body.currentStock),
+        });
+      }
+      const stockQty = [...accumulator.values()].reduce((sum, entry) => sum + entry.quantity, 0);
+      const now = new Date();
+      const [product] = await Product.create([{
+        operationKey,
+        name: body.name,
+        description: body.description,
+        location: body.locationName || body.location || '',
+        category: category._id,
+        sku,
+        barcode,
+        partNumber: body.partNumber,
+        isVehicle: body.isVehicle === true,
+        carMake: body.isVehicle ? body.carMake : undefined,
+        carModel: body.isVehicle ? body.carModel : undefined,
+        variant: body.isVehicle ? body.variant : undefined,
+        yearFrom: body.isVehicle && body.yearFrom ? Number(body.yearFrom) : undefined,
+        yearTo: body.isVehicle && body.yearTo ? Number(body.yearTo) : undefined,
+        color: body.isVehicle ? body.color : undefined,
+        vin: body.isVehicle ? body.vin : undefined,
+        costPrice: cost,
+        sellingPrice,
+        taxRate,
+        currentStock: stockQty,
+        minStock: Number(body.minStock || 0),
+        maxStock: Number(body.maxStock || 1000),
+        reorderPoint: Number(body.minStock || 0),
+        unit: normalizeProductUnit(body.unit),
+        outletId,
+        isActive: true,
+      }], { session });
+
+      const referenceId = product._id as mongoose.Types.ObjectId;
+      const referenceNumber = `OPEN-${sku}`;
+      const accounting = stockQty > 0
+        ? await postInventoryAdjustmentAccounting({
+          referenceId,
+          referenceNumber,
+          productName: product.name,
+          sku,
+          quantity: stockQty,
+          unitCost: cost,
+          date: now,
+          reason: 'Opening stock on product creation',
+          outletId,
+          postingKey: `product:${product._id}:opening-stock`,
+          isOpening: true,
+        }, userId, session!)
+        : { voucherId: undefined };
+      voucherId = accounting.voucherId;
+
+      let runningBalance = 0;
+      for (const [index, entry] of [...accumulator.values()].entries()) {
+        const location = await adjustProductLocationStock({
+          product,
+          outletId,
+          locationId: entry.locationId,
+          locationName: entry.locationName,
+          quantityDelta: entry.quantity,
+          userId,
+          session,
+        });
+        runningBalance += entry.quantity;
+        await InventoryMovement.create([{
+          productId: product._id,
+          productName: product.name,
+          sku,
+          movementType: 'ADJUSTMENT',
+          quantity: entry.quantity,
+          unit: product.unit,
+          unitCost: cost,
+          totalValue: entry.quantity * cost,
+          referenceType: 'ADJUSTMENT',
+          referenceId,
+          referenceNumber,
+          locationId: location.location._id,
+          locationName: location.location.name,
+          locationBalanceAfter: location.newQuantity,
+          outletId,
+          balanceAfter: runningBalance,
+          date: now,
+          notes: 'Opening stock on product creation',
+          createdBy: userId,
+          voucherId,
+          ledgerEntriesCreated: Boolean(voucherId),
+          operationKey: `product:${product._id}:opening:${index}`,
+        }], { session });
+      }
+
+      await ActivityLog.create([{
+        userId,
+        username: user.email,
+        actionType: 'create',
+        module: 'products',
+        description: `Created product ${product.name} (${sku}) with opening stock ${stockQty} ${product.unit}`,
+        outletId,
+        timestamp: now,
+      }], { session });
+      createdProduct = product;
+    });
+
+    const [productWithLocations] = await attachLocationDataToProducts([createdProduct.toObject()], outletId);
+    return NextResponse.json({
+      product: productWithLocations,
+      voucherId,
+      inventoryPosted: Boolean(voucherId),
+      message: 'Product created successfully',
+    }, { status: 201 });
+  } catch (error: any) {
+    console.error('Error creating product:', error);
+    const status = /required|not found|negative|exists|car make|price|quantit/i.test(error.message) ? 400 : 500;
+    return NextResponse.json({ error: error.message }, { status });
+  } finally {
+    if (session) await session.endSession();
   }
 }

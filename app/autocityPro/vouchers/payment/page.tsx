@@ -155,11 +155,12 @@ export default function PaymentVoucherPage() {
     }
     
     setLoading(true);
+    const idempotencyKey = crypto.randomUUID();
     
     try {
       const res = await fetch('/api/vouchers', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
         credentials: 'include',
         body: JSON.stringify({
           voucherType: 'payment',
@@ -173,6 +174,7 @@ export default function PaymentVoucherPage() {
           narration: formData.narration,
           referenceNumber: formData.referenceNumber,
           status,
+          idempotencyKey,
         }),
       });
       

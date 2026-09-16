@@ -612,10 +612,9 @@ export default function AccountsPage() {
               <div>
                 <label className="block text-sm font-medium mb-1" style={{ color: th.modalLabel }}>
                   Opening Balance
-                  {editingAccount && <span className="text-xs ml-2" style={{ color: th.cardMuted }}>(Updates will create a journal entry)</span>}
+                  <span className="text-xs ml-2" style={{ color: th.cardMuted }}>(Use the Opening Balance page)</span>
                 </label>
-                <input type="number" value={formData.openingBalance} step="0.01"
-                  onChange={e => setFormData({ ...formData, openingBalance: parseFloat(e.target.value) || 0 })}
+                <input type="number" value={formData.openingBalance} step="0.01" disabled
                   className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)]"
                   style={modalInputStyle} placeholder="0.00" />
               </div>

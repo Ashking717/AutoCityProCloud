@@ -8,6 +8,7 @@
  */
 
 import mongoose from 'mongoose';
+import { randomUUID } from 'crypto';
 import { connectDB } from '@/lib/db/mongodb';
 
 import Product  from '@/lib/models/ProductEnhanced';
@@ -236,13 +237,16 @@ export async function executeTool(
 
     // ── CREATE CUSTOMER ────────────────────────────────────────────────────────
     case 'create_customer': {
+      const operationKey = randomUUID();
       const res = await api(baseUrl, token, '/api/customers', {
         method: 'POST',
+        headers: { 'Idempotency-Key': operationKey },
         body: JSON.stringify({
+          operationKey,
           name:    input.name,
           phone:   input.phone   ?? '',
           email:   input.email   ?? '',
-          address: input.address ?? '',
+          address: input.address ? { street: input.address } : undefined,
         }),
       });
 
@@ -259,9 +263,13 @@ export async function executeTool(
 
     // ── CREATE SUPPLIER ────────────────────────────────────────────────────────
     case 'create_supplier': {
+      const operationKey = randomUUID();
       const res = await api(baseUrl, token, '/api/suppliers', {
         method: 'POST',
+        headers: { 'Idempotency-Key': operationKey },
         body: JSON.stringify({
+          operationKey,
+          code: `SUP-${operationKey.slice(0, 8).toUpperCase()}`,
           name:    input.name,
           phone:   input.phone   ?? '',
           email:   input.email   ?? '',
@@ -298,9 +306,12 @@ export async function executeTool(
       );
       const isVehicle = input.isVehicle === true || hasVehicleFields;
 
+      const operationKey = randomUUID();
       const res = await api(baseUrl, token, '/api/products', {
         method: 'POST',
+        headers: { 'Idempotency-Key': operationKey },
         body: JSON.stringify({
+          idempotencyKey: operationKey,
           name:         input.name.toUpperCase(),
           categoryId:   input.categoryId,
           sku:          nextSKU,
@@ -375,11 +386,32 @@ export async function executeTool(
       const amountPaid = input.amountPaid != null
         ? Number(input.amountPaid)
         : grandTotal;
+      let customerId = input.customerId;
+      if (customerId === 'walk-in') {
+        const walkIn = await Customer.findOne({
+          outletId,
+          isActive: true,
+          $or: [
+            { code: 'WALKIN' },
+            { name: { $regex: /^walk[ -]?in( customer)?$/i } },
+          ],
+        }).select('_id').lean() as any;
+        if (!walkIn) {
+          return {
+            success: false,
+            message: 'create_sale: No Walk-In Customer record exists. Create/select a customer before recording the sale.',
+          };
+        }
+        customerId = walkIn._id.toString();
+      }
 
+      const operationKey = randomUUID();
       const res = await api(baseUrl, token, '/api/sales', {
         method: 'POST',
+        headers: { 'Idempotency-Key': operationKey },
         body: JSON.stringify({
-          customerId:            isWalkIn ? undefined : input.customerId,
+          idempotencyKey:         operationKey,
+          customerId,
           customerName:          input.customerName,
           paymentMethod:         input.paymentMethod ?? 'CASH',
           overallDiscountAmount: discount,
@@ -444,9 +476,12 @@ export async function executeTool(
       const amountPaid = input.amountPaid != null ? Number(input.amountPaid) : grandTotal;
       const balanceDue = Number((grandTotal - amountPaid).toFixed(2));
 
+      const operationKey = randomUUID();
       const res = await api(baseUrl, token, '/api/purchases', {
         method: 'POST',
+        headers: { 'Idempotency-Key': operationKey },
         body: JSON.stringify({
+          idempotencyKey: operationKey,
           supplierId:    input.supplierId,
           supplierName:  input.supplierName,
           paymentMethod: input.paymentMethod ?? 'CASH',
@@ -527,9 +562,12 @@ export async function executeTool(
         }
       }
 
+      const operationKey = randomUUID();
       const res = await api(baseUrl, token, '/api/expenses', {
         method: 'POST',
+        headers: { 'Idempotency-Key': operationKey },
         body: JSON.stringify({
+          idempotencyKey:     operationKey,
           category:         input.category,
           paymentMethod:    method,
           paymentAccountId: paymentAccountId ?? null,
@@ -587,7 +625,7 @@ export async function executeTool(
         end: Date,
         mode: 'credit_minus_debit' | 'debit_minus_credit' | 'credits_only' | 'debits_only' = 'credit_minus_debit'
       ): Promise<number> {
-        const accountFilter: any = { outletId, isActive: true, subType: { $in: subTypes } };
+        const accountFilter: any = { outletId, subType: { $in: subTypes } };
         if (accountType) accountFilter.type = accountType;
 
         const accs = await Account.find(accountFilter).select('_id').lean();
@@ -610,7 +648,7 @@ export async function executeTool(
 
       async function ledgerBalance(subTypes: string[], upto: Date): Promise<number> {
         const accs = await Account.find({
-          outletId, isActive: true, subType: { $in: subTypes },
+          outletId, subType: { $in: subTypes },
         }).select('_id').lean();
         if (!accs.length) return 0;
 
@@ -633,17 +671,24 @@ export async function executeTool(
 
       if (doSales) {
         const revenue = await ledgerNet(
-          ['sales_revenue', 'SALES_REVENUE', 'service_revenue', 'SERVICE_REVENUE'],
+          ['sales_revenue', 'SALES_REVENUE', 'service_revenue', 'SERVICE_REVENUE', 'sales_returns', 'SALES_RETURNS'],
           'revenue', from, to, 'credit_minus_debit'
         );
 
         const salesDocs = await (Sale as any).find({
           outletId,
-          status: 'COMPLETED',
+          status: { $in: ['COMPLETED', 'REFUNDED'] },
           saleDate: { $gte: from, $lte: to },
-        }).select('invoiceNumber customerName grandTotal amountPaid balanceDue').lean() as any[];
+        }).select('invoiceNumber customerName grandTotal amountPaid balanceDue returns').lean() as any[];
 
-        const total    = revenue > 0 ? revenue : salesDocs.reduce((s: number, x: any) => s + (x.grandTotal || 0), 0);
+        const documentRevenue = salesDocs.reduce((sum: number, sale: any) => {
+          const returned = (sale.returns || []).reduce(
+            (returnSum: number, entry: any) => returnSum + Number(entry.totalAmount || 0),
+            0
+          );
+          return sum + Number(sale.grandTotal || 0) - returned;
+        }, 0);
+        const total    = Math.abs(revenue) > 0.005 ? revenue : documentRevenue;
         const count    = salesDocs.length;
         const credited = salesDocs.reduce((s: number, x: any) => s + (x.amountPaid || 0), 0);
         const balance  = salesDocs.reduce((s: number, x: any) => s + (x.balanceDue || 0), 0);
@@ -658,47 +703,51 @@ export async function executeTool(
       }
 
       if (doPurchases) {
-        const cashBankAccs = await Account.find({
-          outletId, isActive: true,
-          subType: { $in: ['cash', 'CASH', 'bank', 'BANK', 'bank_account', 'BANK_ACCOUNT'] },
+        const inventoryAccs = await Account.find({
+          outletId,
+          subType: { $in: ['inventory', 'INVENTORY'] },
         }).select('_id').lean() as any[];
 
         const purchaseEntries = await LedgerEntry.find({
           outletId,
-          accountId: { $in: cashBankAccs.map((a: any) => a._id) },
+          accountId: { $in: inventoryAccs.map((a: any) => a._id) },
           referenceType: 'PURCHASE',
           date: { $gte: from, $lte: to },
-          credit: { $gt: 0 },
         }).lean() as any[];
 
-        const total = purchaseEntries.reduce((s, e: any) => s + (e.credit || 0), 0);
+        const total = purchaseEntries.reduce(
+          (sum, entry: any) => sum + Number(entry.debit || 0) - Number(entry.credit || 0),
+          0
+        );
         const count = new Set(purchaseEntries.map((e: any) => e.referenceId?.toString()).filter(Boolean)).size;
 
         result.purchases = { total, count };
-        lines.push(`\n**Purchases (paid):** QAR ${total.toFixed(2)} (${count || purchaseEntries.length} transaction${count !== 1 ? 's' : ''})`);
+        lines.push(`\n**Inventory Purchases:** QAR ${total.toFixed(2)} (${count || purchaseEntries.length} transaction${count !== 1 ? 's' : ''})`);
       }
 
       if (doExpenses) {
-        const cashBankAccs = await Account.find({
-          outletId, isActive: true,
-          subType: { $in: ['cash', 'CASH', 'bank', 'BANK', 'bank_account', 'BANK_ACCOUNT'] },
+        const expenseAccs = await Account.find({
+          outletId,
+          type: 'expense',
+          subType: { $nin: ['cogs', 'COGS'] },
         }).select('_id').lean() as any[];
 
         const expenseEntries = await LedgerEntry.find({
           outletId,
-          accountId: { $in: cashBankAccs.map((a: any) => a._id) },
-          narration: { $regex: /expense payment/i },
+          accountId: { $in: expenseAccs.map((a: any) => a._id) },
           date: { $gte: from, $lte: to },
-          credit: { $gt: 0 },
         }).lean() as any[];
 
-        const total = expenseEntries.reduce((s, e: any) => s + (e.credit || 0), 0);
+        const total = expenseEntries.reduce(
+          (sum, entry: any) => sum + Number(entry.debit || 0) - Number(entry.credit || 0),
+          0
+        );
         const count = new Set(
           expenseEntries.map((e: any) => e.referenceId?.toString() || e.voucherId?.toString()).filter(Boolean)
         ).size;
 
         result.expenses = { total, count };
-        lines.push(`\n**Expenses (paid):** QAR ${total.toFixed(2)} (${count || expenseEntries.length} entr${count !== 1 ? 'ies' : 'y'})`);
+        lines.push(`\n**Operating Expenses:** QAR ${total.toFixed(2)} (${count || expenseEntries.length} entr${count !== 1 ? 'ies' : 'y'})`);
       }
 
       if (input.type === 'all') {
@@ -714,12 +763,12 @@ export async function executeTool(
       }
 
       if (result.sales != null && result.purchases != null && result.expenses != null) {
-        const cogs = await ledgerNet(['cogs', 'COGS'], 'expense', from, to, 'debits_only');
-        const net  = result.sales.total - cogs - result.purchases.total - result.expenses.total;
+        const cogs = await ledgerNet(['cogs', 'COGS'], 'expense', from, to, 'debit_minus_credit');
+        const net  = result.sales.total - cogs - result.expenses.total;
         result.net  = net;
         result.cogs = cogs;
         if (cogs > 0) lines.push(`\n**COGS:** QAR ${cogs.toFixed(2)}`);
-        lines.push(`\n**Net Profit** (Revenue − COGS − Purchases − Expenses): **QAR ${net.toFixed(2)}**`);
+        lines.push(`\n**Net Profit** (Revenue − COGS − Operating Expenses): **QAR ${net.toFixed(2)}**`);
       }
 
       return { success: true, data: result, message: lines.join('\n') };
@@ -832,9 +881,12 @@ export async function executeTool(
         }
       }
 
+      const operationKey = randomUUID();
       const res = await api(baseUrl, token, '/api/vouchers', {
         method: 'POST',
+        headers: { 'Idempotency-Key': operationKey },
         body: JSON.stringify({
+          idempotencyKey:   operationKey,
           voucherType:     input.voucherType,
           date:            input.date ?? new Date().toISOString().split('T')[0],
           narration:       input.narration,

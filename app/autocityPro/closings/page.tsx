@@ -484,7 +484,7 @@ export default function ClosingsPage() {
               ) : closings.map(closing => {
                 const totalOpeningBalance = closing.totalOpeningBalance ?? (closing.openingCash + closing.openingBank);
                 const totalClosingBalance = closing.totalClosingBalance ?? (closing.closingCash + closing.closingBank);
-                const totalCosts = (closing.totalCOGS||0) + closing.totalPurchases + closing.totalExpenses;
+                const totalCosts = (closing.totalCOGS||0) + closing.totalExpenses;
 
                 return (
                   <div key={closing._id} className="group relative">
@@ -573,7 +573,7 @@ export default function ClosingsPage() {
                                 {closing.netProfit.toLocaleString("en-QA",{minimumFractionDigits:0})}
                               </span>
                             </div>
-                            <p className="text-[10px] mt-1" style={{ color: th.footerMeta }}>= Revenue - (COGS + Purchases + Expenses)</p>
+                            <p className="text-[10px] mt-1" style={{ color: th.footerMeta }}>= Revenue - COGS - Operating Expenses</p>
                           </div>
                         </div>
 
@@ -751,7 +751,7 @@ export default function ClosingsPage() {
                       <div>
                         <h4 className="text-sm font-bold text-amber-400 mb-2">Important Notice</h4>
                         <ul className="text-xs text-amber-300/80 space-y-1.5">
-                          {["All transactions will be locked","Financial reports will be generated from ledger","Profit = Revenue - (COGS + Purchases + Expenses)","Late-night transactions (until 6 AM) will be included","First closing includes all historical data"].map(n => (
+                          {["The closing creates an immutable financial snapshot","Financial reports are generated from the ledger","Profit = Revenue - COGS - Operating Expenses","Late-night transactions follow the configured cutoff","First closing includes all historical data"].map(n => (
                             <li key={n}>• {n}</li>
                           ))}
                         </ul>

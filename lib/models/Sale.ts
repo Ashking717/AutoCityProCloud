@@ -5,6 +5,7 @@ export enum PaymentMethod {
   CARD = 'CARD',
   BANK_TRANSFER = 'BANK_TRANSFER',
   CREDIT = 'CREDIT',
+  CHEQUE = 'CHEQUE',
 }
 
 // ✅ NEW: Payment detail interface for multiple payment methods
@@ -21,11 +22,17 @@ export interface IReturnItem {
   quantity: number;
   unitPrice: number;
   totalAmount: number;
+  netAmount?: number;
+  vatAmount?: number;
+  costPrice?: number;
+  locationId?: mongoose.Types.ObjectId;
+  locationName?: string;
   reason?: string;
   returnDate: Date;
 }
 
 export interface IReturn {
+  returnKey: string;
   returnNumber: string;
   returnDate: Date;
   reason?: string;
@@ -66,6 +73,7 @@ export interface ISale extends Document {
   
   subtotal: number;
   totalDiscount: number;
+  overallDiscount: number;
   totalVAT: number;
   grandTotal: number;
   
@@ -80,6 +88,15 @@ export interface ISale extends Document {
   notes?: string;
   createdBy: mongoose.Types.ObjectId;
   returns?: IReturn[];
+  refunds?: Array<{
+    refundKey: string;
+    amount: number;
+    method: PaymentMethod;
+    reference?: string;
+    voucherId: mongoose.Types.ObjectId;
+    refundedAt: Date;
+    processedBy: mongoose.Types.ObjectId;
+  }>;
   
   // GL Integration
   voucherId?: mongoose.Types.ObjectId;
@@ -88,6 +105,8 @@ export interface ISale extends Document {
   
   createdAt: Date;
   updatedAt: Date;
+  operationKey?: string;
+  lastCorrectionKey?: string;
   
   // Cancellation tracking
   cancelledAt?: Date;
@@ -132,11 +151,17 @@ const ReturnItemSchema = new Schema<IReturnItem>({
   quantity: { type: Number, required: true, min: 1 },
   unitPrice: { type: Number, required: true, min: 0 },
   totalAmount: { type: Number, required: true, min: 0 },
+  netAmount: { type: Number, min: 0 },
+  vatAmount: { type: Number, min: 0 },
+  costPrice: { type: Number, min: 0 },
+  locationId: { type: Schema.Types.ObjectId, ref: 'StockLocation' },
+  locationName: { type: String, trim: true },
   reason: { type: String },
   returnDate: { type: Date, default: Date.now }
 }, { _id: false });
 
 const ReturnSchema = new Schema<IReturn>({
+  returnKey: { type: String, required: true },
   returnNumber: { type: String, required: true },
   returnDate: { type: Date, default: Date.now },
   reason: { type: String },
@@ -180,6 +205,7 @@ const SaleSchema = new Schema<ISale, ISaleModel>(
     // Financial totals
     subtotal: { type: Number, required: true, min: 0 },
     totalDiscount: { type: Number, default: 0, min: 0 },
+    overallDiscount: { type: Number, default: 0, min: 0 },
     totalVAT: { type: Number, default: 0, min: 0 },
     grandTotal: { type: Number, required: true, min: 0 },
     
@@ -205,11 +231,22 @@ const SaleSchema = new Schema<ISale, ISaleModel>(
     
     // Returns
     returns: [ReturnSchema],
+    refunds: [{
+      refundKey: { type: String, required: true },
+      amount: { type: Number, required: true, min: 0 },
+      method: { type: String, enum: Object.values(PaymentMethod), required: true },
+      reference: { type: String, trim: true },
+      voucherId: { type: Schema.Types.ObjectId, ref: 'Voucher', required: true },
+      refundedAt: { type: Date, default: Date.now },
+      processedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    }],
     
     // GL Integration
     voucherId: { type: Schema.Types.ObjectId, ref: 'Voucher' },
     cogsVoucherId: { type: Schema.Types.ObjectId, ref: 'Voucher' },
     isPostedToGL: { type: Boolean, default: false, index: true },
+    operationKey: { type: String, trim: true },
+    lastCorrectionKey: { type: String, trim: true },
     
     // Cancellation tracking
     cancelledAt: { type: Date },
@@ -229,6 +266,14 @@ SaleSchema.index({ outletId: 1, status: 1 });
 SaleSchema.index({ outletId: 1, customerId: 1, saleDate: -1 });
 SaleSchema.index({ outletId: 1, isPostedToGL: 1 });
 SaleSchema.index({ outletId: 1, 'payments.method': 1 }); // ✅ NEW: Index for payment method queries
+SaleSchema.index(
+  { outletId: 1, operationKey: 1 },
+  { unique: true, partialFilterExpression: { operationKey: { $type: 'string' } } }
+);
+SaleSchema.index(
+  { outletId: 1, 'returns.returnKey': 1 },
+  { unique: true, partialFilterExpression: { 'returns.returnKey': { $type: 'string' } } }
+);
 
 // Virtuals
 SaleSchema.virtual('totalReturnedAmount').get(function (this: ISale) {
@@ -279,6 +324,11 @@ SaleSchema.pre('save', function(next) {
   if (totalReturned > this.grandTotal) {
     return next(new Error('Total returned amount cannot exceed sale grand total'));
   }
+  for (const item of this.items) {
+    if (Number(item.returnedQuantity || 0) > Number(item.quantity || 0)) {
+      return next(new Error(`Returned quantity cannot exceed sold quantity for ${item.name}`));
+    }
+  }
   
   // ✅ NEW: Validate payment amounts if payments array exists
   if (this.payments && this.payments.length > 0) {
@@ -287,11 +337,22 @@ SaleSchema.pre('save', function(next) {
     
     // Allow small floating-point differences (0.01)
     if (Math.abs(totalPayments - expectedTotal) > 0.01) {
-      console.warn(
-        `Payment mismatch: payments array sum (${totalPayments}) != amountPaid (${expectedTotal})`
+      return next(
+        new Error(`Payment mismatch: payments sum (${totalPayments}) != amountPaid (${expectedTotal})`)
       );
-      // Note: We warn but don't fail, in case of rounding differences
     }
+  }
+
+  const expectedBalance = Number(
+    (this.grandTotal - totalReturned - this.amountPaid).toFixed(2)
+  );
+  if (Math.abs(expectedBalance - Number(this.balanceDue || 0)) > 0.01) {
+    return next(
+      new Error(`Sale balance mismatch: expected ${expectedBalance}, received ${this.balanceDue}`)
+    );
+  }
+  if (this.amountPaid < 0 || this.balanceDue < -0.01) {
+    return next(new Error('Sale cannot contain a negative paid amount or customer balance'));
   }
   
   next();

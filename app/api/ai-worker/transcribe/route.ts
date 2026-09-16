@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import OpenAI from 'openai';
 import { verifyToken } from '@/lib/auth/jwt';
-
-const client = new OpenAI();
+import { getAIClient } from '@/lib/ai-worker/getAIClient';
 
 export const maxDuration = 30;
 export const runtime     = 'nodejs';
@@ -26,8 +24,10 @@ export async function POST(request: NextRequest) {
   if (!token)
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  try { verifyToken(token); }
+  let user: ReturnType<typeof verifyToken>;
+  try { user = verifyToken(token); }
   catch { return NextResponse.json({ error: 'Invalid token' }, { status: 401 }); }
+  if (!user.outletId) return NextResponse.json({ error: 'Outlet is required' }, { status: 400 });
 
   // ── Parse multipart form ──────────────────────────────────────────────────
   let audioBlob: Blob;
@@ -55,7 +55,11 @@ export async function POST(request: NextRequest) {
 
   // ── Whisper transcription ─────────────────────────────────────────────────
   try {
-    const transcription = await client.audio.transcriptions.create({
+    const resolved = await getAIClient(user.outletId);
+    if (resolved.provider !== 'openai') {
+      return NextResponse.json({ error: 'Transcription requires an OpenAI provider configuration' }, { status: 400 });
+    }
+    const transcription = await resolved.client.audio.transcriptions.create({
       model:    'gpt-4o-transcribe',
       file:     new File([audioBlob], filename, { type: audioBlob.type || 'audio/webm' }),
       // Language hint — Whisper auto-detects, but we can bias it

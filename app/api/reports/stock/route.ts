@@ -6,8 +6,8 @@ import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth/jwt';
 import {
   attachLocationDataToProducts,
-  materializeLegacyLocationStocksForProducts,
 } from '@/lib/services/locationStockService';
+import { hasPermission } from '@/lib/types/roles';
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,6 +21,10 @@ export async function GET(request: NextRequest) {
     }
     
     const user = verifyToken(token);
+    if (!hasPermission(user.role, 'canViewAllReports')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!user.outletId) return NextResponse.json({ error: 'Outlet is required' }, { status: 400 });
     
     const products = await Product.find({ 
       outletId: user.outletId,
@@ -29,12 +33,6 @@ export async function GET(request: NextRequest) {
       .populate('category', 'name')
       .lean();
     
-    await materializeLegacyLocationStocksForProducts(
-      products,
-      user.outletId,
-      user.userId
-    );
-
     const productsWithLocations = await attachLocationDataToProducts(
       products,
       user.outletId

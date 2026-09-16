@@ -144,9 +144,10 @@ export default function PurchaseDetailPage() {
     if (Number(paymentForm.amount) > (purchase?.balanceDue || 0)) { toast.error("Payment amount exceeds outstanding balance"); return; }
     setPaymentLoading(true);
     try {
+      const idempotencyKey = crypto.randomUUID();
       const r = await fetch(`/api/purchases/${purchaseId}/payments`, {
-        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
-        body: JSON.stringify({ amount: Number(paymentForm.amount), paymentMethod: paymentForm.paymentMethod, paymentDate: paymentForm.paymentDate, referenceNumber: paymentForm.referenceNumber, notes: paymentForm.notes }),
+        method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey }, credentials: "include",
+        body: JSON.stringify({ amount: Number(paymentForm.amount), paymentMethod: paymentForm.paymentMethod, paymentDate: paymentForm.paymentDate, referenceNumber: paymentForm.referenceNumber, notes: paymentForm.notes, idempotencyKey }),
       });
       if (r.ok) {
         toast.success((await r.json()).message || "Payment recorded successfully");

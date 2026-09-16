@@ -402,11 +402,12 @@ export default function PurchasesPortalPage() {
 
     setTransferLoading(true);
     try {
+      const idempotencyKey = crypto.randomUUID();
       const res = await fetch("/api/stock-locations/transfer", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
         credentials: "include",
-        body: JSON.stringify(transferForm),
+        body: JSON.stringify({ ...transferForm, idempotencyKey }),
       });
 
       if (!res.ok) {

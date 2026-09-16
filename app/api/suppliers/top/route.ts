@@ -7,6 +7,7 @@ import { connectDB } from "@/lib/db/mongodb";
 
 import Supplier from "@/lib/models/Supplier";
 import Purchase from "@/lib/models/Purchase";
+import { hasPermission } from "@/lib/types/roles";
 
 /**
  * GET /api/suppliers/top
@@ -22,14 +23,20 @@ export async function GET(request: NextRequest) {
     }
 
     const user = verifyToken(token);
+    if (!hasPermission(user.role, "canProcessPurchases") && !hasPermission(user.role, "canViewFinancials")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (!user.outletId || !mongoose.Types.ObjectId.isValid(user.outletId)) {
+      return NextResponse.json({ error: "Outlet is required" }, { status: 400 });
+    }
     const outletId = new mongoose.Types.ObjectId(user.outletId || "");
 
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get("limit") || "5");
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "5")));
 
     // Aggregate purchases by supplier
     const topSupplierData = await Purchase.aggregate([
-      { $match: { outletId } },
+      { $match: { outletId, status: { $ne: "CANCELLED" } } },
       {
         $group: {
           _id: "$supplierId",
@@ -45,7 +52,7 @@ export async function GET(request: NextRequest) {
     // Get supplier details and format response
     const suppliers = await Promise.all(
       topSupplierData.map(async (data) => {
-        const supplier = await Supplier.findById(data._id).lean() as {
+        const supplier = await Supplier.findOne({ _id: data._id, outletId }).lean() as {
           _id: mongoose.Types.ObjectId;
           name: string;
           code: string;

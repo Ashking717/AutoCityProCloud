@@ -242,6 +242,7 @@ export default function NewSalePage() {
 
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [pendingSaleKey, setPendingSaleKey] = useState<string | null>(null);
   const [products, setProducts] = useState<any[]>([]);
   const [frequentProducts, setFrequentProducts] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -656,10 +657,13 @@ export default function NewSalePage() {
       ? (subtotal - totalDiscount) * (overallDiscount / 100)
       : overallDiscount;
     const subtotalAfterDiscount = subtotal - totalDiscount - overallDiscountAmount;
+    const overallRatio = subtotal - totalDiscount > 0
+      ? subtotalAfterDiscount / (subtotal - totalDiscount)
+      : 0;
     const totalTax = cart.reduce((s, i) => {
       const d = i.discountType === "percentage"
         ? (i.sellingPrice * i.quantity * i.discount) / 100 : i.discount;
-      return s + ((i.sellingPrice * i.quantity - d) * i.taxRate) / 100;
+      return s + ((i.sellingPrice * i.quantity - d) * overallRatio * i.taxRate) / 100;
     }, 0);
     const total = subtotalAfterDiscount + totalTax;
     const totalProfit = cart.reduce((s, i) => s + i.profit, 0);
@@ -704,11 +708,16 @@ export default function NewSalePage() {
     }));
     if (paymentDetails.length === 0) paymentDetails.push({ method: "CASH", amount: 0, reference: undefined });
 
+    const idempotencyKey = pendingSaleKey || crypto.randomUUID();
+    setPendingSaleKey(idempotencyKey);
     setLoading(true);
     try {
       const res = await fetch("/api/sales", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKey,
+        },
         credentials: "include",
         body: JSON.stringify({
           customerId: selectedCustomer._id,
@@ -721,21 +730,14 @@ export default function NewSalePage() {
           overallDiscount,
           overallDiscountType,
           overallDiscountAmount: totals.overallDiscountAmount,
+          idempotencyKey,
+          jobId: activeJobId || undefined,
         }),
       });
 
       if (res.ok) {
         const data = await res.json();
         toast.success(`Sale ${data.sale.invoiceNumber} created successfully!`);
-
-        if (activeJobId) {
-          await fetch(`/api/jobs/${activeJobId}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ convertedToSale: true, status: "COMPLETED" }),
-          });
-        }
 
         setInvoiceData({
           invoiceNumber: data.sale.invoiceNumber,
@@ -771,6 +773,7 @@ export default function NewSalePage() {
         setPayments([{ id: `payment-${Date.now()}`, method: "cash", amount: 0 }]);
         setOverallDiscount(0);
         setActiveJobId(null);
+        setPendingSaleKey(null);
         fetchProducts();
         fetchFrequentProducts();
         fetchCompletedJobs();

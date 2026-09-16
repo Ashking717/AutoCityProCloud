@@ -63,6 +63,14 @@ export async function POST(request: Request) {
 
     await connectDB();
 
+    const operationKey = String(
+      request.headers.get('idempotency-key') || body.operationKey || ''
+    ).trim();
+    if (operationKey) {
+      const existing = await Customer.findOne({ outletId, operationKey });
+      if (existing) return NextResponse.json({ customer: existing, idempotent: true });
+    }
+
     // ── Generate a unique code server-side ───────────────────────────────
     const generateCode = async (): Promise<string> => {
       const base = body.name.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 10);
@@ -106,6 +114,7 @@ export async function POST(request: Request) {
       creditLimit: body.creditLimit || 0,
       currentBalance: 0,
       notes: body.notes,
+      operationKey: operationKey || undefined,
       isActive: true,
     });
 

@@ -27,6 +27,7 @@ export interface IInventoryMovement extends Document {
   // Movement details
   movementType: MovementType;
   quantity: number; // Positive for IN, Negative for OUT
+  unit: string;
   unitCost: number; // Cost per unit at time of movement
   totalValue: number; // quantity * unitCost
   
@@ -61,6 +62,7 @@ export interface IInventoryMovement extends Document {
   // Audit (immutable)
   createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
+  operationKey?: string;
 }
 
 const InventoryMovementSchema = new Schema<IInventoryMovement>(
@@ -92,6 +94,7 @@ const InventoryMovementSchema = new Schema<IInventoryMovement>(
       required: true,
       // Can be positive (in) or negative (out)
     },
+    unit: { type: String, required: true, default: 'pcs', trim: true },
     unitCost: {
       type: Number,
       required: true,
@@ -182,6 +185,7 @@ const InventoryMovementSchema = new Schema<IInventoryMovement>(
       ref: 'User',
       required: true,
     },
+    operationKey: { type: String, trim: true },
   },
   {
     timestamps: { createdAt: true, updatedAt: false }, // createdAt only
@@ -194,6 +198,57 @@ InventoryMovementSchema.index({ outletId: 1, date: -1 });
 InventoryMovementSchema.index({ referenceType: 1, referenceId: 1 });
 InventoryMovementSchema.index({ voucherId: 1 });
 InventoryMovementSchema.index({ outletId: 1, productId: 1, locationId: 1, date: -1 });
+InventoryMovementSchema.index(
+  { outletId: 1, operationKey: 1 },
+  { unique: true, partialFilterExpression: { operationKey: { $type: 'string' } } }
+);
+
+function validateMovementValues(movement: Partial<IInventoryMovement>) {
+  const quantity = Number(movement.quantity);
+  const unitCost = Number(movement.unitCost);
+  const totalValue = Number(movement.totalValue);
+  const balanceAfter = Number(movement.balanceAfter);
+  if (!Number.isFinite(quantity) || quantity === 0) {
+    throw new Error('Inventory movement quantity must be a finite non-zero number');
+  }
+  if (!Number.isFinite(unitCost) || unitCost < 0 || !Number.isFinite(totalValue)) {
+    throw new Error('Inventory movement values must be finite and unit cost cannot be negative');
+  }
+  if (Math.abs(totalValue - quantity * unitCost) > 0.01) {
+    throw new Error('Inventory movement totalValue must equal signed quantity × unitCost');
+  }
+  if (!Number.isFinite(balanceAfter)) {
+    throw new Error('Inventory movement balanceAfter must be finite');
+  }
+  if (movement.ledgerEntriesCreated && !movement.voucherId) {
+    throw new Error('Inventory movements marked as posted must reference a voucher');
+  }
+}
+
+InventoryMovementSchema.pre('validate', function(next) {
+  try {
+    validateMovementValues(this);
+    next();
+  } catch (error: any) {
+    next(error);
+  }
+});
+
+InventoryMovementSchema.pre('insertMany', function(next, docs: IInventoryMovement[]) {
+  try {
+    docs.forEach(validateMovementValues);
+    next();
+  } catch (error: any) {
+    next(error);
+  }
+});
+
+InventoryMovementSchema.pre('save', function(next) {
+  if (!this.isNew) {
+    return next(new Error('INVENTORY MOVEMENTS ARE IMMUTABLE - Create an adjustment movement for corrections'));
+  }
+  next();
+});
 
 // PREVENT UPDATES AND DELETES
 InventoryMovementSchema.pre('findOneAndUpdate', function() {
@@ -210,6 +265,22 @@ InventoryMovementSchema.pre('deleteOne', function() {
 
 InventoryMovementSchema.pre('deleteMany', function() {
   throw new Error('INVENTORY MOVEMENTS CANNOT BE DELETED');
+});
+
+InventoryMovementSchema.pre('updateMany', function() {
+  throw new Error('INVENTORY MOVEMENTS ARE IMMUTABLE - Create adjustment movement for corrections');
+});
+
+InventoryMovementSchema.pre('updateOne', function() {
+  throw new Error('INVENTORY MOVEMENTS ARE IMMUTABLE - Create adjustment movement for corrections');
+});
+
+InventoryMovementSchema.pre('replaceOne', function() {
+  throw new Error('INVENTORY MOVEMENTS ARE IMMUTABLE - Create adjustment movement for corrections');
+});
+
+InventoryMovementSchema.pre('findOneAndReplace', function() {
+  throw new Error('INVENTORY MOVEMENTS ARE IMMUTABLE - Create adjustment movement for corrections');
 });
 
 const InventoryMovement = mongoose.models.InventoryMovement || 

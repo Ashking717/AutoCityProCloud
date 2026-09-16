@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/mongodb';
-import Sale from '@/lib/models/Sale';
-import Voucher from '@/lib/models/Voucher';
+import LedgerEntry from '@/lib/models/LedgerEntry';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth/jwt';
+import { hasPermission } from '@/lib/types/roles';
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,58 +17,39 @@ export async function GET(request: NextRequest) {
     }
     
     const user = verifyToken(token);
+    if (!hasPermission(user.role, 'canViewFinancials')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     const { searchParams } = new URL(request.url);
     
     const date = new Date(searchParams.get('date') || new Date());
+    if (Number.isNaN(date.getTime())) return NextResponse.json({ error: 'Invalid date' }, { status: 400 });
     const startOfDay = new Date(date.setHours(0, 0, 0, 0));
     const endOfDay = new Date(date.setHours(23, 59, 59, 999));
     
-    // Get all sales for the day
-    const sales = await Sale.find({
-      outletId: user.outletId,
-      saleDate: { $gte: startOfDay, $lte: endOfDay },
-    })
-      .populate('customerId', 'name')
-      .sort({ saleDate: 1 })
-      .lean();
-    
-    // Get all vouchers for the day
-    const vouchers = await Voucher.find({
+    const ledgerRows = await LedgerEntry.find({
       outletId: user.outletId,
       date: { $gte: startOfDay, $lte: endOfDay },
-      status: { $in: ['posted', 'approved'] },
     })
-      .sort({ date: 1 })
+      .sort({ date: 1, createdAt: 1, lineNumber: 1 })
       .lean();
-    
-    // Combine and create daybook entries
-    const entries: any[] = [];
-    
-    // Add sales
-    sales.forEach(sale => {
-      entries.push({
-        time: sale.saleDate,
-        type: 'Sale',
-        reference: sale.invoiceNumber,
-        description: `Sale to ${sale.customerName}`,
-        debit: sale.grandTotal,
-        credit: 0,
-        balance: 0,
-      });
-    });
-    
-    // Add vouchers
-    vouchers.forEach(voucher => {
-      entries.push({
-        time: voucher.date,
-        type: voucher.voucherType.charAt(0).toUpperCase() + voucher.voucherType.slice(1),
-        reference: voucher.voucherNumber,
-        description: voucher.narration,
-        debit: voucher.totalDebit,
-        credit: voucher.totalCredit,
-        balance: 0,
-      });
-    });
+    const groups = new Map<string, any[]>();
+    for (const row of ledgerRows as any[]) {
+      const key = String(row.voucherId);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(row);
+    }
+    const entries = [...groups.values()].map((rows) => ({
+      time: rows[0].date,
+      type: rows[0].voucherType.charAt(0).toUpperCase() + rows[0].voucherType.slice(1),
+      reference: rows[0].voucherNumber,
+      description: rows[0].narration,
+      debit: rows.reduce((sum, row) => sum + Number(row.debit || 0), 0),
+      credit: rows.reduce((sum, row) => sum + Number(row.credit || 0), 0),
+      balance: 0,
+      referenceType: rows[0].referenceType,
+      referenceId: rows[0].referenceId,
+    }));
     
     // Sort by time
     entries.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
@@ -85,8 +66,12 @@ export async function GET(request: NextRequest) {
       totalCredit: entries.reduce((sum, e) => sum + e.credit, 0),
       netBalance: runningBalance,
       totalTransactions: entries.length,
-      salesCount: sales.length,
-      vouchersCount: vouchers.length,
+      salesCount: new Set(
+        entries
+          .filter((entry: any) => entry.referenceType === 'SALE')
+          .map((entry: any) => String(entry.referenceId))
+      ).size,
+      vouchersCount: entries.length,
     };
     
     return NextResponse.json({

@@ -74,7 +74,6 @@ export default function ProductsClient({
   const [showEditModal, setShowEditModal] = useState(false);
   const [productToDelete, setProductToDelete] = useState<any>(null);
   const [showStockModal, setShowStockModal]   = useState(false);
-  const [stockToDecrease, setStockToDecrease] = useState<number>(0);
   const [printingLabelProductId, setPrintingLabelProductId] = useState<string | null>(null);
 
   const [selectedProductIndex, setSelectedProductIndex] = useState(-1);
@@ -220,7 +219,6 @@ export default function ProductsClient({
   const handleDeleteClick = (product: any) => {
     if (product.currentStock > 0) {
       setProductToDelete(product);
-      setStockToDecrease(product.currentStock);
       setShowStockModal(true);
     } else {
       setProductToDelete(product);
@@ -470,9 +468,10 @@ export default function ProductsClient({
   // ── CRUD ──────────────────────────────────────────────────────────────────
   const handleDecreaseStock = async () => {
     if (!productToDelete) return;
-    const res = await fetch(`/api/products/${productToDelete._id}`, { method:"PUT", headers:{"Content-Type":"application/json"}, credentials:"include", body:JSON.stringify({...productToDelete,currentStock:0}) });
-    if (res.ok) { toast.success("Stock decreased to zero"); setShowStockModal(false); setProductToDelete({...productToDelete,currentStock:0}); fetchProducts(1); }
-    else { const e=await res.json(); toast.error(e.error||"Failed to update stock"); }
+    setShowStockModal(false);
+    setProductToDelete(null);
+    toast("Record an audited stock adjustment before deleting the product.");
+    router.push(`/autocityPro/products/${productToDelete._id}`);
   };
 
   const handleDeleteProduct = async () => {
@@ -487,7 +486,8 @@ export default function ProductsClient({
 
   const handleAddProduct = async (productData: any) => {
     try {
-      const res = await fetch("/api/products", { method:"POST", headers:{"Content-Type":"application/json"}, credentials:"include", body:JSON.stringify(productData) });
+      const idempotencyKey = crypto.randomUUID();
+      const res = await fetch("/api/products", { method:"POST", headers:{"Content-Type":"application/json", "Idempotency-Key": idempotencyKey}, credentials:"include", body:JSON.stringify({...productData, idempotencyKey}) });
       const data = await res.json().catch(() => ({}));
 
       if (res.ok) {
@@ -1330,19 +1330,19 @@ export default function ProductsClient({
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold mb-2" style={{ color: th.modalTitle }}>Stock Must Be Zero</h3>
                   <p className="text-sm mb-3" style={{ color: th.modalText }}><strong style={{ color: th.modalTitle }}>{productToDelete.name}</strong> currently has <strong className="text-orange-400">{productToDelete.currentStock}</strong> units in stock.</p>
-                  <p className="text-sm" style={{ color: th.modalText }}>You must decrease the stock to zero before deleting this product.</p>
+                  <p className="text-sm" style={{ color: th.modalText }}>Record a stock adjustment with a reason before deleting this product.</p>
                 </div>
               </div>
               <div className="rounded-xl p-4 mb-4 transition-colors duration-500" style={{ background: th.modalInfoBg, border:`1px solid ${th.modalInfoBorder}` }}>
                 <div className="flex justify-between items-center"><span className="text-sm" style={{ color: th.modalText }}>Current Stock:</span><span className="text-lg font-bold text-orange-400">{productToDelete.currentStock}</span></div>
-                <div className="flex justify-between items-center mt-2"><span className="text-sm" style={{ color: th.modalText }}>After Decrease:</span><span className="text-lg font-bold text-green-400">0</span></div>
+                <div className="flex justify-between items-center mt-2"><span className="text-sm" style={{ color: th.modalText }}>Required:</span><span className="text-sm font-bold text-green-400">Audited adjustment to zero</span></div>
               </div>
               <div className="flex flex-col sm:flex-row justify-end gap-3">
                 <button onClick={() => { setShowStockModal(false); setProductToDelete(null); }}
                   className="px-4 py-2 rounded-xl transition-colors active:scale-95"
                   style={{ border:`1px solid ${th.modalCancelBorder}`, color: th.modalCancelText, background:'transparent' }}>Cancel</button>
                 <button onClick={handleDecreaseStock}
-                  className="px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-xl hover:opacity-90 transition-opacity active:scale-95">Decrease Stock to Zero</button>
+                  className="px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-xl hover:opacity-90 transition-opacity active:scale-95">Open Stock Adjustment</button>
               </div>
             </div>
           </div>

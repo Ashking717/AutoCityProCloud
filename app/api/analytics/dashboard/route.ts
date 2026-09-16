@@ -39,10 +39,16 @@ export async function GET(request: NextRequest) {
     const user = verifyToken(token);
     const now = new Date();
     const outletId = user.outletId;
+    if (!outletId || !mongoose.Types.ObjectId.isValid(outletId)) {
+      return NextResponse.json({ error: 'Outlet is required' }, { status: 400 });
+    }
     const outletObjectId = new mongoose.Types.ObjectId(outletId as string);
     
     const { searchParams } = new URL(request.url);
-    const period = searchParams.get('period') || 'month';
+    const requestedPeriod = searchParams.get('period') || 'month';
+    const period = ['today', 'week', 'month', 'year'].includes(requestedPeriod)
+      ? requestedPeriod
+      : 'month';
     
     // ✅ OPTIMIZATION 1: Single unified query for all sales data
     const allData = await getUnifiedDashboardData(outletObjectId, period, now);
@@ -94,9 +100,9 @@ async function getUnifiedDashboardData(
         $gte: Math.min(previousStart.getTime(), todayStart.getTime()),
         $lte: endDate
       },
-      status: 'COMPLETED'
+      status: { $in: ['COMPLETED', 'REFUNDED'] }
     })
-    .select('saleDate grandTotal balanceDue items')
+    .select('saleDate grandTotal balanceDue items returns')
     .lean(),
     
     // Low stock items
@@ -231,43 +237,56 @@ function processSalesData(salesData: any[], config: any) {
     const saleDate = new Date(sale.saleDate);
     const saleTime = saleDate.getTime();
     
-    // Calculate profit for this sale
-    let saleCost = 0;
+    const returnedByLine = new Map<string, { quantity: number; net: number; cost: number }>();
+    let returnedGross = 0;
+    for (const saleReturn of sale.returns || []) {
+      returnedGross += Number(saleReturn.totalAmount || 0);
+      for (const item of saleReturn.items || []) {
+        const key = item.productId ? `product:${item.productId}` : `sku:${item.sku}`;
+        const current = returnedByLine.get(key) || { quantity: 0, net: 0, cost: 0 };
+        current.quantity += Number(item.quantity || 0);
+        current.net += Number(item.netAmount ?? (Number(item.totalAmount || 0) - Number(item.vatAmount || 0)));
+        current.cost += Number(item.costPrice || 0) * Number(item.quantity || 0);
+        returnedByLine.set(key, current);
+      }
+    }
+    const netSaleAmount = Math.max(0, Number(sale.grandTotal || 0) - returnedGross);
+
+    // Calculate historical net profit after returns for this sale.
     let saleProfit = 0;
     
     for (const item of sale.items) {
-      if (item.isLabor) continue;
-      
-      const itemCost = item.costPrice || 0;
-      const itemProfit = (item.unitPrice - itemCost) * item.quantity;
-      
-      saleCost += itemCost * item.quantity;
-      saleProfit += itemProfit;
+      const key = item.productId ? `product:${item.productId}` : `sku:${item.sku}`;
+      const returned = returnedByLine.get(key) || { quantity: 0, net: 0, cost: 0 };
+      const netQuantity = Math.max(0, Number(item.quantity || 0) - returned.quantity);
+      const netRevenue = Math.max(0, Number(item.total || 0) - returned.net);
+      const netCost = Math.max(0, Number(item.costPrice || 0) * Number(item.quantity || 0) - returned.cost);
+      saleProfit += netRevenue - netCost;
       
       // Track top products (current period only)
-      if (saleTime >= startDate.getTime() && saleTime <= endDate.getTime()) {
+      if (!item.isLabor && saleTime >= startDate.getTime() && saleTime <= endDate.getTime()) {
         const productKey = item.name;
         const existing = productMap.get(productKey) || { quantity: 0, revenue: 0 };
         productMap.set(productKey, {
-          quantity: existing.quantity + item.quantity,
-          revenue: existing.revenue + item.total
+          quantity: existing.quantity + netQuantity,
+          revenue: existing.revenue + netRevenue
         });
       }
     }
     
     // Today's sales
     if (saleTime >= todayStart.getTime() && saleTime <= todayEnd.getTime()) {
-      todaySales += sale.grandTotal;
+      todaySales += netSaleAmount;
     }
     
     // Yesterday's sales
     if (saleTime >= yesterdayStart.getTime() && saleTime <= yesterdayEnd.getTime()) {
-      yesterdaySales += sale.grandTotal;
+      yesterdaySales += netSaleAmount;
     }
     
     // Current period
     if (saleTime >= startDate.getTime() && saleTime <= endDate.getTime()) {
-      periodSales += sale.grandTotal;
+      periodSales += netSaleAmount;
       periodProfit += saleProfit;
       periodOrders++;
       
@@ -280,14 +299,14 @@ function processSalesData(salesData: any[], config: any) {
       const trendKey = getTrendKey(saleDate, period, now);
       const existing = trendMap.get(trendKey) || { sales: 0, profit: 0 };
       trendMap.set(trendKey, {
-        sales: existing.sales + sale.grandTotal,
+        sales: existing.sales + netSaleAmount,
         profit: existing.profit + saleProfit
       });
     }
     
     // Previous period
     if (saleTime >= previousStart.getTime() && saleTime <= previousEnd.getTime()) {
-      previousPeriodSales += sale.grandTotal;
+      previousPeriodSales += netSaleAmount;
     }
   }
 

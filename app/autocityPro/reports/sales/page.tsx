@@ -511,7 +511,7 @@ export default function SalesReportPage() {
                             <div>
                               <span className="text-xs text-slate-500">Total Amount</span>
                               <p className="text-sm md:text-base font-bold text-[color:var(--autocity-accent)]">
-                                QR.{(sale.grandTotal || 0).toLocaleString()}
+                                QR.{(sale.netGrandTotal ?? sale.grandTotal ?? 0).toLocaleString()}
                               </p>
                             </div>
                             <button className="text-xs text-white/60 hover:text-[color:var(--autocity-accent)] font-semibold flex items-center gap-1 active:scale-95 transition-all">

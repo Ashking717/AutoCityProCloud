@@ -6,6 +6,7 @@ import LedgerEntry from '@/lib/models/LedgerEntry';
 import Outlet from '@/lib/models/Outlet';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth/jwt';
+import { hasPermission } from '@/lib/types/roles';
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,6 +20,9 @@ export async function GET(request: NextRequest) {
     }
     
     const user = verifyToken(token);
+    if (!hasPermission(user.role, 'canViewFinancials')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     
     if (!user.outletId) {
       return NextResponse.json({ error: 'Invalid token: outlet not found' }, { status: 401 });
@@ -33,6 +37,9 @@ export async function GET(request: NextRequest) {
     // Set time boundaries
     toDate.setHours(23, 59, 59, 999);
     fromDate.setHours(0, 0, 0, 0);
+    if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime()) || fromDate > toDate) {
+      return NextResponse.json({ error: 'Invalid date range' }, { status: 400 });
+    }
 
     console.log('='.repeat(60));
     console.log('PROFIT & LOSS STATEMENT GENERATION');
@@ -45,10 +52,8 @@ export async function GET(request: NextRequest) {
     const outlet = await Outlet.findById(user.outletId).lean();
     
     // Get all accounts (case-insensitive)
-    const accounts = await Account.find({
-      outletId: user.outletId,
-      isActive: true
-    }).lean() as any[];
+    // Inactive accounts may still contain immutable historical ledger entries.
+    const accounts = await Account.find({ outletId: user.outletId }).lean() as any[];
     
     // Categorize accounts
     const revenueAccounts = accounts.filter(a => 
@@ -74,7 +79,9 @@ export async function GET(request: NextRequest) {
     // ==== REVENUE ====
     console.log('\n💰 CALCULATING REVENUE:');
     const revenueItems: { [key: string]: number } = {};
+    const otherIncomeItems: { [key: string]: number } = {};
     let totalRevenue = 0;
+    let totalOtherIncome = 0;
     
     for (const account of revenueAccounts) {
       const entries = periodEntries.filter(e => 
@@ -87,8 +94,13 @@ export async function GET(request: NextRequest) {
       );
       
       if (Math.abs(accountRevenue) > 0.01) {
-        revenueItems[account.name] = accountRevenue;
-        totalRevenue += accountRevenue;
+        if (account.subType?.toString().toLowerCase() === 'other_income') {
+          otherIncomeItems[account.name] = accountRevenue;
+          totalOtherIncome += accountRevenue;
+        } else {
+          revenueItems[account.name] = accountRevenue;
+          totalRevenue += accountRevenue;
+        }
         console.log(`  ✓ ${account.code} (${account.name}): ${accountRevenue.toFixed(2)}`);
       }
     }
@@ -127,7 +139,7 @@ export async function GET(request: NextRequest) {
           totalCOGS += accountExpense;
           console.log(`  ✓ [COGS] ${account.code} (${account.name}): ${accountExpense.toFixed(2)}`);
           
-        } else if (name.includes('interest') || name.includes('bank charge') || 
+        } else if (subType === 'FINANCIAL_EXPENSE' || name.includes('interest') || name.includes('bank charge') ||
                    name.includes('depreciation') || name.includes('amortization')) {
           // Other/Financial Expenses
           otherExpenseItems[account.name] = accountExpense;
@@ -146,13 +158,6 @@ export async function GET(request: NextRequest) {
     console.log(`\n  📊 Total COGS: ${totalCOGS.toFixed(2)}`);
     console.log(`  📊 Total Operating Expenses: ${totalOperatingExpenses.toFixed(2)}`);
     console.log(`  📊 Total Other Expenses: ${totalOtherExpenses.toFixed(2)}`);
-    
-    // ==== OTHER INCOME (if any non-operating revenue exists) ====
-    const otherIncomeItems: { [key: string]: number } = {};
-    let totalOtherIncome = 0;
-    
-    // For now, all revenue is considered operating revenue
-    // You can add logic here if you have non-operating income accounts
     
     // ==== CALCULATE PROFITS ====
     const grossProfit = totalRevenue - totalCOGS;

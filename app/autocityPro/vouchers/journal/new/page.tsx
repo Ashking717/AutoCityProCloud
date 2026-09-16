@@ -190,7 +190,7 @@ export default function NewJournalVoucherPage() {
     try {
       const validEntries = entries.filter(e => e.accountId && (e.debit > 0 || e.credit > 0));
       
-      const payload = {
+      const payload: any = {
         voucherType: 'journal',
         date,
         narration,
@@ -205,9 +205,11 @@ export default function NewJournalVoucherPage() {
         status,
       };
 
+      const idempotencyKey = crypto.randomUUID();
+      payload.idempotencyKey = idempotencyKey;
       const res = await fetch('/api/vouchers', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
         credentials: 'include',
         body: JSON.stringify(payload),
       });

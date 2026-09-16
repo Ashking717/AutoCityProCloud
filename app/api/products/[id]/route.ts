@@ -1,523 +1,266 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectDB } from '@/lib/db/mongodb';
-import Product from '@/lib/models/ProductEnhanced';
-import Category from '@/lib/models/Category';
-import ActivityLog from '@/lib/models/ActivityLog';
 import { cookies } from 'next/headers';
+import mongoose from 'mongoose';
+
+import ActivityLog from '@/lib/models/ActivityLog';
+import Category from '@/lib/models/Category';
+import Product from '@/lib/models/ProductEnhanced';
 import { verifyToken } from '@/lib/auth/jwt';
-import { handleStockEdit, handleStockEditWithDifferenceOnly } from '@/lib/services/StockAdjustmentHandler';
-import {
-  applyProductLocationStockDelta,
-  attachLocationDataToProducts,
-  ensureProductHasLocationStock,
-  materializeLegacyLocationStocksForProducts,
-  moveSingleLocationProductStock,
-  replaceProductLocationStocks,
-} from '@/lib/services/locationStockService';
-import mongoose  from 'mongoose';
+import { connectDB } from '@/lib/db/mongodb';
+import { attachLocationDataToProducts } from '@/lib/services/locationStockService';
+import { hasPermission } from '@/lib/types/roles';
 import { sanitizeBarcodeValue } from '@/lib/utils/barcode';
 import { normalizeProductUnit } from '@/lib/utils/productUnit';
 
-// GET /api/products/[id]
+function getAuthUser(permission?: 'canManageInventory') {
+  const token = cookies().get('auth-token')?.value;
+  if (!token) return { response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
+  const user = verifyToken(token);
+  if (permission && !hasPermission(user.role, permission)) {
+    return { response: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
+  }
+  if (!user.outletId || !mongoose.Types.ObjectId.isValid(user.outletId)) {
+    return { response: NextResponse.json({ error: 'Outlet is required' }, { status: 400 }) };
+  }
+  return { user };
+}
+
+function invalidProductId(id: string) {
+  return !mongoose.Types.ObjectId.isValid(id);
+}
+
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
     await connectDB();
-    
-    const cookieStore = cookies();
-    const token = cookieStore.get('auth-token')?.value;
-    
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = getAuthUser();
+    if (auth.response) return auth.response;
+    if (invalidProductId(params.id)) {
+      return NextResponse.json({ error: 'Invalid product ID' }, { status: 400 });
     }
-    
-    const user = verifyToken(token);
-    
     const product = await Product.findOne({
       _id: params.id,
-      outletId: user.outletId,
+      outletId: auth.user!.outletId,
     }).populate('category', 'name').lean();
-    
-    if (!product) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
-    }
-    
-    await materializeLegacyLocationStocksForProducts(
-      [product],
-      user.outletId,
-      user.userId
-    );
-
+    if (!product) return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     const [productWithLocations] = await attachLocationDataToProducts(
       [product],
-      user.outletId
+      auth.user!.outletId
     );
-
     return NextResponse.json({ product: productWithLocations });
   } catch (error: any) {
     console.error('Error fetching product:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch product' }, { status: 500 });
   }
 }
 
-// DELETE /api/products/[id]
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
     await connectDB();
-    
-    const cookieStore = cookies();
-    const token = cookieStore.get('auth-token')?.value;
-    
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = getAuthUser('canManageInventory');
+    if (auth.response) return auth.response;
+    const user = auth.user!;
+    if (invalidProductId(params.id)) {
+      return NextResponse.json({ error: 'Invalid product ID' }, { status: 400 });
     }
-    
-    const user = verifyToken(token);
-    
-    const product = await Product.findOneAndUpdate(
-      { _id: params.id, outletId: user.outletId },
-      { isActive: false },
-      { new: true }
-    );
-    
-    if (!product) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    const product = await Product.findOne({ _id: params.id, outletId: user.outletId });
+    if (!product) return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    if (Number(product.currentStock || 0) > 0) {
+      return NextResponse.json(
+        { error: 'Product still has stock; record an audited stock adjustment before deactivating it' },
+        { status: 409 }
+      );
     }
-    
+    if (!product.isActive) return NextResponse.json({ message: 'Product is already inactive', product });
+    product.isActive = false;
+    await product.save();
     await ActivityLog.create({
       userId: user.userId,
       username: user.email,
       actionType: 'delete',
       module: 'products',
-      description: `Deleted product: ${product.name} (${product.sku})`,
+      description: `Deactivated product: ${product.name} (${product.sku})`,
       outletId: user.outletId,
       timestamp: new Date(),
     });
-    
-    return NextResponse.json({ message: 'Product deleted successfully' });
+    return NextResponse.json({ message: 'Product deactivated successfully', product });
   } catch (error: any) {
-    console.error('Error deleting product:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Error deactivating product:', error);
+    return NextResponse.json({ error: 'Failed to deactivate product' }, { status: 500 });
   }
 }
 
-// PUT /api/products/[id]
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
     await connectDB();
-    
-    const cookieStore = cookies();
-    const token = cookieStore.get('auth-token')?.value;
-    
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = getAuthUser('canManageInventory');
+    if (auth.response) return auth.response;
+    const user = auth.user!;
+    if (invalidProductId(params.id)) {
+      return NextResponse.json({ error: 'Invalid product ID' }, { status: 400 });
     }
-    
-    const user = verifyToken(token);
     const body = await request.json();
-    
-    // Get existing product first to compare stock changes
-    const existingProduct = await Product.findById(params.id);
-    if (!existingProduct) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
-    }
+    const product: any = await Product.findOne({ _id: params.id, outletId: user.outletId });
+    if (!product) return NextResponse.json({ error: 'Product not found' }, { status: 404 });
 
-    await materializeLegacyLocationStocksForProducts(
-      [existingProduct.toObject()],
-      user.outletId || existingProduct.outletId,
-      user.userId
-    );
-    
-    // Handle both nested and flat structure
-    const updateData: any = {};
-    
-    // Basic fields
-    if (body.name) updateData.name = body.name;
-    if (body.description !== undefined) updateData.description = body.description;
-    if (body.categoryId) updateData.category = body.categoryId;
-    if (body.category && typeof body.category === 'string') updateData.category = body.category;
-    if (body.sku) updateData.sku = body.sku;
-    if (body.barcode !== undefined) updateData.barcode = sanitizeBarcodeValue(body.barcode);
-    if (body.partNumber !== undefined) updateData.partNumber = body.partNumber;
-    if (body.unit !== undefined) updateData.unit = normalizeProductUnit(body.unit);
-    if (body.variant !== undefined) updateData.variant = body.variant;
-    if (body.color !== undefined) updateData.color = body.color;
-    
-    // Vehicle fields
-    if (body.make !== undefined) {
-      updateData.make = body.make;
-      updateData.isVehicle = !!body.make;
-    }
-    
-    if (body.carMake !== undefined) {
-      updateData.carMake = body.carMake;
-      updateData.isVehicle = !!body.carMake;
-    }
-    
-    if (body.isVehicle !== undefined) {
-      updateData.isVehicle = body.isVehicle;
-    }
-    
-    if (body.carModel !== undefined) updateData.carModel = body.carModel;
-    
-    // Handle year range
-    if (body.yearFrom !== undefined) {
-      updateData.yearFrom = body.yearFrom ? parseInt(body.yearFrom) : undefined;
-    }
-    if (body.yearTo !== undefined) {
-      updateData.yearTo = body.yearTo ? parseInt(body.yearTo) : undefined;
-    }
-    
-    // If isVehicle is false, clear vehicle-specific fields
-    if (body.isVehicle === false || (!body.carMake && !body.make && body.isVehicle !== undefined)) {
-      updateData.carMake = undefined;
-      updateData.carModel = undefined;
-      updateData.variant = undefined;
-      updateData.yearFrom = undefined;
-      updateData.yearTo = undefined;
-      updateData.color = undefined;
-      updateData.vin = undefined;
-      updateData.isVehicle = false;
-    }
-    
-    // Pricing fields (nested or flat)
-    if (body.pricing) {
-      if (body.pricing.costPrice !== undefined) updateData.costPrice = body.pricing.costPrice;
-      if (body.pricing.sellingPrice !== undefined) updateData.sellingPrice = body.pricing.sellingPrice;
-      if (body.pricing.taxRate !== undefined) updateData.taxRate = body.pricing.taxRate;
-    } else {
-      if (body.costPrice !== undefined) updateData.costPrice = body.costPrice;
-      if (body.sellingPrice !== undefined) updateData.sellingPrice = body.sellingPrice;
-      if (body.taxRate !== undefined) updateData.taxRate = body.taxRate;
-    }
-    
-    // 🔥 CRITICAL: Track stock changes BEFORE updating
-    let stockChanged = false;
-    let oldStock = existingProduct.currentStock || 0;
-    let newStock = oldStock;
-    const shouldReplaceLocationSplits = Boolean(
-      body.replaceLocationSplits && Array.isArray(body.locationSplits)
-    );
-    const requestedLocationSplits = shouldReplaceLocationSplits
-      ? body.locationSplits.map((split: any) => ({
-          locationId: split.locationId,
-          locationName: split.locationName,
-          quantity: Number(split.quantity) || 0,
-        }))
-      : [];
-    const requestedSplitTotal = requestedLocationSplits.reduce(
-      (sum: number, split: any) => sum + (Number(split.quantity) || 0),
-      0
-    );
-    
-    // Stock fields (nested or flat)
-    if (body.stock) {
-      if (body.stock.currentStock !== undefined) {
-        newStock = body.stock.currentStock;
-        updateData.currentStock = newStock;
-        stockChanged = newStock !== oldStock;
-      }
-      if (body.stock.minStock !== undefined) updateData.minStock = body.stock.minStock;
-      if (body.stock.maxStock !== undefined) updateData.maxStock = body.stock.maxStock;
-    } else {
-      if (body.currentStock !== undefined) {
-        newStock = body.currentStock;
-        updateData.currentStock = newStock;
-        stockChanged = newStock !== oldStock;
-      }
-      if (body.minStock !== undefined) updateData.minStock = body.minStock;
-      if (body.maxStock !== undefined) updateData.maxStock = body.maxStock;
-    }
-
-    if (shouldReplaceLocationSplits) {
-      newStock = requestedSplitTotal;
-      updateData.currentStock = newStock;
-      stockChanged = newStock !== oldStock;
-    }
-    
-    // Validate required fields
-    if (!updateData.name || !updateData.sku || updateData.costPrice === undefined || updateData.sellingPrice === undefined) {
+    const requestedStock = body.stock?.currentStock ?? body.currentStock;
+    if (requestedStock !== undefined && Number(requestedStock) !== Number(product.currentStock)) {
       return NextResponse.json(
-        { error: 'Missing required fields: name, sku, costPrice, sellingPrice' },
+        { error: 'Stock cannot be edited on the product form; use Stock Adjustment' },
         { status: 400 }
       );
     }
-    
-    // Check if SKU already exists for another product
-    const skuExists = await Product.findOne({
-      sku: updateData.sku,
-      outletId: user.outletId,
-      _id: { $ne: params.id },
-    });
-    
-    if (skuExists) {
+    if (
+      body.replaceLocationSplits
+      || body.moveSingleLocationStock
+      || body.locationSplits
+      || body.locationId
+      || body.locationName
+      || body.location
+    ) {
       return NextResponse.json(
-        { error: 'Product with this SKU already exists' },
+        { error: 'Location quantities must be changed through Stock Transfer or Stock Adjustment' },
+        { status: 400 }
+      );
+    }
+    const requestedUnit = body.unit === undefined ? product.unit : normalizeProductUnit(body.unit);
+    if (requestedUnit !== product.unit) {
+      return NextResponse.json(
+        { error: 'Product unit is immutable after creation; create a new product for a different unit' },
         { status: 400 }
       );
     }
 
-    if (updateData.barcode) {
-      const barcodeExists = await Product.findOne({
-        barcode: updateData.barcode,
+    const candidateCategory = body.categoryId
+      || (typeof body.category === 'string' ? body.category : undefined);
+    if (candidateCategory !== undefined) {
+      if (!mongoose.Types.ObjectId.isValid(candidateCategory)) {
+        return NextResponse.json({ error: 'Invalid category ID' }, { status: 400 });
+      }
+      const category = await Category.findOne({
+        _id: candidateCategory,
         outletId: user.outletId,
-        _id: { $ne: params.id },
+        isActive: true,
       });
+      if (!category) return NextResponse.json({ error: 'Active category not found in this outlet' }, { status: 400 });
+      product.category = category._id;
+    }
 
-      if (barcodeExists) {
+    if (body.name !== undefined) {
+      const name = String(body.name).trim();
+      if (!name) return NextResponse.json({ error: 'Product name is required' }, { status: 400 });
+      product.name = name;
+    }
+    if (body.description !== undefined) product.description = String(body.description);
+    if (body.sku !== undefined) {
+      const sku = String(body.sku).trim().toUpperCase();
+      if (!sku) return NextResponse.json({ error: 'SKU is required' }, { status: 400 });
+      const duplicate = await Product.exists({ _id: { $ne: product._id }, outletId: user.outletId, sku });
+      if (duplicate) return NextResponse.json({ error: 'Product with this SKU already exists' }, { status: 400 });
+      product.sku = sku;
+    }
+    if (body.barcode !== undefined) {
+      const barcode = sanitizeBarcodeValue(body.barcode);
+      if (barcode && await Product.exists({ _id: { $ne: product._id }, outletId: user.outletId, barcode })) {
+        return NextResponse.json({ error: 'Product with this barcode already exists' }, { status: 400 });
+      }
+      product.barcode = barcode;
+    }
+    if (body.partNumber !== undefined) product.partNumber = String(body.partNumber || '').trim().toUpperCase();
+
+    const costInput = body.pricing?.costPrice ?? body.costPrice;
+    if (costInput !== undefined) {
+      const cost = Number(costInput);
+      if (!Number.isFinite(cost) || cost < 0) return NextResponse.json({ error: 'Invalid cost price' }, { status: 400 });
+      if (Number(product.currentStock || 0) > 0 && cost !== Number(product.costPrice)) {
         return NextResponse.json(
-          { error: 'Product with this barcode already exists' },
+          { error: 'Cost cannot be edited while stock exists; record a purchase or valuation adjustment' },
           { status: 400 }
         );
       }
+      product.costPrice = cost;
     }
-    
-    // Validate vehicle-specific fields if it's a vehicle
-    if (updateData.isVehicle || body.isVehicle) {
-      if (!updateData.carMake && !body.carMake) {
-        return NextResponse.json(
-          { error: 'Car make is required for vehicle products' },
-          { status: 400 }
-        );
+    const sellingInput = body.pricing?.sellingPrice ?? body.sellingPrice;
+    if (sellingInput !== undefined) {
+      const sellingPrice = Number(sellingInput);
+      if (!Number.isFinite(sellingPrice) || sellingPrice < 0) return NextResponse.json({ error: 'Invalid selling price' }, { status: 400 });
+      product.sellingPrice = sellingPrice;
+    }
+    const taxInput = body.pricing?.taxRate ?? body.taxRate;
+    if (taxInput !== undefined) {
+      const taxRate = Number(taxInput);
+      if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate > 100) {
+        return NextResponse.json({ error: 'Tax rate must be between 0 and 100' }, { status: 400 });
+      }
+      product.taxRate = taxRate;
+    }
+
+    const minInput = body.stock?.minStock ?? body.minStock;
+    const maxInput = body.stock?.maxStock ?? body.maxStock;
+    if (minInput !== undefined) {
+      const minStock = Number(minInput);
+      if (!Number.isFinite(minStock) || minStock < 0) return NextResponse.json({ error: 'Invalid minimum stock' }, { status: 400 });
+      product.minStock = minStock;
+      product.reorderPoint = minStock;
+    }
+    if (maxInput !== undefined) {
+      const maxStock = Number(maxInput);
+      if (!Number.isFinite(maxStock) || maxStock < 0) return NextResponse.json({ error: 'Invalid maximum stock' }, { status: 400 });
+      product.maxStock = maxStock;
+    }
+    if (Number(product.maxStock) < Number(product.minStock)) {
+      return NextResponse.json({ error: 'Maximum stock cannot be below minimum stock' }, { status: 400 });
+    }
+
+    if (body.isVehicle === false) {
+      product.isVehicle = false;
+      product.carMake = '';
+      product.carModel = '';
+      product.variant = '';
+      product.yearFrom = null;
+      product.yearTo = null;
+      product.color = '';
+      product.vin = undefined;
+    } else {
+      if (body.isVehicle !== undefined) product.isVehicle = body.isVehicle === true;
+      if (body.carMake !== undefined || body.make !== undefined) product.carMake = body.carMake || body.make || '';
+      if (body.carModel !== undefined) product.carModel = String(body.carModel || '');
+      if (body.variant !== undefined) product.variant = String(body.variant || '');
+      if (body.color !== undefined) product.color = String(body.color || '');
+      if (body.vin !== undefined) product.vin = String(body.vin || '').trim().toUpperCase() || undefined;
+      if (body.yearFrom !== undefined) product.yearFrom = body.yearFrom ? Number(body.yearFrom) : null;
+      if (body.yearTo !== undefined) product.yearTo = body.yearTo ? Number(body.yearTo) : null;
+      if (product.isVehicle && !String(product.carMake || '').trim()) {
+        return NextResponse.json({ error: 'Car make is required for vehicle products' }, { status: 400 });
       }
     }
-    
-    // Update the product
-    const product = await Product.findOneAndUpdate(
-      { _id: params.id, outletId: user.outletId },
-      { $set: updateData },
-      { new: true, runValidators: true }
-    ).populate('category', 'name');
-    
-    if (!product) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
-    }
-    
-    // 🔥 HANDLE STOCK ADJUSTMENTS
-    let stockAdjustmentResult = null;
-    let locationMoveResult: any = null;
-    let locationSplitResult: any = null;
-    const shouldMoveSingleLocationStock = Boolean(
-      !shouldReplaceLocationSplits &&
-      body.moveSingleLocationStock &&
-      (body.locationId || body.locationName || body.location)
-    );
-    
-    if (stockChanged) {
-      console.log(`\n🔄 Stock change detected for ${product.name} (${product.sku})`);
-      console.log(`   Old stock: ${oldStock} → New stock: ${newStock}`);
-      
-      try {
-        const selectedLocationName = body.locationName || body.location;
 
-        if (shouldReplaceLocationSplits) {
-          locationSplitResult = await replaceProductLocationStocks({
-            product: product.toObject(),
-            outletId: user.outletId || product.outletId,
-            splits: requestedLocationSplits,
-            userId: new mongoose.Types.ObjectId(user.userId),
-          });
-        } else if (shouldMoveSingleLocationStock) {
-          locationMoveResult = await moveSingleLocationProductStock({
-            product: {
-              ...product.toObject(),
-              currentStock: oldStock,
-              location: selectedLocationName || existingProduct.location || product.location,
-            },
-            outletId: user.outletId || product.outletId,
-            toLocationId: body.locationId,
-            toLocationName: selectedLocationName,
-            userId: new mongoose.Types.ObjectId(user.userId),
-          });
-        }
-
-        // Choose one of the two methods:
-        
-        // METHOD 1: Reverse original entry and create new one (keeps clean history)
-        stockAdjustmentResult = await handleStockEdit({
-          productId: product._id,
-          productName: product.name,
-          sku: product.sku,
-          oldStock,
-          newStock,
-          costPrice: product.costPrice,
-          outletId: user.outletId || product.outletId,
-          userId: new mongoose.Types.ObjectId(user.userId),
-          reason: body.adjustmentReason || 'Stock correction via product edit',
-        });
-
-        if (!shouldReplaceLocationSplits) {
-          await applyProductLocationStockDelta({
-            product: {
-              ...product.toObject(),
-              currentStock: oldStock,
-              location: selectedLocationName || existingProduct.location || product.location,
-            },
-            outletId: user.outletId || product.outletId,
-            locationId: body.locationId,
-            locationName: selectedLocationName,
-            quantityDelta: newStock - oldStock,
-            userId: new mongoose.Types.ObjectId(user.userId),
-          });
-        }
-        
-        // METHOD 2: Just create adjustment for the difference (simpler, shows all adjustments)
-        // Uncomment this and comment out METHOD 1 if you prefer this approach
-        /*
-        stockAdjustmentResult = await handleStockEditWithDifferenceOnly({
-          productId: product._id,
-          productName: product.name,
-          sku: product.sku,
-          oldStock,
-          newStock,
-          costPrice: product.costPrice,
-          outletId: user.outletId,
-          userId: user.userId,
-          reason: body.adjustmentReason || 'Stock correction via product edit',
-        });
-        */
-        
-        console.log('✅ Stock adjustment completed successfully');
-      } catch (adjustmentError) {
-        console.error('❌ Error handling stock adjustment:', adjustmentError);
-        // Don't fail the entire update, just log the error
-        return NextResponse.json({
-          product,
-          warning: 'Product updated but stock adjustment failed',
-          error: adjustmentError instanceof Error ? adjustmentError.message : 'Unknown error',
-        }, { status: 207 }); // 207 Multi-Status
-      }
-    } else if (shouldReplaceLocationSplits) {
-      locationSplitResult = await replaceProductLocationStocks({
-        product: product.toObject(),
-        outletId: user.outletId || product.outletId,
-        splits: requestedLocationSplits,
-        userId: new mongoose.Types.ObjectId(user.userId),
-      });
-    } else if (shouldMoveSingleLocationStock) {
-      const selectedLocationName = body.locationName || body.location;
-
-      locationMoveResult = await moveSingleLocationProductStock({
-        product: {
-          ...product.toObject(),
-          location: selectedLocationName || existingProduct.location || product.location,
-        },
-        outletId: user.outletId || product.outletId,
-        toLocationId: body.locationId,
-        toLocationName: selectedLocationName,
-        userId: new mongoose.Types.ObjectId(user.userId),
-      });
-    } else if (body.locationId || body.locationName || body.location) {
-      const selectedLocationName = body.locationName || body.location;
-
-      await ensureProductHasLocationStock(
-        {
-          ...product.toObject(),
-          location: selectedLocationName || existingProduct.location || product.location,
-        },
-        user.outletId || product.outletId,
-        new mongoose.Types.ObjectId(user.userId)
-      );
-    }
-
-    const updatedLocationName =
-      locationSplitResult?.primaryLocationName ||
-      locationMoveResult?.location?.name;
-
-    if (updatedLocationName) {
-      product.set('location', updatedLocationName);
-      await Product.findByIdAndUpdate(product._id, {
-        $set: { location: updatedLocationName },
-      });
-    }
-    
-    // Create activity log
-    const yearRangeStr = product.yearFrom && product.yearTo ? `, ${product.yearFrom}-${product.yearTo}` : 
-                        product.yearFrom ? `, ${product.yearFrom}+` : 
-                        product.yearTo ? `, Up to ${product.yearTo}` : '';
-    
-    let logDescription = `Updated product: ${product.name} (${product.sku})`;
-    
-    if (product.isVehicle) {
-      logDescription += ` [Vehicle: ${product.carMake || ''}${product.carModel ? ` ${product.carModel}` : ''}${product.variant ? ` ${product.variant}` : ''}${product.color ? `, ${product.color}` : ''}${yearRangeStr}]`;
-    }
-    
-    if (stockChanged) {
-      logDescription += ` | Stock: ${oldStock} → ${newStock} (${newStock - oldStock > 0 ? '+' : ''}${newStock - oldStock})`;
-    }
-
-    if (locationMoveResult?.moved) {
-      logDescription += ` | Location: ${locationMoveResult.previousLocationName || 'Unassigned'} → ${locationMoveResult.location.name}`;
-    }
-
-    if (locationSplitResult) {
-      logDescription += ` | Location split updated: ${locationSplitResult.totalQuantity}`;
-    }
-    
-    if (updateData.costPrice !== undefined) {
-      logDescription += ` | Cost: QAR ${product.costPrice}`;
-    }
-    
-    if (updateData.sellingPrice !== undefined) {
-      logDescription += ` | Price: QAR ${product.sellingPrice}`;
-    }
-    
+    await product.save();
     await ActivityLog.create({
       userId: user.userId,
       username: user.email,
       actionType: 'update',
       module: 'products',
-      description: logDescription,
+      description: `Updated product metadata: ${product.name} (${product.sku})`,
       outletId: user.outletId,
       timestamp: new Date(),
     });
-    
-    // Console logging
-    console.log(`\n✓ Product updated: ${product.name} (SKU: ${product.sku})`);
-    if (product.isVehicle) {
-      console.log(`   Type: Vehicle`);
-      console.log(`   Make: ${product.carMake || ''}${product.carModel ? ` ${product.carModel}` : ''}${product.variant ? ` ${product.variant}` : ''}`);
-      if (product.color) console.log(`   Color: ${product.color}`);
-      if (product.yearFrom || product.yearTo) {
-        const yearRange = product.yearFrom && product.yearTo ? `${product.yearFrom}-${product.yearTo}` : 
-                         product.yearFrom ? `${product.yearFrom}+` : 
-                         product.yearTo ? `Up to ${product.yearTo}` : '';
-        console.log(`   Year Range: ${yearRange}`);
-      }
-    }
-    
-    if (stockChanged) {
-      console.log(`   Stock adjusted: ${oldStock} → ${newStock}`);
-    }
-    
-    await materializeLegacyLocationStocksForProducts(
-      [product.toObject()],
-      user.outletId || product.outletId,
-      user.userId
-    );
-
     const [productWithLocations] = await attachLocationDataToProducts(
       [product.toObject()],
-      user.outletId || product.outletId
+      user.outletId
     );
-
-    return NextResponse.json({ 
-      product: productWithLocations,
-      message: 'Product updated successfully',
-      stockAdjustment: stockAdjustmentResult,
-      locationMove: locationMoveResult,
-      locationSplit: locationSplitResult,
-    });
+    return NextResponse.json({ product: productWithLocations, message: 'Product updated successfully' });
   } catch (error: any) {
     console.error('Error updating product:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const status = /invalid|required|already exists|cannot|immutable|category|maximum/i.test(error.message) ? 400 : 500;
+    return NextResponse.json({ error: error.message || 'Failed to update product' }, { status });
   }
 }

@@ -494,9 +494,10 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
           body.variant = row.variant; body.yearFrom = row.yearFrom; body.yearTo = row.yearTo;
           body.color = row.color; body.partNumber = row.partNumber; body.vin = row.vin;
         }
+        const idempotencyKey = crypto.randomUUID();
         const res = await fetch("/api/products", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          credentials: "include", body: JSON.stringify(body),
+          method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
+          credentials: "include", body: JSON.stringify({ ...body, idempotencyKey }),
         });
         const data = await res.json();
         if (res.ok) {

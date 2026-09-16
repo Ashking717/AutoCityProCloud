@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import Product from '@/lib/models/ProductEnhanced';
 import ProductLocationStock from '@/lib/models/ProductLocationStock';
 import StockLocation from '@/lib/models/StockLocation';
 
@@ -17,6 +18,7 @@ interface LocationInput {
   locationId?: ObjectIdLike;
   name?: string;
   createdBy?: ObjectIdLike;
+  session?: mongoose.ClientSession;
 }
 
 interface AdjustLocationStockInput {
@@ -26,6 +28,7 @@ interface AdjustLocationStockInput {
   locationName?: string;
   quantityDelta: number;
   userId?: ObjectIdLike;
+  session?: mongoose.ClientSession;
 }
 
 interface SaleLocationInput {
@@ -35,6 +38,7 @@ interface SaleLocationInput {
   locationId?: ObjectIdLike;
   locationName?: string;
   userId?: ObjectIdLike;
+  session?: mongoose.ClientSession;
 }
 
 interface TransferInput {
@@ -44,6 +48,7 @@ interface TransferInput {
   toLocationId: ObjectIdLike;
   quantity: number;
   userId: ObjectIdLike;
+  session?: mongoose.ClientSession;
 }
 
 interface MoveSingleLocationInput {
@@ -52,6 +57,7 @@ interface MoveSingleLocationInput {
   toLocationId?: ObjectIdLike;
   toLocationName?: string;
   userId?: ObjectIdLike;
+  session?: mongoose.ClientSession;
 }
 
 interface ReplaceLocationSplitInput {
@@ -63,6 +69,7 @@ interface ReplaceLocationSplitInput {
     quantity: number;
   }>;
   userId?: ObjectIdLike;
+  session?: mongoose.ClientSession;
 }
 
 const DEFAULT_LOCATION_NAME = 'Main Store';
@@ -88,12 +95,49 @@ function makeLocationCode(name: string) {
   );
 }
 
-async function nextAvailableCode(outletId: mongoose.Types.ObjectId, name: string) {
+export async function restoreProductStockAtHistoricalCost(input: {
+  outletId: ObjectIdLike;
+  productId: ObjectIdLike;
+  quantity: number;
+  unitCost: number;
+  session: mongoose.ClientSession;
+}) {
+  const quantity = Number(input.quantity);
+  const unitCost = Number(input.unitCost);
+  if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(unitCost) || unitCost < 0) {
+    throw new Error('Restored stock quantity and historical unit cost must be valid');
+  }
+  const product: any = await Product.findOne({
+    _id: toObjectId(input.productId),
+    outletId: toObjectId(input.outletId),
+  }).session(input.session);
+  if (!product) throw new Error('Product not found in this outlet');
+
+  // Legacy products may predate per-location stock. Materialize the existing
+  // global balance before adding the returned quantity so it is not lost.
+  await ensureProductHasLocationStock(product, input.outletId, undefined, input.session);
+
+  const oldStock = Number(product.currentStock || 0);
+  const oldCost = Number(product.costPrice || 0);
+  const newStock = oldStock + quantity;
+  product.currentStock = newStock;
+  product.costPrice = newStock > 0
+    ? Number(((oldStock * oldCost + quantity * unitCost) / newStock).toFixed(4))
+    : oldCost;
+  await product.save({ session: input.session });
+  return product;
+}
+
+async function nextAvailableCode(
+  outletId: mongoose.Types.ObjectId,
+  name: string,
+  session?: mongoose.ClientSession
+) {
   const baseCode = makeLocationCode(name);
   let code = baseCode;
   let suffix = 1;
 
-  while (await StockLocation.exists({ outletId, code })) {
+  while (await StockLocation.exists({ outletId, code }).session(session || null)) {
     suffix += 1;
     code = `${baseCode.slice(0, 20)}-${suffix}`;
   }
@@ -109,7 +153,7 @@ export async function getOrCreateStockLocation(input: LocationInput) {
       _id: toObjectId(input.locationId),
       outletId,
       isActive: true,
-    });
+    }).session(input.session || null);
 
     if (!existing) {
       throw new Error('Selected stock location was not found');
@@ -123,24 +167,22 @@ export async function getOrCreateStockLocation(input: LocationInput) {
     outletId,
     name: { $regex: `^${escapeRegex(cleanName)}$`, $options: 'i' },
     isActive: true,
-  });
+  }).session(input.session || null);
 
   if (existingByName) return existingByName;
 
-  return StockLocation.create({
+  const [created] = await StockLocation.create([{
     name: cleanName,
-    code: await nextAvailableCode(outletId, cleanName),
+    code: await nextAvailableCode(outletId, cleanName, input.session),
     outletId,
     createdBy: input.createdBy ? toObjectId(input.createdBy) : undefined,
     isActive: true,
-  });
+  }], { session: input.session });
+  return created;
 }
 
 export async function listStockLocations(outletIdInput: ObjectIdLike) {
   const outletId = toObjectId(outletIdInput);
-
-  await getOrCreateStockLocation({ outletId, name: DEFAULT_LOCATION_NAME });
-
   return StockLocation.find({ outletId, isActive: true })
     .sort({ name: 1 })
     .lean();
@@ -161,14 +203,15 @@ export async function getProductLocationStocks(
 export async function ensureProductHasLocationStock(
   product: ProductLike,
   outletIdInput: ObjectIdLike,
-  userId?: ObjectIdLike
+  userId?: ObjectIdLike,
+  session?: mongoose.ClientSession
 ) {
   const outletId = toObjectId(outletIdInput);
   const productId = toObjectId(product._id);
   const existingCount = await ProductLocationStock.countDocuments({
     outletId,
     productId,
-  });
+  }).session(session || null);
 
   if (existingCount > 0 || !product.currentStock || product.currentStock <= 0) {
     return null;
@@ -178,9 +221,10 @@ export async function ensureProductHasLocationStock(
     outletId,
     name: product.location || DEFAULT_LOCATION_NAME,
     createdBy: userId,
+    session,
   });
 
-  return ProductLocationStock.create({
+  const [created] = await ProductLocationStock.create([{
     productId,
     productName: product.name,
     sku: product.sku,
@@ -189,7 +233,8 @@ export async function ensureProductHasLocationStock(
     quantity: product.currentStock,
     outletId,
     updatedBy: userId ? toObjectId(userId) : undefined,
-  });
+  }], { session });
+  return created;
 }
 
 export async function materializeLegacyLocationStocksForProducts(
@@ -268,47 +313,54 @@ export async function adjustProductLocationStock(input: AdjustLocationStockInput
     locationId: input.locationId,
     name: input.locationName || input.product.location,
     createdBy: input.userId,
+    session: input.session,
   });
+  const quantityDelta = Number(input.quantityDelta);
+  if (!Number.isFinite(quantityDelta)) throw new Error('Invalid stock quantity');
 
-  const stock = await ProductLocationStock.findOne({
-    outletId,
-    productId,
-    locationId: location._id,
-  });
-
-  const previousQuantity = stock?.quantity || 0;
-  const nextQuantity = previousQuantity + input.quantityDelta;
-
-  if (nextQuantity < -0.000001) {
-    throw new Error(
-      `Insufficient stock for ${input.product.name} in ${location.name}. Available: ${previousQuantity}`
-    );
-  }
+  const baseQuery: any = { outletId, productId, locationId: location._id };
+  if (quantityDelta < 0) baseQuery.quantity = { $gte: Math.abs(quantityDelta) };
 
   const updatedStock = await ProductLocationStock.findOneAndUpdate(
-    { outletId, productId, locationId: location._id },
+    baseQuery,
     {
+      $inc: { quantity: quantityDelta },
       $set: {
         productName: input.product.name,
         sku: input.product.sku,
         locationName: location.name,
-        quantity: Math.max(0, nextQuantity),
         updatedBy: input.userId ? toObjectId(input.userId) : undefined,
       },
-      $setOnInsert: {
-        outletId,
-        productId,
-        locationId: location._id,
-      },
+      ...(quantityDelta >= 0 ? {
+        $setOnInsert: { outletId, productId, locationId: location._id },
+      } : {}),
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    {
+      upsert: quantityDelta >= 0,
+      new: true,
+      setDefaultsOnInsert: true,
+      session: input.session,
+    }
   );
+
+  if (!updatedStock) {
+    const current: any = await ProductLocationStock.findOne({
+      outletId,
+      productId,
+      locationId: location._id,
+    }).session(input.session || null).lean();
+    throw new Error(
+      `Insufficient stock for ${input.product.name} in ${location.name}. Available: ${current?.quantity || 0}`
+    );
+  }
+
+  const previousQuantity = Number(updatedStock.quantity) - quantityDelta;
 
   return {
     location,
     stock: updatedStock,
     previousQuantity,
-    newQuantity: updatedStock.quantity,
+    newQuantity: Number(updatedStock.quantity),
   };
 }
 
@@ -319,13 +371,18 @@ export async function applyProductLocationStockDelta(input: AdjustLocationStockI
 
   const outletId = toObjectId(input.outletId);
   const productId = toObjectId(input.product._id);
-  await ensureProductHasLocationStock(input.product, outletId, input.userId);
+  await ensureProductHasLocationStock(input.product, outletId, input.userId, input.session);
 
   const stocks = await ProductLocationStock.find({
     outletId,
     productId,
     quantity: { $gt: 0 },
-  }).sort({ quantity: -1, locationName: 1 });
+  }).sort({ quantity: -1, locationName: 1 }).session(input.session || null);
+
+  const available = stocks.reduce((sum, stock) => sum + Number(stock.quantity || 0), 0);
+  if (available + 0.000001 < Math.abs(input.quantityDelta)) {
+    throw new Error(`Insufficient location stock for ${input.product.name}. Available: ${available}`);
+  }
 
   let remaining = Math.abs(input.quantityDelta);
   const results: Array<{
@@ -342,9 +399,9 @@ export async function applyProductLocationStockDelta(input: AdjustLocationStockI
     const previousQuantity = stock.quantity;
     stock.quantity = previousQuantity - take;
     stock.updatedBy = input.userId ? toObjectId(input.userId) : undefined;
-    await stock.save();
+    await stock.save({ session: input.session });
 
-    const location = await StockLocation.findById(stock.locationId);
+    const location = await StockLocation.findById(stock.locationId).session(input.session || null);
     results.push({
       location,
       stock,
@@ -370,6 +427,7 @@ export async function moveSingleLocationProductStock(input: MoveSingleLocationIn
     locationId: input.toLocationId,
     name: input.toLocationName || input.product.location,
     createdBy: input.userId,
+    session: input.session,
   });
 
   const stocks = await ProductLocationStock.find({ outletId, productId }).sort({
@@ -522,7 +580,7 @@ export async function replaceProductLocationStocks(input: ReplaceLocationSplitIn
 export async function resolveStockLocationForSale(input: SaleLocationInput) {
   const outletId = toObjectId(input.outletId);
   const productId = toObjectId(input.product._id);
-  await ensureProductHasLocationStock(input.product, outletId, input.userId);
+  await ensureProductHasLocationStock(input.product, outletId, input.userId, input.session);
 
   if (input.locationId || input.locationName) {
     const location = await getOrCreateStockLocation({
@@ -530,12 +588,13 @@ export async function resolveStockLocationForSale(input: SaleLocationInput) {
       locationId: input.locationId,
       name: input.locationName,
       createdBy: input.userId,
+      session: input.session,
     });
     const stock = await ProductLocationStock.findOne({
       outletId,
       productId,
       locationId: location._id,
-    });
+    }).session(input.session || null);
     const available = stock?.quantity || 0;
 
     if (available < input.quantity) {
@@ -551,11 +610,12 @@ export async function resolveStockLocationForSale(input: SaleLocationInput) {
     outletId,
     productId,
     quantity: { $gte: input.quantity },
-  }).sort({ quantity: -1, locationName: 1 });
+  }).sort({ quantity: -1, locationName: 1 }).session(input.session || null);
 
   if (!stock) {
     const stocks = await ProductLocationStock.find({ outletId, productId })
       .sort({ quantity: -1, locationName: 1 })
+      .session(input.session || null)
       .lean();
     const available = stocks.reduce((sum, item) => sum + (item.quantity || 0), 0);
     throw new Error(
@@ -563,7 +623,7 @@ export async function resolveStockLocationForSale(input: SaleLocationInput) {
     );
   }
 
-  const location = await StockLocation.findById(stock.locationId);
+  const location = await StockLocation.findById(stock.locationId).session(input.session || null);
   return { location, stock, available: stock.quantity };
 }
 
@@ -693,33 +753,38 @@ export async function transferProductBetweenLocations(input: TransferInput) {
     _id: fromLocationId,
     outletId,
     isActive: true,
-  });
+  }).session(input.session || null);
   const toLocation = await StockLocation.findOne({
     _id: toLocationId,
     outletId,
     isActive: true,
-  });
+  }).session(input.session || null);
 
   if (!fromLocation || !toLocation) {
     throw new Error('Selected transfer location was not found');
   }
 
   const productId = toObjectId(input.product._id);
-  const fromStock = await ProductLocationStock.findOne({
+  const fromStock = await ProductLocationStock.findOneAndUpdate({
     outletId,
     productId,
     locationId: fromLocation._id,
-  });
+    quantity: { $gte: input.quantity },
+  }, {
+    $inc: { quantity: -input.quantity },
+    $set: { updatedBy: toObjectId(input.userId) },
+  }, { new: true, session: input.session });
 
-  if (!fromStock || fromStock.quantity < input.quantity) {
+  if (!fromStock) {
+    const availableStock: any = await ProductLocationStock.findOne({
+      outletId,
+      productId,
+      locationId: fromLocation._id,
+    }).session(input.session || null).lean();
     throw new Error(
-      `Insufficient stock in ${fromLocation.name}. Available: ${fromStock?.quantity || 0}`
+      `Insufficient stock in ${fromLocation.name}. Available: ${availableStock?.quantity || 0}`
     );
   }
-
-  fromStock.quantity -= input.quantity;
-  fromStock.updatedBy = toObjectId(input.userId);
-  await fromStock.save();
 
   const toStock = await ProductLocationStock.findOneAndUpdate(
     { outletId, productId, locationId: toLocation._id },
@@ -737,7 +802,7 @@ export async function transferProductBetweenLocations(input: TransferInput) {
         locationId: toLocation._id,
       },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, new: true, setDefaultsOnInsert: true, session: input.session }
   );
 
   return {

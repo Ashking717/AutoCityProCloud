@@ -1,4 +1,5 @@
 import Account from '@/lib/models/Account';
+import mongoose from 'mongoose';
 
 export function calculateBalanceChange(
   accountType: string,
@@ -10,12 +11,22 @@ export function calculateBalanceChange(
   return isDebitNormal ? debit - credit : credit - debit;
 }
 
-export async function applyVoucherBalances(voucher: any) {
-  if (voucher.referenceType === 'OPENING_BALANCE') return;
+export async function applyVoucherBalances(
+  voucher: any,
+  session?: mongoose.ClientSession
+) {
+  if (
+    voucher.referenceType === 'OPENING_BALANCE'
+    && voucher.metadata?.source === 'GENERAL_OPENING_BALANCE'
+  ) return;
 
   for (const entry of voucher.entries) {
-    const account = await Account.findById(entry.accountId).lean() as any;
-    if (!account) continue;
+    const account = await Account.findOne({
+      _id: entry.accountId,
+      outletId: voucher.outletId,
+      isActive: true,
+    }).session(session || null).lean() as any;
+    if (!account) throw new Error(`Active account not found in outlet: ${entry.accountId}`);
 
     const delta = calculateBalanceChange(
       account.type || account.accountType,
@@ -24,9 +35,11 @@ export async function applyVoucherBalances(voucher: any) {
     );
 
     if (delta !== 0) {
-      await Account.findByIdAndUpdate(entry.accountId, {
-        $inc: { currentBalance: delta },
-      });
+      await Account.findOneAndUpdate(
+        { _id: entry.accountId, outletId: voucher.outletId },
+        { $inc: { currentBalance: delta } },
+        { session }
+      );
     }
   }
 }

@@ -4,6 +4,8 @@ import Supplier from '@/lib/models/Supplier';
 import ActivityLog from '@/lib/models/ActivityLog';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth/jwt';
+import { hasPermission } from '@/lib/types/roles';
+import mongoose from 'mongoose';
 
 // GET /api/suppliers/[id]
 export async function GET(
@@ -21,6 +23,10 @@ export async function GET(
     }
     
     const user = verifyToken(token);
+    if (!hasPermission(user.role, 'canProcessPurchases') && !hasPermission(user.role, 'canViewFinancials')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!mongoose.Types.ObjectId.isValid(params.id)) return NextResponse.json({ error: 'Invalid supplier ID' }, { status: 400 });
     
     const supplier = await Supplier.findOne({
       _id: params.id,
@@ -54,6 +60,10 @@ export async function PUT(
     }
     
     const user = verifyToken(token);
+    if (!hasPermission(user.role, 'canProcessPurchases')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!mongoose.Types.ObjectId.isValid(params.id)) return NextResponse.json({ error: 'Invalid supplier ID' }, { status: 400 });
     const body = await request.json();
     const {
       code,
@@ -124,11 +134,15 @@ export async function DELETE(
     }
     
     const user = verifyToken(token);
+    if (!hasPermission(user.role, 'canProcessPurchases')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!mongoose.Types.ObjectId.isValid(params.id)) return NextResponse.json({ error: 'Invalid supplier ID' }, { status: 400 });
     
-    const supplier = await Supplier.findOneAndDelete({
+    const supplier = await Supplier.findOneAndUpdate({
       _id: params.id,
       outletId: user.outletId,
-    });
+    }, { $set: { isActive: false } }, { new: true });
     
     if (!supplier) {
       return NextResponse.json({ error: 'Supplier not found' }, { status: 404 });
@@ -139,12 +153,12 @@ export async function DELETE(
       username: user.email,
       actionType: 'delete',
       module: 'suppliers',
-      description: `Deleted supplier: ${supplier.name}`,
+      description: `Deactivated supplier: ${supplier.name}`,
       outletId: user.outletId,
       timestamp: new Date(),
     });
     
-    return NextResponse.json({ message: 'Supplier deleted successfully' });
+    return NextResponse.json({ message: 'Supplier deactivated successfully' });
   } catch (error: any) {
     console.error('Error deleting supplier:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

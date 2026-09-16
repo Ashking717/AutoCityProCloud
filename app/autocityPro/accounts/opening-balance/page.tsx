@@ -54,6 +54,8 @@ export default function OpeningBalancePage() {
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
   const [resetting, setResetting] = useState(false);
+  const [pendingPostKey, setPendingPostKey] = useState(() => crypto.randomUUID());
+  const [pendingResetKey, setPendingResetKey] = useState(() => crypto.randomUUID());
   const [existingStatus, setExistingStatus] = useState<OpeningBalanceStatus | null>(null);
   const [balanceDate, setBalanceDate] = useState(
     new Date().toISOString().split("T")[0]
@@ -116,7 +118,7 @@ export default function OpeningBalancePage() {
   };
 
   const handleReset = async () => {
-    if (!confirm("Are you sure you want to reset the opening balance? This will clear all account balances and delete the opening balance voucher.")) {
+    if (!confirm("Reverse the current opening balance? The original voucher will remain in the audit trail.")) {
       return;
     }
 
@@ -124,12 +126,14 @@ export default function OpeningBalancePage() {
     try {
       const res = await fetch("/api/accounts/opening-balance/reset", {
         method: "DELETE",
+        headers: { "Idempotency-Key": pendingResetKey },
         credentials: "include",
       });
 
       if (res.ok) {
         const data = await res.json();
         toast.success("Opening balance reset successfully!");
+        setPendingResetKey(crypto.randomUUID());
         setExistingStatus(null);
         setEntries([]);
         fetchAccounts();
@@ -238,7 +242,7 @@ export default function OpeningBalancePage() {
     try {
       const res = await fetch("/api/accounts/opening-balance", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Idempotency-Key": pendingPostKey },
         credentials: "include",
         body: JSON.stringify({
           entries: entries.map((e) => ({
@@ -247,12 +251,14 @@ export default function OpeningBalancePage() {
           })),
           date: balanceDate,
           allowUpdate: existingStatus?.hasOpeningBalance || false,
+          operationKey: pendingPostKey,
         }),
       });
 
       if (res.ok) {
         const data = await res.json();
         toast.success(`Opening balances posted successfully! Voucher: ${data.voucherNumber}`);
+        setPendingPostKey(crypto.randomUUID());
         router.push("/autocityPro/accounts");
       } else {
         const error = await res.json();
@@ -440,7 +446,7 @@ export default function OpeningBalancePage() {
                       {new Date(existingStatus.voucherDate || '').toLocaleDateString()}.
                     </p>
                     <p className="text-sm text-yellow-300 mt-2">
-                      You can either <strong className="text-white">Reset</strong> to start over, or add entries below to update (will replace existing).
+                      You can <strong className="text-white">reverse</strong> it to start over, or add all balances below to replace it through an audited reversal.
                     </p>
                     
                     {existingStatus.accountsWithBalance && existingStatus.accountsWithBalance.length > 0 && (

@@ -1,196 +1,149 @@
-// app/api/accounts/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { connectDB } from '@/lib/db/mongodb';
-import Account from '@/lib/models/Account';
-import ActivityLog from '@/lib/models/ActivityLog';
-import User from '@/lib/models/User';
 import { cookies } from 'next/headers';
-import { verifyToken } from '@/lib/auth/jwt';
+import mongoose from 'mongoose';
 
-// Helper function to map DB fields to frontend expected fields
+import Account, { AccountSubType, AccountType } from '@/lib/models/Account';
+import ActivityLog from '@/lib/models/ActivityLog';
+import LedgerEntry from '@/lib/models/LedgerEntry';
+import { verifyToken } from '@/lib/auth/jwt';
+import { connectDB } from '@/lib/db/mongodb';
+import { calculateBalanceChange } from '@/lib/services/balanceEngine';
+import { hasPermission } from '@/lib/types/roles';
+
 function mapAccountFields(account: any) {
   return {
     ...account,
-    accountNumber: account.code || account.accountNumber,
-    accountName: account.name || account.accountName,
-    accountType: account.type || account.accountType,
-    accountSubType: account.subType || account.accountSubType,
-    accountGroup: account.accountGroup || account.group,
+    accountNumber: account.code,
+    accountName: account.name,
+    accountType: account.type,
+    accountSubType: account.subType,
   };
 }
 
-// GET /api/accounts/[id]
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+async function authenticatedUser(permission: 'canViewFinancials' | 'canManageAccounting') {
+  const token = cookies().get('auth-token')?.value;
+  if (!token) return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
+  const user = verifyToken(token);
+  if (!hasPermission(user.role, permission)) {
+    return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
+  }
+  if (!user.outletId || !mongoose.Types.ObjectId.isValid(user.outletId)) {
+    return { error: NextResponse.json({ error: 'Outlet is required' }, { status: 400 }) };
+  }
+  return { user };
+}
+
+export async function GET(_request: NextRequest, { params }: { params: { id: string } }) {
   try {
     await connectDB();
-    
-    const cookieStore = cookies();
-    const token = cookieStore.get('auth-token')?.value;
-    
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await authenticatedUser('canViewFinancials');
+    if (auth.error) return auth.error;
+    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+      return NextResponse.json({ error: 'Invalid account ID' }, { status: 400 });
     }
-    
-    const user = verifyToken(token);
-    
-    const accountRaw = await Account.findOne({
-      _id: params.id,
-      outletId: user.outletId,
-    }).lean() as any;
-    
-    if (!accountRaw) {
-      return NextResponse.json({ error: 'Account not found' }, { status: 404 });
-    }
-    
-    // Calculate current balance from ledger entries
-    const LedgerEntry = (await import('@/lib/models/LedgerEntry')).default;
-    
-    const entries = await LedgerEntry.find({
-      accountId: params.id,
-      outletId: user.outletId,
-    }).lean();
-    
-    const totalDebits = entries.reduce((sum: number, entry: any) => sum + (entry.debit || 0), 0);
-    const totalCredits = entries.reduce((sum: number, entry: any) => sum + (entry.credit || 0), 0);
-    
-const accountType = (accountRaw.type || accountRaw.accountType || '').toLowerCase();
-    let currentBalance = accountRaw.openingBalance || 0;
-
-    if (accountType === 'asset' || accountType === 'expense') {
-      currentBalance += (totalDebits - totalCredits);
-    } else {
-      currentBalance += (totalCredits - totalDebits);
-    }
-    
-    const account = mapAccountFields({
-      ...accountRaw,
-      currentBalance,
+    const account: any = await Account.findOne({ _id: params.id, outletId: auth.user!.outletId }).lean();
+    if (!account) return NextResponse.json({ error: 'Account not found' }, { status: 404 });
+    const totals = await LedgerEntry.aggregate([
+      { $match: { accountId: account._id, outletId: new mongoose.Types.ObjectId(auth.user!.outletId!) } },
+      { $group: { _id: null, debit: { $sum: '$debit' }, credit: { $sum: '$credit' } } },
+    ]);
+    return NextResponse.json({
+      account: mapAccountFields({
+        ...account,
+        currentBalance: calculateBalanceChange(account.type, totals[0]?.debit || 0, totals[0]?.credit || 0),
+      }),
     });
-    
-    return NextResponse.json({ account });
   } catch (error: any) {
-    console.error('Error fetching account:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// PUT /api/accounts/[id]
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     await connectDB();
-    
-    const cookieStore = cookies();
-    const token = cookieStore.get('auth-token')?.value;
-    
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await authenticatedUser('canManageAccounting');
+    if (auth.error) return auth.error;
+    const user = auth.user!;
+    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+      return NextResponse.json({ error: 'Invalid account ID' }, { status: 400 });
     }
-    
-    const user = verifyToken(token);
+    const existing: any = await Account.findOne({ _id: params.id, outletId: user.outletId });
+    if (!existing) return NextResponse.json({ error: 'Account not found' }, { status: 404 });
     const body = await request.json();
-    
-    // Map frontend fields to DB schema fields
-    const updateData: any = {};
-    
-    if (body.accountCode) updateData.code = body.accountCode;
-    if (body.accountName) updateData.name = body.accountName;
-    if (body.accountType) updateData.type = body.accountType.toUpperCase();
-    if (body.accountSubType) updateData.subType = body.accountSubType.toUpperCase();
-    if (body.accountGroup) updateData.accountGroup = body.accountGroup;
-    if (body.openingBalance !== undefined) updateData.openingBalance = body.openingBalance;
-    if (body.description !== undefined) updateData.description = body.description;
-    
-    const accountRaw = await Account.findOneAndUpdate(
-      { _id: params.id, outletId: user.outletId },
-      { $set: updateData },
-      { new: true, runValidators: true }
-    ).lean() as any;
-    
-    if (!accountRaw) {
-      return NextResponse.json({ error: 'Account not found' }, { status: 404 });
+    if (body.openingBalance !== undefined && Math.abs(Number(body.openingBalance) - Number(existing.openingBalance || 0)) > 0.001) {
+      return NextResponse.json({ error: 'Opening balances can only be changed through the Opening Balance page' }, { status: 400 });
     }
-    
-    const account = mapAccountFields(accountRaw);
-    
-    // Fetch user for activity log
-    const userDoc = await User.findById(user.userId).lean();
-    const username = userDoc?.username || userDoc?.username || user.username || user.email || "Unknown User";
-    
+
+    const code = body.accountCode ? String(body.accountCode).trim().toUpperCase() : existing.code;
+    const name = body.accountName ? String(body.accountName).trim() : existing.name;
+    const type = body.accountType ? String(body.accountType).toLowerCase() : existing.type;
+    const subType = body.accountSubType ? String(body.accountSubType).toLowerCase() : existing.subType;
+    if (!code || !name || !Object.values(AccountType).includes(type as AccountType)) {
+      return NextResponse.json({ error: 'Invalid account details' }, { status: 400 });
+    }
+    if (subType && !Object.values(AccountSubType).includes(subType as AccountSubType)) {
+      return NextResponse.json({ error: 'Invalid account subtype' }, { status: 400 });
+    }
+    if (existing.isSystem && (code !== existing.code || type !== existing.type || subType !== existing.subType)) {
+      return NextResponse.json({ error: 'System account code, type, and subtype are immutable' }, { status: 400 });
+    }
+    const hasEntries = await LedgerEntry.exists({ accountId: existing._id, outletId: user.outletId });
+    if (hasEntries && type !== existing.type) {
+      return NextResponse.json({ error: 'Account type cannot change after ledger posting' }, { status: 400 });
+    }
+    const duplicate = await Account.exists({ _id: { $ne: existing._id }, outletId: user.outletId, code });
+    if (duplicate) return NextResponse.json({ error: 'Account code already exists' }, { status: 409 });
+
+    existing.code = code;
+    existing.name = name;
+    existing.type = type;
+    existing.subType = subType || undefined;
+    if (body.accountGroup !== undefined) existing.accountGroup = String(body.accountGroup).trim();
+    if (body.description !== undefined) existing.description = String(body.description).trim();
+    await existing.save();
     await ActivityLog.create({
       userId: user.userId,
-      username,
+      username: user.email,
       actionType: 'update',
       module: 'accounts',
-      description: `Updated account: ${account.accountName}`,
+      description: `Updated account: ${existing.name}`,
       outletId: user.outletId,
       timestamp: new Date(),
     });
-    
-    return NextResponse.json({ account });
+    return NextResponse.json({ account: mapAccountFields(existing.toObject()) });
   } catch (error: any) {
-    console.error('Error updating account:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: error?.code === 11000 ? 409 : 500 });
   }
 }
 
-// DELETE /api/accounts/[id]
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(_request: NextRequest, { params }: { params: { id: string } }) {
   try {
     await connectDB();
-    
-    const cookieStore = cookies();
-    const token = cookieStore.get('auth-token')?.value;
-    
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await authenticatedUser('canManageAccounting');
+    if (auth.error) return auth.error;
+    const user = auth.user!;
+    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+      return NextResponse.json({ error: 'Invalid account ID' }, { status: 400 });
     }
-    
-    const user = verifyToken(token);
-    
-    const accountRaw = await Account.findOne({
-      _id: params.id,
-      outletId: user.outletId,
-    }).lean() as any;
-    
-    if (!accountRaw) {
-      return NextResponse.json({ error: 'Account not found' }, { status: 404 });
+    const account: any = await Account.findOne({ _id: params.id, outletId: user.outletId });
+    if (!account) return NextResponse.json({ error: 'Account not found' }, { status: 404 });
+    if (account.isSystem) return NextResponse.json({ error: 'Cannot deactivate a system account' }, { status: 400 });
+    if (await LedgerEntry.exists({ accountId: account._id, outletId: user.outletId })) {
+      return NextResponse.json({ error: 'Accounts with ledger history cannot be deleted; keep them for audit history' }, { status: 400 });
     }
-    
-    // Don't allow deleting system accounts
-    if (accountRaw.isSystem) {
-      return NextResponse.json({ error: 'Cannot delete system accounts' }, { status: 400 });
-    }
-    
-    await Account.findByIdAndDelete(params.id);
-    
-    const account = mapAccountFields(accountRaw);
-    
-    // Fetch user for activity log
-    const userDoc = await User.findById(user.userId).lean();
-    const username = userDoc?.username || userDoc?.username || user.username || user.email || "Unknown User";
-    
+    account.isActive = false;
+    await account.save();
     await ActivityLog.create({
       userId: user.userId,
-      username,
+      username: user.email,
       actionType: 'delete',
       module: 'accounts',
-      description: `Deleted account: ${account.accountName}`,
+      description: `Deactivated account: ${account.name}`,
       outletId: user.outletId,
       timestamp: new Date(),
     });
-    
-    return NextResponse.json({ message: 'Account deleted successfully' });
+    return NextResponse.json({ message: 'Account deactivated successfully' });
   } catch (error: any) {
-    console.error('Error deleting account:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

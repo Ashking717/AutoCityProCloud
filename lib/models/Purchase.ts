@@ -24,7 +24,7 @@ export interface IPurchase extends Document {
   subtotal: number;
   totalTax: number;
   grandTotal: number;
-  paymentMethod: 'CASH' | 'CARD' | 'BANK_TRANSFER' | 'CREDIT';
+  paymentMethod: 'CASH' | 'CARD' | 'BANK_TRANSFER' | 'CHEQUE' | 'CREDIT';
   amountPaid: number;
   balanceDue: number;
   status: 'DRAFT' | 'COMPLETED' | 'PAID' | 'CANCELLED';  // ← ADDED 'PAID'
@@ -35,6 +35,15 @@ export interface IPurchase extends Document {
   purchaseDate: Date;
   createdAt: Date;
   updatedAt: Date;
+  operationKey?: string;
+  payments?: Array<{
+    paymentKey: string;
+    amount: number;
+    method: 'CASH' | 'CARD' | 'BANK_TRANSFER' | 'CHEQUE';
+    reference?: string;
+    voucherId: mongoose.Types.ObjectId;
+    paidAt: Date;
+  }>;
 }
 
 const PurchaseItemSchema = new Schema<IPurchaseItem>({
@@ -91,7 +100,7 @@ const PurchaseSchema = new Schema<IPurchase>(
     },
     paymentMethod: {
       type: String,
-      enum: ['CASH', 'CARD', 'BANK_TRANSFER', 'CREDIT'],
+      enum: ['CASH', 'CARD', 'BANK_TRANSFER', 'CHEQUE', 'CREDIT'],
       required: true,
     },
     amountPaid: {
@@ -130,6 +139,15 @@ const PurchaseSchema = new Schema<IPurchase>(
       required: true,
       default: Date.now,
     },
+    operationKey: { type: String, trim: true },
+    payments: [{
+      paymentKey: { type: String, required: true },
+      amount: { type: Number, required: true, min: 0 },
+      method: { type: String, enum: ['CASH', 'CARD', 'BANK_TRANSFER', 'CHEQUE'], required: true },
+      reference: { type: String, trim: true },
+      voucherId: { type: Schema.Types.ObjectId, ref: 'Voucher', required: true },
+      paidAt: { type: Date, default: Date.now },
+    }],
   },
   {
     timestamps: true,
@@ -141,6 +159,27 @@ PurchaseSchema.index({ outletId: 1, purchaseNumber: 1 }, { unique: true });
 PurchaseSchema.index({ outletId: 1, purchaseDate: -1 });
 PurchaseSchema.index({ outletId: 1, status: 1 });
 PurchaseSchema.index({ outletId: 1, supplierId: 1, purchaseDate: -1 });
+PurchaseSchema.index(
+  { outletId: 1, operationKey: 1 },
+  { unique: true, partialFilterExpression: { operationKey: { $type: 'string' } } }
+);
+
+PurchaseSchema.pre('save', function(next) {
+  const expectedTotal = Number((Number(this.subtotal || 0) + Number(this.totalTax || 0)).toFixed(2));
+  const expectedBalance = Number((Number(this.grandTotal || 0) - Number(this.amountPaid || 0)).toFixed(2));
+  if (Math.abs(expectedTotal - Number(this.grandTotal || 0)) > 0.01) {
+    return next(new Error('Purchase subtotal plus tax must equal grand total'));
+  }
+  if (Math.abs(expectedBalance - Number(this.balanceDue || 0)) > 0.01) {
+    return next(new Error('Purchase amount paid plus balance due must equal grand total'));
+  }
+  if (this.balanceDue < -0.01) return next(new Error('Purchase cannot be overpaid'));
+  next();
+});
+PurchaseSchema.index(
+  { outletId: 1, 'payments.paymentKey': 1 },
+  { unique: true, partialFilterExpression: { 'payments.paymentKey': { $type: 'string' } } }
+);
 
 // Virtual for checking if purchase is fully paid
 PurchaseSchema.virtual('isFullyPaid').get(function() {

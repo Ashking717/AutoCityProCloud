@@ -2,34 +2,41 @@
 // TEMPORARY ENDPOINT - Remove after migration is complete
 
 import { NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import { connectDB } from '@/lib/db/mongodb';
 import Voucher from '@/lib/models/Voucher';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth/jwt';
+import { hasPermission } from '@/lib/types/roles';
+
+function authorizedUser() {
+  const token = cookies().get('auth-token')?.value;
+  if (!token) {
+    return { response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
+  }
+  const user = verifyToken(token);
+  if (!hasPermission(user.role, 'canManageAccounting')) {
+    return { response: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
+  }
+  if (!user.outletId) {
+    return { response: NextResponse.json({ error: 'Outlet is required' }, { status: 400 }) };
+  }
+  return { user };
+}
 
 export async function POST() {
   try {
     await connectDB();
     
-    // Optional: Add authentication check
-    const cookieStore = cookies();
-    const token = cookieStore.get('auth-token')?.value;
-    
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    const user = verifyToken(token);
-    
-    // Optional: Check if user is admin
-    // if (user.role !== 'admin') {
-    //   return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    // }
+    const auth = authorizedUser();
+    if (auth.response) return auth.response;
+    const user = auth.user!;
     
     console.log('🔧 Starting Voucher Migration...\n');
     
     // Get all vouchers without referenceType
     const vouchers = await Voucher.find({
+      outletId: user.outletId,
       $or: [
         { referenceType: { $exists: false } },
         { referenceType: null },
@@ -47,21 +54,21 @@ export async function POST() {
       let referenceType = null;
       
       // Detect reference type from narration
-      if (narration.includes('sale ') || narration.includes('invoice')) {
+      if (narration.includes('reversal')) {
+        referenceType = 'REVERSAL';
+      } else if (narration.includes('cogs for')) {
+        referenceType = 'SALE';
+      } else if (narration.includes('sale ') || narration.includes('invoice')) {
         referenceType = 'SALE';
       } else if (narration.includes('purchase ') || narration.includes('from ')) {
         referenceType = 'PURCHASE';
       } else if (narration.includes('expense') || narration.includes('payment to')) {
         referenceType = 'PAYMENT';
-      } else if (narration.includes('cogs for')) {
-        referenceType = 'SALE'; // COGS entries are part of sales
-      } else if (narration.includes('reversal')) {
-        referenceType = 'REVERSAL';
       }
       
       if (referenceType) {
         await Voucher.updateOne(
-          { _id: voucher._id },
+          { _id: voucher._id, outletId: user.outletId },
           { 
             $set: { 
               referenceType: referenceType 
@@ -117,8 +124,12 @@ export async function POST() {
 export async function GET() {
   try {
     await connectDB();
+    const auth = authorizedUser();
+    if (auth.response) return auth.response;
+    const user = auth.user!;
     
     const stats = await Voucher.aggregate([
+      { $match: { outletId: new mongoose.Types.ObjectId(user.outletId!) } },
       {
         $group: {
           _id: '$referenceType',
@@ -127,8 +138,9 @@ export async function GET() {
       }
     ]);
     
-    const total = await Voucher.countDocuments();
+    const total = await Voucher.countDocuments({ outletId: user.outletId });
     const withoutType = await Voucher.countDocuments({
+      outletId: user.outletId,
       $or: [
         { referenceType: { $exists: false } },
         { referenceType: null },

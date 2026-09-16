@@ -22,6 +22,14 @@ export enum AccountSubType {
   COGS = 'cogs',
   OPERATING_EXPENSE = 'operating_expense',
   ADMIN_EXPENSE = 'administrative_expense',
+  VAT_PAYABLE = 'vat_payable',
+  VAT_RECEIVABLE = 'vat_receivable',
+  SALES_RETURNS = 'sales_returns',
+  FIXED_ASSET = 'fixed_asset',
+  LOAN = 'loan',
+  OTHER_INCOME = 'other_income',
+  FINANCIAL_EXPENSE = 'financial_expense',
+  INVENTORY_ADJUSTMENT = 'inventory_adjustment',
 }
 
 export interface IAccount extends Document {
@@ -33,6 +41,10 @@ export interface IAccount extends Document {
   isSystem: boolean;
   isActive: boolean;
   outletId: mongoose.Types.ObjectId;
+  accountGroup?: string;
+  openingBalance: number;
+  currentBalance: number;
+  description?: string;
 }
 
 const AccountSchema = new Schema<IAccount>(
@@ -57,6 +69,10 @@ const AccountSchema = new Schema<IAccount>(
     isActive: { type: Boolean, default: true },
 
     outletId: { type: Schema.Types.ObjectId, required: true },
+    accountGroup: { type: String, trim: true },
+    openingBalance: { type: Number, default: 0 },
+    currentBalance: { type: Number, default: 0 },
+    description: { type: String, trim: true },
   },
   { timestamps: true }
 );

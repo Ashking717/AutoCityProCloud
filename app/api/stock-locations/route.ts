@@ -4,13 +4,12 @@ import { cookies } from 'next/headers';
 
 import { connectDB } from '@/lib/db/mongodb';
 import { verifyToken } from '@/lib/auth/jwt';
-import Product from '@/lib/models/ProductEnhanced';
 import ProductLocationStock from '@/lib/models/ProductLocationStock';
 import {
   getOrCreateStockLocation,
   listStockLocations,
-  materializeLegacyLocationStocksForProducts,
 } from '@/lib/services/locationStockService';
+import { hasPermission } from '@/lib/types/roles';
 
 export async function GET() {
   try {
@@ -26,20 +25,6 @@ export async function GET() {
       return NextResponse.json({ error: 'Invalid token: outletId missing' }, { status: 401 });
     }
     const outletId = new mongoose.Types.ObjectId(user.outletId);
-
-    const legacyProducts = await Product.find({
-      outletId,
-      isActive: true,
-      currentStock: { $gt: 0 },
-    })
-      .select('name sku currentStock location')
-      .lean();
-
-    await materializeLegacyLocationStocksForProducts(
-      legacyProducts,
-      outletId,
-      user.userId
-    );
 
     const locations = await listStockLocations(outletId);
 
@@ -87,6 +72,9 @@ export async function POST(request: NextRequest) {
     }
 
     const user = verifyToken(token);
+    if (!hasPermission(user.role, 'canManageInventory')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     if (!user.outletId) {
       return NextResponse.json({ error: 'Invalid token: outletId missing' }, { status: 401 });
     }

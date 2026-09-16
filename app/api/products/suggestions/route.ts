@@ -5,6 +5,8 @@ import { cookies } from "next/headers";
 import { verifyToken } from "@/lib/auth/jwt";
 import mongoose from "mongoose";
 
+export const dynamic = "force-dynamic";
+
 const escapeRegex = (value: string) =>
   value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 

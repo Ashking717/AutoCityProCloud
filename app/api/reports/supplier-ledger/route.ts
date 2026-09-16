@@ -1,218 +1,115 @@
-import { NextRequest, NextResponse } from "next/server";
-import mongoose from "mongoose";
-import { cookies } from "next/headers";
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import mongoose from 'mongoose';
 
-import { connectDB } from "@/lib/db/mongodb";
-import { verifyToken } from "@/lib/auth/jwt";
-import Supplier from "@/lib/models/Supplier";
-import Purchase from "@/lib/models/Purchase";
-import {
-  getPaymentVouchersByPurchase,
-  getSupplierOpeningBalanceEntries,
-  getSupplierBalancePaymentEntries,
-  getSupplierBalancePaymentMap,
-  toAmount,
-} from "@/lib/services/supplierBalanceService";
+import Account, { AccountSubType } from '@/lib/models/Account';
+import LedgerEntry from '@/lib/models/LedgerEntry';
+import Purchase from '@/lib/models/Purchase';
+import Supplier from '@/lib/models/Supplier';
+import { verifyToken } from '@/lib/auth/jwt';
+import { connectDB } from '@/lib/db/mongodb';
+import { hasPermission } from '@/lib/types/roles';
 
-async function getSupplierOpeningBalances(outletId: mongoose.Types.ObjectId) {
-  return getSupplierOpeningBalanceEntries(outletId);
+function round(value: number) {
+  return Number(value.toFixed(2));
 }
 
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
-
-    const token = cookies().get("auth-token")?.value;
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
+    const token = cookies().get('auth-token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const user = verifyToken(token);
-    if (!user.outletId) {
-      return NextResponse.json({ error: "Invalid token: outletId missing" }, { status: 401 });
+    if (!hasPermission(user.role, 'canViewFinancials')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-
+    if (!user.outletId || !mongoose.Types.ObjectId.isValid(user.outletId)) {
+      return NextResponse.json({ error: 'Outlet is required' }, { status: 400 });
+    }
     const outletId = new mongoose.Types.ObjectId(user.outletId);
     const { searchParams } = new URL(request.url);
-    const supplierId = searchParams.get("supplierId");
-    const fromDate = new Date(
-      searchParams.get("fromDate") || new Date(new Date().getFullYear(), 0, 1)
-    );
-    const toDate = new Date(searchParams.get("toDate") || new Date());
-    toDate.setHours(23, 59, 59, 999);
-
-    const openingBalances = await getSupplierOpeningBalances(outletId);
-    const supplierBalancePayments = await getSupplierBalancePaymentEntries(outletId);
+    const supplierId = searchParams.get('supplierId');
+    if (supplierId && !mongoose.Types.ObjectId.isValid(supplierId)) {
+      return NextResponse.json({ error: 'Invalid supplier ID' }, { status: 400 });
+    }
+    const [apAccount, suppliers, purchases] = await Promise.all([
+      Account.findOne({ outletId, subType: AccountSubType.ACCOUNTS_PAYABLE }).lean(),
+      Supplier.find({ outletId }).sort({ name: 1 }).lean(),
+      Purchase.find({ outletId }).select('_id supplierId grandTotal amountPaid status purchaseNumber').lean(),
+    ]);
+    if (!apAccount) throw new Error('Accounts Payable system account is missing');
+    const entries: any[] = await LedgerEntry.find({ outletId, accountId: (apAccount as any)._id })
+      .sort({ date: 1, createdAt: 1, lineNumber: 1 })
+      .lean();
+    const supplierIds = new Set((suppliers as any[]).map((supplier) => String(supplier._id)));
+    const purchaseToSupplier = new Map((purchases as any[]).map((purchase) => [String(purchase._id), String(purchase.supplierId)]));
+    const supplierForEntry = (entry: any) => {
+      const ref = String(entry.referenceId || '');
+      return purchaseToSupplier.get(ref) || (supplierIds.has(ref) ? ref : undefined);
+    };
 
     if (!supplierId) {
-      const suppliers = await Supplier.find({
-        outletId,
-        isActive: { $ne: false },
-      })
-        .sort({ name: 1 })
-        .lean();
+      const balanceMap = new Map<string, number>();
+      for (const entry of entries) {
+        const id = supplierForEntry(entry);
+        if (!id) continue;
+        balanceMap.set(id, (balanceMap.get(id) || 0) + Number(entry.credit || 0) - Number(entry.debit || 0));
+      }
+      return NextResponse.json({
+        suppliers: (suppliers as any[]).map((supplier) => {
+          const docs = (purchases as any[]).filter((purchase) => String(purchase.supplierId) === String(supplier._id) && purchase.status !== 'CANCELLED');
+          return {
+            ...supplier,
+            totalPurchases: round(docs.reduce((sum, purchase) => sum + Number(purchase.grandTotal || 0), 0)),
+            totalPaid: round(docs.reduce((sum, purchase) => sum + Number(purchase.amountPaid || 0), 0)),
+            balance: round(balanceMap.get(String(supplier._id)) || 0),
+            purchasesCount: docs.length,
+          };
+        }),
+      });
+    }
 
-      const purchases = await Purchase.find({
-        outletId,
-        status: { $ne: "CANCELLED" },
-      })
-        .select("_id supplierId grandTotal amountPaid")
-        .lean();
-
-      const paymentVouchers = await getPaymentVouchersByPurchase(
-        outletId,
-        (purchases as any[]).map((purchase) => purchase._id)
-      );
-      const directPaidBySupplier = await getSupplierBalancePaymentMap(outletId);
-
-      const suppliersWithBalance = (suppliers as any[]).map((supplier) => {
-        const id = supplier._id.toString();
-        const supplierPurchases = (purchases as any[]).filter(
-          (purchase) => purchase.supplierId?.toString() === id
-        );
-        const openingBalance = toAmount(
-          (openingBalances.get(id) || []).reduce((sum, entry) => sum + entry.credit, 0)
-        );
-
-        const totalPurchases = toAmount(
-          supplierPurchases.reduce((sum, purchase) => sum + (purchase.grandTotal || 0), 0)
-        );
-
-        const purchasePaid = toAmount(
-          supplierPurchases.reduce((sum, purchase) => {
-            const payments = paymentVouchers.get(purchase._id.toString()) || [];
-            const voucherPaid = payments.reduce(
-              (paymentSum, payment) => paymentSum + (payment.totalDebit || payment.totalCredit || 0),
-              0
-            );
-            const initialPaid = Math.max(0, (purchase.amountPaid || 0) - voucherPaid);
-            return sum + initialPaid + voucherPaid;
-          }, 0)
-        );
-        const totalPaid = toAmount(purchasePaid + (directPaidBySupplier.get(id) || 0));
-
+    const supplier: any = await Supplier.findOne({ _id: supplierId, outletId }).lean();
+    if (!supplier) return NextResponse.json({ error: 'Supplier not found' }, { status: 404 });
+    const fromDate = new Date(searchParams.get('fromDate') || new Date(new Date().getFullYear(), 0, 1));
+    const toDate = new Date(searchParams.get('toDate') || new Date());
+    toDate.setHours(23, 59, 59, 999);
+    if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime()) || fromDate > toDate) {
+      return NextResponse.json({ error: 'Invalid date range' }, { status: 400 });
+    }
+    const supplierEntries = entries.filter((entry) => supplierForEntry(entry) === supplierId);
+    let runningBalance = supplierEntries
+      .filter((entry) => new Date(entry.date) < fromDate)
+      .reduce((sum, entry) => sum + Number(entry.credit || 0) - Number(entry.debit || 0), 0);
+    const openingBalance = round(runningBalance);
+    const ledgerEntries = supplierEntries
+      .filter((entry) => new Date(entry.date) >= fromDate && new Date(entry.date) <= toDate)
+      .map((entry) => {
+        runningBalance += Number(entry.credit || 0) - Number(entry.debit || 0);
         return {
-          ...supplier,
-          openingBalance,
-          totalPurchases,
-          totalPaid,
-          balance: toAmount(openingBalance + totalPurchases - totalPaid),
-          purchasesCount: supplierPurchases.length,
+          date: entry.date,
+          type: entry.referenceType,
+          reference: entry.referenceNumber || entry.voucherNumber,
+          description: entry.narration,
+          debit: Number(entry.debit || 0),
+          credit: Number(entry.credit || 0),
+          balance: round(runningBalance),
         };
       });
-
-      return NextResponse.json({ suppliers: suppliersWithBalance });
-    }
-
-    if (!mongoose.Types.ObjectId.isValid(supplierId)) {
-      return NextResponse.json({ error: "Invalid supplier ID" }, { status: 400 });
-    }
-
-    const supplier = await Supplier.findOne({
-      _id: supplierId,
-      outletId,
-    }).lean();
-
-    if (!supplier) {
-      return NextResponse.json({ error: "Supplier not found" }, { status: 404 });
-    }
-
-    const purchases = await Purchase.find({
-      outletId,
-      supplierId: new mongoose.Types.ObjectId(supplierId),
-      status: { $ne: "CANCELLED" },
-    })
-      .sort({ purchaseDate: 1, createdAt: 1 })
-      .lean();
-
-    const paymentVouchers = await getPaymentVouchersByPurchase(
-      outletId,
-      (purchases as any[]).map((purchase) => purchase._id)
-    );
-
-    const allEntries: any[] = [
-      ...(openingBalances.get(supplierId) || []),
-      ...(supplierBalancePayments.get(supplierId) || []),
-    ];
-
-    for (const purchase of purchases as any[]) {
-      allEntries.push({
-        date: purchase.purchaseDate,
-        type: "purchase",
-        reference: purchase.purchaseNumber || "N/A",
-        description: `Purchase - ${purchase.items?.length || 0} items`,
-        debit: 0,
-        credit: toAmount(purchase.grandTotal),
-        balance: 0,
-      });
-
-      const payments = paymentVouchers.get(purchase._id.toString()) || [];
-      const voucherPaid = payments.reduce(
-        (sum, payment) => sum + (payment.totalDebit || payment.totalCredit || 0),
-        0
-      );
-      const initialPaid = toAmount(Math.max(0, (purchase.amountPaid || 0) - voucherPaid));
-
-      if (initialPaid > 0) {
-        allEntries.push({
-          date: purchase.purchaseDate,
-          type: "purchase_payment",
-          reference: purchase.purchaseNumber || "N/A",
-          description: "Payment at purchase",
-          debit: initialPaid,
-          credit: 0,
-          balance: 0,
-        });
-      }
-
-      for (const payment of payments) {
-        allEntries.push({
-          date: payment.date,
-          type: "purchase_payment",
-          reference: payment.voucherNumber,
-          description: payment.narration || `Payment for ${purchase.purchaseNumber}`,
-          debit: toAmount(payment.totalDebit || payment.totalCredit),
-          credit: 0,
-          balance: 0,
-        });
-      }
-    }
-
-    const sortedEntries = allEntries.sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
-
-    const openingBalanceBeforeRange = sortedEntries
-      .filter((entry) => new Date(entry.date) < fromDate)
-      .reduce((sum, entry) => sum + (entry.credit || 0) - (entry.debit || 0), 0);
-
-    const ledgerEntries = sortedEntries.filter((entry) => {
-      const date = new Date(entry.date);
-      return date >= fromDate && date <= toDate;
-    });
-
-    let runningBalance = toAmount(openingBalanceBeforeRange);
-    ledgerEntries.forEach((entry) => {
-      runningBalance += (entry.credit || 0) - (entry.debit || 0);
-      entry.balance = toAmount(runningBalance);
-    });
-
-    const totalDebit = toAmount(ledgerEntries.reduce((sum, entry) => sum + entry.debit, 0));
-    const totalCredit = toAmount(ledgerEntries.reduce((sum, entry) => sum + entry.credit, 0));
-
+    const supplierPurchases = (purchases as any[]).filter((purchase) => String(purchase.supplierId) === supplierId && purchase.status !== 'CANCELLED');
     return NextResponse.json({
       supplier,
       ledgerEntries,
       summary: {
-        totalDebit,
-        totalCredit,
-        closingBalance: toAmount(runningBalance),
-        purchasesCount: (purchases as any[]).length,
+        openingBalance,
+        totalDebit: round(ledgerEntries.reduce((sum, entry) => sum + entry.debit, 0)),
+        totalCredit: round(ledgerEntries.reduce((sum, entry) => sum + entry.credit, 0)),
+        closingBalance: round(runningBalance),
+        purchasesCount: supplierPurchases.length,
         transactionsCount: ledgerEntries.length,
       },
     });
   } catch (error: any) {
-    console.error("Error generating supplier ledger:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

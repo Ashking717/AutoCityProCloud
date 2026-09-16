@@ -1,319 +1,200 @@
-// app/api/suppliers/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/db/mongodb";
-import Account from "@/lib/models/Account";
-import Supplier from "@/lib/models/Supplier";
-import Purchase from "@/lib/models/Purchase";
-import Voucher from "@/lib/models/Voucher";
-import LedgerEntry from "@/lib/models/LedgerEntry";
-import ActivityLog from "@/lib/models/ActivityLog";
-import { cookies } from "next/headers";
-import { verifyToken } from "@/lib/auth/jwt";
-import { generateVoucherNumber } from "@/lib/services/accountingService";
-import {
-  getPaymentVouchersByPurchase,
-  getSupplierBalancePaymentMap,
-  getSupplierOpeningBalanceMap,
-  toAmount,
-} from "@/lib/services/supplierBalanceService";
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import mongoose from 'mongoose';
 
-async function getAccountDetails(account: any) {
-  return {
-    accountId: account._id,
-    accountNumber: account.code || account.accountNumber || "N/A",
-    accountName: account.name || account.accountName || "Unknown Account",
-  };
+import Account, { AccountSubType, AccountType } from '@/lib/models/Account';
+import ActivityLog from '@/lib/models/ActivityLog';
+import LedgerEntry from '@/lib/models/LedgerEntry';
+import Purchase from '@/lib/models/Purchase';
+import Supplier from '@/lib/models/Supplier';
+import { verifyToken } from '@/lib/auth/jwt';
+import { connectDB } from '@/lib/db/mongodb';
+import { createPostedVoucher } from '@/lib/services/voucherPostingService';
+import { ReferenceType, VoucherType } from '@/lib/models/Voucher';
+import { hasPermission } from '@/lib/types/roles';
+
+function round(value: number) {
+  return Number(value.toFixed(2));
 }
 
-async function getAccountsPayableAccount(outletId: string) {
-  const account = await Account.findOne({
-    outletId,
-    isActive: { $ne: false },
-    $or: [
-      { subType: "accounts_payable" },
-      { accountSubType: "accounts_payable" },
-      { name: /^accounts payable$/i },
-      { accountName: /^accounts payable$/i },
-      { code: "L1000" },
-    ],
-  });
-
-  if (!account) {
-    throw new Error("Accounts Payable account is missing. Create the AP system account before adding supplier opening balances.");
-  }
-
-  return account;
-}
-
-async function getOrCreateOpeningBalanceAccount(outletId: string) {
-  let account = await Account.findOne({
-    outletId,
-    code: "OB-EQUITY",
-  });
-
-  if (!account) {
-    account = await Account.create({
-      code: "OB-EQUITY",
-      name: "Opening Balance Equity",
-      type: "equity",
-      subType: "owner_equity",
-      accountGroup: "Owner Equity",
-      openingBalance: 0,
-      currentBalance: 0,
-      isSystem: true,
-      isActive: true,
-      outletId,
-    });
-  }
-
-  return account;
-}
-
-async function postSupplierOpeningBalance({
-  supplier,
-  amount,
-  date,
-  outletId,
-  userId,
-}: {
-  supplier: any;
-  amount: number;
-  date?: string;
-  outletId: string;
-  userId: string;
-}) {
-  if (amount <= 0) return null;
-
-  const apAccount = await getAccountsPayableAccount(outletId);
-  const openingBalanceAccount = await getOrCreateOpeningBalanceAccount(outletId);
-  const apDetails = await getAccountDetails(apAccount);
-  const obDetails = await getAccountDetails(openingBalanceAccount);
-  const voucherDate = date ? new Date(date) : new Date();
-  const voucherNumber = await generateVoucherNumber("journal", supplier.outletId);
-  const narration = `Supplier opening balance - ${supplier.name}`;
-
-  const entries = [
-    {
-      ...obDetails,
-      debit: amount,
-      credit: 0,
-      narration,
-    },
-    {
-      ...apDetails,
-      debit: 0,
-      credit: amount,
-      narration,
-    },
-  ];
-
-  const voucher = await Voucher.create({
-    voucherNumber,
-    voucherType: "journal",
-    date: voucherDate,
-    narration,
-    entries,
-    totalDebit: amount,
-    totalCredit: amount,
-    status: "posted",
-    referenceType: "OPENING_BALANCE",
-    referenceId: supplier._id,
-    referenceNumber: supplier.code,
-    outletId,
-    createdBy: userId,
-    metadata: {
-      source: "SUPPLIER_OPENING_BALANCE",
-      supplierId: supplier._id.toString(),
-      supplierCode: supplier.code,
-      supplierName: supplier.name,
-    },
-  });
-
-  await LedgerEntry.insertMany(
-    entries.map((entry) => ({
-      voucherId: voucher._id,
-      voucherNumber: voucher.voucherNumber,
-      voucherType: "journal",
-      accountId: entry.accountId,
-      accountNumber: entry.accountNumber,
-      accountName: entry.accountName,
-      debit: entry.debit,
-      credit: entry.credit,
-      narration,
-      date: voucherDate,
-      referenceType: "OPENING_BALANCE",
-      referenceId: supplier._id,
-      referenceNumber: supplier.code,
-      isReversal: false,
-      outletId,
-      createdBy: userId,
-    }))
-  );
-
-  return voucher;
-}
-
-// GET /api/suppliers  ✅ LIST
 export async function GET() {
   try {
     await connectDB();
-
-    const token = cookies().get("auth-token")?.value;
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
+    const token = cookies().get('auth-token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const user = verifyToken(token);
-    if (!user.outletId) {
-      return NextResponse.json({ error: "Invalid token: outletId missing" }, { status: 401 });
+    if (!hasPermission(user.role, 'canProcessPurchases') && !hasPermission(user.role, 'canViewFinancials')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-
-    const suppliers = await Supplier.find({
-      outletId: user.outletId,
-      isActive: { $ne: false },
-    })
-      .sort({ name: 1 })
-      .lean();
-
-    const purchases = await Purchase.find({
-      outletId: user.outletId,
-      status: { $ne: "CANCELLED" },
-    })
-      .select("_id supplierId supplierName grandTotal amountPaid")
-      .lean();
-
-    const paymentVouchers = await getPaymentVouchersByPurchase(
-      user.outletId,
-      (purchases as any[]).map((purchase) => purchase._id)
-    );
-    const openingBySupplier = await getSupplierOpeningBalanceMap(user.outletId);
-    const directPaidBySupplier = await getSupplierBalancePaymentMap(user.outletId);
-
-    const suppliersWithBalances = (suppliers as any[]).map((supplier) => {
-      const supplierId = supplier._id.toString();
-      const supplierPurchases = (purchases as any[]).filter((purchase) => (
-        purchase.supplierId?.toString() === supplierId ||
-        purchase.supplierName === supplier.name
-      ));
-
-      const openingBalance = openingBySupplier.get(supplierId) || 0;
-      const totalPurchases = supplierPurchases.reduce(
-        (sum, purchase) => sum + (Number(purchase.grandTotal) || 0),
-        0
-      );
-      const purchasePaid = supplierPurchases.reduce((sum, purchase) => {
-        const payments = paymentVouchers.get(purchase._id.toString()) || [];
-        const voucherPaid = payments.reduce(
-          (paymentSum, payment) =>
-            paymentSum + (Number(payment.totalDebit || payment.totalCredit) || 0),
-          0
+    if (!user.outletId || !mongoose.Types.ObjectId.isValid(user.outletId)) {
+      return NextResponse.json({ error: 'Outlet is required' }, { status: 400 });
+    }
+    const outletId = new mongoose.Types.ObjectId(user.outletId);
+    const [suppliers, purchases, apAccount] = await Promise.all([
+      Supplier.find({ outletId, isActive: { $ne: false } }).sort({ name: 1 }).lean(),
+      Purchase.find({ outletId }).select('_id supplierId grandTotal status').lean(),
+      Account.findOne({ outletId, subType: AccountSubType.ACCOUNTS_PAYABLE, isActive: true }).lean(),
+    ]);
+    const purchaseToSupplier = new Map((purchases as any[]).map((purchase) => [String(purchase._id), String(purchase.supplierId)]));
+    const supplierIds = new Set((suppliers as any[]).map((supplier) => String(supplier._id)));
+    const balanceBySupplier = new Map<string, number>();
+    if (apAccount) {
+      const entries = await LedgerEntry.find({ outletId, accountId: (apAccount as any)._id })
+        .select('referenceId debit credit')
+        .lean();
+      for (const entry of entries as any[]) {
+        const reference = String(entry.referenceId || '');
+        const supplierId = purchaseToSupplier.get(reference) || (supplierIds.has(reference) ? reference : undefined);
+        if (!supplierId) continue;
+        balanceBySupplier.set(
+          supplierId,
+          (balanceBySupplier.get(supplierId) || 0) + Number(entry.credit || 0) - Number(entry.debit || 0)
         );
-        const initialPaid = Math.max(0, (Number(purchase.amountPaid) || 0) - voucherPaid);
-        return sum + initialPaid + voucherPaid;
-      }, 0);
-      const totalPaid = purchasePaid + (directPaidBySupplier.get(supplierId) || 0);
-
-      return {
+      }
+    }
+    const metrics = new Map<string, { totalPurchases: number; count: number }>();
+    for (const purchase of purchases as any[]) {
+      if (purchase.status === 'CANCELLED') continue;
+      const key = String(purchase.supplierId);
+      const current = metrics.get(key) || { totalPurchases: 0, count: 0 };
+      current.totalPurchases += Number(purchase.grandTotal || 0);
+      current.count += 1;
+      metrics.set(key, current);
+    }
+    return NextResponse.json({
+      suppliers: (suppliers as any[]).map((supplier) => ({
         ...supplier,
-        openingBalance: toAmount(openingBalance),
-        totalPurchases: toAmount(totalPurchases),
-        totalPaid: toAmount(totalPaid),
-        currentBalance: toAmount(openingBalance + totalPurchases - totalPaid),
-      };
+        totalPurchases: round(metrics.get(String(supplier._id))?.totalPurchases || 0),
+        purchasesCount: metrics.get(String(supplier._id))?.count || 0,
+        currentBalance: round(balanceBySupplier.get(String(supplier._id)) || 0),
+      })),
     });
-
-    return NextResponse.json({ suppliers: suppliersWithBalances });
   } catch (error: any) {
-    console.error("Error fetching suppliers:", error);
-    return NextResponse.json(
-      { error: error.message || "Failed to fetch suppliers" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// POST /api/suppliers ✅ CREATE
 export async function POST(request: NextRequest) {
+  let session: mongoose.ClientSession | undefined;
   try {
     await connectDB();
-
-    const token = cookies().get("auth-token")?.value;
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
+    const token = cookies().get('auth-token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const user = verifyToken(token);
-    if (!user.outletId) {
-      return NextResponse.json({ error: "Invalid token: outletId missing" }, { status: 401 });
+    if (!hasPermission(user.role, 'canProcessPurchases')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-
+    if (!user.outletId || !mongoose.Types.ObjectId.isValid(user.outletId)) {
+      return NextResponse.json({ error: 'Outlet is required' }, { status: 400 });
+    }
     const body = await request.json();
-
-    const {
-      code,
-      name,
-      contactPerson,
-      phone,
-      email,
-      address,
-      taxNumber,
-      creditLimit,
-      paymentTerms,
-      openingBalance,
-      openingBalanceDate,
-    } = body;
-
-    if (!name || !phone) {
-      return NextResponse.json(
-        { error: "Name and phone are required" },
-        { status: 400 }
-      );
+    const key = String(request.headers.get('idempotency-key') || body.operationKey || '').trim();
+    if (!key) return NextResponse.json({ error: 'Idempotency-Key is required' }, { status: 400 });
+    const code = String(body.code || '').trim().toUpperCase();
+    const name = String(body.name || '').trim();
+    const phone = String(body.phone || '').trim();
+    if (!code || !name) {
+      return NextResponse.json({ error: 'Code and name are required' }, { status: 400 });
+    }
+    const openingPayable = round(Number(body.openingBalance || 0));
+    if (!Number.isFinite(openingPayable) || openingPayable < 0) {
+      return NextResponse.json({ error: 'Opening payable must be a non-negative amount' }, { status: 400 });
+    }
+    const openingDate = body.openingBalanceDate ? new Date(body.openingBalanceDate) : new Date();
+    if (Number.isNaN(openingDate.getTime())) {
+      return NextResponse.json({ error: 'Invalid opening balance date' }, { status: 400 });
     }
 
-    const openingPayable = Math.abs(Number(openingBalance) || 0);
+    session = await mongoose.startSession();
+    let responseData: any;
+    await session.withTransaction(async () => {
+      const outletId = new mongoose.Types.ObjectId(user.outletId!);
+      const userId = new mongoose.Types.ObjectId(user.userId);
+      const prior: any = await Supplier.findOne({ outletId, operationKey: key }).session(session!);
+      if (prior) {
+        responseData = { supplier: prior, openingVoucher: null, idempotent: true };
+        return;
+      }
+      if (await Supplier.exists({ outletId, code }).session(session!)) {
+        throw new Error('Supplier code already exists');
+      }
+      let openingEquity: any;
+      let payable: any;
+      if (openingPayable > 0) {
+        payable = await Account.findOne({ outletId, subType: AccountSubType.ACCOUNTS_PAYABLE, isActive: true }).session(session!);
+        if (!payable) throw new Error('Accounts Payable system account is missing');
+        openingEquity = await Account.findOne({ outletId, code: 'OB-EQUITY', isActive: true }).session(session!);
+        if (!openingEquity) {
+          [openingEquity] = await Account.create([{
+            code: 'OB-EQUITY',
+            name: 'Opening Balance Equity',
+            type: AccountType.EQUITY,
+            subType: AccountSubType.OWNER_EQUITY,
+            accountGroup: 'Owner Equity',
+            isSystem: true,
+            isActive: true,
+            outletId,
+          }], { session });
+        }
+      }
 
-    if (openingPayable > 0) {
-      await getAccountsPayableAccount(user.outletId);
-      await getOrCreateOpeningBalanceAccount(user.outletId);
-    }
-
-    const supplier = await Supplier.create({
-      code,
-      name,
-      contactPerson,
-      phone,
-      email,
-      address,
-      taxNumber,
-      creditLimit: creditLimit || 0,
-      paymentTerms,
-      currentBalance: openingPayable,
-      outletId: user.outletId,
+      const [supplier] = await Supplier.create([{
+        code,
+        name,
+        contactPerson: body.contactPerson,
+        phone,
+        email: body.email,
+        address: body.address,
+        taxNumber: body.taxNumber,
+        creditLimit: Number(body.creditLimit || 0),
+        paymentTerms: body.paymentTerms,
+        currentBalance: openingPayable,
+        outletId,
+        operationKey: key,
+      }], { session });
+      let openingVoucher: any = null;
+      if (openingPayable > 0) {
+        const result = await createPostedVoucher({
+          voucherType: VoucherType.JOURNAL,
+          date: openingDate,
+          narration: `Supplier opening balance - ${supplier.name}`,
+          entries: [
+            { accountId: openingEquity._id, debit: openingPayable },
+            { accountId: payable._id, credit: openingPayable },
+          ],
+          referenceType: ReferenceType.OPENING_BALANCE,
+          referenceId: supplier._id,
+          referenceNumber: supplier.code,
+          postingKey: `supplier:${supplier._id}:opening`,
+          outletId,
+          createdBy: userId,
+          metadata: {
+            source: 'SUPPLIER_OPENING_BALANCE',
+            supplierId: String(supplier._id),
+            supplierCode: supplier.code,
+            supplierName: supplier.name,
+          },
+        }, session);
+        openingVoucher = result.voucher;
+      }
+      await ActivityLog.create([{
+        userId,
+        username: user.email,
+        actionType: 'create',
+        module: 'suppliers',
+        description: openingPayable > 0
+          ? `Created supplier ${name} with opening payable QAR ${openingPayable.toFixed(2)}`
+          : `Created supplier: ${name}`,
+        outletId,
+        timestamp: new Date(),
+      }], { session });
+      responseData = { supplier, openingVoucher };
     });
-
-    const openingVoucher = await postSupplierOpeningBalance({
-      supplier,
-      amount: openingPayable,
-      date: openingBalanceDate,
-      outletId: user.outletId,
-      userId: user.userId,
-    });
-
-    await ActivityLog.create({
-      userId: user.userId,
-      username: user.email,
-      actionType: "create",
-      module: "suppliers",
-      description: openingPayable > 0
-        ? `Created supplier: ${name} with opening payable QAR ${openingPayable.toFixed(2)}`
-        : `Created supplier: ${name}`,
-      outletId: user.outletId,
-      timestamp: new Date(),
-    });
-
-    return NextResponse.json({ supplier, openingVoucher }, { status: 201 });
+    return NextResponse.json(responseData, { status: responseData?.idempotent ? 200 : 201 });
   } catch (error: any) {
-    console.error("Error creating supplier:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const status = error?.code === 11000 || /already exists/i.test(error.message) ? 409 : (/required|invalid|missing/i.test(error.message) ? 400 : 500);
+    return NextResponse.json({ error: error.message }, { status });
+  } finally {
+    if (session) await session.endSession();
   }
 }

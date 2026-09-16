@@ -1,230 +1,156 @@
-// app/api/purchases/[id]/payments/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import mongoose from "mongoose";
-import { cookies } from "next/headers";
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import mongoose from 'mongoose';
 
-import Purchase from "@/lib/models/Purchase";
-import ActivityLog from "@/lib/models/ActivityLog";
-import User from "@/lib/models/User";
-import Voucher from "@/lib/models/Voucher";
+import ActivityLog from '@/lib/models/ActivityLog';
+import Purchase from '@/lib/models/Purchase';
+import Supplier from '@/lib/models/Supplier';
+import Voucher from '@/lib/models/Voucher';
+import { verifyToken } from '@/lib/auth/jwt';
+import { hasPermission } from '@/lib/types/roles';
+import { connectDB } from '@/lib/db/mongodb';
+import { postPurchasePaymentAccounting } from '@/lib/services/transactionalAccountingService';
 
-import { verifyToken } from "@/lib/auth/jwt";
-import { connectDB } from "@/lib/db/mongodb";
-import { postPurchasePaymentToLedger } from "@/lib/services/accountingService";
+function round(value: number) {
+  return Number(value.toFixed(2));
+}
 
-/**
- * GET - Fetch all payments for a purchase
- * FIXED: Properly cast referenceId to ObjectId
- */
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
     await connectDB();
-
-    const token = cookies().get("auth-token")?.value;
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
+    const token = cookies().get('auth-token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const user = verifyToken(token);
-    const outletId = new mongoose.Types.ObjectId(user.outletId || "");
-
-    console.log('\n🔍 Fetching payment vouchers:');
-    console.log(`  Purchase ID: ${params.id}`);
-    console.log(`  Outlet ID: ${outletId}`);
-
-    // ✅ FIX: Cast referenceId to ObjectId for proper comparison
-    const purchaseObjectId = new mongoose.Types.ObjectId(params.id);
-
-    // Find all payment vouchers for this purchase
-    const payments = await Voucher.find({
-      referenceType: "PURCHASE_PAYMENT",
-      referenceId: purchaseObjectId,  // ← FIXED: Use ObjectId
-      outletId,
-      status: "posted",
-    })
-      .sort({ date: -1, createdAt: -1 })
-      .populate("createdBy", "name email username firstName lastName")
-      .lean();
-
-    console.log(`✅ Found ${payments.length} payment voucher(s)`);
-    
-    if (payments.length > 0) {
-      console.log(`  First payment: ${payments[0].voucherNumber} - ${payments[0].totalCredit} QAR`);
+    if (!hasPermission(user.role, 'canViewFinancials')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-
+    const purchase = await Purchase.findOne({ _id: params.id, outletId: user.outletId }).select('_id');
+    if (!purchase) return NextResponse.json({ error: 'Purchase not found' }, { status: 404 });
+    const payments = await Voucher.find({
+      referenceType: 'PURCHASE_PAYMENT',
+      referenceId: purchase._id,
+      outletId: user.outletId,
+      status: 'posted',
+    }).sort({ date: -1, createdAt: -1 }).populate('createdBy', 'name email username firstName lastName').lean();
     return NextResponse.json({ payments });
   } catch (error: any) {
-    console.error("❌ Error fetching purchase payments:", error);
-    return NextResponse.json(
-      { error: error.message || "Failed to fetch payments" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error.message || 'Failed to fetch payments' }, { status: 500 });
   }
 }
 
-/**
- * POST - Record a payment against a purchase on credit
- */
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  let session: mongoose.ClientSession | undefined;
   try {
     await connectDB();
-
-    // ───────────────── AUTH ─────────────────
-    const token = cookies().get("auth-token")?.value;
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
+    const token = cookies().get('auth-token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const user = verifyToken(token);
-    const userId = new mongoose.Types.ObjectId(user.userId);
-
-    if (!user.outletId) {
-      return NextResponse.json(
-        { error: "Invalid token: outletId missing" },
-        { status: 401 }
-      );
+    if (!hasPermission(user.role, 'canProcessPurchases')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!user.outletId || !mongoose.Types.ObjectId.isValid(user.outletId) || !mongoose.Types.ObjectId.isValid(params.id)) {
+      return NextResponse.json({ error: 'Invalid outlet or purchase ID' }, { status: 400 });
+    }
+    const body = await request.json();
+    const clientKey = String(
+      request.headers.get('idempotency-key') || body.idempotencyKey || ''
+    ).trim();
+    const paymentKey = `purchase:${params.id}:payment:${clientKey}`;
+    const amount = round(Number(body.amount || 0));
+    const method = String(body.paymentMethod || '').toUpperCase();
+    if (!clientKey || clientKey.length > 160 || !Number.isFinite(amount) || amount <= 0) {
+      return NextResponse.json({ error: 'idempotencyKey and a positive amount are required' }, { status: 400 });
+    }
+    if (!['CASH', 'CARD', 'BANK_TRANSFER', 'CHEQUE'].includes(method)) {
+      return NextResponse.json({ error: 'Invalid payment method' }, { status: 400 });
     }
 
     const outletId = new mongoose.Types.ObjectId(user.outletId);
+    const userId = new mongoose.Types.ObjectId(user.userId);
+    session = await mongoose.startSession();
+    let result: any;
+    await session.withTransaction(async () => {
+      const purchase = await Purchase.findOne({ _id: params.id, outletId }).session(session!);
+      if (!purchase) throw new Error('Purchase not found');
+      const prior = purchase.payments?.find((payment: any) => payment.paymentKey === paymentKey);
+      if (prior) {
+        result = {
+          voucherId: prior.voucherId,
+          amount: prior.amount,
+          newBalance: purchase.balanceDue,
+          newAmountPaid: purchase.amountPaid,
+          idempotent: true,
+        };
+        return;
+      }
+      if (purchase.status === 'CANCELLED') throw new Error('Cancelled purchases cannot be paid');
+      if (amount > Number(purchase.balanceDue) + 0.01) {
+        throw new Error(`Payment exceeds balance due of QAR ${Number(purchase.balanceDue).toFixed(2)}`);
+      }
 
-    // ───────────────── BODY ─────────────────
-    const body = await request.json();
-    const {
-      amount,
-      paymentMethod, // "CASH", "CARD", "BANK_TRANSFER"
-      paymentDate,
-      notes,
-      referenceNumber, // Check number, transaction ID, etc.
-    } = body;
-
-    const paymentAmount = Number(amount);
-
-    if (!paymentAmount || paymentAmount <= 0) {
-      return NextResponse.json(
-        { error: "Payment amount must be greater than 0" },
-        { status: 400 }
-      );
-    }
-
-    if (!["CASH", "CARD", "BANK_TRANSFER"].includes(paymentMethod)) {
-      return NextResponse.json(
-        { error: "Invalid payment method" },
-        { status: 400 }
-      );
-    }
-
-    // ───────────────── FETCH PURCHASE ─────────────────
-    const purchase = await Purchase.findOne({
-      _id: params.id,
-      outletId,
-    });
-
-    if (!purchase) {
-      return NextResponse.json(
-        { error: "Purchase not found" },
-        { status: 404 }
-      );
-    }
-
-    // ───────────────── VALIDATE PAYMENT ─────────────────
-    if (purchase.balanceDue <= 0) {
-      return NextResponse.json(
-        { error: "Purchase has no outstanding balance" },
-        { status: 400 }
-      );
-    }
-
-    if (paymentAmount > purchase.balanceDue) {
-      return NextResponse.json(
+      const paidAt = body.paymentDate ? new Date(body.paymentDate) : new Date();
+      if (Number.isNaN(paidAt.getTime())) throw new Error('Invalid payment date');
+      const updatedSupplier = await Supplier.findOneAndUpdate(
         {
-          error: `Payment amount (${paymentAmount}) exceeds balance due (${purchase.balanceDue})`,
+          _id: purchase.supplierId,
+          outletId,
+          currentBalance: { $gte: round(amount - 0.01) },
         },
-        { status: 400 }
+        { $inc: { currentBalance: -amount } },
+        { new: true, session }
       );
-    }
-
-    console.log("\n🔍 Purchase Payment Request:");
-    console.log(`  Purchase: ${purchase.purchaseNumber}`);
-    console.log(`  Grand Total: QAR ${purchase.grandTotal}`);
-    console.log(`  Current Balance Due: QAR ${purchase.balanceDue}`);
-    console.log(`  Payment Amount: QAR ${paymentAmount}`);
-    console.log(`  Payment Method: ${paymentMethod}\n`);
-
-    // ───────────────── POST TO LEDGER ─────────────────
-    const ledgerResult = await postPurchasePaymentToLedger(
-      {
-        purchaseId: purchase._id,
-        purchaseNumber: purchase.purchaseNumber,
-        supplierName: purchase.supplierName,
-        amount: paymentAmount,
-        paymentMethod,
-        paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
-        referenceNumber,
-        notes,
+      if (!updatedSupplier) {
+        throw new Error('Supplier balance is lower than this purchase payment; reconcile prior supplier payments first');
+      }
+      const accounting = await postPurchasePaymentAccounting(
+        purchase,
+        { amount, method, date: paidAt, reference: body.referenceNumber, paymentKey },
+        userId,
+        session!
+      );
+      purchase.amountPaid = round(Number(purchase.amountPaid) + amount);
+      purchase.balanceDue = round(Number(purchase.balanceDue) - amount);
+      if (purchase.balanceDue <= 0.01) purchase.status = 'PAID';
+      purchase.payments ||= [];
+      purchase.payments.push({
+        paymentKey,
+        amount,
+        method: method as any,
+        reference: body.referenceNumber,
+        voucherId: accounting.voucherId,
+        paidAt,
+      });
+      await purchase.save({ session });
+      await ActivityLog.create([{
+        userId,
+        username: user.email || user.username,
+        actionType: 'payment',
+        module: 'purchases',
+        description: `Recorded payment of QAR ${amount.toFixed(2)} for purchase ${purchase.purchaseNumber}`,
         outletId,
-      },
-      userId
-    );
-
-    // ───────────────── UPDATE PURCHASE ─────────────────
-    const newAmountPaid = purchase.amountPaid + paymentAmount;
-    const newBalanceDue = purchase.grandTotal - newAmountPaid;
-
-    console.log("\n💰 Updating Purchase Balance:");
-    console.log(`  Old Paid: QAR ${purchase.amountPaid}`);
-    console.log(`  New Paid: QAR ${newAmountPaid}`);
-    console.log(`  Old Balance: QAR ${purchase.balanceDue}`);
-    console.log(`  New Balance: QAR ${newBalanceDue}`);
-
-    // Update purchase
-    purchase.set("amountPaid", newAmountPaid);
-    purchase.set("balanceDue", newBalanceDue);
-
-    // Update status if fully paid
-    if (newBalanceDue <= 0.01) {
-      purchase.set("status", "PAID");
-      console.log(`  ✓ Status updated to PAID`);
-    }
-
-    await purchase.save();
-
-    // ───────────────── ACTIVITY LOG ─────────────────
-    await ActivityLog.create({
-      userId,
-      username: user.email || user.username,
-      actionType: "payment",
-      module: "purchases",
-      description: `Recorded payment of QAR ${paymentAmount} for purchase ${purchase.purchaseNumber}`,
-      outletId,
-      timestamp: new Date(),
+        timestamp: paidAt,
+      }], { session });
+      result = {
+        voucherId: accounting.voucherId,
+        voucherNumber: accounting.voucherNumber,
+        amount,
+        newBalance: purchase.balanceDue,
+        newAmountPaid: purchase.amountPaid,
+        supplierBalance: updatedSupplier.currentBalance,
+      };
     });
-
-    console.log(`\n✓ Payment recorded successfully\n`);
-
-    return NextResponse.json(
-      {
-        message: "Payment recorded successfully",
-        payment: {
-          voucherId: ledgerResult.voucherId,
-          voucherNumber: ledgerResult.voucherNumber,
-          amount: paymentAmount,
-          newBalance: newBalanceDue,
-          newAmountPaid,
-        },
-      },
-      { status: 201 }
-    );
+    return NextResponse.json({ message: 'Payment recorded successfully', payment: result }, { status: 201 });
   } catch (error: any) {
-    console.error("\n❌ PURCHASE PAYMENT ERROR:", error);
-    return NextResponse.json(
-      { error: error.message || "Failed to record payment" },
-      { status: 500 }
-    );
+    console.error('PURCHASE PAYMENT ERROR:', error);
+    const status = /required|invalid|not found|cannot|exceeds/i.test(error.message) ? 400 : 500;
+    return NextResponse.json({ error: error.message || 'Failed to record payment' }, { status });
+  } finally {
+    if (session) await session.endSession();
   }
 }

@@ -389,9 +389,10 @@ export default function ProductDetailPage() {
     }
 
     try {
+      const idempotencyKey = crypto.randomUUID();
       const res = await fetch(`/api/products/${productId}/stock-history`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
         credentials: "include",
         body: JSON.stringify({
           type: stockAdjustment.type,
@@ -399,6 +400,7 @@ export default function ProductDetailPage() {
           reason: stockAdjustment.reason || "Manual adjustment",
           locationId: stockAdjustment.locationId || undefined,
           locationName: stockAdjustment.locationName || undefined,
+          idempotencyKey,
         }),
       });
 

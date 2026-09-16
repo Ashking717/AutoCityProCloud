@@ -1,318 +1,217 @@
-// app/api/accounts/opening-balance/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { connectDB } from '@/lib/db/mongodb';
-import Account from '@/lib/models/Account';
-import Voucher from '@/lib/models/Voucher';
-import LedgerEntry from '@/lib/models/LedgerEntry';
-import ActivityLog from '@/lib/models/ActivityLog';
-import User from '@/lib/models/User';
 import { cookies } from 'next/headers';
-import { verifyToken } from '@/lib/auth/jwt';
-import { generateVoucherNumber } from '@/lib/services/accountingService';
 import mongoose from 'mongoose';
 
+import Account, { AccountType } from '@/lib/models/Account';
+import ActivityLog from '@/lib/models/ActivityLog';
+import LedgerEntry from '@/lib/models/LedgerEntry';
+import Voucher, { ReferenceType, VoucherType } from '@/lib/models/Voucher';
+import { verifyToken } from '@/lib/auth/jwt';
+import { connectDB } from '@/lib/db/mongodb';
+import { calculateBalanceChange } from '@/lib/services/balanceEngine';
+import { createPostedVoucher, reversePostedVoucher } from '@/lib/services/voucherPostingService';
+import { hasPermission } from '@/lib/types/roles';
+
+const generalOpeningQuery = (outletId: string | mongoose.Types.ObjectId) => ({
+  outletId,
+  referenceType: ReferenceType.OPENING_BALANCE,
+  status: 'posted',
+  $or: [
+    { 'metadata.source': 'GENERAL_OPENING_BALANCE' },
+    { 'metadata.source': { $exists: false }, referenceId: { $exists: false } },
+  ],
+});
+
+function operationKey(request: NextRequest, body: any) {
+  return String(request.headers.get('idempotency-key') || body.operationKey || '').trim();
+}
+
 export async function POST(request: NextRequest) {
+  let session: mongoose.ClientSession | undefined;
   try {
     await connectDB();
-
     const token = cookies().get('auth-token')?.value;
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = verifyToken(token);
+    if (!hasPermission(user.role, 'canManageAccounting')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!user.outletId || !mongoose.Types.ObjectId.isValid(user.outletId)) {
+      return NextResponse.json({ error: 'Outlet is required' }, { status: 400 });
     }
 
-    const user = verifyToken(token);
-    const { entries, date, allowUpdate } = await request.json();
-
-    if (!Array.isArray(entries) || entries.length === 0) {
+    const body = await request.json();
+    const key = operationKey(request, body);
+    if (!key) return NextResponse.json({ error: 'Idempotency-Key is required' }, { status: 400 });
+    if (!Array.isArray(body.entries) || body.entries.length === 0) {
       return NextResponse.json({ error: 'No entries provided' }, { status: 400 });
     }
-
-    // ─────────────────────────────────────────────
-    // CHECK FOR EXISTING OPENING BALANCE
-    // ─────────────────────────────────────────────
-    const existing = await Voucher.findOne({
-      outletId: user.outletId,
-      referenceType: 'OPENING_BALANCE',
-      status: 'posted',
-    });
-
-    if (existing && !allowUpdate) {
-      return NextResponse.json(
-        { 
-          error: 'Opening balance already posted. Set allowUpdate=true to update, or use the reset endpoint.',
-          existingVoucher: existing.voucherNumber,
-          hint: 'Add all accounts at once in the Opening Balance page, or reset and start over.'
-        },
-        { status: 400 }
-      );
-    }
-
-    // If updating, delete old voucher and ledger entries first
-    if (existing && allowUpdate) {
-      console.log('🔄 Updating existing opening balance...');
-      
-      // Delete old ledger entries
-      await LedgerEntry.collection.deleteMany({
-        voucherId: existing._id,
+    const postingKey = `opening-balance:${key}`;
+    const priorAttempt = await Voucher.findOne({ outletId: user.outletId, postingKey }).lean() as any;
+    if (priorAttempt?.status === 'posted') {
+      return NextResponse.json({
+        success: true,
+        voucherNumber: priorAttempt.voucherNumber,
+        entriesCount: priorAttempt.entries?.length || 0,
+        totals: { totalDebit: priorAttempt.totalDebit, totalCredit: priorAttempt.totalCredit },
+        idempotent: true,
       });
-      
-      // Delete old voucher
-      await Voucher.collection.deleteOne({ _id: existing._id });
-      
-      // Reset all account balances
-      await Account.updateMany(
-        { outletId: user.outletId },
-        { $set: { openingBalance: 0, currentBalance: 0 } }
-      );
-      
-      console.log('  ✓ Cleared previous opening balance');
+    }
+    if (priorAttempt) throw new Error('A prior opening-balance attempt is incomplete and requires reconciliation');
+
+    const voucherDate = body.date ? new Date(body.date) : new Date();
+    if (Number.isNaN(voucherDate.getTime())) {
+      return NextResponse.json({ error: 'Invalid opening balance date' }, { status: 400 });
     }
 
-    // ─────────────────────────────────────────────
-    // FIND OR CREATE OPENING BALANCE EQUITY
-    // ─────────────────────────────────────────────
-    let obEquity = await Account.findOne({
-      outletId: user.outletId,
-      code: 'OB-EQUITY',
-    }) as any;
+    session = await mongoose.startSession();
+    let responseData: any;
+    await session.withTransaction(async () => {
+      const outletId = new mongoose.Types.ObjectId(user.outletId!);
+      const userId = new mongoose.Types.ObjectId(user.userId);
+      const existing = await Voucher.find(generalOpeningQuery(outletId)).session(session!);
+      if (existing.length > 1) throw new Error('Multiple active opening-balance vouchers require reconciliation');
+      if (existing.length === 1 && !body.allowUpdate) {
+        throw new Error(`Opening balance already posted as ${existing[0].voucherNumber}`);
+      }
+      if (existing.length === 1) {
+        await reversePostedVoucher(
+          existing[0]._id,
+          outletId,
+          userId,
+          `Replaced by opening-balance operation ${key}`,
+          session
+        );
+      }
 
-    if (!obEquity) {
-      obEquity = await Account.create({
-        code: 'OB-EQUITY',
-        name: 'Opening Balance Equity',
-        type: 'equity',
-        subType: 'owner_equity',
-        accountGroup: 'Owner Equity',
-        openingBalance: 0,
-        currentBalance: 0,
-        isSystem: true,
+      const ids = body.entries.map((row: any) => String(row.accountId || ''));
+      if (ids.some((id: string) => !mongoose.Types.ObjectId.isValid(id))) {
+        throw new Error('Every opening balance requires a valid account');
+      }
+      if (new Set(ids).size !== ids.length) throw new Error('Duplicate opening-balance accounts are not allowed');
+      const accounts = await Account.find({
+        _id: { $in: ids.map((id: string) => new mongoose.Types.ObjectId(id)) },
+        outletId,
         isActive: true,
-        outletId: user.outletId,
-      });
-      console.log('✓ Created OB-EQUITY account');
-    }
+      }).session(session!);
+      if (accounts.length !== ids.length) throw new Error('Every account must be active and belong to this outlet');
+      const accountMap = new Map(accounts.map((account: any) => [String(account._id), account]));
 
-    // ─────────────────────────────────────────────
-    // BUILD JOURNAL ENTRIES + SET BALANCES
-    // ─────────────────────────────────────────────
-    const journalEntries: any[] = [];
-    let totalDebit = 0;
-    let totalCredit = 0;
-
-    console.log(`\n📊 Processing ${entries.length} opening balance entries...`);
-
-    for (const row of entries) {
-      const account = await Account.findById(row.accountId).lean() as any;
-      if (!account) {
-        console.warn(`⚠️ Account not found: ${row.accountId}`);
-        continue;
+      const entries: Array<{ accountId: mongoose.Types.ObjectId; debit: number; credit: number }> = [];
+      let totalDebit = 0;
+      let totalCredit = 0;
+      for (const row of body.entries) {
+        const account: any = accountMap.get(String(row.accountId));
+        const amount = Number(row.balance);
+        if (!Number.isFinite(amount) || amount <= 0) {
+          throw new Error(`Opening balance for ${account?.name || row.accountId} must be greater than zero`);
+        }
+        const rounded = Number(amount.toFixed(2));
+        const debitNormal = account.type === AccountType.ASSET || account.type === AccountType.EXPENSE;
+        entries.push({ accountId: account._id, debit: debitNormal ? rounded : 0, credit: debitNormal ? 0 : rounded });
+        totalDebit += debitNormal ? rounded : 0;
+        totalCredit += debitNormal ? 0 : rounded;
       }
 
-      const balance = Math.abs(Number(row.balance) || 0);
-      if (balance === 0) continue;
-
-      const accountCode = account.code || account.accountNumber || 'N/A';
-      const accountName = account.name || account.accountName || 'Unknown';
-      const accountType = (account.type || account.accountType || '').toLowerCase();
-      
-      // Assets and Expenses have DEBIT normal balance
-      // Liabilities, Equity, Revenue have CREDIT normal balance
-      const isDebitNormal = accountType === 'asset' || accountType === 'expense';
-
-      if (isDebitNormal) {
-        // DEBIT entry for assets/expenses
-        journalEntries.push({
-          accountId: account._id,
-          accountNumber: accountCode,
-          accountName: accountName,
-          debit: balance,
-          credit: 0,
-        });
-        totalDebit += balance;
-        console.log(`  DR ${accountCode} (${accountType}): ${balance}`);
-      } else {
-        // CREDIT entry for liabilities/equity/revenue
-        journalEntries.push({
-          accountId: account._id,
-          accountNumber: accountCode,
-          accountName: accountName,
-          debit: 0,
-          credit: balance,
-        });
-        totalCredit += balance;
-        console.log(`  CR ${accountCode} (${accountType}): ${balance}`);
+      let openingEquity: any = await Account.findOne({ outletId, code: 'OB-EQUITY' }).session(session!);
+      if (!openingEquity) {
+        [openingEquity] = await Account.create([{
+          code: 'OB-EQUITY',
+          name: 'Opening Balance Equity',
+          type: AccountType.EQUITY,
+          subType: 'owner_equity',
+          accountGroup: 'Owner Equity',
+          isSystem: true,
+          isActive: true,
+          outletId,
+        }], { session });
       }
-
-      // Set opening and current balance on the account
-      // For ALL account types, the balance is stored as a POSITIVE number
-      await Account.findByIdAndUpdate(account._id, {
-        openingBalance: balance,
-        currentBalance: balance,
-      });
-    }
-
-    // ─────────────────────────────────────────────
-    // BALANCE WITH OPENING BALANCE EQUITY
-    // ─────────────────────────────────────────────
-    const difference = totalDebit - totalCredit;
-
-    console.log(`\n📊 Before balancing: DR=${totalDebit}, CR=${totalCredit}, Diff=${difference}`);
-
-    if (Math.abs(difference) > 0.01) {
-      const obCode = obEquity.code || 'OB-EQUITY';
-      const obName = obEquity.name || 'Opening Balance Equity';
-
+      const difference = Number((totalDebit - totalCredit).toFixed(2));
       if (difference > 0) {
-        // More debits than credits - need to CREDIT equity
-        journalEntries.push({
-          accountId: obEquity._id,
-          accountNumber: obCode,
-          accountName: obName,
-          debit: 0,
-          credit: difference,
-        });
-        totalCredit += difference;
-
-        await Account.findByIdAndUpdate(obEquity._id, {
-          openingBalance: difference,
-          currentBalance: difference,
-        });
-
-        console.log(`  CR OB-EQUITY: ${difference} (balancing entry)`);
-      } else {
-        // More credits than debits - need to DEBIT equity (rare)
-        const absDiff = Math.abs(difference);
-        journalEntries.push({
-          accountId: obEquity._id,
-          accountNumber: obCode,
-          accountName: obName,
-          debit: absDiff,
-          credit: 0,
-        });
-        totalDebit += absDiff;
-
-        await Account.findByIdAndUpdate(obEquity._id, {
-          openingBalance: absDiff,
-          currentBalance: absDiff,
-        });
-
-        console.log(`  DR OB-EQUITY: ${absDiff} (balancing entry)`);
+        entries.push({ accountId: openingEquity._id, debit: 0, credit: difference });
+      } else if (difference < 0) {
+        entries.push({ accountId: openingEquity._id, debit: Math.abs(difference), credit: 0 });
       }
-    }
 
-    // Verify balance
-    if (Math.abs(totalDebit - totalCredit) > 0.01) {
-      throw new Error(`Journal not balanced: DR=${totalDebit}, CR=${totalCredit}`);
-    }
+      const result = await createPostedVoucher({
+        voucherType: VoucherType.JOURNAL,
+        date: voucherDate,
+        narration: 'Opening Balance Entry',
+        entries,
+        referenceType: ReferenceType.OPENING_BALANCE,
+        postingKey,
+        outletId,
+        createdBy: userId,
+        metadata: { source: 'GENERAL_OPENING_BALANCE' },
+      }, session!);
 
-    console.log(`✓ Balanced: DR=${totalDebit}, CR=${totalCredit}`);
+      const allAccounts: any[] = await Account.find({ outletId }).session(session!).lean();
+      const balanceRows = await LedgerEntry.aggregate([
+        { $match: { outletId } },
+        { $group: { _id: '$accountId', debit: { $sum: '$debit' }, credit: { $sum: '$credit' } } },
+      ]).session(session!);
+      const balanceMap = new Map(balanceRows.map((row: any) => [String(row._id), row]));
+      const openingMap = new Map(entries.map((entry) => {
+        const account = allAccounts.find((candidate) => String(candidate._id) === String(entry.accountId));
+        return [String(entry.accountId), calculateBalanceChange(account?.type, entry.debit, entry.credit)];
+      }));
+      await Account.bulkWrite(allAccounts.map((account) => {
+        const totals = balanceMap.get(String(account._id)) || { debit: 0, credit: 0 };
+        return {
+          updateOne: {
+            filter: { _id: account._id, outletId },
+            update: { $set: {
+              openingBalance: openingMap.get(String(account._id)) || 0,
+              currentBalance: calculateBalanceChange(account.type, totals.debit, totals.credit),
+            } },
+          },
+        };
+      }), { session });
 
-    // ─────────────────────────────────────────────
-    // CREATE VOUCHER
-    // ─────────────────────────────────────────────
-    const voucherNumber = await generateVoucherNumber(
-      'journal',
-      new mongoose.Types.ObjectId(user.outletId ?? undefined)
-    );
+      await ActivityLog.create([{
+        userId,
+        username: user.email,
+        actionType: existing.length ? 'update' : 'create',
+        module: 'accounts',
+        description: `${existing.length ? 'Replaced' : 'Posted'} opening balances - ${body.entries.length} accounts`,
+        outletId,
+        timestamp: new Date(),
+      }], { session });
 
-    const voucher = await Voucher.create({
-      voucherNumber,
-      voucherType: 'journal',
-      date: date ? new Date(date) : new Date(),
-      narration: 'Opening Balance Entry',
-      entries: journalEntries,
-      totalDebit,
-      totalCredit,
-      status: 'posted',
-      referenceType: 'OPENING_BALANCE',
-      outletId: user.outletId,
-      createdBy: user.userId,
+      responseData = {
+        success: true,
+        voucherNumber: result.voucher.voucherNumber,
+        entriesCount: entries.length,
+        totals: { totalDebit: result.voucher.totalDebit, totalCredit: result.voucher.totalCredit },
+      };
     });
 
-    console.log(`✓ Created voucher: ${voucherNumber}`);
-
-    // ─────────────────────────────────────────────
-    // CREATE LEDGER ENTRIES
-    // ─────────────────────────────────────────────
-    const ledgerDocs = journalEntries.map(e => ({
-      voucherId: voucher._id,
-      voucherNumber: voucher.voucherNumber,
-      voucherType: 'journal',
-      accountId: e.accountId,
-      accountNumber: e.accountNumber,
-      accountName: e.accountName,
-      debit: e.debit,
-      credit: e.credit,
-      narration: 'Opening Balance Entry',
-      date: voucher.date,
-      referenceType: 'OPENING_BALANCE',
-      isReversal: false,
-      outletId: user.outletId,
-      createdBy: user.userId,
-    }));
-
-    await LedgerEntry.insertMany(ledgerDocs);
-    console.log(`✓ Created ${ledgerDocs.length} ledger entries`);
-
-    // ─────────────────────────────────────────────
-    // ACTIVITY LOG
-    // ─────────────────────────────────────────────
-    const userDoc = await User.findById(user.userId).lean() as any;
-    await ActivityLog.create({
-      userId: user.userId,
-      username: userDoc?.username || userDoc?.email || user.email,
-      actionType: 'create',
-      module: 'accounts',
-      description: `Posted opening balances - ${entries.length} accounts`,
-      outletId: user.outletId,
-      timestamp: new Date(),
-    });
-
-    console.log(`\n✅ Opening balance posted successfully!\n`);
-
-    return NextResponse.json({
-      success: true,
-      voucherNumber: voucher.voucherNumber,
-      entriesCount: journalEntries.length,
-      totals: { totalDebit, totalCredit },
-    });
+    return NextResponse.json(responseData);
   } catch (error: any) {
     console.error('Opening balance error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const status = /required|invalid|duplicate|already|must|belong|reconciliation/i.test(error.message) ? 400 : 500;
+    return NextResponse.json({ error: error.message }, { status });
+  } finally {
+    if (session) await session.endSession();
   }
 }
 
-// GET - Check if opening balance exists
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     await connectDB();
-
     const token = cookies().get('auth-token')?.value;
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const user = verifyToken(token);
-
-    const existing = await Voucher.findOne({
-      outletId: user.outletId,
-      referenceType: 'OPENING_BALANCE',
-      status: 'posted',
-    }).lean() as any;
-
-    // Get accounts with non-zero balances
+    if (!hasPermission(user.role, 'canViewFinancials')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    const existing: any = await Voucher.findOne(generalOpeningQuery(user.outletId!)).lean();
     const accountsWithBalance = await Account.find({
       outletId: user.outletId,
-      $or: [
-        { openingBalance: { $ne: 0 } },
-        { currentBalance: { $ne: 0 } },
-      ],
-    })
-      .select('code name type openingBalance currentBalance')
-      .lean();
-
+      openingBalance: { $ne: 0 },
+    }).select('code name type openingBalance currentBalance').lean();
     return NextResponse.json({
-      hasOpeningBalance: !!existing,
+      hasOpeningBalance: Boolean(existing),
       voucherNumber: existing?.voucherNumber || null,
       voucherDate: existing?.date || null,
       totalDebit: existing?.totalDebit || 0,
@@ -320,7 +219,6 @@ export async function GET(request: NextRequest) {
       accountsWithBalance,
     });
   } catch (error: any) {
-    console.error('Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

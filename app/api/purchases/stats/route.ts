@@ -9,6 +9,7 @@ import Purchase from "@/lib/models/Purchase";
 import Expense from "@/lib/models/Expense";
 import Category from "@/lib/models/Category";
 import Supplier from "@/lib/models/Supplier";
+import { hasPermission } from "@/lib/types/roles";
 
 /**
  * GET /api/purchases/stats
@@ -24,6 +25,12 @@ export async function GET(request: NextRequest) {
     }
 
     const user = verifyToken(token);
+    if (!hasPermission(user.role, "canProcessPurchases") && !hasPermission(user.role, "canViewFinancials")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (!user.outletId || !mongoose.Types.ObjectId.isValid(user.outletId)) {
+      return NextResponse.json({ error: "Outlet is required" }, { status: 400 });
+    }
     const outletId = new mongoose.Types.ObjectId(user.outletId || "");
 
     // Get today's date range
@@ -43,23 +50,25 @@ export async function GET(request: NextRequest) {
       activeSuppliers,
     ] = await Promise.all([
       // Total number of purchases
-      Purchase.countDocuments({ outletId }),
+      Purchase.countDocuments({ outletId, status: { $ne: "CANCELLED" } }),
 
       // Total expenses amount
       Expense.aggregate([
-        { $match: { outletId } },
-        { $group: { _id: null, total: { $sum: "$amount" } } },
+        { $match: { outletId, status: { $ne: "CANCELLED" } } },
+        { $group: { _id: null, total: { $sum: "$grandTotal" } } },
       ]),
 
       // Number of pending bills (purchases with balance due > 0)
       Purchase.countDocuments({
         outletId,
+        status: { $ne: "CANCELLED" },
         balanceDue: { $gt: 0 },
       }),
 
       // Purchases made today
       Purchase.countDocuments({
         outletId,
+        status: { $ne: "CANCELLED" },
         purchaseDate: {
           $gte: today,
           $lt: tomorrow,

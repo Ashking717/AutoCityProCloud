@@ -4,14 +4,27 @@ import Account from '@/lib/models/Account';
 import LedgerEntry from '@/lib/models/LedgerEntry';
 import Outlet from '@/lib/models/Outlet';
 import { connectDB } from '@/lib/db/mongodb';
+import { cookies } from 'next/headers';
+import { verifyToken } from '@/lib/auth/jwt';
+import { hasPermission, UserRole } from '@/lib/types/roles';
 
 export async function GET(req: Request) {
   try {
     await connectDB();
 
+    const token = cookies().get('auth-token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = verifyToken(token);
+    if (!hasPermission(user.role, 'canViewFinancials')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(req.url);
 
-    const outletId = searchParams.get('outletId');
+    const requestedOutletId = searchParams.get('outletId');
+    const outletId = user.role === UserRole.SUPERADMIN
+      ? requestedOutletId
+      : user.outletId;
     const fromDate = searchParams.get('fromDate');
     const toDate = searchParams.get('toDate');
 
@@ -31,6 +44,14 @@ export async function GET(req: Request) {
 
     const from = new Date(fromDate);
     const to = new Date(toDate);
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+      return NextResponse.json({ error: 'Invalid date range' }, { status: 400 });
+    }
+    from.setHours(0, 0, 0, 0);
+    to.setHours(23, 59, 59, 999);
+    if (from > to) {
+      return NextResponse.json({ error: 'Invalid date range' }, { status: 400 });
+    }
 
     /* ----------------------------------------------------
        1️⃣ LOAD OUTLET
@@ -43,10 +64,7 @@ export async function GET(req: Request) {
     /* ----------------------------------------------------
        2️⃣ LOAD ACCOUNTS
     ---------------------------------------------------- */
-    const accounts = await Account.find({
-      outletId,
-      isActive: true,
-    }).lean();
+    const accounts = await Account.find({ outletId }).lean();
 
     type TBRow = {
       accountId: string;

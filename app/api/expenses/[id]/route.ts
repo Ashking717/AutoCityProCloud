@@ -1,422 +1,249 @@
-// app/api/expenses/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import mongoose from 'mongoose';
 import { cookies } from 'next/headers';
+import mongoose from 'mongoose';
 
-import Expense from '@/lib/models/Expense';
-import Voucher from '@/lib/models/Voucher';
-import LedgerEntry from '@/lib/models/LedgerEntry';
+import Account, { AccountSubType, AccountType } from '@/lib/models/Account';
 import ActivityLog from '@/lib/models/ActivityLog';
-import User from '@/lib/models/User';
-
-import { reverseExpenseVoucher, postExpenseToLedger } from '@/lib/services/accountingService';
+import Expense from '@/lib/models/Expense';
+import LedgerEntry from '@/lib/models/LedgerEntry';
+import Voucher from '@/lib/models/Voucher';
 import { verifyToken } from '@/lib/auth/jwt';
 import { connectDB } from '@/lib/db/mongodb';
+import {
+  postExpenseAccounting,
+  postExpensePaymentAccounting,
+} from '@/lib/services/transactionalAccountingService';
+import { reversePostedVoucher } from '@/lib/services/voucherPostingService';
+import { hasPermission } from '@/lib/types/roles';
 
-interface RouteParams {
-  params: {
-    id: string;
-  };
+interface RouteParams { params: { id: string } }
+
+function round(value: number) {
+  return Number(value.toFixed(2));
 }
 
-/* ═══════════════════════════════════════════════════════════
-   GET /api/expenses/[id] - Get single expense details
-   ═══════════════════════════════════════════════════════════ */
+function requestKey(request: NextRequest, body?: any) {
+  return String(request.headers.get('idempotency-key') || body?.operationKey || '').trim();
+}
 
-export async function GET(
-  request: NextRequest,
-  { params }: RouteParams
-) {
+function getUser(permission: 'canViewFinancials' | 'canManageAccounting') {
+  const token = cookies().get('auth-token')?.value;
+  if (!token) return { response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
+  const user = verifyToken(token);
+  if (!hasPermission(user.role, permission)) {
+    return { response: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
+  }
+  if (!user.outletId || !mongoose.Types.ObjectId.isValid(user.outletId)) {
+    return { response: NextResponse.json({ error: 'Outlet is required' }, { status: 400 }) };
+  }
+  return { user };
+}
+
+export async function GET(_request: NextRequest, { params }: RouteParams) {
   try {
     await connectDB();
-
-    // ───────────────── AUTH ─────────────────
-    const token = cookies().get('auth-token')?.value;
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const user = verifyToken(token);
-
-    // ───────────────── FETCH EXPENSE ─────────────────
-    const expense = await Expense.findById(params.id)
+    const auth = getUser('canViewFinancials');
+    if (auth.response) return auth.response;
+    if (!mongoose.Types.ObjectId.isValid(params.id)) return NextResponse.json({ error: 'Invalid expense ID' }, { status: 400 });
+    const expense: any = await Expense.findOne({ _id: params.id, outletId: auth.user!.outletId })
       .populate('createdBy', 'name email username')
       .populate('approvedBy', 'name email username')
       .populate('paymentAccount', 'code name')
       .lean();
-
-    if (!expense) {
-      return NextResponse.json({ error: 'Expense not found' }, { status: 404 });
-    }
-
-    // ───────────────── VOUCHER ─────────────────
-    let voucher: any = null;
-    if ((expense as any).voucherId) {
-      voucher = await Voucher.findById((expense as any).voucherId).lean();
-    }
-
-    // ───────────────── LEDGER ENTRIES ─────────────────
-    let ledgerEntries: any[] = [];
-    if ((expense as any).isPostedToGL && (expense as any).voucherId) {
-      ledgerEntries = await LedgerEntry.find({ voucherId: (expense as any).voucherId })
-        .sort({ debit: -1 })
-        .lean();
-    }
-
-    return NextResponse.json({
-      expense,
-      voucher,
-      ledgerEntries,
-    });
+    if (!expense) return NextResponse.json({ error: 'Expense not found' }, { status: 404 });
+    const [voucher, ledgerEntries] = expense.voucherId
+      ? await Promise.all([
+          Voucher.findOne({ _id: expense.voucherId, outletId: auth.user!.outletId }).lean(),
+          LedgerEntry.find({ voucherId: expense.voucherId, outletId: auth.user!.outletId }).sort({ lineNumber: 1 }).lean(),
+        ])
+      : [null, []];
+    return NextResponse.json({ expense, voucher, ledgerEntries });
   } catch (error: any) {
-    console.error('GET /api/expenses/[id] error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to fetch expense' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-/* ═══════════════════════════════════════════════════════════
-   PUT /api/expenses/[id] - Update expense (before posting)
-   ═══════════════════════════════════════════════════════════ */
+export async function PUT() {
+  return NextResponse.json(
+    { error: 'Expense financial details are immutable; cancel and create a corrected expense' },
+    { status: 410 }
+  );
+}
 
-export async function PUT(
-  request: NextRequest,
-  { params }: RouteParams
-) {
+async function cancelExpense(request: NextRequest, params: { id: string }, body: any = {}) {
+  let session: mongoose.ClientSession | undefined;
   try {
     await connectDB();
-
-    // ───────────────── AUTH ─────────────────
-    const token = cookies().get('auth-token')?.value;
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const user = verifyToken(token);
-    const userId = new mongoose.Types.ObjectId(user.userId);
-
-    // ───────────────── FETCH EXPENSE ─────────────────
-    const expense = await Expense.findById(params.id);
-    if (!expense) {
-      return NextResponse.json({ error: 'Expense not found' }, { status: 404 });
-    }
-
-    // ───────────────── VALIDATE ─────────────────
-    if (expense.isPostedToGL) {
-      return NextResponse.json(
-        { error: 'Cannot edit expense that has been posted to ledger' },
-        { status: 400 }
-      );
-    }
-
-    // ───────────────── BODY ─────────────────
-    const body = await request.json();
-    const {
-      category,
-      items,
-      taxAmount,
-      vendorName,
-      vendorPhone,
-      vendorEmail,
-      referenceNumber,
-      notes,
-    } = body;
-
-    // ───────────────── UPDATE FIELDS ─────────────────
-    if (category) expense.category = category;
-
-    if (items && Array.isArray(items)) {
-      // Recalculate totals
-      const subtotal = items.reduce(
-        (sum: number, item: any) => sum + Number(item.amount || 0),
-        0
-      );
-      const grandTotal = subtotal + Number(taxAmount || 0);
-
-      expense.items = items;
-      expense.subtotal = subtotal;
-      expense.taxAmount = Number(taxAmount || 0);
-      expense.grandTotal = grandTotal;
-      expense.balanceDue = grandTotal - expense.amountPaid;
-
-      // Update status based on payment
-      if (expense.amountPaid >= grandTotal) {
-        expense.status = 'PAID';
-        expense.balanceDue = 0;
-      } else if (expense.amountPaid > 0) {
-        expense.status = 'PARTIALLY_PAID';
+    const auth = getUser('canManageAccounting');
+    if (auth.response) return auth.response;
+    const user = auth.user!;
+    if (!mongoose.Types.ObjectId.isValid(params.id)) return NextResponse.json({ error: 'Invalid expense ID' }, { status: 400 });
+    const key = requestKey(request, body);
+    if (!key) return NextResponse.json({ error: 'Idempotency-Key is required' }, { status: 400 });
+    session = await mongoose.startSession();
+    let expenseResult: any;
+    await session.withTransaction(async () => {
+      const outletId = new mongoose.Types.ObjectId(user.outletId!);
+      const userId = new mongoose.Types.ObjectId(user.userId);
+      const expense: any = await Expense.findOne({ _id: params.id, outletId }).session(session!);
+      if (!expense) throw new Error('Expense not found');
+      if (expense.status === 'CANCELLED') {
+        expenseResult = expense;
+        return;
       }
-    }
-
-    if (vendorName !== undefined) expense.vendorName = vendorName;
-    if (vendorPhone !== undefined) expense.vendorPhone = vendorPhone;
-    if (vendorEmail !== undefined) expense.vendorEmail = vendorEmail;
-    if (referenceNumber !== undefined) expense.referenceNumber = referenceNumber;
-    if (notes !== undefined) expense.notes = notes;
-
-    await expense.save();
-
-    // ───────────────── ACTIVITY LOG ─────────────────
-    const userDoc = await User.findById(userId).lean();
-    const username =
-      userDoc?.username || user.username || user.email || 'Unknown User';
-
-    await ActivityLog.create([
-      {
+      if (expense.isPostedToGL && !expense.voucherId) throw new Error('Posted expense is missing its voucher');
+      if (expense.voucherId) {
+        await reversePostedVoucher(expense.voucherId, outletId, userId, body.reason || 'Expense cancelled', session);
+      }
+      for (const payment of expense.payments || []) {
+        if (payment.voucherId) {
+          await reversePostedVoucher(payment.voucherId, outletId, userId, body.reason || 'Expense cancelled', session);
+        }
+      }
+      expense.status = 'CANCELLED';
+      expense.cancelledAt = new Date();
+      expense.cancelledBy = userId;
+      await expense.save({ session });
+      await ActivityLog.create([{
         userId,
-        username,
+        username: user.email,
         actionType: 'update',
         module: 'expenses',
-        description: `Updated expense ${expense.expenseNumber}`,
-        outletId: expense.outletId,
+        description: `Cancelled expense ${expense.expenseNumber} through ledger reversal`,
+        outletId,
         timestamp: new Date(),
-      },
-    ]);
-
-    return NextResponse.json({
-      success: true,
-      expense,
-      message: 'Expense updated successfully',
+      }], { session });
+      expenseResult = expense;
     });
+    return NextResponse.json({ success: true, expense: expenseResult, message: 'Expense cancelled and reversed successfully' });
   } catch (error: any) {
-    console.error('PUT /api/expenses/[id] error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to update expense' },
-      { status: 500 }
-    );
+    const status = /required|invalid|not found|missing/i.test(error.message) ? 400 : 500;
+    return NextResponse.json({ error: error.message }, { status });
+  } finally {
+    if (session) await session.endSession();
   }
 }
 
-/* ═══════════════════════════════════════════════════════════
-   DELETE /api/expenses/[id] - Delete expense
-   ═══════════════════════════════════════════════════════════ */
-
-export async function DELETE(
-  request: NextRequest,
-  { params }: RouteParams
-) {
-  try {
-    await connectDB();
-
-    // ───────────────── AUTH ─────────────────
-    const token = cookies().get('auth-token')?.value;
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const user = verifyToken(token);
-    const userId = new mongoose.Types.ObjectId(user.userId);
-
-    // ───────────────── FETCH EXPENSE ─────────────────
-    const expense = await Expense.findById(params.id);
-    if (!expense) {
-      return NextResponse.json({ error: 'Expense not found' }, { status: 404 });
-    }
-
-    // ───────────────── REVERSAL ─────────────────
-    let reversalMessage = '';
-
-    if ((expense as any).isPostedToGL && (expense as any).voucherId) {
-      await reverseExpenseVoucher(
-        expense,
-        userId,
-        'Expense deleted by user'
-      );
-      reversalMessage = ' and reversed in ledger';
-    }
-
-    // ───────────────── DELETE ─────────────────
-    await Expense.findByIdAndDelete(params.id);
-
-    // ───────────────── ACTIVITY LOG ─────────────────
-    const userDoc = await User.findById(userId).lean();
-    const username =
-      userDoc?.username || user.username || user.email || 'Unknown User';
-
-    await ActivityLog.create([
-      {
-        userId,
-        username,
-        actionType: 'delete',
-        module: 'expenses',
-        description: `Deleted expense ${(expense as any).expenseNumber} - QAR ${(expense as any).grandTotal.toFixed(
-          2
-        )}${reversalMessage}`,
-        outletId: (expense as any).outletId,
-        timestamp: new Date(),
-      },
-    ]);
-
-    return NextResponse.json({
-      success: true,
-      message: `Expense deleted successfully${reversalMessage}`,
-    });
-  } catch (error: any) {
-    console.error('DELETE /api/expenses/[id] error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to delete expense' },
-      { status: 500 }
-    );
-  }
+export async function DELETE(request: NextRequest, { params }: RouteParams) {
+  return cancelExpense(request, params);
 }
 
-/* ═══════════════════════════════════════════════════════════
-   POST /api/expenses/[id]/actions - Perform actions
-   ═══════════════════════════════════════════════════════════ */
+export async function POST(request: NextRequest, { params }: RouteParams) {
+  let body: any;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Valid JSON body is required' }, { status: 400 });
+  }
+  if (String(body.action || '').toLowerCase() === 'cancel') return cancelExpense(request, params, body);
 
-export async function POST(
-  request: NextRequest,
-  { params }: RouteParams
-) {
+  let session: mongoose.ClientSession | undefined;
   try {
     await connectDB();
+    const auth = getUser('canManageAccounting');
+    if (auth.response) return auth.response;
+    const user = auth.user!;
+    if (!mongoose.Types.ObjectId.isValid(params.id)) return NextResponse.json({ error: 'Invalid expense ID' }, { status: 400 });
+    const key = requestKey(request, body);
+    if (!key) return NextResponse.json({ error: 'Idempotency-Key is required' }, { status: 400 });
+    const action = String(body.action || '').toLowerCase();
+    if (!['approve', 'pay'].includes(action)) return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
 
-    // ───────────────── AUTH ─────────────────
-    const token = cookies().get('auth-token')?.value;
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    session = await mongoose.startSession();
+    let responseData: any;
+    await session.withTransaction(async () => {
+      const outletId = new mongoose.Types.ObjectId(user.outletId!);
+      const userId = new mongoose.Types.ObjectId(user.userId);
+      const expense: any = await Expense.findOne({ _id: params.id, outletId }).session(session!);
+      if (!expense) throw new Error('Expense not found');
+      if (expense.status === 'CANCELLED') throw new Error('Cancelled expenses cannot be changed');
 
-    const user = verifyToken(token);
-    const userId = new mongoose.Types.ObjectId(user.userId);
-
-    // ───────────────── BODY ─────────────────
-    const body = await request.json();
-    const { action, amount, paymentAccountId } = body;
-
-    // ───────────────── FETCH EXPENSE ─────────────────
-    const expense = await Expense.findById(params.id);
-    if (!expense) {
-      return NextResponse.json({ error: 'Expense not found' }, { status: 404 });
-    }
-
-    let result;
-    let activityDescription = '';
-
-    // ───────────────── ACTIONS ─────────────────
-    switch (action.toLowerCase()) {
-      case 'approve':
-        if (expense.status !== 'DRAFT') {
-          return NextResponse.json(
-            { error: 'Can only approve draft expenses' },
-            { status: 400 }
-          );
+      if (action === 'approve') {
+        if (expense.status !== 'DRAFT') throw new Error('Only draft expenses can be approved');
+        if (!expense.isPostedToGL) {
+          const result = await postExpenseAccounting(expense, userId, session!);
+          expense.voucherId = result.voucherId;
+          expense.isPostedToGL = true;
         }
-
-        expense.status = 'PENDING';
+        expense.status = expense.balanceDue === 0 ? 'PAID' : expense.amountPaid > 0 ? 'PARTIALLY_PAID' : 'PENDING';
         expense.approvedBy = userId;
         expense.approvedAt = new Date();
-        await expense.save();
-
-        activityDescription = `Approved expense ${(expense as any).expenseNumber}`;
-        break;
-
-      case 'pay':
-        if (expense.status !== 'PENDING' && expense.status !== 'PARTIALLY_PAID') {
-          return NextResponse.json(
-            { error: 'Can only pay pending or partially paid expenses' },
-            { status: 400 }
-          );
+        await expense.save({ session });
+        responseData = { expense };
+      } else {
+        const postingKey = `expense:${expense._id}:payment:${key}`;
+        const prior: any = await Voucher.findOne({ outletId, postingKey }).session(session!);
+        if (prior) {
+          responseData = { expense, voucherId: prior._id, voucherNumber: prior.voucherNumber, idempotent: true };
+          return;
         }
-
-        if (!amount || amount <= 0) {
-          return NextResponse.json(
-            { error: 'Valid payment amount required' },
-            { status: 400 }
-          );
+        if (!['PENDING', 'PARTIALLY_PAID'].includes(expense.status)) {
+          throw new Error('Only pending expenses can be paid');
         }
-
-        if (amount > (expense as any).balanceDue) {
-          return NextResponse.json(
-            { error: 'Payment amount exceeds balance due' },
-            { status: 400 }
-          );
+        const amount = round(Number(body.amount));
+        if (!Number.isFinite(amount) || amount <= 0 || amount > Number(expense.balanceDue) + 0.01) {
+          throw new Error('Payment must be positive and cannot exceed the balance due');
         }
-
-        if (!paymentAccountId) {
-          return NextResponse.json(
-            { error: 'Payment account required' },
-            { status: 400 }
-          );
+        const method = String(body.paymentMethod || '').toUpperCase();
+        if (!['CASH', 'BANK_TRANSFER', 'CARD', 'CHEQUE'].includes(method)) throw new Error('Invalid payment method');
+        const date = body.paymentDate ? new Date(body.paymentDate) : new Date();
+        if (Number.isNaN(date.getTime())) throw new Error('Invalid payment date');
+        let accountId: mongoose.Types.ObjectId | undefined;
+        if (body.paymentAccountId) {
+          const account: any = await Account.findOne({
+            _id: body.paymentAccountId,
+            outletId,
+            type: AccountType.ASSET,
+            subType: { $in: [AccountSubType.CASH, AccountSubType.BANK] },
+            isActive: true,
+          }).session(session!);
+          if (!account) throw new Error('Payment account must be active cash or bank in this outlet');
+          accountId = account._id;
         }
-
-        // Update payment details
-        (expense as any).amountPaid += Number(amount);
-        (expense as any).balanceDue -= Number(amount);
-        (expense as any).paymentAccount = new mongoose.Types.ObjectId(paymentAccountId);
-
-        if ((expense as any).balanceDue <= 0) {
-          expense.status = 'PAID';
-          (expense as any).balanceDue = 0;
-        } else {
-          expense.status = 'PARTIALLY_PAID';
+        if (!expense.isPostedToGL) {
+          const initial = await postExpenseAccounting(expense, userId, session!);
+          expense.voucherId = initial.voucherId;
+          expense.isPostedToGL = true;
         }
-
-        // Post to ledger if not already posted
-        if (!(expense as any).isPostedToGL) {
-          result = await postExpenseToLedger(expense, userId);
-
-          (expense as any).voucherId = result.voucherId;
-          (expense as any).isPostedToGL = true;
-        }
-
-        await expense.save();
-
-        activityDescription = `Paid QAR ${Number(amount).toFixed(2)} for expense ${
-          (expense as any).expenseNumber
-        }`;
-        break;
-
-      case 'cancel':
-        if ((expense as any).isPostedToGL) {
-          // Create reversal if already posted
-          result = await reverseExpenseVoucher(
-            expense,
-            userId,
-            'Expense cancelled by user'
-          );
-        }
-
-        expense.status = 'CANCELLED';
-        await expense.save();
-
-        activityDescription = `Cancelled expense ${(expense as any).expenseNumber}`;
-        break;
-
-      default:
-        return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
-    }
-
-    // ───────────────── ACTIVITY LOG ─────────────────
-    const userDoc = await User.findById(userId).lean();
-    const username =
-      userDoc?.username || user.username || user.email || 'Unknown User';
-
-    await ActivityLog.create([
-      {
+        const payment = await postExpensePaymentAccounting(expense, {
+          amount,
+          method,
+          accountId,
+          date,
+          reference: body.referenceNumber,
+          paymentKey: postingKey,
+        }, userId, session!);
+        expense.amountPaid = round(Number(expense.amountPaid || 0) + amount);
+        expense.balanceDue = round(Number(expense.grandTotal) - expense.amountPaid);
+        expense.status = expense.balanceDue === 0 ? 'PAID' : 'PARTIALLY_PAID';
+        expense.payments ||= [];
+        expense.payments.push({
+          paymentKey: postingKey,
+          amount,
+          method,
+          accountId,
+          voucherId: payment.voucherId,
+          date,
+          reference: body.referenceNumber,
+        });
+        await expense.save({ session });
+        responseData = { expense, ...payment };
+      }
+      await ActivityLog.create([{
         userId,
-        username,
+        username: user.email,
         actionType: 'update',
         module: 'expenses',
-        description: activityDescription,
-        outletId: (expense as any).outletId,
+        description: `${action === 'approve' ? 'Approved' : 'Paid'} expense ${expense.expenseNumber}`,
+        outletId,
         timestamp: new Date(),
-      },
-    ]);
-
-    return NextResponse.json({
-      success: true,
-      expense,
-      result,
-      message: `Expense ${action}ed successfully`,
+      }], { session });
     });
+    return NextResponse.json({ success: true, ...responseData, message: `Expense ${action} completed successfully` });
   } catch (error: any) {
-    console.error('POST /api/expenses/[id]/actions error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Action failed' },
-      { status: 500 }
-    );
+    const status = /required|invalid|only|cannot|must|not found|missing/i.test(error.message) ? 400 : 500;
+    return NextResponse.json({ error: error.message }, { status });
+  } finally {
+    if (session) await session.endSession();
   }
 }

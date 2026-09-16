@@ -1,83 +1,55 @@
-// app/api/accounts/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { connectDB } from '@/lib/db/mongodb';
-import Account from '@/lib/models/Account';
-import ActivityLog from '@/lib/models/ActivityLog';
 import { cookies } from 'next/headers';
-import { verifyToken } from '@/lib/auth/jwt';
-import User from '@/lib/models/User';
+import mongoose from 'mongoose';
 
-// Helper function to map DB fields to frontend expected fields
+import Account, { AccountSubType, AccountType } from '@/lib/models/Account';
+import ActivityLog from '@/lib/models/ActivityLog';
+import LedgerEntry from '@/lib/models/LedgerEntry';
+import { verifyToken } from '@/lib/auth/jwt';
+import { connectDB } from '@/lib/db/mongodb';
+import { calculateBalanceChange } from '@/lib/services/balanceEngine';
+import { hasPermission } from '@/lib/types/roles';
+
 function mapAccountFields(account: any) {
   return {
     ...account,
-    accountNumber: account.code || account.accountNumber,
-    accountName: account.name || account.accountName,
-    accountType: account.type || account.accountType,
-    accountSubType: account.subType || account.accountSubType,
-    accountGroup: account.accountGroup || account.group,
+    accountNumber: account.code,
+    accountName: account.name,
+    accountType: account.type,
+    accountSubType: account.subType,
   };
 }
 
-// GET /api/accounts
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     await connectDB();
-    
-    const cookieStore = cookies();
-    const token = cookieStore.get('auth-token')?.value;
-    
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
+    const token = cookies().get('auth-token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const user = verifyToken(token);
-    
-    const accountsRaw = await Account.find({
-      outletId: user.outletId,
-    })
-      .sort({ code: 1, accountNumber: 1 })
-      .lean() as any[];
-    
-    // Calculate current balance from ledger entries for each account
-    const LedgerEntry = (await import('@/lib/models/LedgerEntry')).default;
-    
-    const accountsWithBalances = await Promise.all(
-      accountsRaw.map(async (acc: any) => {
-        // Get all ledger entries for this account
-        const entries = await LedgerEntry.find({
-          accountId: acc._id,
-          outletId: user.outletId,
-        }).lean();
-        
-        // Calculate balance: opening + (sum of debits - sum of credits)
-        const totalDebits = entries.reduce((sum: number, entry: any) => sum + (entry.debit || 0), 0);
-        const totalCredits = entries.reduce((sum: number, entry: any) => sum + (entry.credit || 0), 0);
-        
-        // For assets and expenses: debit increases, credit decreases
-        // For liabilities, equity, and revenue: credit increases, debit decreases
-        // ✅ FIX: Convert to lowercase for comparison
-        const accountType = (acc.type || acc.accountType || '').toLowerCase();
-        let currentBalance = acc.openingBalance || 0;
-
-        // ✅ FIX: Compare with lowercase values
-        if (accountType === 'asset' || accountType === 'expense') {
-          currentBalance += (totalDebits - totalCredits);
-        } else {
-          // LIABILITY, EQUITY, REVENUE
-          currentBalance += (totalCredits - totalDebits);
-        }
-        
+    if (!hasPermission(user.role, 'canViewFinancials')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!user.outletId || !mongoose.Types.ObjectId.isValid(user.outletId)) {
+      return NextResponse.json({ error: 'Outlet is required' }, { status: 400 });
+    }
+    const [accounts, rows] = await Promise.all([
+      Account.find({ outletId: user.outletId }).sort({ code: 1 }).lean(),
+      LedgerEntry.aggregate([
+        { $match: { outletId: new mongoose.Types.ObjectId(user.outletId) } },
+        { $group: { _id: '$accountId', debit: { $sum: '$debit' }, credit: { $sum: '$credit' } } },
+      ]),
+    ]);
+    const balanceMap = new Map(rows.map((row: any) => [String(row._id), row]));
+    return NextResponse.json({
+      accounts: (accounts as any[]).map((account) => {
+        const totals = balanceMap.get(String(account._id)) || { debit: 0, credit: 0 };
         return mapAccountFields({
-          ...acc,
-          currentBalance,
+          ...account,
+          currentBalance: calculateBalanceChange(account.type, totals.debit, totals.credit),
         });
-      })
-    );
-    
-    return NextResponse.json({ accounts: accountsWithBalances });
+      }),
+    });
   } catch (error: any) {
-    console.error('Error fetching accounts:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -85,79 +57,55 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     await connectDB();
-
     const token = cookies().get('auth-token')?.value;
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
     const user = verifyToken(token);
+    if (!hasPermission(user.role, 'canManageAccounting')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!user.outletId || !mongoose.Types.ObjectId.isValid(user.outletId)) {
+      return NextResponse.json({ error: 'Outlet is required' }, { status: 400 });
+    }
     const body = await request.json();
-
-    const {
-      accountCode,
-      accountName,
-      accountType,
-      accountSubType,
-      accountGroup,
-      openingBalance,
-      description,
-    } = body;
-
-    if (!accountCode || !accountName || !accountType || !accountGroup) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    const code = String(body.accountCode || '').trim().toUpperCase();
+    const name = String(body.accountName || '').trim();
+    const type = String(body.accountType || '').toLowerCase();
+    const subType = body.accountSubType ? String(body.accountSubType).toLowerCase() : undefined;
+    const accountGroup = String(body.accountGroup || '').trim();
+    if (!code || !name || !accountGroup || !Object.values(AccountType).includes(type as AccountType)) {
+      return NextResponse.json({ error: 'Valid code, name, type, and group are required' }, { status: 400 });
     }
-
-    // Check if account code already exists
-    const existing = await Account.findOne({
-      outletId: user.outletId,
-      $or: [
-        { code: accountCode },
-        { accountNumber: accountCode }
-      ]
-    });
-
-    if (existing) {
-      return NextResponse.json({ error: 'Account number already exists' }, { status: 400 });
+    if (subType && !Object.values(AccountSubType).includes(subType as AccountSubType)) {
+      return NextResponse.json({ error: 'Invalid account subtype' }, { status: 400 });
     }
-
-    // ✅ Store type in lowercase for consistency
-    const normalizedType = accountType.toLowerCase();
-    const normalizedSubType = accountSubType ? accountSubType.toLowerCase() : undefined;
-
-    // Create account using the DB schema field names
+    if (Math.abs(Number(body.openingBalance || 0)) > 0.001) {
+      return NextResponse.json({ error: 'Post opening balances from the Opening Balance page so a balanced voucher is created' }, { status: 400 });
+    }
     const account = await Account.create({
-      code: accountCode,
-      name: accountName,
-      type: normalizedType,
-      subType: normalizedSubType,
+      code,
+      name,
+      type,
+      subType,
       accountGroup,
-      openingBalance: openingBalance || 0,
-      currentBalance: openingBalance || 0,
-      description,
+      openingBalance: 0,
+      currentBalance: 0,
+      description: body.description,
       outletId: user.outletId,
       isSystem: false,
       isActive: true,
     });
-
-    // Fetch user for activity log
-    const userDoc = await User.findById(user.userId).lean() as any;
-    const username = userDoc?.username || user.email || "Unknown User";
-
     await ActivityLog.create({
       userId: user.userId,
-      username,
+      username: user.email,
       actionType: 'create',
       module: 'accounts',
-      description: `Created account: ${accountName}`,
+      description: `Created account: ${name}`,
       outletId: user.outletId,
       timestamp: new Date(),
     });
-
-    // Map fields for response
-    const mappedAccount = mapAccountFields(account.toObject());
-
-    return NextResponse.json({ account: mappedAccount }, { status: 201 });
+    return NextResponse.json({ account: mapAccountFields(account.toObject()) }, { status: 201 });
   } catch (error: any) {
-    console.error('Error creating account:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const status = error?.code === 11000 ? 409 : 500;
+    return NextResponse.json({ error: error?.code === 11000 ? 'Account code already exists' : error.message }, { status });
   }
 }

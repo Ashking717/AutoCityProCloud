@@ -5,8 +5,8 @@ import { cookies } from "next/headers";
 import { verifyToken } from "@/lib/auth/jwt";
 import {
   attachLocationDataToProducts,
-  materializeLegacyLocationStocksForProducts,
 } from "@/lib/services/locationStockService";
+import mongoose from "mongoose";
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
     const user = verifyToken(token);
 
-    if (!user.outletId) {
+    if (!user.outletId || !mongoose.Types.ObjectId.isValid(user.outletId)) {
       return NextResponse.json(
         { error: "Invalid token: outletId missing" },
         { status: 401 }
@@ -31,14 +31,16 @@ export async function GET(request: NextRequest) {
 
     // ───────────────── AGGREGATE BY OUTLET ─────────────────
     // Aggregate most sold products for this outlet only
+    const outletId = new mongoose.Types.ObjectId(user.outletId);
     const topProducts = await Sale.aggregate([
       // ✅ Filter by outlet first
-      { $match: { outletId: user.outletId } },
+      { $match: { outletId, status: { $in: ['COMPLETED', 'REFUNDED'] } } },
       { $unwind: "$items" },
+      { $match: { "items.productId": { $ne: null }, "items.isLabor": { $ne: true } } },
       {
         $group: {
           _id: "$items.productId",
-          totalSold: { $sum: "$items.quantity" },
+          totalSold: { $sum: { $subtract: ["$items.quantity", { $ifNull: ["$items.returnedQuantity", 0] }] } },
         },
       },
       { $sort: { totalSold: -1 } },
@@ -54,7 +56,7 @@ export async function GET(request: NextRequest) {
     // ✅ Fetch products and also filter by outlet for extra safety
     const products = await Product.find({ 
       _id: { $in: productIds },
-      outletId: user.outletId 
+      outletId
     })
       .select("name sku sellingPrice currentStock location isVehicle carMake carModel taxRate vin")
       .lean();
@@ -64,15 +66,9 @@ export async function GET(request: NextRequest) {
       .map(id => products.find((p:any) => p._id.toString() === id.toString()))
       .filter(Boolean);
 
-    await materializeLegacyLocationStocksForProducts(
-      sortedProducts,
-      user.outletId,
-      user.userId
-    );
-
     const productsWithLocations = await attachLocationDataToProducts(
       sortedProducts,
-      user.outletId
+      outletId
     );
 
     return NextResponse.json({ products: productsWithLocations });

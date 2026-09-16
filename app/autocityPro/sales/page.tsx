@@ -237,6 +237,7 @@ export default function SalesPage() {
   const [returnItems, setReturnItems] = useState<any[]>([]);
   const [returnReason, setReturnReason] = useState("");
   const [processingReturn, setProcessingReturn] = useState(false);
+  const [pendingReturnKey, setPendingReturnKey] = useState<string | null>(null);
 
   // Details
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -426,9 +427,11 @@ export default function SalesPage() {
       .map((item: any) => {
         const alreadyReturned = item.returnedQuantity || 0;
         const available = Math.max(0, item.quantity - alreadyReturned);
+        const lineKey = `${item.productId?.toString() || item.sku}:${item.locationId?.toString() || item.locationName || "default"}`;
         return {
-          _id: item._id, productId: item.productId, productName: item.name,
+          lineKey, productId: item.productId, productName: item.name,
           sku: item.sku, quantity: item.quantity, returnedQuantity: alreadyReturned,
+          locationId: item.locationId, locationName: item.locationName,
           availableForReturn: available, unitPrice: item.unitPrice,
           maxReturnQuantity: available, returnQuantity: 0, originalItem: item,
         };
@@ -439,6 +442,7 @@ export default function SalesPage() {
     setReturnItems(items);
     setReturnReason("");
     setShowReturnModal(true);
+    setPendingReturnKey(crypto.randomUUID());
     setShowActions(null);
   };
 
@@ -446,15 +450,13 @@ export default function SalesPage() {
     const qty = item.returnQuantity || 0;
     if (qty <= 0 || !selectedSaleForReturn) return 0;
     const orig = item.originalItem || item;
-    const grossLine = orig.unitPrice * orig.quantity;
-    const netLine = grossLine * (selectedSaleForReturn.grandTotal / selectedSaleForReturn.subtotal);
-    return Number((netLine / orig.quantity * qty).toFixed(2));
+    const lineTotal = Number(orig.total || 0) + Number(orig.vatAmount || 0);
+    return Number((lineTotal / orig.quantity * qty).toFixed(2));
   };
 
   const handleReturnQuantityChange = (itemId: string, quantity: number) => {
     setReturnItems((prev) => prev.map((item) => {
-      const match = item._id === itemId || item.productId?.toString() === itemId || item.productId === itemId;
-      if (!match) return item;
+      if (item.lineKey !== itemId) return item;
       const newQty = Math.max(0, Math.min(quantity, item.maxReturnQuantity || item.availableForReturn));
       return { ...item, returnQuantity: newQty };
     }));
@@ -464,14 +466,26 @@ export default function SalesPage() {
     if (!selectedSaleForReturn) return;
     const itemsToReturn = returnItems
       .filter((i) => !i.originalItem?.isLabor && i.sku !== "LABOR" && !i.productName?.toLowerCase().includes("labor") && i.returnQuantity > 0)
-      .map((i) => ({ productId: i.productId?.toString(), productName: i.productName, sku: i.sku, quantity: i.returnQuantity, unitPrice: i.unitPrice, reason: i.returnReason || "" }));
+      .map((i) => ({
+        productId: i.productId?.toString(),
+        productName: i.productName,
+        sku: i.sku,
+        locationId: i.locationId?.toString(),
+        locationName: i.locationName,
+        quantity: i.returnQuantity,
+        unitPrice: i.unitPrice,
+        reason: i.returnReason || "",
+      }));
 
     if (itemsToReturn.length === 0) { toast.error("Please select items to return"); return; }
     setProcessingReturn(true);
     try {
       const res = await fetch("/api/sales/return", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": pendingReturnKey || crypto.randomUUID(),
+        },
         credentials: "include",
         body: JSON.stringify({ saleId: selectedSaleForReturn._id, invoiceNumber: selectedSaleForReturn.invoiceNumber, reason: returnReason, items: itemsToReturn }),
       });
@@ -481,6 +495,7 @@ export default function SalesPage() {
       setShowReturnModal(false);
       setSelectedSaleForReturn(null);
       setReturnItems([]);
+      setPendingReturnKey(null);
       fetchSales();
     } catch (err: any) {
       toast.error(err.message || "Failed to process return");
@@ -492,9 +507,18 @@ export default function SalesPage() {
   const handleRefundSale = async (sale: any) => {
     if (!confirm(`Process refund for ${sale.invoiceNumber}?`)) return;
     try {
+      const refundAmount = Math.abs(Number(sale.balanceDue || 0));
+      const refundablePayment = [...(sale.payments || [])]
+        .reverse()
+        .find((payment: any) => Number(payment.amount || 0) + 0.01 >= refundAmount);
+      const paymentMethod = refundablePayment?.method || sale.paymentMethod;
       const res = await fetch(`/api/sales/${sale._id}/refund`, {
         method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
-        body: JSON.stringify({ refundAmount: sale.balanceDue }),
+        body: JSON.stringify({
+          refundAmount,
+          idempotencyKey: crypto.randomUUID(),
+          paymentMethod,
+        }),
       });
       if (res.ok) { toast.success("Refund processed"); fetchSales(); }
       else toast.error((await res.json()).error || "Failed to refund");
@@ -537,7 +561,10 @@ export default function SalesPage() {
     s.customerId?.phone?.includes(searchTerm)
   );
 
-  const totalSalesAmount = filteredSales.reduce((s, sale) => s + (sale.grandTotal || 0), 0);
+  const totalSalesAmount = filteredSales.reduce((sum, sale) => {
+    const returned = (sale.returns || []).reduce((value: number, entry: any) => value + Number(entry.totalAmount || 0), 0);
+    return sum + Math.max(0, Number(sale.grandTotal || 0) - returned);
+  }, 0);
   const totalPaidAmount  = filteredSales.reduce((s, sale) => s + (sale.amountPaid || 0), 0);
   const totalBalance     = filteredSales.reduce((s, sale) => s + (sale.balanceDue || 0), 0);
 
@@ -807,8 +834,8 @@ export default function SalesPage() {
                             <span role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleViewDetails(sale); } }} className="text-sm font-medium text-[color:var(--autocity-accent)] hover:text-[color:var(--autocity-accent-strong)] cursor-pointer transition-colors" onClick={() => handleViewDetails(sale)}>
                               {sale.invoiceNumber}
                             </span>
-                            {sale.returnStatus && (
-                              <span className="text-xs text-[color:var(--autocity-accent)] ml-1">({sale.returnStatus === "PARTIAL_RETURN" ? "Partial Return" : "Returned"})</span>
+                            {(sale.returns?.length || 0) > 0 && (
+                              <span className="text-xs text-[color:var(--autocity-accent)] ml-1">({sale.status === "REFUNDED" ? "Returned" : "Partial Return"})</span>
                             )}
                           </td>
 
@@ -848,8 +875,8 @@ export default function SalesPage() {
 
                           <td className="px-4 py-3 whitespace-nowrap text-center">
                             {getStatusBadge(sale.status)}
-                            {sale.returnStatus && (
-                              <div className="text-xs text-[color:var(--autocity-accent)] mt-1">{sale.returnStatus === "PARTIAL_RETURN" ? "Partial Return" : "Fully Returned"}</div>
+                            {(sale.returns?.length || 0) > 0 && (
+                              <div className="text-xs text-[color:var(--autocity-accent)] mt-1">{sale.status === "REFUNDED" ? "Fully Returned" : "Partial Return"}</div>
                             )}
                           </td>
 
@@ -868,11 +895,11 @@ export default function SalesPage() {
                                   {[
                                     { show: true,                                                   label: "View Details",     icon: <Eye className="h-3 w-3" />,       color: th.dropdownItemText, action: () => handleViewDetails(sale) },
                                     { show: sale.status === "COMPLETED",                            label: "Print Invoice",    icon: <Printer className="h-3 w-3" />,   color: "#60a5fa",           action: () => handlePrintInvoice(sale) },
-                                    { show: sale.status === "COMPLETED" && !sale.returnStatus,      label: "Edit (Correction)",icon: <Edit className="h-3 w-3" />,      color: "#60a5fa",           action: () => openEditModal(sale) },
-                                    { show: sale.status === "COMPLETED" && !sale.returnStatus,      label: "Return Items",     icon: <Undo className="h-3 w-3" />,      color: "#facc15",           action: () => handleReturnSale(sale) },
-                                    { show: sale.status === "COMPLETED" && sale.returnStatus === "PARTIAL_RETURN", label: "Return More", icon: <Undo className="h-3 w-3" />, color: "#facc15", action: () => handleReturnSale(sale) },
+                                    { show: sale.status === "COMPLETED" && !(sale.returns?.length), label: "Edit (Correction)",icon: <Edit className="h-3 w-3" />,      color: "#60a5fa",           action: () => openEditModal(sale) },
+                                    { show: sale.status === "COMPLETED" && !(sale.returns?.length), label: "Return Items",     icon: <Undo className="h-3 w-3" />,      color: "#facc15",           action: () => handleReturnSale(sale) },
+                                    { show: sale.status === "COMPLETED" && (sale.returns?.length || 0) > 0, label: "Return More", icon: <Undo className="h-3 w-3" />, color: "#facc15", action: () => handleReturnSale(sale) },
                                     { show: sale.status === "COMPLETED" && sale.balanceDue < 0,     label: "Process Refund",   icon: <CreditCard className="h-3 w-3" />,color: "#c084fc",           action: () => handleRefundSale(sale) },
-                                    { show: sale.status !== "CANCELLED" && sale.status !== "REFUNDED" && !sale.returnStatus, label: "Cancel Sale", icon: <X className="h-3 w-3" />, color: "var(--autocity-accent)", action: () => handleCancelSale(sale) },
+                                    { show: sale.status !== "CANCELLED" && sale.status !== "REFUNDED" && !(sale.returns?.length), label: "Cancel Sale", icon: <X className="h-3 w-3" />, color: "var(--autocity-accent)", action: () => handleCancelSale(sale) },
                                     { show: sale.status === "DRAFT",                                label: "Delete Draft",     icon: <Trash2 className="h-3 w-3" />,    color: "var(--autocity-accent)",           action: () => handleDeleteSale(sale) },
                                   ].filter((b) => b.show).map(({ label, icon, color, action }) => (
                                     <button key={label} onClick={() => { action(); setShowActions(null); }}
@@ -943,11 +970,11 @@ export default function SalesPage() {
                           {[
                             { show: true,                                                   label: "View Details",     icon: <Eye className="h-3 w-3" />,       color: th.mobileActionText, bg: th.mobileActionBg },
                             { show: sale.status === "COMPLETED",                            label: "Print Invoice",    icon: <Printer className="h-3 w-3" />,   color: "#60a5fa",           bg: "rgba(96,165,250,0.10)" },
-                            { show: sale.status === "COMPLETED" && !sale.returnStatus,      label: "Edit (Correction)",icon: <Edit className="h-3 w-3" />,      color: "#60a5fa",           bg: "rgba(96,165,250,0.10)" },
-                            { show: sale.status === "COMPLETED" && !sale.returnStatus,      label: "Return Items",     icon: <Undo className="h-3 w-3" />,      color: "#facc15",           bg: "rgba(250,204,21,0.10)" },
-                            { show: sale.status === "COMPLETED" && sale.returnStatus === "PARTIAL_RETURN", label: "Return More Items", icon: <Undo className="h-3 w-3" />, color: "#facc15", bg: "rgba(250,204,21,0.10)" },
+                            { show: sale.status === "COMPLETED" && !(sale.returns?.length), label: "Edit (Correction)",icon: <Edit className="h-3 w-3" />,      color: "#60a5fa",           bg: "rgba(96,165,250,0.10)" },
+                            { show: sale.status === "COMPLETED" && !(sale.returns?.length), label: "Return Items",     icon: <Undo className="h-3 w-3" />,      color: "#facc15",           bg: "rgba(250,204,21,0.10)" },
+                            { show: sale.status === "COMPLETED" && (sale.returns?.length || 0) > 0, label: "Return More Items", icon: <Undo className="h-3 w-3" />, color: "#facc15", bg: "rgba(250,204,21,0.10)" },
                             { show: sale.status === "COMPLETED" && sale.balanceDue < 0,     label: "Process Refund",   icon: <CreditCard className="h-3 w-3" />,color: "#c084fc",           bg: "rgba(192,132,252,0.10)" },
-                            { show: sale.status !== "CANCELLED" && sale.status !== "REFUNDED" && !sale.returnStatus, label: "Cancel Sale", icon: <X className="h-3 w-3" />, color: "var(--autocity-accent)", bg: "var(--autocity-accent-10)" },
+                            { show: sale.status !== "CANCELLED" && sale.status !== "REFUNDED" && !(sale.returns?.length), label: "Cancel Sale", icon: <X className="h-3 w-3" />, color: "var(--autocity-accent)", bg: "var(--autocity-accent-10)" },
                             { show: sale.status === "DRAFT",                                label: "Delete Draft",     icon: <Trash2 className="h-3 w-3" />,    color: "var(--autocity-accent)",           bg: "var(--autocity-accent-10)" },
                           ].filter((b) => b.show).map(({ label, icon, color, bg, show, ...rest }) => {
                             const actionMap: Record<string, () => void> = {
@@ -1058,12 +1085,12 @@ export default function SalesPage() {
                         <p className="text-xs" style={{ color: th.editItemQty }}>Qty: {item.quantity}</p>
                       </div>
                       <input type="number" value={item.unitPrice}
-                        onChange={(e) => setEditItems((p) => p.map((i, iIdx) => iIdx === idx ? { ...i, unitPrice: Number(e.target.value) } : i))}
+                        readOnly
                         className="rounded px-2 py-1 text-sm" style={modalInputStyle} />
                       <input type="number" value={item.discount}
-                        onChange={(e) => setEditItems((p) => p.map((i, iIdx) => iIdx === idx ? { ...i, discount: Number(e.target.value) } : i))}
+                        readOnly
                         className="rounded px-2 py-1 text-sm" style={modalInputStyle} />
-                      <div className="flex items-center text-sm" style={{ color: th.editDiscPct }}>%</div>
+                      <div className="flex items-center text-sm" style={{ color: th.editDiscPct }}>QAR</div>
                     </div>
                   ))}
                 </div>
@@ -1073,12 +1100,12 @@ export default function SalesPage() {
                   <label htmlFor="edit-payment-method" className="text-xs mb-1 block" style={{ color: th.modalLabel }}>Payment Method</label>
                   <select id="edit-payment-method" value={editPaymentMethod} onChange={(e) => setEditPaymentMethod(e.target.value)}
                     className="w-full rounded px-3 py-2" style={modalInputStyle}>
-                    {["CASH","CARD","BANK_TRANSFER","CREDIT"].map((m) => <option key={m} value={m} style={{ background: th.optionBg }}>{m}</option>)}
+                    {["CASH","CARD","BANK_TRANSFER","CHEQUE"].map((m) => <option key={m} value={m} style={{ background: th.optionBg }}>{m}</option>)}
                   </select>
                 </div>
                 <div>
                   <label htmlFor="edit-amount-paid" className="text-xs mb-1 block" style={{ color: th.modalLabel }}>Amount Paid</label>
-                  <input id="edit-amount-paid" type="number" value={editAmountPaid} onChange={(e) => setEditAmountPaid(Number(e.target.value))}
+                  <input id="edit-amount-paid" type="number" value={editAmountPaid} readOnly
                     className="w-full rounded px-3 py-2" style={modalInputStyle} />
                 </div>
               </div>
@@ -1095,9 +1122,10 @@ export default function SalesPage() {
                 onClick={async () => {
                   setSavingEdit(true);
                   try {
+                    const idempotencyKey = crypto.randomUUID();
                     const res = await fetch(`/api/sales/${selectedSaleForEdit._id}/edit`, {
-                      method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include",
-                      body: JSON.stringify({ items: editItems, paymentMethod: editPaymentMethod, amountPaid: editAmountPaid, notes: editNotes, correctionReason: editNotes }),
+                      method: "PUT", headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey }, credentials: "include",
+                      body: JSON.stringify({ items: editItems, paymentMethod: editPaymentMethod, amountPaid: editAmountPaid, notes: editNotes, correctionReason: editNotes, idempotencyKey }),
                     });
                     const data = await res.json();
                     if (!res.ok) throw new Error(data.error);
@@ -1157,11 +1185,12 @@ export default function SalesPage() {
               <h3 className="text-lg font-semibold mb-4" style={{ color: th.modalTitle }}>Select Items to Return</h3>
               <div className="space-y-3">
                 {returnItems.map((item) => (
-                  <div key={item._id || item.sku} className="rounded-lg p-4" style={{ background: th.returnItemBg, border: `1px solid ${th.returnItemBorder}` }}>
+                  <div key={item.lineKey} className="rounded-lg p-4" style={{ background: th.returnItemBg, border: `1px solid ${th.returnItemBorder}` }}>
                     <div className="flex justify-between mb-3">
                       <div>
                         <h4 className="font-medium" style={{ color: th.modalTitle }}>{item.productName}</h4>
                         <p className="text-sm" style={{ color: th.modalLabel }}>SKU: {item.sku}</p>
+                        {item.locationName && <p className="text-sm" style={{ color: th.modalLabel }}>Location: {item.locationName}</p>}
                         <p className="text-sm" style={{ color: th.modalLabel }}>QAR {item.unitPrice.toFixed(2)} × {item.quantity}</p>
                         {item.returnedQuantity > 0 && <p className="text-xs text-yellow-400 mt-1">Already returned: {item.returnedQuantity}</p>}
                       </div>
@@ -1179,13 +1208,13 @@ export default function SalesPage() {
                           if (btnIdx === 1) {
                             acc.push(
                               <input key="qty" type="number" min={0} max={item.maxReturnQuantity} value={item.returnQuantity}
-                                onChange={(e) => handleReturnQuantityChange(item._id || item.productId, Number(e.target.value) || 0)}
+                                onChange={(e) => handleReturnQuantityChange(item.lineKey, Number(e.target.value) || 0)}
                                 className="w-16 text-center rounded py-1" style={{ ...modalInputStyle }} />
                             );
                           }
                           acc.push(
                             <button key={btn.label} disabled={btn.disabled}
-                              onClick={() => handleReturnQuantityChange(item._id || item.productId, item.returnQuantity + btn.delta)}
+                              onClick={() => handleReturnQuantityChange(item.lineKey, item.returnQuantity + btn.delta)}
                               className="w-8 h-8 rounded disabled:opacity-50 transition-colors"
                               style={{ background: th.returnBtnBg, border: `1px solid ${th.returnBtnBorder}`, color: th.modalTitle }}>
                               {btn.label}

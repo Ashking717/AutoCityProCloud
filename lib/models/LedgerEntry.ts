@@ -16,8 +16,12 @@ import mongoose, { Schema, Document } from 'mongoose';
 export enum ReferenceType {
   OPENING_BALANCE = 'OPENING_BALANCE',
   SALE = 'SALE',
+  RETURN = 'RETURN',
   PURCHASE = 'PURCHASE',
   PURCHASE_PAYMENT = 'PURCHASE_PAYMENT',  // ← ADDED THIS LINE
+  EXPENSE = 'EXPENSE',
+  EXPENSE_PAYMENT = 'EXPENSE_PAYMENT',
+  SUPPLIER_PAYMENT = 'SUPPLIER_PAYMENT',
   PAYMENT = 'PAYMENT',
   RECEIPT = 'RECEIPT',
   ADJUSTMENT = 'ADJUSTMENT',
@@ -61,6 +65,7 @@ export interface ILedgerEntry extends Document {
   // Audit fields (immutable)
   createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
+  lineNumber?: number;
 }
 
 const LedgerEntrySchema = new Schema<ILedgerEntry>(
@@ -158,6 +163,7 @@ const LedgerEntrySchema = new Schema<ILedgerEntry>(
       ref: 'User',
       required: true,
     },
+    lineNumber: { type: Number, min: 0 },
   },
   {
     timestamps: { createdAt: true, updatedAt: false }, // createdAt only, no updates
@@ -169,6 +175,10 @@ LedgerEntrySchema.index({ outletId: 1, date: -1 });
 LedgerEntrySchema.index({ outletId: 1, accountId: 1, date: -1 });
 LedgerEntrySchema.index({ outletId: 1, voucherId: 1 });
 LedgerEntrySchema.index({ referenceType: 1, referenceId: 1 });
+LedgerEntrySchema.index(
+  { voucherId: 1, lineNumber: 1 },
+  { unique: true, partialFilterExpression: { lineNumber: { $type: 'number' } } }
+);
 
 // PREVENT UPDATES AND DELETES
 LedgerEntrySchema.pre('findOneAndUpdate', function() {
@@ -187,13 +197,48 @@ LedgerEntrySchema.pre('deleteMany', function() {
   throw new Error('LEDGER ENTRIES CANNOT BE DELETED - Use reversal entries for corrections');
 });
 
+LedgerEntrySchema.pre('updateMany', function() {
+  throw new Error('LEDGER ENTRIES ARE IMMUTABLE - Use reversal entries for corrections');
+});
+
+LedgerEntrySchema.pre('updateOne', function() {
+  throw new Error('LEDGER ENTRIES ARE IMMUTABLE - Use reversal entries for corrections');
+});
+
+LedgerEntrySchema.pre('replaceOne', function() {
+  throw new Error('LEDGER ENTRIES ARE IMMUTABLE - Use reversal entries for corrections');
+});
+
+LedgerEntrySchema.pre('findOneAndReplace', function() {
+  throw new Error('LEDGER ENTRIES ARE IMMUTABLE - Use reversal entries for corrections');
+});
+
+LedgerEntrySchema.pre('insertMany', function(next, docs: any[]) {
+  for (const doc of docs) {
+    const debit = Number(doc.debit || 0);
+    const credit = Number(doc.credit || 0);
+    if (!Number.isFinite(debit) || !Number.isFinite(credit) || debit < 0 || credit < 0) {
+      return next(new Error('Ledger entries must contain non-negative finite amounts'));
+    }
+    if ((debit > 0) === (credit > 0)) {
+      return next(new Error('Each ledger entry must contain exactly one positive debit or credit'));
+    }
+  }
+  next();
+});
+
 // Validation: Debit and Credit cannot both be non-zero
 LedgerEntrySchema.pre('save', function(next) {
-  if (this.debit > 0 && this.credit > 0) {
-    return next(new Error('An entry cannot have both debit and credit'));
+  if (!this.isNew) {
+    return next(new Error('LEDGER ENTRIES ARE IMMUTABLE - Use reversal entries for corrections'));
   }
-  if (this.debit === 0 && this.credit === 0) {
-    return next(new Error('An entry must have either debit or credit'));
+  const debit = Number(this.debit || 0);
+  const credit = Number(this.credit || 0);
+  if (!Number.isFinite(debit) || !Number.isFinite(credit) || debit < 0 || credit < 0) {
+    return next(new Error('Ledger entries must contain non-negative finite amounts'));
+  }
+  if ((debit > 0) === (credit > 0)) {
+    return next(new Error('Each ledger entry must contain exactly one positive debit or credit'));
   }
   next();
 });

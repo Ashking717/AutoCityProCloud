@@ -348,7 +348,7 @@ export default function ClosingDetailPage() {
   const netChange = closing.totalClosingBalance - closing.totalOpeningBalance;
   const cashMovement = closing.closingCash - closing.openingCash;
   const bankMovement = closing.closingBank - closing.openingBank;
-  const totalCosts = (closing.totalCOGS || 0) + closing.totalPurchases + closing.totalExpenses;
+  const totalCosts = (closing.totalCOGS || 0) + closing.totalExpenses;
   const grossMargin = closing.totalRevenue > 0 ? ((closing.grossProfit || 0) / closing.totalRevenue) * 100 : 0;
   const netMargin = closing.totalRevenue > 0 ? (closing.netProfit / closing.totalRevenue) * 100 : 0;
 
@@ -519,7 +519,7 @@ export default function ClosingDetailPage() {
                       All financial data calculated from double-entry ledger entries.
                     </p>
                     <p className="text-xs text-blue-400/80 font-medium">
-                      Formula: Net Profit = Revenue - (COGS + Purchases + Expenses)
+                      Formula: Net Profit = Revenue - COGS - Operating Expenses
                     </p>
                     {closing.ledgerEntriesCount !== undefined && (
                       <p className="text-xs text-blue-400/60 mt-1">

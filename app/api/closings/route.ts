@@ -12,6 +12,7 @@ import Product from '@/lib/models/ProductEnhanced';
 import Account, { AccountSubType, AccountType } from '@/lib/models/Account';
 
 import { getClosingConfig } from '@/lib/config/closingConfig';
+import { hasPermission } from '@/lib/types/roles';
 
 /* =========================================================
    GET /api/closings
@@ -26,6 +27,10 @@ export async function GET(request: NextRequest) {
     }
 
     const user = verifyToken(token);
+    if (!hasPermission(user.role, 'canViewFinancials')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!user.outletId) return NextResponse.json({ error: 'Outlet is required' }, { status: 400 });
     const { searchParams } = new URL(request.url);
 
     const query: any = { outletId: user.outletId };
@@ -43,7 +48,17 @@ export async function GET(request: NextRequest) {
       .limit(50)
       .lean();
 
-    return NextResponse.json({ closings });
+    return NextResponse.json({
+      closings: (closings as any[]).map((closing) => ({
+        ...closing,
+        grossProfit: Number((Number(closing.totalRevenue || 0) - Number(closing.totalCOGS || 0)).toFixed(2)),
+        netProfit: Number((
+          Number(closing.totalRevenue || 0)
+          - Number(closing.totalCOGS || 0)
+          - Number(closing.totalExpenses || 0)
+        ).toFixed(2)),
+      })),
+    });
   } catch (error: any) {
     console.error('GET closings error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -76,6 +91,7 @@ async function calculatePeriodBoundaries(
   const config = getClosingConfig(outletId);
 
   const closingDay = new Date(closingDate);
+  if (Number.isNaN(closingDay.getTime())) throw new Error('Invalid closing date');
   closingDay.setHours(0, 0, 0, 0);
 
   const previousClosing = await Closing.findOne({
@@ -129,11 +145,10 @@ async function calculatePeriodBoundaries(
 /* =========================================================
    POST /api/closings - LEDGER-DRIVEN WITH PROPER PROFIT
    
-   UPDATED: Calculate purchases and expenses from ledger entries
-   - Purchases: Credits to Cash/Bank accounts with referenceType="PURCHASE"
-   - Expenses: Credits to Cash/Bank accounts with narration containing "Expense payment"
+   Purchases remain capitalized inventory; operating expenses come from expense ledgers.
    
-   Formula: Net Profit = Revenue - (COGS + Purchases + Expenses)
+   Formula: Net Profit = Revenue - COGS - operating expenses.
+   Purchases are inventory acquisitions and are informational only.
    ========================================================= */
 export async function POST(req: NextRequest) {
   try {
@@ -145,9 +160,13 @@ export async function POST(req: NextRequest) {
     }
 
     const user = verifyToken(token);
+    if (!hasPermission(user.role, 'canManageAccounting')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!user.outletId) return NextResponse.json({ error: 'Outlet is required' }, { status: 400 });
     const { closingType, closingDate, notes } = await req.json();
 
-    if (!closingType || !closingDate) {
+    if (!['day', 'month'].includes(closingType) || !closingDate) {
       return NextResponse.json(
         { error: 'Closing type and date are required' },
         { status: 400 }
@@ -168,8 +187,7 @@ export async function POST(req: NextRequest) {
     });
     if (exists) {
       return NextResponse.json(
-        { error: 'This period is already closed' },
-        { status: 400 }
+        { success: true, closing: exists, idempotent: true, message: 'This period is already closed' }
       );
     }
 
@@ -182,7 +200,6 @@ export async function POST(req: NextRequest) {
       const accounts = await Account.find({
         outletId: user.outletId,
         subType: { $in: subTypes },
-        isActive: true,
       }).select('_id').lean();
 
       if (accounts.length === 0) return 0;
@@ -190,7 +207,7 @@ export async function POST(req: NextRequest) {
       const entries = await LedgerEntry.find({
         outletId: user.outletId,
         accountId: { $in: accounts.map(a => a._id) },
-        date: { $lte: upto },
+        date: { $lt: upto },
       }).lean();
 
       return entries.reduce(
@@ -206,22 +223,22 @@ export async function POST(req: NextRequest) {
       start: Date,
       end: Date
     ) {
-      const accounts = await Account.find({
+      const accountQuery: any = {
         outletId: user.outletId,
         type: accountType,
-        subType: { $in: subTypes },
-        isActive: true,
-      }).select('_id').lean();
+      };
+      if (subTypes.length) accountQuery.subType = { $in: subTypes };
+      const accounts = await Account.find(accountQuery).select('_id').lean();
 
       if (accounts.length === 0) return 0;
 
       const entries = await LedgerEntry.find({
         outletId: user.outletId,
         accountId: { $in: accounts.map(a => a._id) },
-        date: { $gte: start, $lte: end },
+        date: { $gte: start, $lt: end },
       }).lean();
 
-      return entries.reduce((sum, e) => sum + (e.debit || 0), 0);
+      return entries.reduce((sum, e) => sum + (e.debit || 0) - (e.credit || 0), 0);
     }
 
     async function sumNetAmountInPeriod(
@@ -230,19 +247,19 @@ export async function POST(req: NextRequest) {
       start: Date,
       end: Date
     ): Promise<number> {
-      const accounts = await Account.find({
+      const accountQuery: any = {
         outletId: user.outletId,
         type: accountType,
-        subType: { $in: subTypes },
-        isActive: true,
-      }).select('_id').lean();
+      };
+      if (subTypes.length) accountQuery.subType = { $in: subTypes };
+      const accounts = await Account.find(accountQuery).select('_id').lean();
     
       if (!accounts.length) return 0;
     
       const entries = await LedgerEntry.find({
         outletId: user.outletId,
         accountId: { $in: accounts.map(a => a._id) },
-        date: { $gte: start, $lte: end },
+        date: { $gte: start, $lt: end },
       }).lean();
     
       // ✅ CREDIT increases revenue, DEBIT reduces revenue
@@ -263,7 +280,6 @@ export async function POST(req: NextRequest) {
         outletId: user.outletId,
         type: accountType,
         subType: { $in: subTypes },
-        isActive: true,
       }).select('_id').lean();
 
       if (accounts.length === 0) return 0;
@@ -271,7 +287,7 @@ export async function POST(req: NextRequest) {
       const entries = await LedgerEntry.find({
         outletId: user.outletId,
         accountId: { $in: accounts.map(a => a._id) },
-        date: { $gte: start, $lte: end },
+        date: { $gte: start, $lt: end },
       }).lean();
 
       return entries.reduce((sum, e) => sum + (e.credit || 0), 0);
@@ -294,29 +310,25 @@ export async function POST(req: NextRequest) {
       purchasesCount: number;
       purchaseEntries: any[];
     }> {
-      // Get Cash and Bank account IDs
-      const cashBankAccounts = await Account.find({
+      const inventoryAccounts = await Account.find({
         outletId: user.outletId,
-        subType: { $in: [AccountSubType.CASH, AccountSubType.BANK] },
-        isActive: true,
+        subType: AccountSubType.INVENTORY,
       }).select('_id').lean();
 
-      if (cashBankAccounts.length === 0) {
+      if (inventoryAccounts.length === 0) {
         return { totalPurchases: 0, purchasesCount: 0, purchaseEntries: [] };
       }
 
-      // Find all purchase-related ledger entries where cash/bank was credited (paid out)
+      // Inventory purchases are capitalized; this total is informational only.
       const purchaseEntries = await LedgerEntry.find({
         outletId: user.outletId,
-        accountId: { $in: cashBankAccounts.map(a => a._id) },
+        accountId: { $in: inventoryAccounts.map(a => a._id) },
         referenceType: 'PURCHASE',
-        date: { $gte: start, $lte: end },
-        credit: { $gt: 0 }, // Only entries where money was paid (credited from cash/bank)
+        date: { $gte: start, $lt: end },
       }).lean();
 
-      // Calculate total purchases (sum of credits = money paid out)
       const totalPurchases = purchaseEntries.reduce(
-        (sum, entry) => sum + (entry.credit || 0),
+        (sum, entry) => sum + (entry.debit || 0) - (entry.credit || 0),
         0
       );
 
@@ -348,29 +360,24 @@ export async function POST(req: NextRequest) {
       expensesCount: number;
       expenseEntries: any[];
     }> {
-      // Get Cash and Bank account IDs
-      const cashBankAccounts = await Account.find({
+      const expenseAccounts = await Account.find({
         outletId: user.outletId,
-        subType: { $in: [AccountSubType.CASH, AccountSubType.BANK] },
-        isActive: true,
+        type: AccountType.EXPENSE,
+        subType: { $ne: AccountSubType.COGS },
       }).select('_id').lean();
 
-      if (cashBankAccounts.length === 0) {
+      if (expenseAccounts.length === 0) {
         return { totalExpenses: 0, expensesCount: 0, expenseEntries: [] };
       }
 
-      // Find all expense-related ledger entries where cash/bank was credited (paid out)
       const expenseEntries = await LedgerEntry.find({
         outletId: user.outletId,
-        accountId: { $in: cashBankAccounts.map(a => a._id) },
-        narration: { $regex: /Expense payment/i },
-        date: { $gte: start, $lte: end },
-        credit: { $gt: 0 }, // Only entries where money was paid (credited from cash/bank)
+        accountId: { $in: expenseAccounts.map(a => a._id) },
+        date: { $gte: start, $lt: end },
       }).lean();
 
-      // Calculate total expenses (sum of credits = money paid out)
       const totalExpenses = expenseEntries.reduce(
-        (sum, entry) => sum + (entry.credit || 0),
+        (sum, entry) => sum + (entry.debit || 0) - (entry.credit || 0),
         0
       );
 
@@ -390,13 +397,18 @@ export async function POST(req: NextRequest) {
        ======================================== */
     const sales = await Sale.find({
       outletId: user.outletId,
-      status: 'COMPLETED',
+      status: { $in: ['COMPLETED', 'REFUNDED'] },
       saleDate: { $gte: periodStart, $lt: periodEnd },
     }).lean();
 
     const salesCount = sales.length;
     const totalDiscount = sales.reduce((s, x) => s + (x.totalDiscount || 0), 0);
-    const totalTax = sales.reduce((s, x) => s + (x.totalVAT || 0), 0);
+    const totalTax = await sumNetAmountInPeriod(
+      AccountType.LIABILITY,
+      [AccountSubType.VAT_PAYABLE],
+      periodStart,
+      periodEnd
+    );
 
     // Sales by payment method (for informational purposes)
     const cashSales = sales
@@ -410,34 +422,23 @@ export async function POST(req: NextRequest) {
     /* ========================================
        REVENUE - Net of Discounts
        ======================================== */
-    let totalRevenue = await sumNetAmountInPeriod(
+    const totalRevenue = await sumNetAmountInPeriod(
       AccountType.REVENUE,
-      [AccountSubType.SALES_REVENUE, AccountSubType.SERVICE_REVENUE],
+      [],
       periodStart,
       periodEnd
     );
 
-    // Fallback: If no ledger revenue found, calculate from sales
-    if (totalRevenue === 0 && sales.length > 0) {
-      totalRevenue = sales.reduce((s, x) => s + (x.grandTotal || 0), 0);
-      console.warn(
-        'No revenue found in ledger. Using sales grandTotal. ' +
-        'Ensure sales are creating ledger entries with revenue account.'
-      );
-    }
-
     /* ========================================
        CASH & BANK BALANCES (from Ledger)
        ======================================== */
-    const openingCutoff = new Date(periodStart.getTime() - 1);
-
-    const openingCash = await ledgerBalance([AccountSubType.CASH], openingCutoff);
-    const openingBank = await ledgerBalance([AccountSubType.BANK], openingCutoff);
+    const openingCash = await ledgerBalance([AccountSubType.CASH], periodStart);
+    const openingBank = await ledgerBalance([AccountSubType.BANK], periodStart);
 
     const closingCash = await ledgerBalance([AccountSubType.CASH], periodEnd);
     const closingBank = await ledgerBalance([AccountSubType.BANK], periodEnd);
     
-    const accountsPayable = await ledgerBalance(
+    const accountsPayable = -await ledgerBalance(
       [AccountSubType.ACCOUNTS_PAYABLE],
       periodEnd
     );
@@ -448,13 +449,12 @@ export async function POST(req: NextRequest) {
     const cashAccounts = await Account.find({
       outletId: user.outletId,
       subType: AccountSubType.CASH,
-      isActive: true,
     }).select('_id').lean();
 
     const cashEntries = await LedgerEntry.find({
       outletId: user.outletId,
       accountId: { $in: cashAccounts.map(a => a._id) },
-      date: { $gte: periodStart, $lte: periodEnd },
+      date: { $gte: periodStart, $lt: periodEnd },
     }).lean();
 
     const cashReceipts = cashEntries.reduce(
@@ -470,13 +470,12 @@ export async function POST(req: NextRequest) {
     const bankAccounts = await Account.find({
       outletId: user.outletId,
       subType: AccountSubType.BANK,
-      isActive: true,
     }).select('_id').lean();
 
     const bankEntries = await LedgerEntry.find({
       outletId: user.outletId,
       accountId: { $in: bankAccounts.map(a => a._id) },
-      date: { $gte: periodStart, $lte: periodEnd },
+      date: { $gte: periodStart, $lt: periodEnd },
     }).lean();
 
     const bankReceipts = bankEntries.reduce(
@@ -531,12 +530,14 @@ export async function POST(req: NextRequest) {
        ======================================== */
     const allPurchases = await Purchase.find({
       outletId: user.outletId,
-      purchaseDate: { $gte: periodStart, $lte: periodEnd },
+      purchaseDate: { $gte: periodStart, $lt: periodEnd },
+      status: { $ne: 'CANCELLED' },
     }).lean();
 
     const allExpenses = await Expense.find({
       outletId: user.outletId,
-      expenseDate: { $gte: periodStart, $lte: periodEnd },
+      expenseDate: { $gte: periodStart, $lt: periodEnd },
+      status: { $ne: 'CANCELLED' },
     }).lean();
 
     // Separate paid and unpaid for reporting
@@ -557,20 +558,20 @@ export async function POST(req: NextRequest) {
        PROFIT CALCULATION
        
        Revenue is NET of discounts (from grandTotal)
-       Only PAID purchases and expenses are deducted (from ledger)
+       Purchases are inventory acquisitions and are not deducted from profit.
        
        Gross Profit = Revenue - COGS
-       Net Profit = Revenue - (COGS + Paid Purchases + Paid Expenses)
+       Net Profit = Revenue - COGS - Operating Expenses
        ======================================== */
     const grossProfit = totalRevenue - totalCOGS;
-    const netProfit = totalRevenue - (totalCOGS + totalPurchases + totalExpenses);
+    const netProfit = totalRevenue - totalCOGS - totalExpenses;
 
     /* ========================================
        LEDGER STATISTICS
        ======================================== */
     const periodLedgerEntries = await LedgerEntry.find({
       outletId: user.outletId,
-      date: { $gte: periodStart, $lte: periodEnd },
+      date: { $gte: periodStart, $lt: periodEnd },
     }).lean();
 
     const ledgerEntriesCount = periodLedgerEntries.length;
@@ -616,6 +617,7 @@ export async function POST(req: NextRequest) {
        ======================================== */
     const closing = await Closing.create({
       outletId: user.outletId,
+      closingKey: `${closingType}:${closingDay.toISOString().slice(0, 10)}`,
       closingType,
       closingDate: closingDay,
       periodStart,
@@ -684,19 +686,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       closing,
-      message: 'Period closed successfully (Ledger-Based Cash Accounting)',
+      message: 'Period closed successfully (ledger-based accrual accounting)',
       profitBreakdown: {
         revenue: totalRevenue,
         revenueNote: 'Net of discounts (from grandTotal)',
         discounts: totalDiscount,
         cogs: totalCOGS,
         purchases: totalPurchases,
-        purchasesNote: 'Calculated from ledger entries (referenceType=PURCHASE)',
+        purchasesNote: 'Capitalized inventory purchases; shown for information and not deducted from profit',
         expenses: totalExpenses,
-        expensesNote: 'Calculated from ledger entries (Expense payment narration)',
+        expensesNote: 'Net operating expense postings from the ledger',
         grossProfit,
         netProfit,
-        formula: 'Net Profit = Revenue - (COGS + Ledger Purchases + Ledger Expenses)',
+        formula: 'Net Profit = Revenue - COGS - Operating Expenses',
       },
       ledgerStats: {
         entries: ledgerEntriesCount,

@@ -68,6 +68,7 @@ export default function ExpenseDetailPage() {
   const [ledgerEntries, setLedgerEntries] = useState<LedgerEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [pendingMutationKey, setPendingMutationKey] = useState(() => crypto.randomUUID());
   const [isMobile, setIsMobile] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showDynamicIsland, setShowDynamicIsland] = useState(true);
@@ -161,24 +162,34 @@ export default function ExpenseDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirm("Are you sure you want to delete this expense? This action cannot be undone.")) return;
+    if (!confirm("Cancel this expense and post ledger reversals? The audit history will be preserved.")) return;
     setActionLoading(true);
     try {
-      const r = await fetch(`/api/expenses/${expenseId}`, { method: "DELETE", credentials: "include" });
-      if (r.ok) { toast.success("Expense deleted successfully"); router.push("/autocityPro/expenses"); }
-      else toast.error((await r.json()).error || "Failed to delete expense");
-    } catch { toast.error("Failed to delete expense"); }
+      const r = await fetch(`/api/expenses/${expenseId}`, { method: "DELETE", headers: { "Idempotency-Key": pendingMutationKey }, credentials: "include" });
+      if (r.ok) { setPendingMutationKey(crypto.randomUUID()); toast.success("Expense cancelled and reversed"); router.push("/autocityPro/expenses"); }
+      else toast.error((await r.json()).error || "Failed to cancel expense");
+    } catch { toast.error("Failed to cancel expense"); }
     finally { setActionLoading(false); }
   };
 
   const handleAction = async (action: string) => {
+    const payload: any = { action, operationKey: pendingMutationKey };
+    if (action === "pay") {
+      const enteredAmount = prompt("Payment amount", String(expense?.balanceDue || ""));
+      if (enteredAmount === null) return;
+      const enteredMethod = prompt("Payment method: CASH, CARD, BANK_TRANSFER, or CHEQUE", "CASH");
+      if (enteredMethod === null) return;
+      payload.amount = Number(enteredAmount);
+      payload.paymentMethod = enteredMethod.trim().toUpperCase();
+      payload.paymentDate = new Date().toISOString();
+    }
     setActionLoading(true);
     try {
-      const r = await fetch(`/api/expenses/${expenseId}/actions`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        credentials: "include", body: JSON.stringify({ action }),
+      const r = await fetch(`/api/expenses/${expenseId}`, {
+        method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": pendingMutationKey },
+        credentials: "include", body: JSON.stringify(payload),
       });
-      if (r.ok) { toast.success(`Expense ${action}ed successfully`); fetchExpenseDetails(); }
+      if (r.ok) { setPendingMutationKey(crypto.randomUUID()); toast.success(`Expense ${action} completed successfully`); fetchExpenseDetails(); }
       else toast.error((await r.json()).error || `Failed to ${action} expense`);
     } catch { toast.error(`Failed to ${action} expense`); }
     finally { setActionLoading(false); }
@@ -610,7 +621,7 @@ export default function ExpenseDetailPage() {
                   {expense.status !== "CANCELLED" && (
                     <button onClick={handleDelete} disabled={actionLoading}
                       className="w-full px-4 py-3 bg-red-900/20 border border-red-800/50 text-red-400 rounded-lg hover:bg-red-900/30 transition-colors disabled:opacity-50 flex items-center justify-center space-x-2">
-                      <Trash2 className="w-4 h-4" /><span>Delete Expense</span>
+                      <Trash2 className="w-4 h-4" /><span>Cancel Expense</span>
                     </button>
                   )}
                   <button onClick={fetchExpenseDetails} disabled={actionLoading}
@@ -654,7 +665,7 @@ export default function ExpenseDetailPage() {
               {expense.status !== "CANCELLED" && (
                 <button onClick={() => { handleDelete(); setShowMobileMenu(false); }}
                   className="w-full p-4 bg-red-900/20 border border-red-800/50 rounded-xl text-red-400 font-semibold hover:bg-red-900/30 flex items-center justify-between active:scale-95 transition-all">
-                  <span>Delete Expense</span><Trash2 className="h-5 w-5" />
+                  <span>Cancel Expense</span><Trash2 className="h-5 w-5" />
                 </button>
               )}
               {[

@@ -307,6 +307,13 @@ export default function PurchasesPortalPage() {
 
   const fetchTransferData = async () => {
     try {
+      // Legacy products only have a location name on the product document.
+      // Materialize the matching location rows before loading transfer data so
+      // every stocked product has a real source location ID.
+      await fetch('/api/stock-locations/materialize-legacy', {
+        method: 'POST',
+        credentials: 'include',
+      });
       const [productsRes, locationsRes] = await Promise.all([
         fetch("/api/products?searchMode=true", { credentials: "include" }),
         fetch("/api/stock-locations", { credentials: "include" }),

@@ -264,45 +264,59 @@ export async function materializeLegacyLocationStocksForProducts(
   const productsWithLocationStock = new Set(
     existingStocks.map((stock) => String(stock.productId))
   );
-  let migratedCount = 0;
+  const pending = candidates.filter(
+    (product) => !productsWithLocationStock.has(String(product._id))
+  );
+  if (pending.length === 0) return { migratedCount: 0 };
 
-  for (const product of candidates) {
-    if (productsWithLocationStock.has(String(product._id))) continue;
-
-    const productId = toObjectId(product._id);
-    const quantity = Number(product.currentStock || 0);
+  // Resolve each distinct legacy location once. This keeps the one-time
+  // migration practical for tenants with thousands of products.
+  const locationsByName = new Map<string, any>();
+  for (const product of pending) {
+    const locationName = String(product.location || DEFAULT_LOCATION_NAME).trim()
+      || DEFAULT_LOCATION_NAME;
+    const key = locationName.toLocaleLowerCase();
+    if (locationsByName.has(key)) continue;
     const location = await getOrCreateStockLocation({
       outletId,
-      name: product.location || DEFAULT_LOCATION_NAME,
+      name: locationName,
       createdBy: userId,
     });
-
-    const result = await ProductLocationStock.updateOne(
-      { outletId, productId, locationId: location._id },
-      {
-        $set: {
-          productName: product.name,
-          sku: product.sku,
-          locationName: location.name,
-          updatedBy: userId ? toObjectId(userId) : undefined,
-        },
-        $setOnInsert: {
-          outletId,
-          productId,
-          locationId: location._id,
-          quantity,
-        },
-      },
-      { upsert: true }
-    );
-
-    if ((result as any).upsertedCount || (result as any).upsertedId) {
-      migratedCount += 1;
-      productsWithLocationStock.add(String(product._id));
-    }
+    locationsByName.set(key, location);
   }
 
-  return { migratedCount };
+  const result = await ProductLocationStock.bulkWrite(
+    pending.map((product) => {
+      const productId = toObjectId(product._id);
+      const quantity = Math.max(0, Number(product.currentStock || 0));
+      const locationName = String(product.location || DEFAULT_LOCATION_NAME).trim()
+        || DEFAULT_LOCATION_NAME;
+      const location = locationsByName.get(locationName.toLocaleLowerCase());
+      return {
+        updateOne: {
+          filter: { outletId, productId, locationId: location._id },
+          update: {
+            $set: {
+              productName: product.name,
+              sku: product.sku,
+              locationName: location.name,
+              updatedBy: userId ? toObjectId(userId) : undefined,
+            },
+            $setOnInsert: {
+              outletId,
+              productId,
+              locationId: location._id,
+              quantity,
+            },
+          },
+          upsert: true,
+        },
+      };
+    }),
+    { ordered: false }
+  );
+
+  return { migratedCount: Number(result.upsertedCount || 0) };
 }
 
 export async function adjustProductLocationStock(input: AdjustLocationStockInput) {

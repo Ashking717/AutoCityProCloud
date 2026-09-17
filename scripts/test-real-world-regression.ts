@@ -118,8 +118,8 @@ async function main() {
     username: 'regression-cashier',
     password: 'Regression123!',
     firstName: 'Regression',
-    lastName: 'Cashier',
-    role: 'CASHIER',
+    lastName: 'Admin',
+    role: 'ADMIN',
     outletId: outlet._id,
     isActive: true,
   });
@@ -327,6 +327,259 @@ async function main() {
     assert.equal(result.response.status, 400);
     assert.equal(await ProductLocationStock.countDocuments({ productId: product._id }), before);
     assert.equal((await Product.findById(product._id).lean())!.currentStock, 2);
+  });
+
+  await test('legacy unit alias does not block product metadata edit', async () => {
+    const suffix = id();
+    const legacyId = new mongoose.Types.ObjectId();
+    await Product.collection.insertOne({
+      _id: legacyId,
+      name: `Legacy Alias ${suffix}`,
+      category: category._id,
+      sku: `LEGACY-ALIAS-${suffix}`,
+      costPrice: 25,
+      sellingPrice: 60,
+      taxRate: 0,
+      currentStock: 7,
+      minStock: 1,
+      maxStock: 20,
+      reorderPoint: 1,
+      unit: 'pieces',
+      outletId: outlet._id,
+      location: 'Legacy Shelf',
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    await ensureProductHasLocationStock(
+      (await Product.findById(legacyId))!,
+      outlet._id,
+      user._id
+    );
+    const response = await request(`/api/products/${legacyId}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json', cookie },
+      body: JSON.stringify({
+        name: `Legacy Alias Updated ${suffix}`,
+        unit: 'pieces',
+        costPrice: 25,
+        sellingPrice: 65,
+      }),
+    });
+    assert.equal(response.response.status, 200, response.body?.error);
+    const updated = await Product.findById(legacyId).lean();
+    assert.equal(updated!.name, `Legacy Alias Updated ${suffix}`);
+    assert.equal(updated!.unit, 'pcs');
+    assert.equal(updated!.currentStock, 7);
+    assert.equal((await ProductLocationStock.findOne({ productId: legacyId }).lean())!.quantity, 7);
+  });
+
+  await test('missing legacy unit defaults safely during product edit', async () => {
+    const suffix = id();
+    const legacyId = new mongoose.Types.ObjectId();
+    await Product.collection.insertOne({
+      _id: legacyId,
+      name: `Legacy No Unit ${suffix}`,
+      category: category._id,
+      sku: `LEGACY-NOUNIT-${suffix}`,
+      costPrice: 10,
+      sellingPrice: 30,
+      taxRate: 0,
+      currentStock: 4,
+      minStock: 0,
+      maxStock: 20,
+      reorderPoint: 0,
+      outletId: outlet._id,
+      location: 'Legacy Shelf',
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const response = await request(`/api/products/${legacyId}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json', cookie },
+      body: JSON.stringify({
+        name: `Legacy No Unit Updated ${suffix}`,
+        unit: 'pcs',
+        costPrice: 10,
+        sellingPrice: 35,
+      }),
+    });
+    assert.equal(response.response.status, 200, response.body?.error);
+    const updated = await Product.findById(legacyId).lean();
+    assert.equal(updated!.unit, 'pcs');
+    assert.equal(updated!.currentStock, 4);
+  });
+
+  const legacyTransferId = new mongoose.Types.ObjectId();
+  const legacyTransferSuffix = id();
+  await Product.collection.insertOne({
+    _id: legacyTransferId,
+    name: `Legacy Transfer ${legacyTransferSuffix}`,
+    category: category._id,
+    sku: `LEGACY-TRANSFER-${legacyTransferSuffix}`,
+    costPrice: 15,
+    sellingPrice: 40,
+    taxRate: 0,
+    currentStock: 12,
+    minStock: 0,
+    maxStock: 50,
+    reorderPoint: 0,
+    unit: 'pieces',
+    outletId: outlet._id,
+    location: 'Old Rack',
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+
+  await test('transfer preparation materializes legacy location stock', async () => {
+    assert.equal(await ProductLocationStock.countDocuments({ productId: legacyTransferId }), 0);
+    const response = await request('/api/stock-locations/materialize-legacy', {
+      method: 'POST',
+      headers: { cookie },
+    });
+    assert.equal(response.response.status, 200, response.body?.error);
+    const stock = await ProductLocationStock.findOne({ productId: legacyTransferId }).lean();
+    assert(stock);
+    assert.equal(stock.quantity, 12);
+    assert.equal(stock.locationName, 'Old Rack');
+    assert.equal((await Product.findById(legacyTransferId).lean())!.currentStock, 12);
+  });
+
+  await test('legacy location materialization is idempotent', async () => {
+    const response = await request('/api/stock-locations/materialize-legacy', {
+      method: 'POST',
+      headers: { cookie },
+    });
+    assert.equal(response.response.status, 200, response.body?.error);
+    assert.equal(await ProductLocationStock.countDocuments({ productId: legacyTransferId }), 1);
+    assert.equal((await ProductLocationStock.findOne({ productId: legacyTransferId }).lean())!.quantity, 12);
+  });
+
+  await test('legacy product transfers between persisted locations without changing total stock', async () => {
+    const source = await ProductLocationStock.findOne({ productId: legacyTransferId });
+    const target = await getOrCreateStockLocation({
+      outletId: outlet._id,
+      name: `Transfer Target ${legacyTransferSuffix}`,
+      createdBy: user._id,
+    });
+    const key = `legacy-transfer-${id()}`;
+    const response = await request('/api/stock-locations/transfer', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        cookie,
+        'idempotency-key': key,
+      },
+      body: JSON.stringify({
+        idempotencyKey: key,
+        productId: legacyTransferId,
+        fromLocationId: source!.locationId,
+        toLocationId: target._id,
+        quantity: 4,
+      }),
+    });
+    assert.equal(response.response.status, 200, response.body?.error);
+    const stocks = await ProductLocationStock.find({ productId: legacyTransferId }).lean();
+    assert.equal(stocks.reduce((sum, stock) => sum + stock.quantity, 0), 12);
+    assert.equal(stocks.find((stock) => String(stock.locationId) === String(source!.locationId))!.quantity, 8);
+    assert.equal(stocks.find((stock) => String(stock.locationId) === String(target._id))!.quantity, 4);
+    assert.equal((await Product.findById(legacyTransferId).lean())!.currentStock, 12);
+    assert.equal(await InventoryMovement.countDocuments({ productId: legacyTransferId, movementType: 'TRANSFER' }), 2);
+  });
+
+  const allocationProduct = await makeProduct({ currentStock: 10, location: 'Edit Product Source' });
+  await ensureProductHasLocationStock(allocationProduct, outlet._id, user._id);
+  const allocationSource = await ProductLocationStock.findOne({ productId: allocationProduct._id });
+  const allocationTarget = await getOrCreateStockLocation({
+    outletId: outlet._id,
+    name: `Edit Product Target ${id()}`,
+    createdBy: user._id,
+  });
+
+  await test('product edit location allocation rejects a total stock change', async () => {
+    const key = `allocation-total-${id()}`;
+    const response = await request('/api/stock-locations/rebalance', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie, 'idempotency-key': key },
+      body: JSON.stringify({
+        productId: allocationProduct._id,
+        idempotencyKey: key,
+        allocations: [
+          { locationId: allocationSource!.locationId, quantity: 8 },
+          { locationId: allocationTarget._id, quantity: 1 },
+        ],
+      }),
+    });
+    assert.equal(response.response.status, 400);
+    assert.match(response.body.error, /must equal current stock/i);
+    assert.equal((await ProductLocationStock.findById(allocationSource!._id).lean())!.quantity, 10);
+  });
+
+  await test('product edit location allocation rejects duplicate locations', async () => {
+    const key = `allocation-duplicate-${id()}`;
+    const response = await request('/api/stock-locations/rebalance', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie, 'idempotency-key': key },
+      body: JSON.stringify({
+        productId: allocationProduct._id,
+        idempotencyKey: key,
+        allocations: [
+          { locationId: allocationSource!.locationId, quantity: 5 },
+          { locationId: allocationSource!.locationId, quantity: 5 },
+        ],
+      }),
+    });
+    assert.equal(response.response.status, 400);
+    assert.match(response.body.error, /only once/i);
+  });
+
+  const allocationKey = `allocation-success-${id()}`;
+  await test('product edit redistributes locations with audited transfers and unchanged total stock', async () => {
+    const response = await request('/api/stock-locations/rebalance', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie, 'idempotency-key': allocationKey },
+      body: JSON.stringify({
+        productId: allocationProduct._id,
+        idempotencyKey: allocationKey,
+        allocations: [
+          { locationId: allocationSource!.locationId, quantity: 4 },
+          { locationId: allocationTarget._id, quantity: 6 },
+        ],
+      }),
+    });
+    assert.equal(response.response.status, 200, response.body?.error);
+    const stocks = await ProductLocationStock.find({ productId: allocationProduct._id }).lean();
+    assert.equal(stocks.reduce((sum, stock) => sum + stock.quantity, 0), 10);
+    assert.equal(stocks.find((stock) => String(stock.locationId) === String(allocationSource!.locationId))!.quantity, 4);
+    assert.equal(stocks.find((stock) => String(stock.locationId) === String(allocationTarget._id))!.quantity, 6);
+    assert.equal((await Product.findById(allocationProduct._id).lean())!.currentStock, 10);
+    assert.equal(await InventoryMovement.countDocuments({
+      productId: allocationProduct._id,
+      operationKey: { $regex: `^rebalance:${allocationKey}:` },
+    }), 2);
+  });
+
+  await test('product edit location allocation retry is idempotent', async () => {
+    const response = await request('/api/stock-locations/rebalance', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie, 'idempotency-key': allocationKey },
+      body: JSON.stringify({
+        productId: allocationProduct._id,
+        idempotencyKey: allocationKey,
+        allocations: [
+          { locationId: allocationSource!.locationId, quantity: 4 },
+          { locationId: allocationTarget._id, quantity: 6 },
+        ],
+      }),
+    });
+    assert.equal(response.response.status, 200, response.body?.error);
+    assert.equal(response.body.idempotent, true);
+    assert.equal(await InventoryMovement.countDocuments({
+      productId: allocationProduct._id,
+      operationKey: { $regex: `^rebalance:${allocationKey}:` },
+    }), 2);
   });
 
   // A complete sale of a legacy product and its persisted effects.

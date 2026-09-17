@@ -131,13 +131,22 @@ export async function PUT(
         { status: 400 }
       );
     }
-    const requestedUnit = body.unit === undefined ? product.unit : normalizeProductUnit(body.unit);
-    if (requestedUnit !== product.unit) {
+    // Legacy products may contain aliases such as "piece"/"pieces", or may
+    // predate the unit field entirely. Compare canonical meanings rather than
+    // the raw stored value so an unrelated metadata edit is not rejected.
+    const existingUnit = normalizeProductUnit(product.unit);
+    const requestedUnit = body.unit === undefined
+      ? existingUnit
+      : normalizeProductUnit(body.unit);
+    if (requestedUnit !== existingUnit) {
       return NextResponse.json(
         { error: 'Product unit is immutable after creation; create a new product for a different unit' },
         { status: 400 }
       );
     }
+    // Normalize only this edited product on write. This does not alter its
+    // stock, valuation, movements, or historical sale/purchase line units.
+    product.unit = existingUnit;
 
     const candidateCategory = body.categoryId
       || (typeof body.category === 'string' ? body.category : undefined);

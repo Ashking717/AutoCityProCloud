@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
           ledgerEntriesCreated: false,
           operationKey: `${operationPrefix}:in`,
         },
-      ], { session });
+      ], { session, ordered: true });
       await ActivityLog.create([{
         userId,
         username: user.email,

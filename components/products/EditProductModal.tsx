@@ -114,6 +114,7 @@ export default function EditProductModal({
   const [showNewLocation, setShowNewLocation] = useState(false);
   const [newLocationName, setNewLocationName] = useState("");
   const [addingLocation, setAddingLocation] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [locationSplits, setLocationSplits] = useState<LocationStockSplit[]>([]);
   const [customVariant, setCustomVariant] = useState("");
   const [customColor, setCustomColor] = useState("");
@@ -208,21 +209,6 @@ export default function EditProductModal({
       fetchStockLocations(primaryLocation?.locationId, primaryLocationName);
     }
   }, [product, show]);
-
-  useEffect(() => {
-    if (!show || !product) return;
-
-    const splitTotal = locationSplits.reduce(
-      (sum, split) => sum + (Number(split.quantity) || 0),
-      0
-    );
-
-    setFormData((prev) =>
-      prev.currentStock === splitTotal
-        ? prev
-        : { ...prev, currentStock: splitTotal }
-    );
-  }, [locationSplits, product, show]);
 
   const fetchStockLocations = async (
     preferredLocationId?: string,
@@ -487,6 +473,33 @@ export default function EditProductModal({
       return;
     }
 
+    const expectedStock = Number(product.currentStock || 0);
+    const allocationTotal = locationSplits.reduce(
+      (sum, split) => sum + Number(split.quantity || 0),
+      0
+    );
+    if (expectedStock > 0 && locationSplits.length === 0) {
+      toast.error("At least one stock location is required");
+      return;
+    }
+    if (locationSplits.some((split) =>
+      !split.locationId
+      || !Number.isFinite(Number(split.quantity))
+      || Number(split.quantity) < 0
+    )) {
+      toast.error("Every row needs a location and a non-negative quantity");
+      return;
+    }
+    const locationIds = locationSplits.map((split) => split.locationId);
+    if (new Set(locationIds).size !== locationIds.length) {
+      toast.error("Each location can appear only once");
+      return;
+    }
+    if (Math.abs(allocationTotal - expectedStock) > 0.000001) {
+      toast.error(`Location quantities must total ${expectedStock}`);
+      return;
+    }
+
     const productData: any = {
       name: formData.name,
       description: formData.description,
@@ -499,6 +512,11 @@ export default function EditProductModal({
       taxRate: parseFloat(formData.taxRate as any) || 0,
       minStock: parseFloat(formData.minStock as any) || 0,
       maxStock: parseFloat(formData.maxStock as any) || 1000,
+      locationAllocations: locationSplits.map((split) => ({
+        locationId: split.locationId,
+        quantity: Number(split.quantity) || 0,
+      })),
+      locationAllocationKey: crypto.randomUUID(),
     };
 
     if (isVehicle && formData.carMake) {
@@ -518,7 +536,12 @@ export default function EditProductModal({
       productData.isVehicle = false;
     }
 
-    await onUpdate(productData);
+    setIsSubmitting(true);
+    try {
+      await onUpdate(productData);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!show || !product) return null;
@@ -623,8 +646,8 @@ export default function EditProductModal({
                 <div className="flex gap-2">
                   <select
                     value={selectedLocationId}
-                    disabled
-                    className="flex-1 px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base opacity-70 cursor-not-allowed"
+                    onChange={(event) => handleLocationChange(event.target.value)}
+                    className="flex-1 px-3 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-sm md:text-base focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                   >
                     {!selectedLocationId && formData.location && (
                       <option value="" className="text-[#050505]">
@@ -646,9 +669,9 @@ export default function EditProductModal({
                   </select>
                   <button
                     type="button"
-                    disabled
-                    className="px-3 py-2 bg-[color:var(--autocity-accent-10)] border border-[color:var(--autocity-accent-30)] rounded-lg text-white opacity-40 cursor-not-allowed"
-                    title="Use stock transfer to manage locations"
+                    onClick={() => setShowNewLocation((current) => !current)}
+                    className="px-3 py-2 bg-[color:var(--autocity-accent-10)] border border-[color:var(--autocity-accent-30)] rounded-lg text-white hover:bg-[color:var(--autocity-accent-20)] transition-colors"
+                    title="Create a stock location"
                   >
                     <Plus className="h-4 w-4" />
                   </button>
@@ -675,7 +698,7 @@ export default function EditProductModal({
                 </div>
               )}
               <p className="mt-1 text-[11px] text-gray-500">
-                Locations and quantities are read-only here. Use Stock Transfer or Stock Adjustment for audited changes.
+                Redistribute existing stock between locations. Saving records audited transfer movements and never changes total stock.
               </p>
               <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.03] p-3">
                 <div className="flex items-center justify-between gap-3">
@@ -689,10 +712,11 @@ export default function EditProductModal({
                   </div>
                   <button
                     type="button"
-                    disabled
-                    className="px-2.5 py-1.5 text-xs rounded-lg bg-[color:var(--autocity-accent-10)] border border-[color:var(--autocity-accent-30)] text-white opacity-50 cursor-not-allowed"
+                    onClick={addLocationSplit}
+                    disabled={stockLocations.length === 0 || locationSplits.length >= stockLocations.length}
+                    className="px-2.5 py-1.5 text-xs rounded-lg bg-[color:var(--autocity-accent-10)] border border-[color:var(--autocity-accent-30)] text-white hover:bg-[color:var(--autocity-accent-20)] disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    Managed in Stock
+                    Add location
                   </button>
                 </div>
                 {locationSplits.length > 0 ? (
@@ -701,8 +725,8 @@ export default function EditProductModal({
                       <div key={split.id} className="grid grid-cols-[1fr_90px_34px] gap-2">
                         <select
                           value={split.locationId}
-                          disabled
-                          className="px-2 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-xs opacity-70 cursor-not-allowed"
+                          onChange={(event) => updateLocationSplit(split.id, "locationId", event.target.value)}
+                          className="px-2 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-xs focus:ring-2 focus:ring-[color:var(--autocity-accent)]"
                         >
                           {!split.locationId && split.locationName && (
                             <option value="" className="text-[#050505]">
@@ -725,16 +749,17 @@ export default function EditProductModal({
                         <input
                           type="number"
                           min="0"
+                          step="any"
                           value={split.quantity}
-                          readOnly
-                          className="px-2 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-xs opacity-70 cursor-not-allowed"
+                          onChange={(event) => updateLocationSplit(split.id, "quantity", event.target.value)}
+                          className="px-2 py-2 bg-[#050505] border border-white/10 rounded-lg text-white text-xs focus:ring-2 focus:ring-[color:var(--autocity-accent)]"
                           placeholder="Qty"
                         />
                         <button
                           type="button"
-                          disabled
-                          className="rounded-lg border border-white/10 bg-white/[0.03] text-gray-600 flex items-center justify-center cursor-not-allowed"
-                          title="Use stock transfer to manage locations"
+                          onClick={() => removeLocationSplit(split.id)}
+                          className="rounded-lg border border-white/10 bg-white/[0.03] text-gray-400 hover:text-red-400 hover:border-red-500/30 flex items-center justify-center transition-colors"
+                          title="Remove this allocation"
                         >
                           <X className="h-3.5 w-3.5" />
                         </button>
@@ -753,6 +778,14 @@ export default function EditProductModal({
                       .reduce((sum, split) => sum + (Number(split.quantity) || 0), 0)
                       .toFixed(2)}
                   </span>
+                  {Math.abs(
+                    locationSplits.reduce((sum, split) => sum + (Number(split.quantity) || 0), 0)
+                    - Number(product.currentStock || 0)
+                  ) > 0.000001 && (
+                    <span className="ml-2 text-amber-400">
+                      (must equal {Number(product.currentStock || 0).toFixed(2)})
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
@@ -1112,7 +1145,7 @@ export default function EditProductModal({
                 />
               </label>
               <p className="mt-1 text-[11px] text-gray-500">
-                Auto-filled from the location stock split.
+                Locked total. Redistribute it using the location stock split above.
               </p>
             </div>
             <div>
@@ -1144,9 +1177,10 @@ export default function EditProductModal({
           </button>
           <button
             onClick={handleSubmit}
-            className="px-4 py-2 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-xl hover:opacity-90 transition-opacity active:scale-95"
+            disabled={isSubmitting}
+            className="px-4 py-2 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-xl hover:opacity-90 transition-opacity active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Update Product
+            {isSubmitting ? "Updating..." : "Update Product"}
           </button>
         </div>
       </div>

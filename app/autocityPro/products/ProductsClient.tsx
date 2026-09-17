@@ -507,9 +507,39 @@ export default function ProductsClient({
 
   const handleEditProduct = async (productData: any) => {
     if (!editingProduct) return;
-    const res = await fetch(`/api/products/${editingProduct._id}`, { method:"PUT", headers:{"Content-Type":"application/json"}, credentials:"include", body:JSON.stringify(productData) });
-    if (res.ok) { toast.success("Product updated!"); setShowEditModal(false); setEditingProduct(null); fetchProducts(1); }
-    else { const e=await res.json(); toast.error(e.error||"Failed to update product"); }
+    const { locationAllocations, locationAllocationKey, ...metadata } = productData;
+    const res = await fetch(`/api/products/${editingProduct._id}`, { method:"PUT", headers:{"Content-Type":"application/json"}, credentials:"include", body:JSON.stringify(metadata) });
+    if (!res.ok) {
+      const error = await res.json();
+      toast.error(error.error || "Failed to update product");
+      return;
+    }
+
+    if (Array.isArray(locationAllocations) && locationAllocations.length > 0) {
+      const allocationRes = await fetch("/api/stock-locations/rebalance", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": locationAllocationKey,
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          productId: editingProduct._id,
+          allocations: locationAllocations,
+          idempotencyKey: locationAllocationKey,
+        }),
+      });
+      if (!allocationRes.ok) {
+        const error = await allocationRes.json();
+        toast.error(error.error || "Product details saved, but location allocation failed");
+        return;
+      }
+    }
+
+    toast.success("Product and locations updated!");
+    setShowEditModal(false);
+    setEditingProduct(null);
+    fetchProducts(1);
   };
 
   const openEditModal = (product: any) => { setEditingProduct(product); setShowEditModal(true); };

@@ -442,6 +442,7 @@ export default function AddProductModal({
       location: formData.location.trim(),
       categoryId: formData.categoryId || undefined,
       sku: nextSKU,
+      autoGenerateSku: true,
       barcode: formData.barcode || undefined,
       unit: formData.unit,
       costPrice: parseFloat(formData.costPrice as any) || 0,

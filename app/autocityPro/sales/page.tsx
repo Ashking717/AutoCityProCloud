@@ -247,8 +247,7 @@ export default function SalesPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedSaleForEdit, setSelectedSaleForEdit] = useState<any>(null);
   const [editItems, setEditItems] = useState<any[]>([]);
-  const [editPaymentMethod, setEditPaymentMethod] = useState("CASH");
-  const [editAmountPaid, setEditAmountPaid] = useState(0);
+  const [editPayments, setEditPayments] = useState<any[]>([]);
   const [editNotes, setEditNotes] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
 
@@ -287,12 +286,27 @@ export default function SalesPage() {
 
   const openEditModal = (sale: any) => {
     setSelectedSaleForEdit(sale);
-    setEditItems(sale.items.map((item: any) => ({
-      sku: item.sku, name: item.name, quantity: item.quantity,
-      unitPrice: item.unitPrice, discount: item.discount || 0, taxRate: item.taxRate || 0,
+    setEditItems(sale.items.map((item: any, lineIndex: number) => ({
+      lineIndex,
+      productId: item.productId,
+      sku: item.sku,
+      name: item.name,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      discount: item.discount || 0,
+      taxRate: item.taxRate || 0,
+      isLabor: item.isLabor || false,
     })));
-    setEditPaymentMethod(sale.paymentMethod);
-    setEditAmountPaid(sale.amountPaid);
+    setEditPayments((sale.payments?.length ? sale.payments : [{
+      method: sale.paymentMethod,
+      amount: sale.amountPaid,
+      reference: "",
+    }]).map((payment: any, index: number) => ({
+      id: `edit-payment-${index}-${Date.now()}`,
+      method: payment.method,
+      amount: payment.amount,
+      reference: payment.reference || "",
+    })));
     setEditNotes("");
     setShowEditModal(true);
   };
@@ -1076,42 +1090,78 @@ export default function SalesPage() {
             </div>
             <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
               <div>
-                <h3 className="text-sm font-semibold mb-3" style={{ color: th.modalTitle }}>Price Correction</h3>
+                <h3 className="text-sm font-semibold mb-3" style={{ color: th.modalTitle }}>Items, quantity, price and discount</h3>
                 <div className="space-y-3">
                   {editItems.map((item, idx) => (
-                    <div key={item.sku} className="grid grid-cols-5 gap-3 p-3 rounded-lg" style={{ background: th.editGridBg }}>
-                      <div className="col-span-2">
+                    <div key={`${item.lineIndex}-${item.sku}`} className="grid grid-cols-[minmax(120px,2fr)_80px_100px_100px_36px] gap-2 p-3 rounded-lg items-center" style={{ background: th.editGridBg }}>
+                      <div>
                         <p style={{ color: th.editItemName }}>{item.name}</p>
-                        <p className="text-xs" style={{ color: th.editItemQty }}>Qty: {item.quantity}</p>
+                        <p className="text-xs" style={{ color: th.editItemQty }}>{item.sku}</p>
                       </div>
-                      <input type="number" value={item.unitPrice}
-                        readOnly
+                      <input type="number" min="0.0001" step="any" value={item.quantity}
+                        aria-label={`Quantity for ${item.name}`}
+                        onChange={(e) => setEditItems((current) => current.map((entry, entryIndex) => entryIndex === idx ? { ...entry, quantity: Number(e.target.value) } : entry))}
                         className="rounded px-2 py-1 text-sm" style={modalInputStyle} />
-                      <input type="number" value={item.discount}
-                        readOnly
+                      <input type="number" min="0" step="0.01" value={item.unitPrice}
+                        aria-label={`Unit price for ${item.name}`}
+                        onChange={(e) => setEditItems((current) => current.map((entry, entryIndex) => entryIndex === idx ? { ...entry, unitPrice: Number(e.target.value) } : entry))}
                         className="rounded px-2 py-1 text-sm" style={modalInputStyle} />
-                      <div className="flex items-center text-sm" style={{ color: th.editDiscPct }}>QAR</div>
+                      <input type="number" min="0" step="0.01" value={item.discount}
+                        aria-label={`Discount for ${item.name}`}
+                        onChange={(e) => setEditItems((current) => current.map((entry, entryIndex) => entryIndex === idx ? { ...entry, discount: Number(e.target.value) } : entry))}
+                        className="rounded px-2 py-1 text-sm" style={modalInputStyle} />
+                      <button type="button" onClick={() => setEditItems((current) => current.filter((_, entryIndex) => entryIndex !== idx))}
+                        disabled={editItems.length <= 1}
+                        className="h-9 rounded flex items-center justify-center text-red-400 disabled:opacity-30" style={{ border: `1px solid ${th.modalCancelBorder}` }}
+                        title="Remove item from corrected sale">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                  <div className="grid grid-cols-[minmax(120px,2fr)_80px_100px_100px_36px] gap-2 px-3 text-[10px] uppercase" style={{ color: th.modalLabel }}>
+                    <span>Item</span><span>Quantity</span><span>Unit price</span><span>Discount</span><span />
+                  </div>
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold" style={{ color: th.modalTitle }}>Payment allocation</h3>
+                  <button type="button" onClick={() => setEditPayments((current) => [...current, { id: `edit-payment-${Date.now()}`, method: "CASH", amount: 0, reference: "" }])}
+                    className="px-2.5 py-1.5 text-xs rounded" style={{ border: `1px solid ${th.modalCancelBorder}`, color: th.modalCancelText }}>
+                    Add payment
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {editPayments.map((payment, index) => (
+                    <div key={payment.id} className="grid grid-cols-[1fr_110px_1fr_36px] gap-2">
+                      <select value={payment.method} onChange={(e) => setEditPayments((current) => current.map((entry, entryIndex) => entryIndex === index ? { ...entry, method: e.target.value } : entry))}
+                        className="rounded px-3 py-2" style={modalInputStyle}>
+                        {["CASH","CARD","BANK_TRANSFER","CHEQUE"].map((method) => <option key={method} value={method} style={{ background: th.optionBg }}>{method}</option>)}
+                      </select>
+                      <input type="number" min="0" step="0.01" value={payment.amount}
+                        aria-label={`Payment amount ${index + 1}`}
+                        onChange={(e) => setEditPayments((current) => current.map((entry, entryIndex) => entryIndex === index ? { ...entry, amount: Number(e.target.value) } : entry))}
+                        className="rounded px-3 py-2" style={modalInputStyle} />
+                      <input value={payment.reference} placeholder="Reference"
+                        onChange={(e) => setEditPayments((current) => current.map((entry, entryIndex) => entryIndex === index ? { ...entry, reference: e.target.value } : entry))}
+                        className="rounded px-3 py-2" style={modalInputStyle} />
+                      <button type="button" onClick={() => setEditPayments((current) => current.filter((_, entryIndex) => entryIndex !== index))}
+                        className="rounded flex items-center justify-center text-red-400" style={{ border: `1px solid ${th.modalCancelBorder}` }}>
+                        <X className="h-4 w-4" />
+                      </button>
                     </div>
                   ))}
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="edit-payment-method" className="text-xs mb-1 block" style={{ color: th.modalLabel }}>Payment Method</label>
-                  <select id="edit-payment-method" value={editPaymentMethod} onChange={(e) => setEditPaymentMethod(e.target.value)}
-                    className="w-full rounded px-3 py-2" style={modalInputStyle}>
-                    {["CASH","CARD","BANK_TRANSFER","CHEQUE"].map((m) => <option key={m} value={m} style={{ background: th.optionBg }}>{m}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="edit-amount-paid" className="text-xs mb-1 block" style={{ color: th.modalLabel }}>Amount Paid</label>
-                  <input id="edit-amount-paid" type="number" value={editAmountPaid} readOnly
-                    className="w-full rounded px-3 py-2" style={modalInputStyle} />
-                </div>
+              <div className="grid grid-cols-3 gap-3 text-sm">
+                <div><span style={{ color: th.modalLabel }}>Corrected total</span><p className="font-semibold" style={{ color: th.modalTitle }}>QAR {editItems.reduce((sum, item) => sum + Math.max(0, Number(item.quantity || 0) * Number(item.unitPrice || 0) - Number(item.discount || 0)) * (1 + Number(item.taxRate || 0) / 100), 0).toFixed(2)}</p></div>
+                <div><span style={{ color: th.modalLabel }}>Paid</span><p className="font-semibold text-green-400">QAR {editPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0).toFixed(2)}</p></div>
+                <div><span style={{ color: th.modalLabel }}>Balance</span><p className="font-semibold text-yellow-400">QAR {Math.max(0, editItems.reduce((sum, item) => sum + Math.max(0, Number(item.quantity || 0) * Number(item.unitPrice || 0) - Number(item.discount || 0)) * (1 + Number(item.taxRate || 0) / 100), 0) - editPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0)).toFixed(2)}</p></div>
               </div>
               <div>
                 <label htmlFor="edit-correction-reason" className="text-xs mb-1 block" style={{ color: th.modalLabel }}>Correction Reason</label>
-                <textarea id="edit-correction-reason" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} rows={2}
+                <textarea id="edit-correction-reason" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} rows={2} required
+                  placeholder="Required: explain why this posted sale is being corrected"
                   className="w-full rounded px-3 py-2" style={modalInputStyle} />
               </div>
             </div>
@@ -1122,10 +1172,12 @@ export default function SalesPage() {
                 onClick={async () => {
                   setSavingEdit(true);
                   try {
+                    if (!editNotes.trim()) throw new Error("Correction reason is required");
                     const idempotencyKey = crypto.randomUUID();
+                    const amountPaid = editPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
                     const res = await fetch(`/api/sales/${selectedSaleForEdit._id}/edit`, {
                       method: "PUT", headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey }, credentials: "include",
-                      body: JSON.stringify({ items: editItems, paymentMethod: editPaymentMethod, amountPaid: editAmountPaid, notes: editNotes, correctionReason: editNotes, idempotencyKey }),
+                      body: JSON.stringify({ items: editItems, payments: editPayments, amountPaid, notes: editNotes, correctionReason: editNotes, idempotencyKey }),
                     });
                     const data = await res.json();
                     if (!res.ok) throw new Error(data.error);
@@ -1463,8 +1515,8 @@ export default function SalesPage() {
                     <Undo className="h-4 w-4" /><span>Return Items</span>
                   </button>
                 )}
-                {selectedSaleDetails.status === "DRAFT" && (
-                  <button onClick={() => { setShowDetailsModal(false); handleEditSale(selectedSaleDetails); }}
+                {selectedSaleDetails.status === "COMPLETED" && !(selectedSaleDetails.returns?.length) && (
+                  <button onClick={() => { setShowDetailsModal(false); openEditModal(selectedSaleDetails); }}
                     className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2">
                     <Edit className="h-4 w-4" /><span>Edit Sale</span>
                   </button>

@@ -20,6 +20,7 @@ import {
   sanitizeBarcodeValue,
 } from '@/lib/utils/barcode';
 import { normalizeProductUnit } from '@/lib/utils/productUnit';
+import { reserveNextProductSku } from '@/lib/services/productSkuService';
 import Category from '@/lib/models/Category';
 import { hasPermission } from '@/lib/types/roles';
 import { postInventoryAdjustmentAccounting } from '@/lib/services/transactionalAccountingService';
@@ -698,7 +699,10 @@ export async function POST(request: NextRequest) {
       if (!category) throw new Error('Active category not found in this outlet');
       if (body.isVehicle && !body.carMake) throw new Error('Car make is required for vehicle products');
 
-      const sku = String(body.sku).trim().toUpperCase();
+      const requestedSku = String(body.sku).trim().toUpperCase();
+      const sku = body.autoGenerateSku === true
+        ? await reserveNextProductSku(outletId, requestedSku, session!)
+        : requestedSku;
       const barcode = sanitizeBarcodeValue(body.barcode) || generateInternalBarcodeCandidate();
       if (await Product.exists({ outletId, $or: [{ sku }, { barcode }] }).session(session!)) {
         throw new Error('SKU or barcode already exists in this outlet');

@@ -482,7 +482,23 @@ export default function ProductsClient({
     else { const e=await res.json(); toast.error(e.error||"Failed to delete product"); }
   };
 
-  const openAddModal = () => setShowAddModal(true);
+  const refreshNextSKU = async () => {
+    try {
+      const response = await fetch("/api/products/next-sku", {
+        credentials: "include",
+        cache: "no-store",
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.nextSKU) setCurrentSKU(String(data.nextSKU));
+      }
+    } catch {}
+  };
+
+  const openAddModal = () => {
+    setShowAddModal(true);
+    void refreshNextSKU();
+  };
 
   const handleAddProduct = async (productData: any) => {
     try {
@@ -491,8 +507,10 @@ export default function ProductsClient({
       const data = await res.json().catch(() => ({}));
 
       if (res.ok) {
-        toast.success("Product added!");
+        const assignedSku = String(data.product?.sku || productData.sku || "");
+        toast.success(`Product added${assignedSku ? ` with SKU ${assignedSku}` : ""}!`);
         setShowAddModal(false);
+        await refreshNextSKU();
         await fetchProducts(1);
         return true;
       }

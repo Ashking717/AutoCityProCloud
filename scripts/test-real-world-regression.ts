@@ -329,6 +329,77 @@ async function main() {
     assert.equal((await Product.findById(product._id).lean())!.currentStock, 2);
   });
 
+  await makeProduct({ sku: '13914', currentStock: 0 });
+  const autoProductPayload = (name: string, sku: string, key: string) => ({
+    idempotencyKey: key,
+    name,
+    categoryId: category._id,
+    sku,
+    autoGenerateSku: true,
+    unit: 'pcs',
+    costPrice: 25,
+    sellingPrice: 80,
+    taxRate: 0,
+    currentStock: 0,
+    minStock: 0,
+    maxStock: 1000,
+  });
+
+  await test('next SKU preview follows the highest stored numeric SKU', async () => {
+    const response = await request('/api/products/next-sku', { headers: { cookie } });
+    assert.equal(response.response.status, 200, response.body?.error);
+    assert.equal(response.body.nextSKU, '13915');
+  });
+
+  await test('stale auto-generated SKU is advanced instead of rejected', async () => {
+    const key = `auto-sku-stale-${id()}`;
+    const response = await request('/api/products', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie, 'idempotency-key': key },
+      body: JSON.stringify(autoProductPayload('Auto SKU stale test', '13914', key)),
+    });
+    assert.equal(response.response.status, 201, response.body?.error);
+    assert.equal(response.body.product.sku, '13915');
+  });
+
+  await test('simultaneous auto-generated SKU requests receive different values', async () => {
+    const firstKey = `auto-sku-concurrent-a-${id()}`;
+    const secondKey = `auto-sku-concurrent-b-${id()}`;
+    const [first, second] = await Promise.all([
+      request('/api/products', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', cookie, 'idempotency-key': firstKey },
+        body: JSON.stringify(autoProductPayload('Concurrent Auto SKU A', '13915', firstKey)),
+      }),
+      request('/api/products', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', cookie, 'idempotency-key': secondKey },
+        body: JSON.stringify(autoProductPayload('Concurrent Auto SKU B', '13915', secondKey)),
+      }),
+    ]);
+    assert.equal(first.response.status, 201, first.body?.error);
+    assert.equal(second.response.status, 201, second.body?.error);
+    assert.notEqual(first.body.product.sku, second.body.product.sku);
+    assert.deepEqual(
+      [first.body.product.sku, second.body.product.sku].sort(),
+      ['13916', '13917']
+    );
+  });
+
+  await test('manual duplicate non-numeric SKU remains protected', async () => {
+    await makeProduct({ sku: 'MANUAL-DUPLICATE', currentStock: 0 });
+    const key = `manual-sku-duplicate-${id()}`;
+    const payload = autoProductPayload('Manual duplicate test', 'MANUAL-DUPLICATE', key);
+    payload.autoGenerateSku = false;
+    const response = await request('/api/products', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie, 'idempotency-key': key },
+      body: JSON.stringify(payload),
+    });
+    assert.equal(response.response.status, 400);
+    assert.match(response.body.error, /already exists/i);
+  });
+
   await test('legacy unit alias does not block product metadata edit', async () => {
     const suffix = id();
     const legacyId = new mongoose.Types.ObjectId();
@@ -625,6 +696,231 @@ async function main() {
     const movement = await InventoryMovement.findOne({ referenceId: legacySale!._id }).lean();
     assert.equal(String(movement!.voucherId), String(legacySale!.cogsVoucherId));
     assert.equal(movement!.ledgerEntriesCreated, true);
+  });
+
+  const correctionCustomer = await Customer.create({
+    outletId: outlet._id,
+    name: 'Sale Correction Customer',
+    code: `CORRECTION-${id()}`,
+    creditLimit: 10000,
+    currentBalance: 0,
+    isActive: true,
+  });
+  const correctionProduct = await makeProduct({ currentStock: 10, costPrice: 40, sellingPrice: 100, taxRate: 5 });
+  const correctionSaleKey = `sale-correction-base-${id()}`;
+  const correctionCreation = await postSale(correctionProduct, {
+    customerId: correctionCustomer._id,
+  }, correctionSaleKey);
+  const originalCorrectionSale = await Sale.findOne({ operationKey: correctionSaleKey }).lean();
+  const originalReceiptVoucherId = originalCorrectionSale!.voucherId;
+  const originalCogsVoucherId = originalCorrectionSale!.cogsVoucherId;
+  const increaseCorrectionKey = `sale-correction-increase-${id()}`;
+  let increaseCorrectionResponse: any;
+
+  await test('flexible sale correction accepts quantity price discount and split payment changes', async () => {
+    assert.equal(correctionCreation.response.status, 201, correctionCreation.body?.error);
+    increaseCorrectionResponse = await request(`/api/sales/${originalCorrectionSale!._id}/edit`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json', cookie, 'idempotency-key': increaseCorrectionKey },
+      body: JSON.stringify({
+        idempotencyKey: increaseCorrectionKey,
+        correctionReason: 'Correct quantity, price and tender allocation',
+        items: [{
+          lineIndex: 0,
+          productId: correctionProduct._id,
+          sku: correctionProduct.sku,
+          quantity: 3,
+          unitPrice: 120,
+          discount: 10,
+          taxRate: 5,
+        }],
+        payments: [
+          { method: 'CASH', amount: 200 },
+          { method: 'CARD', amount: 100 },
+        ],
+        amountPaid: 300,
+      }),
+    });
+    assert.equal(increaseCorrectionResponse.response.status, 200, increaseCorrectionResponse.body?.error);
+    const sale = await Sale.findById(originalCorrectionSale!._id).lean();
+    assert.equal(sale!.items[0].quantity, 3);
+    assert.equal(sale!.items[0].unitPrice, 120);
+    assert.equal(sale!.items[0].discount, 10);
+    assert.equal(sale!.grandTotal, 367.5);
+    assert.equal(sale!.amountPaid, 300);
+    assert.equal(sale!.balanceDue, 67.5);
+    assert.equal(sale!.payments.length, 2);
+  });
+
+  await test('sale correction applies only the additional stock quantity', async () => {
+    const product = await Product.findById(correctionProduct._id).lean();
+    const locations = await ProductLocationStock.find({ productId: correctionProduct._id }).lean();
+    const correctionMovement = await InventoryMovement.findOne({
+      operationKey: `sale-correction:${increaseCorrectionKey}:line:0`,
+    }).lean();
+    assert.equal(product!.currentStock, 7);
+    assert.equal(locations.reduce((sum, stock) => sum + stock.quantity, 0), 7);
+    assert.equal(correctionMovement!.quantity, -2);
+    assert.equal(correctionMovement!.totalValue, -80);
+  });
+
+  await test('sale correction updates customer receivable by the balance difference', async () => {
+    assert.equal((await Customer.findById(correctionCustomer._id).lean())!.currentBalance, 67.5);
+  });
+
+  await test('sale correction reverses old vouchers and posts balanced replacements', async () => {
+    assert.equal((await Voucher.findById(originalReceiptVoucherId).lean())!.status, 'cancelled');
+    assert.equal((await Voucher.findById(originalCogsVoucherId).lean())!.status, 'cancelled');
+    const sale = await Sale.findById(originalCorrectionSale!._id).lean();
+    assert.notEqual(String(sale!.voucherId), String(originalReceiptVoucherId));
+    assert.notEqual(String(sale!.cogsVoucherId), String(originalCogsVoucherId));
+    for (const voucherId of [sale!.voucherId, sale!.cogsVoucherId]) {
+      const voucher = await Voucher.findById(voucherId).lean();
+      assert.equal(voucher!.totalDebit, voucher!.totalCredit);
+      assert.equal(await LedgerEntry.countDocuments({ voucherId }), voucher!.entries.length);
+    }
+  });
+
+  await test('sale correction retry is idempotent', async () => {
+    const beforeVoucherCount = await Voucher.countDocuments({ outletId: outlet._id });
+    const beforeMovementCount = await InventoryMovement.countDocuments({ productId: correctionProduct._id });
+    const response = await request(`/api/sales/${originalCorrectionSale!._id}/edit`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json', cookie, 'idempotency-key': increaseCorrectionKey },
+      body: JSON.stringify({
+        idempotencyKey: increaseCorrectionKey,
+        correctionReason: 'Correct quantity, price and tender allocation',
+        items: [{ lineIndex: 0, productId: correctionProduct._id, sku: correctionProduct.sku, quantity: 3, unitPrice: 120, discount: 10, taxRate: 5 }],
+        payments: [{ method: 'CASH', amount: 200 }, { method: 'CARD', amount: 100 }],
+        amountPaid: 300,
+      }),
+    });
+    assert.equal(response.response.status, 200, response.body?.error);
+    assert.equal(await Voucher.countDocuments({ outletId: outlet._id }), beforeVoucherCount);
+    assert.equal(await InventoryMovement.countDocuments({ productId: correctionProduct._id }), beforeMovementCount);
+    assert.equal((await Product.findById(correctionProduct._id).lean())!.currentStock, 7);
+  });
+
+  await test('sale correction can reduce quantity and restore stock and receivable', async () => {
+    const key = `sale-correction-decrease-${id()}`;
+    const response = await request(`/api/sales/${originalCorrectionSale!._id}/edit`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json', cookie, 'idempotency-key': key },
+      body: JSON.stringify({
+        idempotencyKey: key,
+        correctionReason: 'Reduce corrected quantity to one',
+        items: [{ lineIndex: 0, productId: correctionProduct._id, sku: correctionProduct.sku, quantity: 1, unitPrice: 100, discount: 0, taxRate: 5 }],
+        payments: [{ method: 'CASH', amount: 105 }],
+        amountPaid: 105,
+      }),
+    });
+    assert.equal(response.response.status, 200, response.body?.error);
+    assert.equal((await Product.findById(correctionProduct._id).lean())!.currentStock, 9);
+    assert.equal((await Customer.findById(correctionCustomer._id).lean())!.currentBalance, 0);
+    const movement = await InventoryMovement.findOne({ operationKey: `sale-correction:${key}:line:0` }).lean();
+    assert.equal(movement!.quantity, 2);
+    assert.equal(movement!.movementType, 'RETURN');
+  });
+
+  await test('failed sale correction rolls back stock accounting and customer balance', async () => {
+    const saleBefore = await Sale.findById(originalCorrectionSale!._id).lean();
+    const productBefore = await Product.findById(correctionProduct._id).lean();
+    const customerBefore = await Customer.findById(correctionCustomer._id).lean();
+    const voucherCountBefore = await Voucher.countDocuments({ outletId: outlet._id });
+    const key = `sale-correction-fail-${id()}`;
+    const response = await request(`/api/sales/${originalCorrectionSale!._id}/edit`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json', cookie, 'idempotency-key': key },
+      body: JSON.stringify({
+        idempotencyKey: key,
+        correctionReason: 'Impossible quantity test',
+        items: [{ lineIndex: 0, productId: correctionProduct._id, sku: correctionProduct.sku, quantity: 9999, unitPrice: 100, discount: 0, taxRate: 5 }],
+        payments: [],
+        amountPaid: 0,
+      }),
+    });
+    assert.equal(response.response.status, 400);
+    assert.match(response.body.error, /insufficient/i);
+    assert.equal((await Product.findById(correctionProduct._id).lean())!.currentStock, productBefore!.currentStock);
+    assert.equal((await Customer.findById(correctionCustomer._id).lean())!.currentBalance, customerBefore!.currentBalance);
+    assert.equal(String((await Sale.findById(originalCorrectionSale!._id).lean())!.voucherId), String(saleBefore!.voucherId));
+    assert.equal(await Voucher.countDocuments({ outletId: outlet._id }), voucherCountBefore);
+  });
+
+  await test('sale correction can remove one line and restore only that product stock', async () => {
+    const retainedProduct = await makeProduct({ currentStock: 10, sellingPrice: 100, taxRate: 5 });
+    const removedProduct = await makeProduct({ currentStock: 10, sellingPrice: 100, taxRate: 5 });
+    const creationKey = `sale-correction-remove-base-${id()}`;
+    const creation = await request('/api/sales', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie, 'idempotency-key': creationKey },
+      body: JSON.stringify({
+        idempotencyKey: creationKey,
+        customerId: correctionCustomer._id,
+        items: [
+          { productId: retainedProduct._id, name: retainedProduct.name, sku: retainedProduct.sku, quantity: 1, unit: 'pcs', unitPrice: 100, discount: 0, discountType: 'fixed' },
+          { productId: removedProduct._id, name: removedProduct.name, sku: removedProduct.sku, quantity: 1, unit: 'pcs', unitPrice: 100, discount: 0, discountType: 'fixed' },
+        ],
+        payments: [{ method: 'CASH', amount: 210 }],
+        amountPaid: 210,
+        overallDiscountAmount: 0,
+      }),
+    });
+    assert.equal(creation.response.status, 201, creation.body?.error);
+    const key = `sale-correction-remove-${id()}`;
+    const response = await request(`/api/sales/${creation.body.sale._id}/edit`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json', cookie, 'idempotency-key': key },
+      body: JSON.stringify({
+        idempotencyKey: key,
+        correctionReason: 'Remove accidentally added second line',
+        items: [{ lineIndex: 0, productId: retainedProduct._id, sku: retainedProduct.sku, quantity: 1, unitPrice: 100, discount: 0, taxRate: 5 }],
+        payments: [{ method: 'CASH', amount: 105 }],
+        amountPaid: 105,
+      }),
+    });
+    assert.equal(response.response.status, 200, response.body?.error);
+    const corrected = await Sale.findById(creation.body.sale._id).lean();
+    assert.equal(corrected!.items.length, 1);
+    assert.equal(String(corrected!.items[0].productId), String(retainedProduct._id));
+    assert.equal((await Product.findById(retainedProduct._id).lean())!.currentStock, 9);
+    assert.equal((await Product.findById(removedProduct._id).lean())!.currentStock, 10);
+    assert.equal((await InventoryMovement.findOne({ operationKey: `sale-correction:${key}:line:1` }).lean())!.quantity, 1);
+  });
+
+  await test('labor-only sale correction changes price without requiring inventory or COGS', async () => {
+    const creationKey = `sale-correction-labor-base-${id()}`;
+    const creation = await request('/api/sales', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie, 'idempotency-key': creationKey },
+      body: JSON.stringify({
+        idempotencyKey: creationKey,
+        customerId: correctionCustomer._id,
+        items: [{ name: 'Labor correction test', sku: 'LABOR', isLabor: true, quantity: 1, unit: 'job', unitPrice: 100, discount: 0, discountType: 'fixed', taxRate: 5 }],
+        payments: [{ method: 'CASH', amount: 105 }],
+        amountPaid: 105,
+        overallDiscountAmount: 0,
+      }),
+    });
+    assert.equal(creation.response.status, 201, creation.body?.error);
+    const key = `sale-correction-labor-${id()}`;
+    const response = await request(`/api/sales/${creation.body.sale._id}/edit`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json', cookie, 'idempotency-key': key },
+      body: JSON.stringify({
+        idempotencyKey: key,
+        correctionReason: 'Correct labor charge',
+        items: [{ lineIndex: 0, sku: 'LABOR', quantity: 1, unitPrice: 80, discount: 0, taxRate: 5 }],
+        payments: [{ method: 'CARD', amount: 84 }],
+        amountPaid: 84,
+      }),
+    });
+    assert.equal(response.response.status, 200, response.body?.error);
+    const corrected = await Sale.findById(creation.body.sale._id).lean();
+    assert.equal(corrected!.grandTotal, 84);
+    assert.equal(corrected!.paymentMethod, 'CARD');
+    assert.equal(corrected!.cogsVoucherId, undefined);
+    assert.equal(await InventoryMovement.countDocuments({ referenceId: corrected!._id }), 0);
   });
 
   await test('exact-stock sale reaches zero without negative stock', async () => {

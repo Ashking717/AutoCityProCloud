@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/mongodb';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth/jwt';
-import Product from '@/lib/models/ProductEnhanced';
 import mongoose from 'mongoose';
+import { previewNextProductSku } from '@/lib/services/productSkuService';
 
 /**
  * GET /api/products/next-sku
@@ -34,26 +34,13 @@ export async function GET(request: NextRequest) {
     
     console.log('🔍 Generating next SKU for outlet:', outletIdObj ? outletIdObj.toString() : 'null');
     
-    // Find all numeric SKUs for this outlet and get the maximum
-    const allNumericProducts = await Product.find({
-      outletId: outletIdObj,
-      sku: { $regex: /^\d+$/ } // Only numeric SKUs
-    })
-      .select('sku')
-      .lean();
-    
-    let nextSKU = '10001'; // Default starting SKU
-    
-    if (allNumericProducts.length > 0) {
-      const numericSKUs = allNumericProducts
-        .map(p => parseInt(p.sku, 10))
-        .filter(sku => !isNaN(sku));
-      
-      if (numericSKUs.length > 0) {
-        const maxSKU = Math.max(...numericSKUs);
-        nextSKU = Math.max(maxSKU + 1, 10001).toString();
-      }
+    if (!outletIdObj || !mongoose.Types.ObjectId.isValid(String(outletIdObj))) {
+      return NextResponse.json({ error: 'Outlet is required' }, { status: 400 });
     }
+
+    const nextSKU = await previewNextProductSku(
+      new mongoose.Types.ObjectId(String(outletIdObj))
+    );
     
     console.log('✅ Generated next SKU:', nextSKU);
     

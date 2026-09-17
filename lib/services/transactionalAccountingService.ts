@@ -171,7 +171,7 @@ export async function postSaleAccounting(
       referenceType: ReferenceType.SALE,
       referenceId: sale._id,
       referenceNumber: sale.invoiceNumber,
-      postingKey: `sale:${sale._id}:cogs`,
+      postingKey: `sale:${sale._id}:cogs${options?.postingSuffix ? `:${options.postingSuffix}` : ''}`,
       outletId,
       createdBy: userId,
     }, session);

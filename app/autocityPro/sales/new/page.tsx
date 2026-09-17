@@ -787,14 +787,14 @@ export default function NewSalePage() {
   const findExactSkuMatch = (sku: string) =>
     products.find((p) => p.sku?.toLowerCase() === sku.toLowerCase());
 
-  const checkYearMatch = (product: any, year: number): boolean => {
+  function checkYearMatch(product: any, year: number): boolean {
     if (!product.isVehicle || !year) return true;
     const { yearFrom, yearTo } = product;
     if (!yearFrom && !yearTo) return true;
     if (yearFrom && !yearTo) return year >= yearFrom;
     if (!yearFrom && yearTo) return year <= yearTo;
     return year >= yearFrom && year <= yearTo;
-  };
+  }
 
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: 32 }, (_, i) => currentYear + 2 - i);

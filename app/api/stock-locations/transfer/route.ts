@@ -28,21 +28,33 @@ export async function POST(request: NextRequest) {
     }
     const body = await request.json();
     const clientKey = String(request.headers.get('idempotency-key') || body.idempotencyKey || '').trim();
-    const quantity = Number(body.quantity);
+    const isBatch = Array.isArray(body.items);
+    const items = (isBatch ? body.items : [{ productId: body.productId, quantity: body.quantity }]).map(
+      (item: any) => ({ productId: String(item?.productId || ''), quantity: Number(item?.quantity) })
+    );
     if (
       !clientKey || clientKey.length > 160
-      || !mongoose.Types.ObjectId.isValid(body.productId)
       || !mongoose.Types.ObjectId.isValid(body.fromLocationId)
       || !mongoose.Types.ObjectId.isValid(body.toLocationId)
-      || !Number.isFinite(quantity) || quantity <= 0
+      || String(body.fromLocationId) === String(body.toLocationId)
+      || items.length === 0 || items.length > 100
+      || items.some((item: any) =>
+        !mongoose.Types.ObjectId.isValid(item.productId)
+        || !Number.isFinite(item.quantity)
+        || item.quantity <= 0
+      )
+      || new Set(items.map((item: any) => item.productId)).size !== items.length
     ) {
-      return NextResponse.json({ error: 'idempotencyKey, product, locations, and a positive quantity are required' }, { status: 400 });
+      return NextResponse.json({
+        error: 'idempotencyKey, different locations, and 1-100 unique products with positive quantities are required',
+      }, { status: 400 });
     }
 
     const outletId = new mongoose.Types.ObjectId(user.outletId);
     const userId = new mongoose.Types.ObjectId(user.userId);
     const operationPrefix = `transfer:${clientKey}`;
-    const prior = await InventoryMovement.findOne({ outletId, operationKey: `${operationPrefix}:out` });
+    const firstOperationKey = isBatch ? `${operationPrefix}:0:out` : `${operationPrefix}:out`;
+    const prior = await InventoryMovement.findOne({ outletId, operationKey: firstOperationKey });
     if (prior) return NextResponse.json({ success: true, referenceNumber: prior.referenceNumber, idempotent: true });
 
     session = await mongoose.startSession();
@@ -50,107 +62,121 @@ export async function POST(request: NextRequest) {
     await session.withTransaction(async () => {
       const duplicate = await InventoryMovement.findOne({
         outletId,
-        operationKey: `${operationPrefix}:out`,
+        operationKey: firstOperationKey,
       }).session(session!);
       if (duplicate) {
         response = { success: true, referenceNumber: duplicate.referenceNumber, idempotent: true };
         return;
       }
-      const product = await Product.findOne({ _id: body.productId, outletId, isActive: true }).session(session!);
-      if (!product) throw new Error('Product not found');
-      await ensureProductHasLocationStock(product, outletId, userId, session!);
-      const transfer = await transferProductBetweenLocations({
-        outletId,
-        product,
-        fromLocationId: body.fromLocationId,
-        toLocationId: body.toLocationId,
-        quantity,
-        userId,
-        session,
-      });
       const referenceId = new mongoose.Types.ObjectId();
       const referenceNumber = `TRF-${referenceId.toHexString().slice(-10).toUpperCase()}`;
-      const unitCost = Number(product.costPrice || 0);
-      const productBalance = Number(product.currentStock || 0);
       const now = new Date();
-      await InventoryMovement.create([
-        {
+      const transfers: any[] = [];
+
+      for (let index = 0; index < items.length; index += 1) {
+        const item = items[index];
+        const product = await Product.findOne({ _id: item.productId, outletId, isActive: true }).session(session!);
+        if (!product) throw new Error(`Product not found: ${item.productId}`);
+        await ensureProductHasLocationStock(product, outletId, userId, session!);
+        const transfer = await transferProductBetweenLocations({
+          outletId,
+          product,
+          fromLocationId: body.fromLocationId,
+          toLocationId: body.toLocationId,
+          quantity: item.quantity,
+          userId,
+          session,
+        });
+        const unitCost = Number(product.costPrice || 0);
+        const productBalance = Number(product.currentStock || 0);
+        const itemOperationPrefix = isBatch ? `${operationPrefix}:${index}` : operationPrefix;
+
+        await InventoryMovement.create([
+          {
+            productId: product._id,
+            productName: product.name,
+            sku: product.sku,
+            movementType: 'TRANSFER',
+            quantity: -item.quantity,
+            unit: product.unit,
+            unitCost,
+            totalValue: -(item.quantity * unitCost),
+            referenceType: 'TRANSFER',
+            referenceId,
+            referenceNumber,
+            locationId: transfer.fromLocation._id,
+            locationName: transfer.fromLocation.name,
+            fromLocationId: transfer.fromLocation._id,
+            fromLocationName: transfer.fromLocation.name,
+            toLocationId: transfer.toLocation._id,
+            toLocationName: transfer.toLocation.name,
+            locationBalanceAfter: transfer.fromBalanceAfter,
+            balanceAfter: productBalance - item.quantity,
+            date: now,
+            notes: body.notes || `Transfer to ${transfer.toLocation.name}`,
+            outletId,
+            createdBy: userId,
+            ledgerEntriesCreated: false,
+            operationKey: `${itemOperationPrefix}:out`,
+          },
+          {
+            productId: product._id,
+            productName: product.name,
+            sku: product.sku,
+            movementType: 'TRANSFER',
+            quantity: item.quantity,
+            unit: product.unit,
+            unitCost,
+            totalValue: item.quantity * unitCost,
+            referenceType: 'TRANSFER',
+            referenceId,
+            referenceNumber,
+            locationId: transfer.toLocation._id,
+            locationName: transfer.toLocation.name,
+            fromLocationId: transfer.fromLocation._id,
+            fromLocationName: transfer.fromLocation.name,
+            toLocationId: transfer.toLocation._id,
+            toLocationName: transfer.toLocation.name,
+            locationBalanceAfter: transfer.toBalanceAfter,
+            balanceAfter: productBalance,
+            date: now,
+            notes: body.notes || `Transfer from ${transfer.fromLocation.name}`,
+            outletId,
+            createdBy: userId,
+            ledgerEntriesCreated: false,
+            operationKey: `${itemOperationPrefix}:in`,
+          },
+        ], { session, ordered: true });
+
+        transfers.push({
           productId: product._id,
           productName: product.name,
           sku: product.sku,
-          movementType: 'TRANSFER',
-          quantity: -quantity,
-          unit: product.unit,
-          unitCost,
-          totalValue: -(quantity * unitCost),
-          referenceType: 'TRANSFER',
-          referenceId,
-          referenceNumber,
-          locationId: transfer.fromLocation._id,
-          locationName: transfer.fromLocation.name,
-          fromLocationId: transfer.fromLocation._id,
-          fromLocationName: transfer.fromLocation.name,
-          toLocationId: transfer.toLocation._id,
-          toLocationName: transfer.toLocation.name,
-          locationBalanceAfter: transfer.fromBalanceAfter,
-          balanceAfter: productBalance - quantity,
-          date: now,
-          notes: body.notes || `Transfer to ${transfer.toLocation.name}`,
-          outletId,
-          createdBy: userId,
-          ledgerEntriesCreated: false,
-          operationKey: `${operationPrefix}:out`,
-        },
-        {
-          productId: product._id,
-          productName: product.name,
-          sku: product.sku,
-          movementType: 'TRANSFER',
-          quantity,
-          unit: product.unit,
-          unitCost,
-          totalValue: quantity * unitCost,
-          referenceType: 'TRANSFER',
-          referenceId,
-          referenceNumber,
-          locationId: transfer.toLocation._id,
-          locationName: transfer.toLocation.name,
-          fromLocationId: transfer.fromLocation._id,
-          fromLocationName: transfer.fromLocation.name,
-          toLocationId: transfer.toLocation._id,
-          toLocationName: transfer.toLocation.name,
-          locationBalanceAfter: transfer.toBalanceAfter,
-          balanceAfter: productBalance,
-          date: now,
-          notes: body.notes || `Transfer from ${transfer.fromLocation.name}`,
-          outletId,
-          createdBy: userId,
-          ledgerEntriesCreated: false,
-          operationKey: `${operationPrefix}:in`,
-        },
-      ], { session, ordered: true });
+          quantity: item.quantity,
+          fromLocation: transfer.fromLocation,
+          toLocation: transfer.toLocation,
+          fromBalanceAfter: transfer.fromBalanceAfter,
+          toBalanceAfter: transfer.toBalanceAfter,
+        });
+      }
+
+      const firstTransfer = transfers[0];
       await ActivityLog.create([{
         userId,
         username: user.email,
         actionType: 'create',
         module: 'inventory',
-        description: `Transferred ${quantity} ${product.unit} of ${product.name} from ${transfer.fromLocation.name} to ${transfer.toLocation.name}`,
+        description: transfers.length === 1
+          ? `Transferred ${firstTransfer.quantity} of ${firstTransfer.productName} from ${firstTransfer.fromLocation.name} to ${firstTransfer.toLocation.name}`
+          : `Transferred ${transfers.length} products from ${firstTransfer.fromLocation.name} to ${firstTransfer.toLocation.name} (${referenceNumber})`,
         outletId,
         timestamp: now,
       }], { session });
       response = {
         success: true,
         referenceNumber,
-        transfer: {
-          productId: product._id,
-          productName: product.name,
-          sku: product.sku,
-          quantity,
-          fromLocation: transfer.fromLocation,
-          toLocation: transfer.toLocation,
-          fromBalanceAfter: transfer.fromBalanceAfter,
-          toBalanceAfter: transfer.toBalanceAfter,
-        },
+        transfer: firstTransfer,
+        transfers,
       };
     });
     return NextResponse.json(response);

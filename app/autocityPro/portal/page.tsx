@@ -111,6 +111,7 @@ export default function PurchasesPortalPage() {
   const [showMobileMenu,      setShowMobileMenu]      = useState(false);
   const [showDynamicIsland,   setShowDynamicIsland]   = useState(true);
   const [transferLoading,     setTransferLoading]     = useState(false);
+  const [transferItems,       setTransferItems]       = useState<Array<{ productId: string; quantity: number }>>([]);
   const [transferProductSearch, setTransferProductSearch] = useState("");
   const [transferMake,        setTransferMake]        = useState("");
   const [transferModel,       setTransferModel]       = useState("");
@@ -121,10 +122,8 @@ export default function PurchasesPortalPage() {
   const [barcodeFilter,       setBarcodeFilter]       = useState<"missing" | "ready" | "all">("missing");
   const [barcodeLoadingId,    setBarcodeLoadingId]    = useState<string | null>(null);
   const [transferForm,        setTransferForm]        = useState({
-    productId: "",
     fromLocationId: "",
     toLocationId: "",
-    quantity: 1,
     notes: "",
   });
 
@@ -325,30 +324,20 @@ export default function PurchasesPortalPage() {
 
   const handleTransferProductChange = (productId: string) => {
     const product = transferProducts.find((item) => item._id === productId);
-    const productLocations = (product?.locations || []).filter(
-      (location: any) => location.locationId && Number(location.quantity || 0) > 0
-    );
-    const selectedSource = productLocations.some(
+    const sourceStock = (product?.locations || []).find(
       (location: any) =>
         String(location.locationId) === String(transferForm.fromLocationId)
-    )
-      ? transferForm.fromLocationId
-      : productLocations[0]?.locationId || "";
-    const destination =
-      transferForm.toLocationId &&
-      String(transferForm.toLocationId) !== String(selectedSource)
-        ? transferForm.toLocationId
-        : stockLocations.find(
-            (location) => String(location._id) !== String(selectedSource)
-          )?._id || "";
-
-    setTransferForm({
-      productId,
-      fromLocationId: selectedSource,
-      toLocationId: destination,
-      quantity: 1,
-      notes: transferForm.notes,
-    });
+        && Number(location.quantity || 0) > 0
+    );
+    if (!product || !sourceStock) {
+      toast.error("This product has no stock in the selected source location");
+      return;
+    }
+    setTransferItems((current) => (
+      current.some((item) => item.productId === productId)
+        ? current
+        : [...current, { productId, quantity: 1 }]
+    ));
   };
 
   const handleTransferSourceChange = (fromLocationId: string) => {
@@ -357,12 +346,11 @@ export default function PurchasesPortalPage() {
     )?._id || "";
 
     setTransferForm({
-      productId: "",
       fromLocationId,
       toLocationId,
-      quantity: 1,
       notes: "",
     });
+    setTransferItems([]);
     setTransferProductSearch("");
     setTransferMake("");
     setTransferModel("");
@@ -394,16 +382,16 @@ export default function PurchasesPortalPage() {
   };
 
   const handleTransferStock = async () => {
-    if (!transferForm.productId || !transferForm.fromLocationId || !transferForm.toLocationId) {
-      toast.error("Select product, from location, and to location");
+    if (!transferItems.length || !transferForm.fromLocationId || !transferForm.toLocationId) {
+      toast.error("Select at least one product, a source location, and a destination");
       return;
     }
     if (transferForm.fromLocationId === transferForm.toLocationId) {
       toast.error("From and to locations must be different");
       return;
     }
-    if (!transferForm.quantity || transferForm.quantity <= 0) {
-      toast.error("Enter a valid quantity");
+    if (transferItems.some((item) => !Number.isFinite(item.quantity) || item.quantity <= 0)) {
+      toast.error("Enter a valid quantity for every product");
       return;
     }
 
@@ -414,7 +402,7 @@ export default function PurchasesPortalPage() {
         method: "POST",
         headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
         credentials: "include",
-        body: JSON.stringify({ ...transferForm, idempotencyKey }),
+        body: JSON.stringify({ ...transferForm, items: transferItems, idempotencyKey }),
       });
 
       if (!res.ok) {
@@ -423,8 +411,9 @@ export default function PurchasesPortalPage() {
       }
 
       const data = await res.json();
-      toast.success(`Transfer saved: ${data.referenceNumber}`);
-      setTransferForm({ productId: "", fromLocationId: "", toLocationId: "", quantity: 1, notes: "" });
+      toast.success(`${transferItems.length} product${transferItems.length === 1 ? "" : "s"} transferred: ${data.referenceNumber}`);
+      setTransferItems([]);
+      setTransferForm({ fromLocationId: "", toLocationId: "", notes: "" });
       setTransferProductSearch("");
       setTransferMake("");
       setTransferModel("");
@@ -530,15 +519,6 @@ export default function PurchasesPortalPage() {
     window.location.href = '/autocityPro/login';
   };
 
-  const selectedTransferProduct = transferProducts.find(
-    (product) => product._id === transferForm.productId
-  );
-  const selectedProductLocations = (selectedTransferProduct?.locations || []).filter(
-    (location: any) => location.locationId && Number(location.quantity || 0) > 0
-  );
-  const selectedFromLocation = selectedProductLocations.find(
-    (location: any) => location.locationId === transferForm.fromLocationId
-  );
   const transferSearchQuery = transferProductSearch.trim().toLowerCase();
   const sourceTransferProducts = transferProducts
     .filter((product) =>
@@ -902,7 +882,7 @@ export default function PurchasesPortalPage() {
 
                 <div className="lg:col-span-5">
                   <label htmlFor="transfer-product-search" className="block text-xs font-medium mb-1" style={{ color: th.filterLabel }}>
-                    Step 2: Identify the exact product
+                    Step 2: Add one or more products
                   </label>
                   {!transferForm.fromLocationId ? (
                     <div
@@ -911,81 +891,76 @@ export default function PurchasesPortalPage() {
                     >
                       Select a source location first. Only products with available stock in that area will be shown.
                     </div>
-                  ) : selectedTransferProduct ? (
-                    <div
-                      className="rounded-xl p-4"
-                      style={{ background: th.modalItemBg, border: `1px solid var(--autocity-accent-30)` }}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="font-semibold" style={{ color: th.tableCellPrimary }}>
-                            {selectedTransferProduct.name}
-                          </p>
-                          <p className="mt-1 text-xs" style={{ color: th.tableCellMuted }}>
-                            SKU: {selectedTransferProduct.sku}
-                            {selectedTransferProduct.partNumber ? ` | Part #: ${selectedTransferProduct.partNumber}` : ""}
-                            {` | Unit: ${getProductUnitLabel(selectedTransferProduct.unit)}`}
-                          </p>
-                          {(selectedTransferProduct.carMake ||
-                            selectedTransferProduct.carModel ||
-                            selectedTransferProduct.variant ||
-                            selectedTransferProduct.color ||
-                            formatTransferYear(selectedTransferProduct)) && (
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {selectedTransferProduct.carMake && (
-                                <span className="rounded-md bg-blue-500/10 px-2 py-1 text-xs font-medium text-blue-400">
-                                  Make: {selectedTransferProduct.carMake}
-                                </span>
-                              )}
-                              {selectedTransferProduct.carModel && (
-                                <span className="rounded-md bg-cyan-500/10 px-2 py-1 text-xs font-medium text-cyan-400">
-                                  Model: {selectedTransferProduct.carModel}
-                                </span>
-                              )}
-                              {selectedTransferProduct.variant && (
-                                <span className="rounded-md bg-orange-500/10 px-2 py-1 text-xs font-medium text-orange-400">
-                                  Variant: {selectedTransferProduct.variant}
-                                </span>
-                              )}
-                              {selectedTransferProduct.color && (
-                                <span className="rounded-md bg-pink-500/10 px-2 py-1 text-xs font-medium text-pink-400">
-                                  Colour: {selectedTransferProduct.color}
-                                </span>
-                              )}
-                              {formatTransferYear(selectedTransferProduct) && (
-                                <span className="rounded-md bg-green-500/10 px-2 py-1 text-xs font-medium text-green-400">
-                                  Year: {formatTransferYear(selectedTransferProduct)}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {selectedProductLocations.map((location: any) => (
-                              <span
-                                key={location.locationId}
-                                className="rounded-full px-2.5 py-1 text-xs"
-                                style={{ background: th.clearBtnBg, color: th.tableCellSecondary }}
-                              >
-                                {location.locationName}: {formatProductQuantity(location.quantity, selectedTransferProduct.unit)}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setTransferForm((current) => ({ ...current, productId: "", quantity: 1 }));
-                            setTransferProductSearch("");
-                          }}
-                          className="flex-shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium text-[color:var(--autocity-accent)]"
-                          style={{ background: th.clearBtnBg, border: `1px solid ${th.clearBtnBorder}` }}
-                        >
-                          Change
-                        </button>
-                      </div>
-                    </div>
                   ) : (
                     <>
+                      {transferItems.length > 0 && (
+                        <div
+                          className="mb-3 rounded-xl p-3"
+                          style={{ background: th.modalItemBg, border: `1px solid var(--autocity-accent-30)` }}
+                        >
+                          <div className="mb-2 flex items-center justify-between gap-3">
+                            <p className="text-sm font-semibold" style={{ color: th.tableCellPrimary }}>
+                              Selected products ({transferItems.length})
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => setTransferItems([])}
+                              className="text-xs font-medium text-[color:var(--autocity-accent)]"
+                            >
+                              Clear all
+                            </button>
+                          </div>
+                          <div className="space-y-2">
+                            {transferItems.map((item) => {
+                              const product = transferProducts.find((candidate) => candidate._id === item.productId);
+                              const sourceStock = (product?.locations || []).find(
+                                (location: any) => String(location.locationId) === String(transferForm.fromLocationId)
+                              );
+                              if (!product) return null;
+                              return (
+                                <div
+                                  key={item.productId}
+                                  className="grid grid-cols-[minmax(0,1fr)_100px_36px] items-center gap-2 rounded-lg p-2"
+                                  style={{ background: th.clearBtnBg }}
+                                >
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm font-medium" style={{ color: th.tableCellPrimary }}>{product.name}</p>
+                                    <p className="truncate text-xs" style={{ color: th.tableCellMuted }}>
+                                      {product.sku} · {formatProductQuantity(sourceStock?.quantity || 0, product.unit)} available
+                                    </p>
+                                  </div>
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={sourceStock?.quantity || undefined}
+                                    value={item.quantity}
+                                    aria-label={`Quantity for ${product.name}`}
+                                    onChange={(event) => {
+                                      const quantity = Number(event.target.value);
+                                      setTransferItems((current) => current.map((entry) => (
+                                        entry.productId === item.productId
+                                          ? { ...entry, quantity: Number.isFinite(quantity) ? quantity : 0 }
+                                          : entry
+                                      )));
+                                    }}
+                                    className="w-full rounded-lg px-2 py-1.5 text-sm"
+                                    style={{ background: th.selectBg, border: `1px solid ${th.selectBorder}`, color: th.selectText }}
+                                  />
+                                  <button
+                                    type="button"
+                                    aria-label={`Remove ${product.name}`}
+                                    onClick={() => setTransferItems((current) => current.filter((entry) => entry.productId !== item.productId))}
+                                    className="flex h-9 w-9 items-center justify-center rounded-lg text-red-400"
+                                    style={{ background: th.clearBtnBg }}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                       <div className="relative">
                         <Search className="absolute left-3 top-3 h-4 w-4 text-[color:var(--autocity-accent)]" />
                         <input
@@ -1059,6 +1034,7 @@ export default function PurchasesPortalPage() {
                         ) : (
                           filteredTransferProducts.map((product) => {
                             const year = formatTransferYear(product);
+                            const isSelected = transferItems.some((item) => item.productId === product._id);
                             const locations = (product.locations || []).filter(
                               (location: any) =>
                                 location.locationId && Number(location.quantity || 0) > 0
@@ -1068,15 +1044,20 @@ export default function PurchasesPortalPage() {
                                 key={product._id}
                                 type="button"
                                 onClick={() => handleTransferProductChange(product._id)}
-                                className="rounded-xl p-3 text-left transition-all hover:border-[color:var(--autocity-accent-30)] active:scale-[0.99]"
-                                style={{ background: th.modalItemBg, border: `1px solid ${th.modalItemBorder}` }}
+                                disabled={isSelected}
+                                className="rounded-xl p-3 text-left transition-all hover:border-[color:var(--autocity-accent-30)] active:scale-[0.99] disabled:cursor-default"
+                                style={{
+                                  background: th.modalItemBg,
+                                  border: `1px solid ${isSelected ? "var(--autocity-accent)" : th.modalItemBorder}`,
+                                  opacity: isSelected ? 0.7 : 1,
+                                }}
                               >
                                 <div className="flex items-start justify-between gap-2">
                                   <p className="min-w-0 font-semibold" style={{ color: th.tableCellPrimary }}>
                                     {product.name}
                                   </p>
                                   <span className="flex-shrink-0 text-[10px] font-mono" style={{ color: th.tableCellMuted }}>
-                                    {product.sku}
+                                    {isSelected ? "ADDED" : product.sku}
                                   </span>
                                 </div>
                                 {product.partNumber && (
@@ -1131,7 +1112,7 @@ export default function PurchasesPortalPage() {
                   )}
                 </div>
 
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-5">
                   <label htmlFor="transfer-to" className="block text-xs font-medium mb-1" style={{ color: th.filterLabel }}>Step 3: Destination location</label>
                   <select
                     id="transfer-to"
@@ -1139,7 +1120,7 @@ export default function PurchasesPortalPage() {
                     onChange={(e) => setTransferForm({ ...transferForm, toLocationId: e.target.value })}
                     className="w-full px-3 py-2 rounded-lg text-sm transition-colors duration-500"
                     style={{ background: th.selectBg, border: `1px solid ${th.selectBorder}`, color: th.selectText }}
-                    disabled={!selectedTransferProduct}
+                    disabled={transferItems.length === 0}
                   >
                     <option value="">Select destination</option>
                     {stockLocations
@@ -1152,25 +1133,6 @@ export default function PurchasesPortalPage() {
                   </select>
                 </div>
 
-                <div>
-                  <label htmlFor="transfer-quantity" className="block text-xs font-medium mb-1" style={{ color: th.filterLabel }}>
-                    Step 4: Quantity
-                    {selectedFromLocation && selectedTransferProduct
-                      ? ` / ${formatProductQuantity(selectedFromLocation.quantity, selectedTransferProduct.unit)} available`
-                      : ""}
-                  </label>
-                  <input
-                    id="transfer-quantity"
-                    type="number"
-                    min={1}
-                    max={selectedFromLocation?.quantity || undefined}
-                    value={transferForm.quantity}
-                    onChange={(e) => setTransferForm({ ...transferForm, quantity: parseFloat(e.target.value) || 1 })}
-                    className="w-full px-3 py-2 rounded-lg text-sm transition-colors duration-500"
-                    style={{ background: th.selectBg, border: `1px solid ${th.selectBorder}`, color: th.selectText }}
-                    disabled={!selectedTransferProduct}
-                  />
-                </div>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 mt-3">
@@ -1186,15 +1148,17 @@ export default function PurchasesPortalPage() {
                   onClick={handleTransferStock}
                   disabled={
                     transferLoading ||
-                    !transferForm.productId ||
+                    transferItems.length === 0 ||
                     !transferForm.fromLocationId ||
                     !transferForm.toLocationId ||
-                    transferForm.quantity <= 0
+                    transferItems.some((item) => item.quantity <= 0)
                   }
                   className="lg:col-span-2 px-4 py-2 rounded-lg text-white font-semibold active:scale-95 transition-all disabled:opacity-50"
                   style={{ background: 'linear-gradient(135deg,var(--autocity-accent),var(--autocity-accent-strong))' }}
                 >
-                  {transferLoading ? 'Transferring...' : 'Transfer Stock'}
+                  {transferLoading
+                    ? 'Transferring...'
+                    : `Transfer ${transferItems.length || ""} Product${transferItems.length === 1 ? "" : "s"}`}
                 </button>
               </div>
 

@@ -109,6 +109,8 @@ export default function NewPurchasePage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
   const [pendingPurchaseKey, setPendingPurchaseKey] = useState<string | null>(null);
+  const [supplierSaving, setSupplierSaving] = useState(false);
+  const [pendingSupplierKey, setPendingSupplierKey] = useState<string | null>(null);
   const [products, setProducts] = useState<any[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
   const [suppliers, setSuppliers] = useState<any[]>([]);
@@ -251,12 +253,15 @@ export default function NewPurchasePage() {
 
   const handleAddSupplier = async () => {
     if (!newSupplier.name || !newSupplier.phone) { toast.error("Name and phone are required"); return; }
+    const operationKey = pendingSupplierKey || crypto.randomUUID();
+    setPendingSupplierKey(operationKey);
+    setSupplierSaving(true);
     try {
       const res = await fetch("/api/suppliers", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Idempotency-Key": operationKey },
         credentials: "include",
-        body: JSON.stringify({ ...newSupplier, code: generateSupplierCode(newSupplier.name) }),
+        body: JSON.stringify({ ...newSupplier, code: generateSupplierCode(newSupplier.name), operationKey }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -264,9 +269,11 @@ export default function NewPurchasePage() {
         setSuppliers([...suppliers, data.supplier]);
         setSelectedSupplier(data.supplier);
         setShowAddSupplier(false);
+        setPendingSupplierKey(null);
         setNewSupplier({ name:"", phone:"", email:"", address:"", contactPerson:"", taxNumber:"", creditLimit:0, paymentTerms:"Net 30" });
       } else toast.error((await res.json()).error || "Failed to add supplier");
     } catch { toast.error("Failed to add supplier"); }
+    finally { setSupplierSaving(false); }
   };
 
   const handleQuickAddCategory = async () => {
@@ -793,7 +800,7 @@ export default function NewPurchasePage() {
                     {selectedSupplier.email && <p className="text-xs mt-1" style={{ color: th.textMuted }}>{selectedSupplier.email}</p>}
                   </div>
                 )}
-                <button onClick={() => setShowAddSupplier(true)}
+                <button onClick={() => { setPendingSupplierKey(null); setShowAddSupplier(true); }}
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-[color:var(--autocity-accent-30)] text-[color:var(--autocity-accent)] rounded-xl hover:border-[color:var(--autocity-accent-50)] hover:bg-[color:var(--autocity-accent-05)] transition-all active:scale-95">
                   <Plus className="h-4 w-4" /><span className="font-medium">Quick Add Supplier</span>
                 </button>
@@ -1088,7 +1095,7 @@ export default function NewPurchasePage() {
                       <p className="text-sm mt-1" style={{ color: th.textSecondary }}>{selectedSupplier.phone}</p>
                     </div>
                   )}
-                  <button onClick={() => { setShowPayment(false); setShowAddSupplier(true); }}
+                  <button onClick={() => { setShowPayment(false); setPendingSupplierKey(null); setShowAddSupplier(true); }}
                     className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed border-[color:var(--autocity-accent-30)] text-[color:var(--autocity-accent)] rounded-xl hover:border-[color:var(--autocity-accent-50)] active:scale-95 transition-all">
                     <Plus className="h-4 w-4" /><span className="text-sm font-medium">Add New Supplier</span>
                   </button>
@@ -1163,7 +1170,7 @@ export default function NewPurchasePage() {
             <div className="rounded-2xl shadow-2xl max-w-2xl w-full my-8 border transition-colors duration-500" style={{ background: th.modalBg, borderColor: th.modalBorder }}>
               <div className="flex justify-between items-center px-6 py-4 border-b" style={{ borderColor: th.divider }}>
                 <h2 className="text-xl font-bold" style={{ color: th.modalTitle }}>Add Supplier</h2>
-                <button onClick={() => setShowAddSupplier(false)} className="p-2 rounded-xl active:scale-95 transition-all"
+                <button onClick={() => { setShowAddSupplier(false); setPendingSupplierKey(null); }} className="p-2 rounded-xl active:scale-95 transition-all"
                   style={{ background: th.modalCloseBg, color: th.modalCloseText }}><X className="h-6 w-6" /></button>
               </div>
               <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
@@ -1194,12 +1201,12 @@ export default function NewPurchasePage() {
                   </div>
                 </div>
                 <div className="flex flex-col-reverse md:flex-row gap-3 pt-4 border-t mt-6" style={{ borderColor: th.divider }}>
-                  <button onClick={() => setShowAddSupplier(false)}
+                  <button onClick={() => { setShowAddSupplier(false); setPendingSupplierKey(null); }}
                     className="flex-1 px-4 py-3 rounded-xl font-medium active:scale-95 transition-all border"
                     style={{ borderColor: th.dividerStrong, color: th.textSecondary }}>Cancel</button>
-                  <button onClick={handleAddSupplier}
-                    className="flex-1 px-4 py-3 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-xl hover:opacity-90 transition-all font-semibold shadow-lg active:scale-95">
-                    Add Supplier
+                  <button onClick={handleAddSupplier} disabled={supplierSaving}
+                    className="flex-1 px-4 py-3 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] text-white rounded-xl hover:opacity-90 transition-all font-semibold shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                    {supplierSaving ? "Adding..." : "Add Supplier"}
                   </button>
                 </div>
               </div>

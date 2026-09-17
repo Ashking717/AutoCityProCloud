@@ -200,6 +200,7 @@ export default function OCRPurchaseModal({
   const [selectedSupplier, setSelectedSupplier] = useState<any|null>(null);
   const [newSupplier, setNewSupplier]       = useState({ name:"", phone:"", email:"", contactPerson:"" });
   const [supplierSaving, setSupplierSaving] = useState(false);
+  const [pendingSupplierKey, setPendingSupplierKey] = useState<string | null>(null);
   const [enrichedItems, setEnrichedItems]   = useState<EnrichedItem[]>([]);
   const [currentNextSKU, setCurrentNextSKU] = useState(nextSKU);
   const [categories, setCategories]         = useState<any[]>([]);
@@ -240,6 +241,7 @@ export default function OCRPurchaseModal({
         setEnrichedItems([]); setParseError(null); setParsingProgress("");
         setSelectedSupplier(null); setSupplierMode("select");
         setNewSupplier({ name:"", phone:"", email:"", contactPerson:"" });
+        setPendingSupplierKey(null);
         setShowAllPreviews(false);
         setProductSearchIdx(null); setProductSearchTerm("");
         setPartNumberConflict(null); setMemoryHits(0);
@@ -587,14 +589,21 @@ const handleParse = async () => {
 
   const handleSaveNewSupplier = async () => {
     if (!newSupplier.name) { toast.error("Supplier name is required"); return; }
+    const operationKey = pendingSupplierKey || crypto.randomUUID();
+    setPendingSupplierKey(operationKey);
     setSupplierSaving(true);
     try {
       const code = `SUP${newSupplier.name.toUpperCase().replace(/[^A-Z0-9]/g,"").substring(0,8)}${Date.now().toString().slice(-4)}`;
-      const res  = await fetch("/api/suppliers", { method:"POST", headers:{"Content-Type":"application/json"}, credentials:"include", body:JSON.stringify({...newSupplier,code}) });
+      const res  = await fetch("/api/suppliers", {
+        method:"POST",
+        headers:{"Content-Type":"application/json", "Idempotency-Key":operationKey},
+        credentials:"include",
+        body:JSON.stringify({...newSupplier,code,operationKey}),
+      });
       if (!res.ok) throw new Error((await res.json()).error||"Failed");
       const created = (await res.json()).supplier;
       handleSelectSupplier(created); onSupplierCreated?.(created);
-      toast.success("Supplier created!"); setSupplierMode("select");
+      toast.success("Supplier created!"); setSupplierMode("select"); setPendingSupplierKey(null);
     } catch (err: any) { toast.error(err.message); }
     finally { setSupplierSaving(false); }
   };

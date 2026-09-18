@@ -36,6 +36,7 @@ const PAYMENT_METHODS = [
 export default function CreateExpenseForm({ onClose, onSuccess }: CreateExpenseFormProps) {
   const isDark = useTimeBasedTheme();
   const [loading, setLoading] = useState(false);
+  const [pendingExpenseKey] = useState(() => crypto.randomUUID());
   const [expenseAccounts, setExpenseAccounts] = useState<any[]>([]);
   const [paymentAccounts, setPaymentAccounts] = useState<any[]>([]);
 
@@ -125,8 +126,15 @@ export default function CreateExpenseForm({ onClose, onSuccess }: CreateExpenseF
     setLoading(true);
     try {
       const r = await fetch('/api/expenses', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-        body: JSON.stringify({ ...formData, items, amountPaid: formData.paymentMethod === 'CREDIT' ? 0 : calculateTotal() }),
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': pendingExpenseKey },
+        credentials: 'include',
+        body: JSON.stringify({
+          ...formData,
+          items,
+          amountPaid: formData.paymentMethod === 'CREDIT' ? 0 : calculateTotal(),
+          operationKey: pendingExpenseKey,
+        }),
       });
       if (r.ok) {
         const data = await r.json();

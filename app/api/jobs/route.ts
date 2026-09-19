@@ -81,6 +81,16 @@ export async function POST(request: NextRequest) {
     const outletId = new mongoose.Types.ObjectId(user.outletId);
 
     const body = await request.json();
+    const operationKey = String(
+      request.headers.get("idempotency-key") || body.operationKey || ""
+    ).trim();
+    if (!operationKey || operationKey.length > 160) {
+      return NextResponse.json({ error: "A valid idempotency key is required" }, { status: 400 });
+    }
+    const existingJob = await Job.findOne({ outletId, operationKey });
+    if (existingJob) {
+      return NextResponse.json({ job: existingJob, idempotent: true });
+    }
     const {
       customerId, customerName, vehicleInfo,
       title, description, items,
@@ -149,7 +159,7 @@ export async function POST(request: NextRequest) {
       const jobNumber = await Job.generateJobNumber(outletId);
       try {
         const docs = await Job.create([{
-          outletId, jobNumber,
+          outletId, jobNumber, operationKey,
           customerId, customerName,
           vehicleRegistrationNumber: vehicleInfo?.registrationNumber,
           vehicleMake:   vehicleInfo?.make,
@@ -172,7 +182,12 @@ export async function POST(request: NextRequest) {
         }]);
         job = docs[0];
       } catch (err: any) {
-        if (err.code === 11000) { console.warn("Job number collision, retrying..."); continue; }
+        if (err.code === 11000) {
+          const duplicateJob = await Job.findOne({ outletId, operationKey });
+          if (duplicateJob) { job = duplicateJob; break; }
+          console.warn("Job number collision, retrying...");
+          continue;
+        }
         throw err;
       }
     }

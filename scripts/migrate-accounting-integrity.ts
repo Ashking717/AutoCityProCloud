@@ -5,6 +5,7 @@ import Closing from '../lib/models/Closing';
 import Customer from '../lib/models/Customer';
 import Expense from '../lib/models/Expense';
 import InventoryMovement from '../lib/models/InventoryMovement';
+import Job from '../lib/models/Job';
 import LedgerEntry from '../lib/models/LedgerEntry';
 import Product from '../lib/models/ProductEnhanced';
 import Purchase from '../lib/models/Purchase';
@@ -84,6 +85,7 @@ async function run() {
     Customer,
     Expense,
     InventoryMovement,
+    Job,
     LedgerEntry,
     Product,
     Purchase,

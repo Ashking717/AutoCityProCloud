@@ -134,6 +134,7 @@ export default function ProductDetailPage() {
   const [activeTab, setActiveTab] = useState<"details" | "stock" | "sales">("details");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [pendingStockAdjustmentKey, setPendingStockAdjustmentKey] = useState(() => crypto.randomUUID());
   const [isMobile, setIsMobile] = useState(false);
   const [generatingBarcode, setGeneratingBarcode] = useState(false);
   const [stockAdjustment, setStockAdjustment] = useState({
@@ -389,7 +390,7 @@ export default function ProductDetailPage() {
     }
 
     try {
-      const idempotencyKey = crypto.randomUUID();
+      const idempotencyKey = pendingStockAdjustmentKey;
       const res = await fetch(`/api/products/${productId}/stock-history`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
@@ -405,6 +406,7 @@ export default function ProductDetailPage() {
       });
 
       if (res.ok) {
+        setPendingStockAdjustmentKey(crypto.randomUUID());
         toast.success("Stock updated successfully!");
         setStockAdjustment((prev) => ({
           ...prev,

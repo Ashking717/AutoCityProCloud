@@ -71,6 +71,7 @@ export default function ProductsClient({
 
   const [searchTerm, setSearchTerm]       = useState("");
   const [showAddModal, setShowAddModal]   = useState(false);
+  const [pendingProductKey, setPendingProductKey] = useState(() => crypto.randomUUID());
   const [showEditModal, setShowEditModal] = useState(false);
   const [productToDelete, setProductToDelete] = useState<any>(null);
   const [showStockModal, setShowStockModal]   = useState(false);
@@ -496,13 +497,14 @@ export default function ProductsClient({
   };
 
   const openAddModal = () => {
+    setPendingProductKey(crypto.randomUUID());
     setShowAddModal(true);
     void refreshNextSKU();
   };
 
   const handleAddProduct = async (productData: any) => {
     try {
-      const idempotencyKey = crypto.randomUUID();
+      const idempotencyKey = pendingProductKey;
       const res = await fetch("/api/products", { method:"POST", headers:{"Content-Type":"application/json", "Idempotency-Key": idempotencyKey}, credentials:"include", body:JSON.stringify({...productData, idempotencyKey}) });
       const data = await res.json().catch(() => ({}));
 
@@ -1300,7 +1302,7 @@ export default function ProductsClient({
                 style={{ background: th.overlayCloseBg, color: th.overlayClose }}><X className="h-5 w-5" /></button>
             </div>
             <div className="space-y-3">
-              <button onClick={() => { setShowAddModal(true); setShowMobileMenu(false); }}
+              <button onClick={() => { openAddModal(); setShowMobileMenu(false); }}
                 className="w-full p-4 bg-gradient-to-r from-[var(--autocity-accent)] to-[var(--autocity-accent-strong)] rounded-2xl text-white font-semibold flex items-center justify-between active:scale-95 transition-all">
                 <span>Add Product</span><Plus className="h-5 w-5" />
               </button>

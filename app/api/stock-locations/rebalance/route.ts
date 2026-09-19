@@ -10,9 +10,11 @@ import StockLocation from '@/lib/models/StockLocation';
 import { verifyToken } from '@/lib/auth/jwt';
 import { connectDB } from '@/lib/db/mongodb';
 import {
+  adjustProductLocationStock,
   ensureProductHasLocationStock,
   transferProductBetweenLocations,
 } from '@/lib/services/locationStockService';
+import { postInventoryAdjustmentAccounting } from '@/lib/services/transactionalAccountingService';
 import { hasPermission } from '@/lib/types/roles';
 
 const EPSILON = 0.000001;
@@ -71,7 +73,7 @@ export async function POST(request: NextRequest) {
     const operationPrefix = `rebalance:${clientKey}`;
     const prior: any = await InventoryMovement.findOne({
       outletId,
-      operationKey: `${operationPrefix}:0:out`,
+      operationKey: { $in: [`${operationPrefix}:0`, `${operationPrefix}:0:out`] },
     }).lean();
     if (prior) {
       return NextResponse.json({
@@ -86,7 +88,7 @@ export async function POST(request: NextRequest) {
     await session.withTransaction(async () => {
       const duplicate = await InventoryMovement.findOne({
         outletId,
-        operationKey: `${operationPrefix}:0:out`,
+        operationKey: { $in: [`${operationPrefix}:0`, `${operationPrefix}:0:out`] },
       }).session(session!);
       if (duplicate) {
         response = {
@@ -121,10 +123,6 @@ export async function POST(request: NextRequest) {
         (sum: number, item: any) => sum + item.quantity,
         0
       );
-      if (Math.abs(requestedTotal - expectedTotal) > EPSILON) {
-        throw new Error(`Location allocation total must equal current stock (${expectedTotal})`);
-      }
-
       const currentStocks: any[] = await ProductLocationStock.find({
         outletId,
         productId,
@@ -163,7 +161,6 @@ export async function POST(request: NextRequest) {
       const unitCost = Number(product.costPrice || 0);
       const productBalance = Number(product.currentStock || 0);
       const movements: any[] = [];
-      let transferIndex = 0;
       let surplusIndex = 0;
       let deficitIndex = 0;
 
@@ -207,7 +204,6 @@ export async function POST(request: NextRequest) {
             outletId,
             createdBy: userId,
             ledgerEntriesCreated: false,
-            operationKey: `${operationPrefix}:${transferIndex}:out`,
           },
           {
             productId,
@@ -234,7 +230,6 @@ export async function POST(request: NextRequest) {
             outletId,
             createdBy: userId,
             ledgerEntriesCreated: false,
-            operationKey: `${operationPrefix}:${transferIndex}:in`,
           }
         );
 
@@ -242,14 +237,105 @@ export async function POST(request: NextRequest) {
         deficit.quantity -= quantity;
         if (surplus.quantity <= EPSILON) surplusIndex += 1;
         if (deficit.quantity <= EPSILON) deficitIndex += 1;
-        transferIndex += 1;
       }
 
-      if (surplusIndex !== surpluses.length || deficitIndex !== deficits.length) {
-        throw new Error('Could not balance the requested location allocation');
+      const netAdjustment = requestedTotal - expectedTotal;
+      let adjustmentAccounting: any = {};
+      if (Math.abs(netAdjustment) > EPSILON) {
+        adjustmentAccounting = await postInventoryAdjustmentAccounting({
+          referenceId,
+          referenceNumber,
+          productName: product.name,
+          sku: product.sku,
+          quantity: netAdjustment,
+          unitCost,
+          date: now,
+          reason: 'Stock quantity updated from Edit Product',
+          outletId,
+          postingKey: `inventory:${operationPrefix}:gl`,
+        }, userId, session!);
+      }
+
+      let runningBalance = productBalance;
+      for (const deficit of deficits.slice(deficitIndex)) {
+        if (deficit.quantity <= EPSILON) continue;
+        const result = await adjustProductLocationStock({
+          outletId,
+          product,
+          locationId: deficit.locationId,
+          quantityDelta: deficit.quantity,
+          userId,
+          session,
+        });
+        runningBalance += deficit.quantity;
+        movements.push({
+          productId,
+          productName: product.name,
+          sku: product.sku,
+          movementType: 'ADJUSTMENT',
+          quantity: deficit.quantity,
+          unit: product.unit,
+          unitCost,
+          totalValue: deficit.quantity * unitCost,
+          referenceType: 'ADJUSTMENT',
+          referenceId,
+          referenceNumber,
+          locationId: result.location._id,
+          locationName: result.location.name,
+          locationBalanceAfter: result.newQuantity,
+          balanceAfter: runningBalance,
+          date: now,
+          notes: 'Stock quantity increased from Edit Product',
+          outletId,
+          createdBy: userId,
+          voucherId: adjustmentAccounting.voucherId,
+          ledgerEntriesCreated: Boolean(adjustmentAccounting.voucherId),
+        });
+      }
+      for (const surplus of surpluses.slice(surplusIndex)) {
+        if (surplus.quantity <= EPSILON) continue;
+        const result = await adjustProductLocationStock({
+          outletId,
+          product,
+          locationId: surplus.locationId,
+          quantityDelta: -surplus.quantity,
+          userId,
+          session,
+        });
+        runningBalance -= surplus.quantity;
+        movements.push({
+          productId,
+          productName: product.name,
+          sku: product.sku,
+          movementType: 'ADJUSTMENT',
+          quantity: -surplus.quantity,
+          unit: product.unit,
+          unitCost,
+          totalValue: -(surplus.quantity * unitCost),
+          referenceType: 'ADJUSTMENT',
+          referenceId,
+          referenceNumber,
+          locationId: result.location._id,
+          locationName: result.location.name,
+          locationBalanceAfter: result.newQuantity,
+          balanceAfter: runningBalance,
+          date: now,
+          notes: 'Stock quantity decreased from Edit Product',
+          outletId,
+          createdBy: userId,
+          voucherId: adjustmentAccounting.voucherId,
+          ledgerEntriesCreated: Boolean(adjustmentAccounting.voucherId),
+        });
+      }
+
+      if (Math.abs(runningBalance - requestedTotal) > EPSILON) {
+        throw new Error('Could not apply the requested location quantities');
       }
 
       if (movements.length > 0) {
+        movements.forEach((movement, index) => {
+          movement.operationKey = `${operationPrefix}:${index}`;
+        });
         await InventoryMovement.create(movements, { session, ordered: true });
       }
 
@@ -259,6 +345,7 @@ export async function POST(request: NextRequest) {
         (location) => String(location._id) === primaryAllocation.locationId
       );
       product.location = primaryLocation?.name || product.location;
+      product.currentStock = requestedTotal;
       await product.save({ session });
 
       await ActivityLog.create([{
@@ -266,7 +353,7 @@ export async function POST(request: NextRequest) {
         username: user.email,
         actionType: 'update',
         module: 'inventory',
-        description: `Updated location allocation for ${product.name} (${product.sku}) without changing total stock`,
+        description: `Updated location allocation for ${product.name} (${product.sku}); stock ${expectedTotal} → ${requestedTotal}`,
         outletId,
         timestamp: now,
       }], { session });
@@ -275,7 +362,7 @@ export async function POST(request: NextRequest) {
         success: true,
         changed: movements.length > 0,
         referenceNumber: movements.length > 0 ? referenceNumber : undefined,
-        totalStock: productBalance,
+        totalStock: requestedTotal,
       };
     });
 

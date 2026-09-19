@@ -33,6 +33,7 @@ export default function ReceiptVoucherPage() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [pendingVoucherKey] = useState(() => crypto.randomUUID());
   
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -155,7 +156,7 @@ export default function ReceiptVoucherPage() {
     }
     
     setLoading(true);
-    const idempotencyKey = crypto.randomUUID();
+    const idempotencyKey = pendingVoucherKey;
     
     try {
       const res = await fetch('/api/vouchers', {

@@ -243,6 +243,7 @@ export default function NewSalePage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [pendingSaleKey, setPendingSaleKey] = useState<string | null>(null);
+  const [pendingCustomerKey, setPendingCustomerKey] = useState(() => crypto.randomUUID());
   const [products, setProducts] = useState<any[]>([]);
   const [frequentProducts, setFrequentProducts] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -512,10 +513,11 @@ export default function NewSalePage() {
       toast.error("Name and phone are required");
       return;
     }
+    const operationKey = pendingCustomerKey;
     try {
       const res = await fetch("/api/customers", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Idempotency-Key": operationKey },
         credentials: "include",
         body: JSON.stringify({
           name: newCustomer.name,
@@ -529,6 +531,7 @@ export default function NewSalePage() {
           vehicleYear: newCustomer.vehicleYear ? parseInt(newCustomer.vehicleYear) : undefined,
           vehicleColor: newCustomer.vehicleColor,
           vehicleVIN: newCustomer.vehicleVIN,
+          operationKey,
         }),
       });
       if (res.ok) {
@@ -537,6 +540,7 @@ export default function NewSalePage() {
         setCustomers([...customers, data.customer]);
         setSelectedCustomer(data.customer);
         setActiveOverlay(null);
+        setPendingCustomerKey(crypto.randomUUID());
         setNewCustomer({ name: "", phone: "", email: "", address: "", vehicleRegistrationNumber: "", vehicleMake: "", vehicleModel: "", vehicleYear: "", vehicleColor: "", vehicleVIN: "" });
       } else {
         toast.error((await res.json()).error || "Failed to add customer");

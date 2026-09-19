@@ -111,6 +111,7 @@ export default function NewPurchasePage() {
   const [pendingPurchaseKey, setPendingPurchaseKey] = useState<string | null>(null);
   const [supplierSaving, setSupplierSaving] = useState(false);
   const [pendingSupplierKey, setPendingSupplierKey] = useState<string | null>(null);
+  const [pendingProductKey, setPendingProductKey] = useState<string | null>(null);
   const [products, setProducts] = useState<any[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
   const [suppliers, setSuppliers] = useState<any[]>([]);
@@ -293,15 +294,18 @@ export default function NewPurchasePage() {
   };
 
   const handleAddProduct = async (productData: any) => {
+    const operationKey = pendingProductKey || crypto.randomUUID();
+    setPendingProductKey(operationKey);
     try {
       const res = await fetch("/api/products", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        credentials: "include", body: JSON.stringify(productData),
+        method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": operationKey },
+        credentials: "include", body: JSON.stringify({ ...productData, idempotencyKey: operationKey }),
       });
       if (res.ok) {
         const responseData = await res.json();
         toast.success("Product added successfully!");
         setShowAddProduct(false);
+        setPendingProductKey(null);
         await fetchProducts(); await fetchNextSKU();
         if (responseData.product) addToCart(responseData.product);
       } else toast.error((await res.json()).error || "Failed to add product");

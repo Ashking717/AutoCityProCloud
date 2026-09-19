@@ -3,7 +3,8 @@
 import { useTimeBasedTheme } from "@/lib/theme/appearanceMode";
 import {
   useState,
-  useEffect } from "react";
+  useEffect,
+  useRef } from "react";
 import { useRouter } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import InvoicePrint from "@/components/InvoicePrint";
@@ -250,6 +251,8 @@ export default function SalesPage() {
   const [editPayments, setEditPayments] = useState<any[]>([]);
   const [editNotes, setEditNotes] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
+  const [pendingEditKey, setPendingEditKey] = useState(() => crypto.randomUUID());
+  const refundKeysRef = useRef(new Map<string, string>());
 
   // Invoice
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
@@ -285,6 +288,7 @@ export default function SalesPage() {
   useEffect(() => { fetchUser(); fetchSales(); }, [dateRange, pagination.page, statusFilter]);
 
   const openEditModal = (sale: any) => {
+    setPendingEditKey(crypto.randomUUID());
     setSelectedSaleForEdit(sale);
     setEditItems(sale.items.map((item: any, lineIndex: number) => ({
       lineIndex,
@@ -521,20 +525,23 @@ export default function SalesPage() {
   const handleRefundSale = async (sale: any) => {
     if (!confirm(`Process refund for ${sale.invoiceNumber}?`)) return;
     try {
+      const saleId = String(sale._id);
+      const idempotencyKey = refundKeysRef.current.get(saleId) || crypto.randomUUID();
+      refundKeysRef.current.set(saleId, idempotencyKey);
       const refundAmount = Math.abs(Number(sale.balanceDue || 0));
       const refundablePayment = [...(sale.payments || [])]
         .reverse()
         .find((payment: any) => Number(payment.amount || 0) + 0.01 >= refundAmount);
       const paymentMethod = refundablePayment?.method || sale.paymentMethod;
       const res = await fetch(`/api/sales/${sale._id}/refund`, {
-        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+        method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey }, credentials: "include",
         body: JSON.stringify({
           refundAmount,
-          idempotencyKey: crypto.randomUUID(),
+          idempotencyKey,
           paymentMethod,
         }),
       });
-      if (res.ok) { toast.success("Refund processed"); fetchSales(); }
+      if (res.ok) { refundKeysRef.current.delete(saleId); toast.success("Refund processed"); fetchSales(); }
       else toast.error((await res.json()).error || "Failed to refund");
     } catch { toast.error("Failed to process refund"); }
   };
@@ -1173,7 +1180,7 @@ export default function SalesPage() {
                   setSavingEdit(true);
                   try {
                     if (!editNotes.trim()) throw new Error("Correction reason is required");
-                    const idempotencyKey = crypto.randomUUID();
+                    const idempotencyKey = pendingEditKey;
                     const amountPaid = editPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
                     const res = await fetch(`/api/sales/${selectedSaleForEdit._id}/edit`, {
                       method: "PUT", headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey }, credentials: "include",

@@ -380,9 +380,11 @@ export default function BulkImportClient({ initialUser, categories, nextSKU }: B
           body.vin        = row.vin;
         }
 
+        const operationKey = crypto.randomUUID();
+        body.idempotencyKey = operationKey;
         const res  = await fetch("/api/products", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "Idempotency-Key": operationKey },
           credentials: "include",
           body: JSON.stringify(body),
         });

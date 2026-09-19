@@ -45,6 +45,8 @@ export default function NewJobPage() {
 
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [pendingJobKey] = useState(() => crypto.randomUUID());
+  const [pendingCustomerKey, setPendingCustomerKey] = useState(() => crypto.randomUUID());
   const [isMobile, setIsMobile] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
   const [customers, setCustomers] = useState<ICustomer[]>([]);
@@ -199,12 +201,13 @@ export default function NewJobPage() {
     try {
       const code = newCustomer.name.toUpperCase().replace(/[^A-Z0-9]/g, "").substring(0, 10) + Date.now().toString().slice(-4);
       const res = await fetch("/api/customers", {
-        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
-        body: JSON.stringify({ name: newCustomer.name, code, phone: newCustomer.phone, email: newCustomer.email, address: { street: newCustomer.address, city: "", state: "", country: "Qatar", postalCode: "" }, vehicleRegistrationNumber: newCustomer.vehicleRegistrationNumber, vehicleMake: newCustomer.vehicleMake, vehicleModel: newCustomer.vehicleModel, vehicleYear: newCustomer.vehicleYear ? parseInt(newCustomer.vehicleYear) : undefined, vehicleColor: newCustomer.vehicleColor, vehicleVIN: newCustomer.vehicleVIN }),
+        method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": pendingCustomerKey }, credentials: "include",
+        body: JSON.stringify({ name: newCustomer.name, code, phone: newCustomer.phone, email: newCustomer.email, address: { street: newCustomer.address, city: "", state: "", country: "Qatar", postalCode: "" }, vehicleRegistrationNumber: newCustomer.vehicleRegistrationNumber, vehicleMake: newCustomer.vehicleMake, vehicleModel: newCustomer.vehicleModel, vehicleYear: newCustomer.vehicleYear ? parseInt(newCustomer.vehicleYear) : undefined, vehicleColor: newCustomer.vehicleColor, vehicleVIN: newCustomer.vehicleVIN, operationKey: pendingCustomerKey }),
       });
       if (res.ok) {
         const d = await res.json(); toast.success("Customer added!");
         setCustomers([...customers, d.customer]); handleSelectCustomer(d.customer); setShowAddCustomer(false);
+        setPendingCustomerKey(crypto.randomUUID());
         setNewCustomer({ name:"", phone:"", email:"", address:"", vehicleRegistrationNumber:"", vehicleMake:"", vehicleModel:"", vehicleYear:"", vehicleColor:"", vehicleVIN:"" });
       } else { const e = await res.json(); toast.error(e.error || "Failed to add customer"); }
     } catch { toast.error("Failed to add customer"); }
@@ -234,8 +237,8 @@ export default function NewJobPage() {
     setLoading(true);
     try {
       const res = await fetch("/api/jobs", {
-        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
-        body: JSON.stringify({ customerId: selectedCustomer._id, customerName: selectedCustomer.name, vehicleInfo: { registrationNumber: vehicleInfo.registrationNumber || undefined, make: vehicleInfo.make || undefined, model: vehicleInfo.model || undefined, year: vehicleInfo.year ? parseInt(vehicleInfo.year) : undefined, color: vehicleInfo.color || undefined, vin: vehicleInfo.vin || undefined, mileage: vehicleInfo.mileage ? parseInt(vehicleInfo.mileage) : undefined }, title: jobTitle, description: jobDescription || undefined, items: items.map(i => ({ productId: i.productId || undefined, name: i.productName, sku: i.sku, quantity: i.quantity, unit: i.unit, estimatedPrice: i.estimatedPrice, discount: i.discount, discountType: i.discountType, taxRate: i.taxRate, isLabor: i.isLabor || false, notes: i.notes || undefined })), priority, status, assignedTo: assignedTo || undefined, estimatedStartDate: estimatedStartDate || undefined, estimatedCompletionDate: estimatedCompletionDate || undefined, internalNotes: internalNotes || undefined, customerNotes: customerNotes || undefined, voiceNotes }),
+        method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": pendingJobKey }, credentials: "include",
+        body: JSON.stringify({ customerId: selectedCustomer._id, customerName: selectedCustomer.name, vehicleInfo: { registrationNumber: vehicleInfo.registrationNumber || undefined, make: vehicleInfo.make || undefined, model: vehicleInfo.model || undefined, year: vehicleInfo.year ? parseInt(vehicleInfo.year) : undefined, color: vehicleInfo.color || undefined, vin: vehicleInfo.vin || undefined, mileage: vehicleInfo.mileage ? parseInt(vehicleInfo.mileage) : undefined }, title: jobTitle, description: jobDescription || undefined, items: items.map(i => ({ productId: i.productId || undefined, name: i.productName, sku: i.sku, quantity: i.quantity, unit: i.unit, estimatedPrice: i.estimatedPrice, discount: i.discount, discountType: i.discountType, taxRate: i.taxRate, isLabor: i.isLabor || false, notes: i.notes || undefined })), priority, status, assignedTo: assignedTo || undefined, estimatedStartDate: estimatedStartDate || undefined, estimatedCompletionDate: estimatedCompletionDate || undefined, internalNotes: internalNotes || undefined, customerNotes: customerNotes || undefined, voiceNotes, operationKey: pendingJobKey }),
       });
       if (res.ok) { const d = await res.json(); toast.success(`Job ${d.job.jobNumber} created!`); router.push("/autocityPro/jobs"); }
       else { const e = await res.json(); toast.error(e.error || "Failed to create job"); }

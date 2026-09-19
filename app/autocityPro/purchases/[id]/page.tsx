@@ -57,6 +57,7 @@ export default function PurchaseDetailPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showPaymentHistory, setShowPaymentHistory] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [pendingPaymentKey, setPendingPaymentKey] = useState(() => crypto.randomUUID());
   const [paymentForm, setPaymentForm] = useState({
     amount: "", paymentMethod: "CASH",
     paymentDate: new Date().toISOString().split("T")[0],
@@ -144,7 +145,7 @@ export default function PurchaseDetailPage() {
     if (Number(paymentForm.amount) > (purchase?.balanceDue || 0)) { toast.error("Payment amount exceeds outstanding balance"); return; }
     setPaymentLoading(true);
     try {
-      const idempotencyKey = crypto.randomUUID();
+      const idempotencyKey = pendingPaymentKey;
       const r = await fetch(`/api/purchases/${purchaseId}/payments`, {
         method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey }, credentials: "include",
         body: JSON.stringify({ amount: Number(paymentForm.amount), paymentMethod: paymentForm.paymentMethod, paymentDate: paymentForm.paymentDate, referenceNumber: paymentForm.referenceNumber, notes: paymentForm.notes, idempotencyKey }),
@@ -152,6 +153,7 @@ export default function PurchaseDetailPage() {
       if (r.ok) {
         toast.success((await r.json()).message || "Payment recorded successfully");
         setShowPaymentModal(false);
+        setPendingPaymentKey(crypto.randomUUID());
         setPaymentForm({ amount: "", paymentMethod: "CASH", paymentDate: new Date().toISOString().split("T")[0], referenceNumber: "", notes: "" });
         fetchPurchase(); fetchPayments();
       } else toast.error((await r.json()).error || "Failed to record payment");

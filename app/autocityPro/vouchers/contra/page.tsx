@@ -35,6 +35,7 @@ export default function ContraVoucherPage() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [cashBankAccounts, setCashBankAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [pendingVoucherKey] = useState(() => crypto.randomUUID());
   const [isMobile, setIsMobile] = useState(false);
   const [showDynamicIsland, setShowDynamicIsland] = useState(true);
   const [showQuickVoucher, setShowQuickVoucher] = useState(true);
@@ -281,7 +282,7 @@ export default function ContraVoucherPage() {
     }
     
     setLoading(true);
-    const idempotencyKey = crypto.randomUUID();
+    const idempotencyKey = pendingVoucherKey;
     
     try {
       const res = await fetch('/api/vouchers', {

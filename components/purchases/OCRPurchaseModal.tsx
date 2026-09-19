@@ -218,6 +218,7 @@ export default function OCRPurchaseModal({
   const fileInputRef   = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const productOperationKeysRef = useRef(new Map<number, string>());
 
   useEffect(() => { setCurrentNextSKU(nextSKU); }, [nextSKU]);
 
@@ -404,6 +405,8 @@ export default function OCRPurchaseModal({
     if (f.isVehicle && !f.carMake) { toast.error("Car make is required"); return; }
     if (f.isVehicle && f.yearFrom && f.yearTo && parseInt(f.yearFrom) > parseInt(f.yearTo)) { toast.error("Year From must be ≤ Year To"); return; }
     updateItem(idx, { saving:true });
+    const operationKey = productOperationKeysRef.current.get(idx) || crypto.randomUUID();
+    productOperationKeysRef.current.set(idx, operationKey);
     try {
       const payload: any = {
         name:f.name, description:f.description||"", sku:currentNextSKU,
@@ -422,9 +425,11 @@ export default function OCRPurchaseModal({
         payload.yearTo   = f.yearTo   ? parseInt(f.yearTo)   : undefined;
         payload.vin      = f.vin||undefined;
       }
-      const res = await fetch("/api/products", { method:"POST", headers:{"Content-Type":"application/json"}, credentials:"include", body:JSON.stringify(payload) });
+      payload.idempotencyKey = operationKey;
+      const res = await fetch("/api/products", { method:"POST", headers:{"Content-Type":"application/json", "Idempotency-Key":operationKey}, credentials:"include", body:JSON.stringify(payload) });
       if (!res.ok) throw new Error((await res.json()).error||"Failed to create product");
       const created = (await res.json()).product;
+      productOperationKeysRef.current.delete(idx);
       onProductCreated?.(created);
       const nr = await fetch("/api/products/next-sku", { credentials:"include" });
       if (nr.ok) setCurrentNextSKU((await nr.json()).nextSKU);

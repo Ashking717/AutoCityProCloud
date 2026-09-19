@@ -34,6 +34,7 @@ export default function NewJournalVoucherPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [pendingVoucherKey] = useState(() => crypto.randomUUID());
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loadingAccounts, setLoadingAccounts] = useState(true);
   
@@ -205,7 +206,7 @@ export default function NewJournalVoucherPage() {
         status,
       };
 
-      const idempotencyKey = crypto.randomUUID();
+      const idempotencyKey = pendingVoucherKey;
       payload.idempotencyKey = idempotencyKey;
       const res = await fetch('/api/vouchers', {
         method: 'POST',

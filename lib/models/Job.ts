@@ -41,6 +41,7 @@ export interface IVoiceNoteEntry {
 export interface IJob extends Document {
   outletId: mongoose.Types.ObjectId;
   jobNumber: string;
+  operationKey?: string;
   customerId: mongoose.Types.ObjectId;
   customerName: string;
 
@@ -136,6 +137,7 @@ const JobSchema = new Schema<IJob, IJobModel>(
   {
     outletId: { type: Schema.Types.ObjectId, ref: 'Outlet', required: true, index: true },
     jobNumber: { type: String, required: true, trim: true },
+    operationKey: { type: String, trim: true },
     customerId: { type: Schema.Types.ObjectId, ref: 'Customer', required: true, index: true },
     customerName: { type: String, required: true },
 
@@ -193,6 +195,10 @@ const JobSchema = new Schema<IJob, IJobModel>(
 
 // ── Indexes ──────────────────────────────────────────────────────────
 JobSchema.index({ outletId: 1, jobNumber: 1 }, { unique: true });
+JobSchema.index(
+  { outletId: 1, operationKey: 1 },
+  { unique: true, partialFilterExpression: { operationKey: { $type: 'string' } } }
+);
 JobSchema.index({ outletId: 1, status: 1, createdAt: -1 });
 JobSchema.index({ outletId: 1, customerId: 1 });
 JobSchema.index({ outletId: 1, assignedTo: 1, status: 1 });

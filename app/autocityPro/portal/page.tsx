@@ -111,6 +111,7 @@ export default function PurchasesPortalPage() {
   const [showMobileMenu,      setShowMobileMenu]      = useState(false);
   const [showDynamicIsland,   setShowDynamicIsland]   = useState(true);
   const [transferLoading,     setTransferLoading]     = useState(false);
+  const [pendingTransferKey, setPendingTransferKey] = useState(() => crypto.randomUUID());
   const [transferItems,       setTransferItems]       = useState<Array<{ productId: string; quantity: number }>>([]);
   const [transferProductSearch, setTransferProductSearch] = useState("");
   const [transferMake,        setTransferMake]        = useState("");
@@ -397,7 +398,7 @@ export default function PurchasesPortalPage() {
 
     setTransferLoading(true);
     try {
-      const idempotencyKey = crypto.randomUUID();
+      const idempotencyKey = pendingTransferKey;
       const res = await fetch("/api/stock-locations/transfer", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
@@ -419,6 +420,7 @@ export default function PurchasesPortalPage() {
       setTransferModel("");
       setTransferColor("");
       setTransferYear("");
+      setPendingTransferKey(crypto.randomUUID());
       await fetchTransferData();
     } catch {
       toast.error("Failed to transfer stock");

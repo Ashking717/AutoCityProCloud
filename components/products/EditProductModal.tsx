@@ -116,6 +116,7 @@ export default function EditProductModal({
   const [addingLocation, setAddingLocation] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [locationSplits, setLocationSplits] = useState<LocationStockSplit[]>([]);
+  const [locationAllocationKey, setLocationAllocationKey] = useState(() => crypto.randomUUID());
   const [customVariant, setCustomVariant] = useState("");
   const [customColor, setCustomColor] = useState("");
   const [formData, setFormData] = useState({
@@ -203,6 +204,7 @@ export default function EditProductModal({
       setCustomColor(usesCustomColor ? existingColor : "");
       setSelectedLocationId(primaryLocation?.locationId || "");
       setLocationSplits(initialLocationSplits);
+      setLocationAllocationKey(crypto.randomUUID());
       setIsVehicle(product.isVehicle || false);
       setShowNewLocation(false);
       setNewLocationName("");
@@ -495,11 +497,6 @@ export default function EditProductModal({
       toast.error("Each location can appear only once");
       return;
     }
-    if (Math.abs(allocationTotal - expectedStock) > 0.000001) {
-      toast.error(`Location quantities must total ${expectedStock}`);
-      return;
-    }
-
     const productData: any = {
       name: formData.name,
       description: formData.description,
@@ -516,7 +513,7 @@ export default function EditProductModal({
         locationId: split.locationId,
         quantity: Number(split.quantity) || 0,
       })),
-      locationAllocationKey: crypto.randomUUID(),
+      locationAllocationKey,
     };
 
     if (isVehicle && formData.carMake) {
@@ -545,6 +542,12 @@ export default function EditProductModal({
   };
 
   if (!show || !product) return null;
+
+  const displayedAllocationTotal = locationSplits.reduce(
+    (sum, split) => sum + (Number(split.quantity) || 0),
+    0
+  );
+  const displayedCurrentStock = Number(product.currentStock || 0);
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
@@ -698,7 +701,7 @@ export default function EditProductModal({
                 </div>
               )}
               <p className="mt-1 text-[11px] text-gray-500">
-                Redistribute existing stock between locations. Saving records audited transfer movements and never changes total stock.
+                Edit each location quantity directly. Saving records audited transfers and stock adjustments, and updates total stock to match these rows.
               </p>
               <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.03] p-3">
                 <div className="flex items-center justify-between gap-3">
@@ -778,12 +781,9 @@ export default function EditProductModal({
                       .reduce((sum, split) => sum + (Number(split.quantity) || 0), 0)
                       .toFixed(2)}
                   </span>
-                  {Math.abs(
-                    locationSplits.reduce((sum, split) => sum + (Number(split.quantity) || 0), 0)
-                    - Number(product.currentStock || 0)
-                  ) > 0.000001 && (
-                    <span className="ml-2 text-amber-400">
-                      (must equal {Number(product.currentStock || 0).toFixed(2)})
+                  {Math.abs(displayedAllocationTotal - displayedCurrentStock) > 0.000001 && (
+                    <span className={displayedAllocationTotal > displayedCurrentStock ? "ml-2 text-green-400" : "ml-2 text-amber-400"}>
+                      ({displayedAllocationTotal > displayedCurrentStock ? "+" : ""}{(displayedAllocationTotal - displayedCurrentStock).toFixed(2)} adjustment)
                     </span>
                   )}
                 </p>

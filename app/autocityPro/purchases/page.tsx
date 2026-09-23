@@ -366,11 +366,13 @@ export default function PurchasesPage() {
   const getPaymentMethodColor = (method: string) => {
     const colors: Record<string, string> = isDark ? {
       CASH:          'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+      PETTY_CASH:    'bg-teal-500/10 text-teal-400 border-teal-500/20',
       CARD:          'bg-blue-500/10 text-blue-400 border-blue-500/20',
       BANK_TRANSFER: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
       CREDIT:        'bg-orange-500/10 text-orange-400 border-orange-500/20',
     } : {
       CASH:          'bg-emerald-50 text-emerald-700 border-emerald-200',
+      PETTY_CASH:    'bg-teal-50 text-teal-700 border-teal-200',
       CARD:          'bg-blue-50 text-blue-700 border-blue-200',
       BANK_TRANSFER: 'bg-purple-50 text-purple-700 border-purple-200',
       CREDIT:        'bg-orange-50 text-orange-700 border-orange-200',
@@ -380,7 +382,8 @@ export default function PurchasesPage() {
 
   const getPaymentMethodIcon = (method: string) => {
     switch (method) {
-      case 'CASH':          return <Wallet className="h-3 w-3" />;
+      case 'CASH':
+      case 'PETTY_CASH':    return <Wallet className="h-3 w-3" />;
       case 'CARD':          return <CreditCard className="h-3 w-3" />;
       case 'BANK_TRANSFER': return <Building2 className="h-3 w-3" />;
       case 'CREDIT':        return <Receipt className="h-3 w-3" />;
@@ -699,7 +702,7 @@ export default function PurchasesPage() {
                 {[
                   { id: 'status', value: statusFilter, onChange: setStatusFilter, opts: [['all','All Status'],['COMPLETED','✓ Completed'],['DRAFT','○ Draft'],['CANCELLED','✕ Cancelled']] },
                   { id: 'supplier', value: supplierFilter, onChange: setSupplierFilter, opts: [['all','All Suppliers'], ...suppliers.map(s => [s._id, s.name])] },
-                  { id: 'payment', value: paymentMethodFilter, onChange: setPaymentMethodFilter, opts: [['all','All Payments'],['CASH','💵 Cash'],['CARD','💳 Card'],['BANK_TRANSFER','🏦 Bank Transfer'],['CREDIT','📋 Credit']] },
+                  { id: 'payment', value: paymentMethodFilter, onChange: setPaymentMethodFilter, opts: [['all','All Payments'],['CASH','💵 Cash'],['PETTY_CASH','🪙 Petty Cash'],['CARD','💳 Card'],['BANK_TRANSFER','🏦 Bank Transfer'],['CREDIT','📋 Credit']] },
                 ].map((s) => (
                   <select key={s.id} value={s.value} onChange={e => s.onChange(e.target.value)}
                     className={`px-4 py-2.5 rounded-xl appearance-none ${inputClass}`} style={inputStyle}>
@@ -1090,7 +1093,7 @@ export default function PurchasesPage() {
                   { label:'Payment Status', value: paymentStatusFilter, onChange: setPaymentStatusFilter, opts:[['unpaid','Unpaid Only'],['paid','Paid Only'],['all','All Purchases']] },
                   { label:'Status', value: statusFilter, onChange: setStatusFilter, opts:[['all','All Status'],['COMPLETED','✓ Completed'],['DRAFT','○ Draft'],['CANCELLED','✕ Cancelled']] },
                   { label:'Supplier', value: supplierFilter, onChange: setSupplierFilter, opts:[['all','All Suppliers'], ...suppliers.map(s => [s._id, s.name])] },
-                  { label:'Payment Method', value: paymentMethodFilter, onChange: setPaymentMethodFilter, opts:[['all','All Payment Methods'],['CASH','💵 Cash'],['CARD','💳 Card'],['BANK_TRANSFER','🏦 Bank Transfer'],['CREDIT','📋 Credit']] },
+                  { label:'Payment Method', value: paymentMethodFilter, onChange: setPaymentMethodFilter, opts:[['all','All Payment Methods'],['CASH','💵 Cash'],['PETTY_CASH','🪙 Petty Cash'],['CARD','💳 Card'],['BANK_TRANSFER','🏦 Bank Transfer'],['CREDIT','📋 Credit']] },
                 ].map(s => (
                   <div key={s.label}>
                     <label className="block text-sm font-medium mb-2" style={{ color: th.textSecondary }}>{s.label}</label>

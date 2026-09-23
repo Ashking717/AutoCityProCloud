@@ -177,7 +177,7 @@ export default function ExpenseDetailPage() {
     if (action === "pay") {
       const enteredAmount = prompt("Payment amount", String(expense?.balanceDue || ""));
       if (enteredAmount === null) return;
-      const enteredMethod = prompt("Payment method: CASH, CARD, BANK_TRANSFER, or CHEQUE", "CASH");
+      const enteredMethod = prompt("Payment method: CASH, PETTY_CASH, CARD, BANK_TRANSFER, or CHEQUE", "CASH");
       if (enteredMethod === null) return;
       payload.amount = Number(enteredAmount);
       payload.paymentMethod = enteredMethod.trim().toUpperCase();

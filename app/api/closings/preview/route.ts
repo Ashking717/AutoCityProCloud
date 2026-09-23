@@ -126,9 +126,15 @@ export async function GET(request: NextRequest) {
     totalExpenses = round(totalExpenses);
     totalPurchases = round(totalPurchases);
     totalTax = round(totalTax);
-    const openingCash = cashBalance(beforeStart, AccountSubType.CASH);
+    const openingCash = round(
+      cashBalance(beforeStart, AccountSubType.CASH)
+      + cashBalance(beforeStart, AccountSubType.PETTY_CASH)
+    );
     const openingBank = cashBalance(beforeStart, AccountSubType.BANK);
-    const projectedClosingCash = cashBalance(ledgerEntries as any[], AccountSubType.CASH);
+    const projectedClosingCash = round(
+      cashBalance(ledgerEntries as any[], AccountSubType.CASH)
+      + cashBalance(ledgerEntries as any[], AccountSubType.PETTY_CASH)
+    );
     const projectedClosingBank = cashBalance(ledgerEntries as any[], AccountSubType.BANK);
     const grossProfit = round(totalRevenue - totalCOGS);
     const netProfit = round(grossProfit - totalExpenses);

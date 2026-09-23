@@ -2,6 +2,7 @@ import mongoose, { Schema, Document, Model, HydratedDocument } from 'mongoose';
 
 export enum PaymentMethod {
   CASH = 'CASH',
+  PETTY_CASH = 'PETTY_CASH',
   CARD = 'CARD',
   BANK_TRANSFER = 'BANK_TRANSFER',
   CREDIT = 'CREDIT',

@@ -11,6 +11,7 @@ export enum AccountType {
 
 export enum AccountSubType {
   CASH = 'cash',
+  PETTY_CASH = 'petty_cash',
   BANK = 'bank',
   INVENTORY = 'inventory',
   ACCOUNTS_RECEIVABLE = 'accounts_receivable',

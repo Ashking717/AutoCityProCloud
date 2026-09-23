@@ -31,6 +31,7 @@ import {
   Save,
   Calculator,
   ScanLine,
+  Filter,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -117,9 +118,15 @@ export default function NewPurchasePage() {
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showProductFilters, setShowProductFilters] = useState(false);
+  const [productCategoryFilter, setProductCategoryFilter] = useState("");
+  const [productMakeFilter, setProductMakeFilter] = useState("");
+  const [productModelFilter, setProductModelFilter] = useState("");
+  const [productYearFilter, setProductYearFilter] = useState("");
+  const [productLocationFilter, setProductLocationFilter] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "bank_transfer" | "credit">("cash");
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "petty_cash" | "card" | "bank_transfer" | "credit">("cash");
   const [amountPaid, setAmountPaid] = useState<number>(0);
   const [isMobile, setIsMobile] = useState(false);
   const [showAddSupplier, setShowAddSupplier] = useState(false);
@@ -500,14 +507,65 @@ export default function NewPurchasePage() {
     finally { setLoading(false); }
   };
 
+  const productFilterOptions = useMemo(() => {
+    const makes = [...new Set(products.map((product) => product.carMake).filter(Boolean))].sort() as string[];
+    const models = [...new Set(products
+      .filter((product) => !productMakeFilter || product.carMake === productMakeFilter)
+      .map((product) => product.carModel)
+      .filter(Boolean))].sort() as string[];
+    const locations = new Map<string, string>();
+    products.forEach((product) => (product.locations || []).forEach((location: any) => {
+      if (location.locationId) locations.set(String(location.locationId), location.locationName || "Location");
+    }));
+    const years = new Set<number>();
+    products.forEach((product) => {
+      const from = Number(product.yearFrom || 0);
+      const to = Number(product.yearTo || from);
+      if (!from) return;
+      for (let year = from; year <= to && year <= from + 50; year += 1) years.add(year);
+    });
+    return {
+      makes,
+      models,
+      locations: [...locations.entries()].sort((a, b) => a[1].localeCompare(b[1])),
+      years: [...years].sort((a, b) => b - a),
+    };
+  }, [products, productMakeFilter]);
+
+  const hasProductFilters = Boolean(
+    productCategoryFilter || productMakeFilter || productModelFilter || productYearFilter || productLocationFilter
+  );
   const filteredProducts = useMemo(() => {
-    if (!searchTerm || searchTerm.length < 2) return [];
+    if (searchTerm.length < 2 && !hasProductFilters) return [];
     const l = searchTerm.toLowerCase();
-    return products.filter(p =>
-      p.name?.toLowerCase().includes(l) || p.sku?.toLowerCase().includes(l) ||
-      p.barcode?.toLowerCase().includes(l) || p.carMake?.toLowerCase().includes(l) || p.carModel?.toLowerCase().includes(l)
-    ).slice(0, 50);
-  }, [products, searchTerm]);
+    return products.filter((product) => {
+      const matchesSearch = searchTerm.length < 2 || [
+        product.name, product.sku, product.barcode, product.partNumber, product.carMake, product.carModel,
+      ].some((value) => String(value || "").toLowerCase().includes(l));
+      const categoryId = String(product.category?._id || product.category || "");
+      const matchesYear = !productYearFilter || (
+        (!product.yearFrom || Number(product.yearFrom) <= Number(productYearFilter))
+        && (!product.yearTo || Number(product.yearTo) >= Number(productYearFilter))
+      );
+      const matchesLocation = !productLocationFilter || (product.locations || []).some(
+        (location: any) => String(location.locationId) === productLocationFilter
+      );
+      return matchesSearch
+        && (!productCategoryFilter || categoryId === productCategoryFilter)
+        && (!productMakeFilter || product.carMake === productMakeFilter)
+        && (!productModelFilter || product.carModel === productModelFilter)
+        && matchesYear
+        && matchesLocation;
+    }).slice(0, 50);
+  }, [products, searchTerm, hasProductFilters, productCategoryFilter, productMakeFilter, productModelFilter, productYearFilter, productLocationFilter]);
+
+  const clearProductFilters = () => {
+    setProductCategoryFilter("");
+    setProductMakeFilter("");
+    setProductModelFilter("");
+    setProductYearFilter("");
+    setProductLocationFilter("");
+  };
 
   const totals = calculateTotals();
   const handleLogout = async () => { await fetch("/api/auth/logout", { method: "POST", credentials: "include" }); window.location.href = "/autocityPro/login"; };
@@ -614,6 +672,15 @@ export default function NewPurchasePage() {
                   </h2>
                   <div className="flex items-center gap-2">
                     <button
+                      type="button"
+                      onClick={() => setShowProductFilters((current) => !current)}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 border"
+                      style={{ background: hasProductFilters ? "var(--autocity-accent-15)" : th.itemBg, borderColor: hasProductFilters ? "var(--autocity-accent-40)" : th.itemBorder, color: hasProductFilters ? "var(--autocity-accent)" : th.textSecondary }}
+                    >
+                      <Filter className="h-4 w-4" />
+                      <span className="hidden sm:inline">Filters</span>
+                    </button>
+                    <button
                       onClick={() => setShowOCR(true)}
                       className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 border"
                       style={{ background: "var(--autocity-accent-07)", borderColor: "var(--autocity-accent-25)", color: "var(--autocity-accent)" }}
@@ -640,12 +707,42 @@ export default function NewPurchasePage() {
                   )}
                 </div>
 
-                {searchTerm.length >= 2 && (
+                {showProductFilters && (
+                  <div className="mb-4 rounded-xl border p-3" style={{ background: th.itemBg, borderColor: th.itemBorder }}>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                      <select value={productCategoryFilter} onChange={(event) => setProductCategoryFilter(event.target.value)} className={`px-3 py-2 rounded-lg text-sm ${inputClass}`} style={inputStyle}>
+                        <option value="">All categories</option>
+                        {categories.map((category) => <option key={category._id} value={category._id}>{category.name}</option>)}
+                      </select>
+                      <select value={productMakeFilter} onChange={(event) => { setProductMakeFilter(event.target.value); setProductModelFilter(""); }} className={`px-3 py-2 rounded-lg text-sm ${inputClass}`} style={inputStyle}>
+                        <option value="">All makes</option>
+                        {productFilterOptions.makes.map((make) => <option key={make} value={make}>{make}</option>)}
+                      </select>
+                      <select value={productModelFilter} onChange={(event) => setProductModelFilter(event.target.value)} className={`px-3 py-2 rounded-lg text-sm ${inputClass}`} style={inputStyle}>
+                        <option value="">All models</option>
+                        {productFilterOptions.models.map((model) => <option key={model} value={model}>{model}</option>)}
+                      </select>
+                      <select value={productYearFilter} onChange={(event) => setProductYearFilter(event.target.value)} className={`px-3 py-2 rounded-lg text-sm ${inputClass}`} style={inputStyle}>
+                        <option value="">All years</option>
+                        {productFilterOptions.years.map((year) => <option key={year} value={year}>{year}</option>)}
+                      </select>
+                      <select value={productLocationFilter} onChange={(event) => setProductLocationFilter(event.target.value)} className={`px-3 py-2 rounded-lg text-sm ${inputClass}`} style={inputStyle}>
+                        <option value="">All locations</option>
+                        {productFilterOptions.locations.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+                      </select>
+                    </div>
+                    {hasProductFilters && (
+                      <button type="button" onClick={clearProductFilters} className="mt-3 text-xs text-[color:var(--autocity-accent)] hover:underline">Clear product filters</button>
+                    )}
+                  </div>
+                )}
+
+                {(searchTerm.length >= 2 || hasProductFilters) && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto">
                     {filteredProducts.length === 0 ? (
                       <div className="col-span-2 text-center py-8">
                         <Search className="h-12 w-12 mx-auto mb-3" style={{ color: th.emptyIcon }} />
-                        <p style={{ color: th.textSecondary }}>No products found for "{searchTerm}"</p>
+                        <p style={{ color: th.textSecondary }}>No products match the selected search and filters.</p>
                         <button onClick={async () => { await fetchNextSKU(); setShowAddProduct(true); }}
                           className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-[color:var(--autocity-accent-10)] border border-[color:var(--autocity-accent-30)] text-[color:var(--autocity-accent)] rounded-lg hover:bg-[color:var(--autocity-accent-20)] transition-all text-sm font-medium">
                           <Plus className="h-4 w-4" />Create New Product
@@ -697,7 +794,7 @@ export default function NewPurchasePage() {
                   </div>
                 )}
 
-                {searchTerm.length < 2 && !productsLoading && (
+                {searchTerm.length < 2 && !hasProductFilters && !productsLoading && (
                   <div className="text-center py-8">
                     <Search className="h-12 w-12 mx-auto mb-3" style={{ color: th.emptyIcon }} />
                     <p style={{ color: th.textSecondary }}>Start typing to search {products.length} products</p>
@@ -821,7 +918,7 @@ export default function NewPurchasePage() {
                     <select id="purchase-payment-method" value={paymentMethod}
                       onChange={e => { const m = e.target.value as any; setPaymentMethod(m); if (m === "credit" && amountPaid > 0) toast('Tip: Leave "Amount Paid" as 0 for full credit', { icon: "💡", duration: 4000 }); }}
                       className={`w-full px-4 py-3 rounded-xl ${inputClass}`} style={inputStyle}>
-                      <option value="cash">Cash</option><option value="card">Card</option>
+                      <option value="cash">Cash</option><option value="petty_cash">Petty Cash</option><option value="card">Card</option>
                       <option value="bank_transfer">Bank Transfer</option><option value="credit">Credit</option>
                     </select>
                   </div>
@@ -1109,7 +1206,7 @@ export default function NewPurchasePage() {
                   <select id="mobile-payment-method" value={paymentMethod}
                     onChange={e => { const m = e.target.value as any; setPaymentMethod(m); if (m === "credit" && amountPaid > 0) toast('Tip: Leave "Amount Paid" as 0 for full credit', { icon: "💡", duration: 4000 }); }}
                     className={`w-full px-4 py-3 rounded-xl ${inputClass}`} style={inputStyle}>
-                    <option value="cash">Cash</option><option value="card">Card</option>
+                    <option value="cash">Cash</option><option value="petty_cash">Petty Cash</option><option value="card">Card</option>
                     <option value="bank_transfer">Bank Transfer</option><option value="credit">Credit</option>
                   </select>
                 </div>

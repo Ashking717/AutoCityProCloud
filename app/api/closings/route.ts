@@ -412,11 +412,11 @@ export async function POST(req: NextRequest) {
 
     // Sales by payment method (for informational purposes)
     const cashSales = sales
-      .filter(s => s.paymentMethod === 'CASH')
+      .filter(s => ['CASH', 'PETTY_CASH'].includes(s.paymentMethod))
       .reduce((s, x) => s + (x.amountPaid || 0), 0);
 
     const bankSales = sales
-      .filter(s => s.paymentMethod !== 'CASH')
+      .filter(s => !['CASH', 'PETTY_CASH'].includes(s.paymentMethod))
       .reduce((s, x) => s + (x.amountPaid || 0), 0);
 
     /* ========================================
@@ -432,10 +432,10 @@ export async function POST(req: NextRequest) {
     /* ========================================
        CASH & BANK BALANCES (from Ledger)
        ======================================== */
-    const openingCash = await ledgerBalance([AccountSubType.CASH], periodStart);
+    const openingCash = await ledgerBalance([AccountSubType.CASH, AccountSubType.PETTY_CASH], periodStart);
     const openingBank = await ledgerBalance([AccountSubType.BANK], periodStart);
 
-    const closingCash = await ledgerBalance([AccountSubType.CASH], periodEnd);
+    const closingCash = await ledgerBalance([AccountSubType.CASH, AccountSubType.PETTY_CASH], periodEnd);
     const closingBank = await ledgerBalance([AccountSubType.BANK], periodEnd);
     
     const accountsPayable = -await ledgerBalance(
@@ -448,7 +448,7 @@ export async function POST(req: NextRequest) {
        ======================================== */
     const cashAccounts = await Account.find({
       outletId: user.outletId,
-      subType: AccountSubType.CASH,
+      subType: { $in: [AccountSubType.CASH, AccountSubType.PETTY_CASH] },
     }).select('_id').lean();
 
     const cashEntries = await LedgerEntry.find({

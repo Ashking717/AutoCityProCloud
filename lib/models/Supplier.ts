@@ -12,6 +12,9 @@ export interface ISupplier extends Document {
   creditLimit: number;
   paymentTerms?: string;
   currentBalance: number;
+  openingBalance?: number;
+  openingBalanceDate?: Date;
+  lastOpeningBalanceKey?: string;
   isActive: boolean;
   outletId: mongoose.Types.ObjectId;
   createdAt: Date;
@@ -31,6 +34,9 @@ const SupplierSchema = new Schema<ISupplier>(
     creditLimit: { type: Number, default: 0, min: 0 },
     paymentTerms: { type: String },
     currentBalance: { type: Number, default: 0 },
+    openingBalance: { type: Number, default: 0, min: 0 },
+    openingBalanceDate: { type: Date },
+    lastOpeningBalanceKey: { type: String, trim: true },
     isActive: { type: Boolean, default: true },
     outletId: { type: Schema.Types.ObjectId, ref: 'Outlet', required: true },
     operationKey: { type: String, trim: true },

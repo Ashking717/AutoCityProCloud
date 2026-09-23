@@ -10,7 +10,7 @@ import Supplier from '@/lib/models/Supplier';
 import { verifyToken } from '@/lib/auth/jwt';
 import { connectDB } from '@/lib/db/mongodb';
 import { createPostedVoucher } from '@/lib/services/voucherPostingService';
-import { ReferenceType, VoucherType } from '@/lib/models/Voucher';
+import Voucher, { ReferenceType, VoucherType } from '@/lib/models/Voucher';
 import { hasPermission } from '@/lib/types/roles';
 
 function round(value: number) {
@@ -61,13 +61,33 @@ export async function GET() {
       current.count += 1;
       metrics.set(key, current);
     }
+    const openingVouchers = await Voucher.find({
+      outletId,
+      referenceType: ReferenceType.OPENING_BALANCE,
+      referenceId: { $in: (suppliers as any[]).map((supplier) => supplier._id) },
+      'metadata.source': 'SUPPLIER_OPENING_BALANCE',
+    }).sort({ date: 1, createdAt: 1 }).lean();
+    const legacyOpeningBySupplier = new Map<string, any>();
+    for (const voucher of openingVouchers as any[]) {
+      const key = String(voucher.referenceId);
+      if (!legacyOpeningBySupplier.has(key)) legacyOpeningBySupplier.set(key, voucher);
+    }
     return NextResponse.json({
-      suppliers: (suppliers as any[]).map((supplier) => ({
-        ...supplier,
-        totalPurchases: round(metrics.get(String(supplier._id))?.totalPurchases || 0),
-        purchasesCount: metrics.get(String(supplier._id))?.count || 0,
-        currentBalance: round(balanceBySupplier.get(String(supplier._id)) || 0),
-      })),
+      suppliers: (suppliers as any[]).map((supplier) => {
+        const legacyOpening = legacyOpeningBySupplier.get(String(supplier._id));
+        return {
+          ...supplier,
+          openingBalance: round(Number(
+            supplier.openingBalanceDate
+              ? supplier.openingBalance || 0
+              : legacyOpening?.totalCredit ?? supplier.openingBalance ?? 0
+          )),
+          openingBalanceDate: supplier.openingBalanceDate || legacyOpening?.date,
+          totalPurchases: round(metrics.get(String(supplier._id))?.totalPurchases || 0),
+          purchasesCount: metrics.get(String(supplier._id))?.count || 0,
+          currentBalance: round(balanceBySupplier.get(String(supplier._id)) || 0),
+        };
+      }),
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -149,6 +169,8 @@ export async function POST(request: NextRequest) {
         creditLimit: Number(body.creditLimit || 0),
         paymentTerms: body.paymentTerms,
         currentBalance: openingPayable,
+        openingBalance: openingPayable,
+        openingBalanceDate: openingDate,
         outletId,
         operationKey: key,
       }], { session });

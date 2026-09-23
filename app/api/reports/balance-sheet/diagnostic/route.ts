@@ -20,6 +20,7 @@ interface DiagnosticRecommendation {
 
 const REQUIRED_SYSTEM_ACCOUNTS = [
   AccountSubType.CASH,
+  AccountSubType.PETTY_CASH,
   AccountSubType.BANK,
   AccountSubType.ACCOUNTS_RECEIVABLE,
   AccountSubType.ACCOUNTS_PAYABLE,

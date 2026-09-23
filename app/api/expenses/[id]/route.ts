@@ -185,19 +185,24 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           throw new Error('Payment must be positive and cannot exceed the balance due');
         }
         const method = String(body.paymentMethod || '').toUpperCase();
-        if (!['CASH', 'BANK_TRANSFER', 'CARD', 'CHEQUE'].includes(method)) throw new Error('Invalid payment method');
+        if (!['CASH', 'PETTY_CASH', 'BANK_TRANSFER', 'CARD', 'CHEQUE'].includes(method)) throw new Error('Invalid payment method');
         const date = body.paymentDate ? new Date(body.paymentDate) : new Date();
         if (Number.isNaN(date.getTime())) throw new Error('Invalid payment date');
         let accountId: mongoose.Types.ObjectId | undefined;
         if (body.paymentAccountId) {
+          const allowedSubTypes = method === 'PETTY_CASH'
+            ? [AccountSubType.PETTY_CASH]
+            : method === 'CASH'
+              ? [AccountSubType.CASH]
+              : [AccountSubType.BANK];
           const account: any = await Account.findOne({
             _id: body.paymentAccountId,
             outletId,
             type: AccountType.ASSET,
-            subType: { $in: [AccountSubType.CASH, AccountSubType.BANK] },
+            subType: { $in: allowedSubTypes },
             isActive: true,
           }).session(session!);
-          if (!account) throw new Error('Payment account must be active cash or bank in this outlet');
+          if (!account) throw new Error('Payment account does not match the selected payment method');
           accountId = account._id;
         }
         if (!expense.isPostedToGL) {

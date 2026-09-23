@@ -486,6 +486,7 @@ export default function PurchaseDetailPage() {
                   <select id="payment-method" value={paymentForm.paymentMethod} onChange={e => setPaymentForm({ ...paymentForm, paymentMethod: e.target.value })}
                     className={`w-full px-4 py-3 rounded-xl ${inputClass}`} style={inputStyle}>
                     <option value="CASH">Cash</option>
+                    <option value="PETTY_CASH">Petty Cash</option>
                     <option value="CARD">Card</option>
                     <option value="BANK_TRANSFER">Bank Transfer</option>
                   </select>

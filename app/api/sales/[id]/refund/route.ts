@@ -37,7 +37,7 @@ export async function POST(
     if (!refundKey || amount <= 0) {
       return NextResponse.json({ error: 'idempotencyKey and a positive refundAmount are required' }, { status: 400 });
     }
-    if (![PaymentMethod.CASH, PaymentMethod.CARD, PaymentMethod.BANK_TRANSFER, PaymentMethod.CHEQUE].includes(method)) {
+    if (![PaymentMethod.CASH, PaymentMethod.PETTY_CASH, PaymentMethod.CARD, PaymentMethod.BANK_TRANSFER, PaymentMethod.CHEQUE].includes(method)) {
       return NextResponse.json({ error: 'Refund must use a cash, bank, card, or cheque method' }, { status: 400 });
     }
 

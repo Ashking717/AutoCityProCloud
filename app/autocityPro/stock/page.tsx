@@ -29,6 +29,7 @@ import {
   Eye,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ProductSearchSelect from '@/components/products/ProductSearchSelect';
 import {
   formatProductQuantity,
   getProductUnitLabel,
@@ -46,6 +47,7 @@ export default function StockPage() {
   const [stockLocations,   setStockLocations]   = useState<any[]>([]);
   const [loading,          setLoading]          = useState(true);
   const [searchTerm,       setSearchTerm]       = useState('');
+  const [selectedSearchProductId, setSelectedSearchProductId] = useState('');
   const [showFilters,      setShowFilters]      = useState(false);
   const [showDesktopFilters, setShowDesktopFilters] = useState(false);
   const [activeDesktopFilterMenu, setActiveDesktopFilterMenu] = useState<'search' | 'stock' | 'product' | 'vehicle' | 'active'>('search');
@@ -217,7 +219,8 @@ export default function StockPage() {
     try {
       if (!append) { setCurrentPage(page); setProducts([]); setHasMoreProducts(true); setLoading(true); } else { setIsLoadingMore(true); }
       const params = new URLSearchParams({ page: page.toString(), limit: '50' });
-      if (searchTerm)   params.append('search',    searchTerm);
+      if (selectedSearchProductId) params.append('productId', selectedSearchProductId);
+      else if (searchTerm) params.append('search', searchTerm);
       if (filterCategory) params.append('categoryId', filterCategory);
       if (filterMake)   params.append('carMake',   filterMake);
       if (filterModel)  params.append('carModel',  filterModel);
@@ -259,7 +262,7 @@ export default function StockPage() {
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  useEffect(() => { fetchProducts(1, false); }, [searchTerm, filterStatus, filterUnit, filterLocationId, filterCategory, filterMake, filterModel, filterVariant, filterColor, filterYear, filterIsVehicle]);
+  useEffect(() => { fetchProducts(1, false); }, [searchTerm, selectedSearchProductId, filterStatus, filterUnit, filterLocationId, filterCategory, filterMake, filterModel, filterVariant, filterColor, filterYear, filterIsVehicle]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(entries => {
@@ -309,7 +312,10 @@ export default function StockPage() {
   const availableColors  = [...new Set(products.filter(p => p.color).map(p => p.color))].sort() as string[];
   const availableYears   = (() => { const s = new Set<number>(); products.forEach(p => { if (p.yearFrom) { for (let y = p.yearFrom; y <= (p.yearTo || p.yearFrom); y++) s.add(y); } }); return Array.from(s).sort((a,b) => b - a); })();
 
-  const clearFilters = () => { setFilterStatus('all'); setFilterUnit(''); setFilterLocationId(''); setFilterCategory(''); setFilterMake(''); setFilterModel(''); setFilterVariant(''); setFilterColor(''); setFilterYear(''); setFilterIsVehicle('all'); setSearchTerm(''); };
+  const clearFilters = () => { setFilterStatus('all'); setFilterUnit(''); setFilterLocationId(''); setFilterCategory(''); setFilterMake(''); setFilterModel(''); setFilterVariant(''); setFilterColor(''); setFilterYear(''); setFilterIsVehicle('all'); setSearchTerm(''); setSelectedSearchProductId(''); };
+  const updateProductSearch = (value: string) => { setSelectedSearchProductId(''); setSearchTerm(value); };
+  const selectSearchProduct = (product: any) => { setSelectedSearchProductId(String(product._id)); setSearchTerm(`${product.sku} · ${product.name}`); };
+  const clearProductSearch = () => { setSelectedSearchProductId(''); setSearchTerm(''); };
 
   const activeFilterCount = [filterCategory, filterUnit, filterLocationId, filterMake, filterModel, filterVariant, filterColor, filterYear, filterIsVehicle !== 'all', filterStatus !== 'all'].filter(Boolean).length;
   const stockFilterCount = [filterStatus !== 'all'].filter(Boolean).length;
@@ -425,12 +431,20 @@ export default function StockPage() {
                   style={{ background: th.mobileBtnBg, color: th.mobileBtnText }}><MoreVertical className="h-4 w-4" /></button>
               </div>
             </div>
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5 h-4 w-4" style={{ color: th.mobileSearchPH }} />
-              <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search stock..."
-                className="w-full pl-10 pr-4 py-2 rounded-xl text-sm focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent transition-colors duration-500"
-                style={{ background: th.mobileSearchBg, border: `1px solid ${th.mobileSearchBorder}`, color: th.mobileSearchText }} />
-            </div>
+            <ProductSearchSelect
+              products={products}
+              value={searchTerm}
+              selectedProductId={selectedSearchProductId}
+              onChange={updateProductSearch}
+              onSelect={selectSearchProduct}
+              onClear={clearProductSearch}
+              placeholder="Search stock..."
+              inputClassName="w-full pl-10 pr-10 py-2 rounded-xl text-sm focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent transition-colors duration-500"
+              inputStyle={{ background: th.mobileSearchBg, border: `1px solid ${th.mobileSearchBorder}`, color: th.mobileSearchText }}
+              panelStyle={{ background: th.filterPanelBg, border: `1px solid ${th.filterPanelBorder}` }}
+              primaryColor={th.stockCellPrimary}
+              secondaryColor={th.stockCellMuted}
+            />
           </div>
         </div>
 
@@ -538,7 +552,7 @@ export default function StockPage() {
                       </div>
 
                       <div
-                        className="w-[360px] ml-2 rounded-2xl shadow-2xl overflow-hidden"
+                        className="w-[360px] ml-2 rounded-2xl shadow-2xl overflow-visible"
                         style={{ background: th.filterPanelBg, border: `1px solid ${th.filterPanelBorder}` }}
                       >
                         {activeDesktopFilterMenu === 'search' && (
@@ -548,17 +562,18 @@ export default function StockPage() {
                               <p className="text-xs mt-1" style={{ color: th.stockCellMuted }}>Search stock by product name, SKU, location, make, or model.</p>
                             </div>
                             <div className="p-4">
-                              <div className="relative">
-                                <Search className="absolute left-3 top-3 h-4 w-4" style={{ color: th.filterInputIcon }} />
-                                <input
-                                  type="text"
-                                  value={searchTerm}
-                                  onChange={e => setSearchTerm(e.target.value)}
-                                  placeholder="Search products..."
-                                  className="w-full pl-10 pr-4 py-3 text-sm rounded-xl focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
-                                  style={selectStyle}
-                                />
-                              </div>
+                              <ProductSearchSelect
+                                products={products}
+                                value={searchTerm}
+                                selectedProductId={selectedSearchProductId}
+                                onChange={updateProductSearch}
+                                onSelect={selectSearchProduct}
+                                onClear={clearProductSearch}
+                                inputStyle={selectStyle}
+                                panelStyle={{ background: th.filterPanelBg, border: `1px solid ${th.filterPanelBorder}` }}
+                                primaryColor={th.stockCellPrimary}
+                                secondaryColor={th.stockCellMuted}
+                              />
                             </div>
                           </>
                         )}

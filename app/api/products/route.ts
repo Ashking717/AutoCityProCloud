@@ -56,6 +56,14 @@ export async function GET(request: NextRequest) {
       outletId: outletIdObj,
       isActive: true
     };
+
+    const productId = searchParams.get('productId');
+    if (productId) {
+      if (!mongoose.Types.ObjectId.isValid(productId)) {
+        return NextResponse.json({ error: 'Invalid product ID' }, { status: 400 });
+      }
+      query._id = new mongoose.Types.ObjectId(productId);
+    }
     
     // ─────────────────────────────────────────────────────────────
     // SEARCH FUNCTIONALITY - Server-side search for performance

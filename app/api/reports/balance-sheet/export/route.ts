@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
       if (Math.abs(balance) <= 0.001) continue;
       if (account.type === AccountType.ASSET) {
         const isCurrent = [
-          AccountSubType.CASH, AccountSubType.BANK, AccountSubType.INVENTORY,
+          AccountSubType.CASH, AccountSubType.PETTY_CASH, AccountSubType.BANK, AccountSubType.INVENTORY,
           AccountSubType.ACCOUNTS_RECEIVABLE, AccountSubType.VAT_RECEIVABLE,
         ].includes(account.subType);
         (isCurrent ? currentAssets : fixedAssets)[account.name] = balance;

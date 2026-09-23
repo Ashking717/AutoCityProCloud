@@ -67,7 +67,7 @@ export async function POST(
     if (!clientKey || clientKey.length > 160 || !Number.isFinite(amount) || amount <= 0) {
       return NextResponse.json({ error: 'idempotencyKey and a positive amount are required' }, { status: 400 });
     }
-    if (!['CASH', 'CARD', 'BANK_TRANSFER', 'CHEQUE'].includes(method)) {
+    if (!['CASH', 'PETTY_CASH', 'CARD', 'BANK_TRANSFER', 'CHEQUE'].includes(method)) {
       return NextResponse.json({ error: 'Invalid payment method' }, { status: 400 });
     }
 

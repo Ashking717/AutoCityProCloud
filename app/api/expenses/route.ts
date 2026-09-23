@@ -14,7 +14,7 @@ const CATEGORIES = new Set([
   'UTILITY', 'RENT', 'SALARY', 'MAINTENANCE', 'MARKETING',
   'OFFICE_SUPPLIES', 'TRANSPORTATION', 'PROFESSIONAL_FEES', 'OTHER',
 ]);
-const METHODS = new Set(['CASH', 'BANK_TRANSFER', 'CARD', 'CHEQUE', 'CREDIT']);
+const METHODS = new Set(['CASH', 'PETTY_CASH', 'BANK_TRANSFER', 'CARD', 'CHEQUE', 'CREDIT']);
 
 function round(value: number) {
   return Number(value.toFixed(2));
@@ -102,14 +102,19 @@ export async function POST(request: NextRequest) {
       if (method === 'CREDIT' && amountPaid !== 0) throw new Error('Credit expenses cannot include an immediate tender payment');
       let paymentAccount: any;
       if (amountPaid > 0 && body.paymentAccountId) {
+        const allowedSubTypes = method === 'PETTY_CASH'
+          ? [AccountSubType.PETTY_CASH]
+          : method === 'CASH'
+          ? [AccountSubType.CASH]
+          : [AccountSubType.BANK];
         paymentAccount = await Account.findOne({
           _id: body.paymentAccountId,
           outletId,
           type: AccountType.ASSET,
-          subType: { $in: [AccountSubType.CASH, AccountSubType.BANK] },
+          subType: { $in: allowedSubTypes },
           isActive: true,
         }).session(session!);
-        if (!paymentAccount) throw new Error('Payment account must be an active cash or bank account in this outlet');
+        if (!paymentAccount) throw new Error('Payment account does not match the selected payment method');
       }
       const balanceDue = round(grandTotal - amountPaid);
       const status = balanceDue === 0 ? 'PAID' : amountPaid > 0 ? 'PARTIALLY_PAID' : 'PENDING';

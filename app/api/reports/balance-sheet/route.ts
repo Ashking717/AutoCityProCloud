@@ -76,11 +76,13 @@ export async function GET(request: NextRequest) {
         const subType = account.subType?.toString().toLowerCase();
         const isCurrentAsset = 
           subType === 'cash' ||
+          subType === 'petty_cash' ||
           subType === 'bank' ||
           subType === 'inventory' ||
           subType === 'accounts_receivable' ||
           subType === 'vat_receivable' ||
           account.code?.startsWith('CASH') ||
+          account.code?.startsWith('PETTY') ||
           account.code?.startsWith('BANK') ||
           account.code?.startsWith('AR') ||
           account.code?.startsWith('INV');

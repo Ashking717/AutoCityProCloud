@@ -27,6 +27,7 @@ const EXPENSE_CATEGORIES = [
 
 const PAYMENT_METHODS = [
   { value: 'CASH', label: 'Cash' },
+  { value: 'PETTY_CASH', label: 'Petty Cash' },
   { value: 'BANK_TRANSFER', label: 'Bank Transfer' },
   { value: 'CARD', label: 'Card' },
   { value: 'CHEQUE', label: 'Cheque' },
@@ -102,10 +103,13 @@ export default function CreateExpenseForm({ onClose, onSuccess }: CreateExpenseF
       if (payRes.ok) {
         const cashBank = ((await payRes.json()).accounts || []).filter((a: any) => {
           const s = a.subType?.toString().toUpperCase();
-          return s === 'CASH' || s === 'BANK';
+          return s === 'CASH' || s === 'PETTY_CASH' || s === 'BANK';
         });
         setPaymentAccounts(cashBank);
-        if (cashBank.length > 0) setFormData(p => ({ ...p, paymentAccountId: cashBank[0]._id }));
+        const cashAccount = cashBank.find((account: any) =>
+          String(account.subType || account.accountSubType || '').toUpperCase() === 'CASH'
+        );
+        if (cashAccount) setFormData(p => ({ ...p, paymentAccountId: cashAccount._id }));
       }
     } catch {}
   };
@@ -116,6 +120,29 @@ export default function CreateExpenseForm({ onClose, onSuccess }: CreateExpenseF
     const n = [...items]; n[i] = { ...n[i], [field]: value }; setItems(n);
   };
   const calculateTotal = () => items.reduce((s, i) => s + Number(i.amount || 0), 0) + Number(formData.taxAmount || 0);
+  const accountMatchesPaymentMethod = (account: any, paymentMethod: string) => {
+    const subType = String(account.subType || account.accountSubType || '').toUpperCase();
+    if (paymentMethod === 'PETTY_CASH') return subType === 'PETTY_CASH';
+    if (paymentMethod === 'CASH') return subType === 'CASH';
+    return subType === 'BANK';
+  };
+  const handlePaymentMethodChange = (paymentMethod: string) => {
+    const preferredSubType = paymentMethod === 'PETTY_CASH'
+      ? 'PETTY_CASH'
+      : paymentMethod === 'CASH'
+      ? 'CASH'
+      : paymentMethod === 'CREDIT'
+      ? ''
+      : 'BANK';
+    const preferredAccount = paymentAccounts.find((account) =>
+      String(account.subType || account.accountSubType || '').toUpperCase() === preferredSubType
+    );
+    setFormData((current) => ({
+      ...current,
+      paymentMethod,
+      paymentAccountId: preferredAccount?._id || '',
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -182,7 +209,7 @@ export default function CreateExpenseForm({ onClose, onSuccess }: CreateExpenseF
               <label htmlFor="expense-payment-method" className="block text-sm font-medium mb-2" style={{ color: th.label }}>
                 Payment Method <span className="text-red-400">*</span>
               </label>
-              <select id="expense-payment-method" value={formData.paymentMethod} onChange={e => setFormData({ ...formData, paymentMethod: e.target.value })}
+              <select id="expense-payment-method" value={formData.paymentMethod} onChange={e => handlePaymentMethodChange(e.target.value)}
                 className={inputClass} style={inputStyle} required>
                 {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
               </select>
@@ -198,7 +225,9 @@ export default function CreateExpenseForm({ onClose, onSuccess }: CreateExpenseF
               <select id="expense-payment-account" value={formData.paymentAccountId} onChange={e => setFormData({ ...formData, paymentAccountId: e.target.value })}
                 className={inputClass} style={inputStyle} required>
                 <option value="">Select payment account</option>
-                {paymentAccounts.map(a => <option key={a._id} value={a._id}>{a.code} - {a.name}</option>)}
+                {paymentAccounts
+                  .filter((account) => accountMatchesPaymentMethod(account, formData.paymentMethod))
+                  .map(a => <option key={a._id} value={a._id}>{a.code} - {a.name}</option>)}
               </select>
             </div>
           )}

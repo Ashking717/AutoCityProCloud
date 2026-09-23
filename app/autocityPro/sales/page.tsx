@@ -1143,7 +1143,7 @@ export default function SalesPage() {
                     <div key={payment.id} className="grid grid-cols-[1fr_110px_1fr_36px] gap-2">
                       <select value={payment.method} onChange={(e) => setEditPayments((current) => current.map((entry, entryIndex) => entryIndex === index ? { ...entry, method: e.target.value } : entry))}
                         className="rounded px-3 py-2" style={modalInputStyle}>
-                        {["CASH","CARD","BANK_TRANSFER","CHEQUE"].map((method) => <option key={method} value={method} style={{ background: th.optionBg }}>{method}</option>)}
+                        {["CASH","PETTY_CASH","CARD","BANK_TRANSFER","CHEQUE"].map((method) => <option key={method} value={method} style={{ background: th.optionBg }}>{method.replaceAll("_", " ")}</option>)}
                       </select>
                       <input type="number" min="0" step="0.01" value={payment.amount}
                         aria-label={`Payment amount ${index + 1}`}

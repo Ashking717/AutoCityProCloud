@@ -9,6 +9,7 @@ import { AccountType, AccountSubType } from "@/lib/models/Account";
 export const SYSTEM_ACCOUNTS = [
   // ───────── ASSETS ─────────
   { code: "CASH-001", name: "Cash in Hand", type: AccountType.ASSET, subType: AccountSubType.CASH },
+  { code: "PETTY-001", name: "Petty Cash", type: AccountType.ASSET, subType: AccountSubType.PETTY_CASH },
   { code: "BANK-001", name: "Bank Account - Main", type: AccountType.ASSET, subType: AccountSubType.BANK },
   { code: "AR-001", name: "Accounts Receivable", type: AccountType.ASSET, subType: AccountSubType.ACCOUNTS_RECEIVABLE },
   { code: "INV-001", name: "Inventory", type: AccountType.ASSET, subType: AccountSubType.INVENTORY },

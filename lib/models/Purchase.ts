@@ -24,7 +24,7 @@ export interface IPurchase extends Document {
   subtotal: number;
   totalTax: number;
   grandTotal: number;
-  paymentMethod: 'CASH' | 'CARD' | 'BANK_TRANSFER' | 'CHEQUE' | 'CREDIT';
+  paymentMethod: 'CASH' | 'PETTY_CASH' | 'CARD' | 'BANK_TRANSFER' | 'CHEQUE' | 'CREDIT';
   amountPaid: number;
   balanceDue: number;
   status: 'DRAFT' | 'COMPLETED' | 'PAID' | 'CANCELLED';  // ← ADDED 'PAID'
@@ -39,7 +39,7 @@ export interface IPurchase extends Document {
   payments?: Array<{
     paymentKey: string;
     amount: number;
-    method: 'CASH' | 'CARD' | 'BANK_TRANSFER' | 'CHEQUE';
+    method: 'CASH' | 'PETTY_CASH' | 'CARD' | 'BANK_TRANSFER' | 'CHEQUE';
     reference?: string;
     voucherId: mongoose.Types.ObjectId;
     paidAt: Date;
@@ -100,7 +100,7 @@ const PurchaseSchema = new Schema<IPurchase>(
     },
     paymentMethod: {
       type: String,
-      enum: ['CASH', 'CARD', 'BANK_TRANSFER', 'CHEQUE', 'CREDIT'],
+      enum: ['CASH', 'PETTY_CASH', 'CARD', 'BANK_TRANSFER', 'CHEQUE', 'CREDIT'],
       required: true,
     },
     amountPaid: {
@@ -143,7 +143,7 @@ const PurchaseSchema = new Schema<IPurchase>(
     payments: [{
       paymentKey: { type: String, required: true },
       amount: { type: Number, required: true, min: 0 },
-      method: { type: String, enum: ['CASH', 'CARD', 'BANK_TRANSFER', 'CHEQUE'], required: true },
+      method: { type: String, enum: ['CASH', 'PETTY_CASH', 'CARD', 'BANK_TRANSFER', 'CHEQUE'], required: true },
       reference: { type: String, trim: true },
       voucherId: { type: Schema.Types.ObjectId, ref: 'Voucher', required: true },
       paidAt: { type: Date, default: Date.now },

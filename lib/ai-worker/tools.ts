@@ -232,7 +232,7 @@ export const aiWorkerTools: OpenAI.Chat.ChatCompletionTool[] = [
     properties: {
       customerId:    { type: 'string', description: 'Customer MongoDB _id, OR the literal string "walk-in"' },
       customerName:  { type: 'string' },
-      paymentMethod: { type: 'string', enum: ['CASH', 'CARD', 'BANK_TRANSFER', 'CREDIT'] },
+      paymentMethod: { type: 'string', enum: ['CASH', 'PETTY_CASH', 'CARD', 'BANK_TRANSFER', 'CREDIT'] },
       amountPaid:    { type: 'number', description: 'Amount received. Omit to default to full payment.' },
       discount:      { type: 'number', description: 'Order-level discount in QAR (default 0). Use this for ANY discount the user mentions.' },
       notes:         { type: 'string' },
@@ -272,7 +272,7 @@ export const aiWorkerTools: OpenAI.Chat.ChatCompletionTool[] = [
         properties: {
           supplierId:    { type: 'string' },
           supplierName:  { type: 'string' },
-          paymentMethod: { type: 'string', enum: ['CASH', 'CARD', 'BANK_TRANSFER', 'CREDIT'] },
+          paymentMethod: { type: 'string', enum: ['CASH', 'PETTY_CASH', 'CARD', 'BANK_TRANSFER', 'CREDIT'] },
           amountPaid:    { type: 'number', description: 'Amount paid. Omit for full payment.' },
           notes:         { type: 'string' },
           items: {
@@ -316,7 +316,7 @@ export const aiWorkerTools: OpenAI.Chat.ChatCompletionTool[] = [
           },
           paymentMethod: {
             type: 'string',
-            enum: ['CASH', 'BANK_TRANSFER', 'CARD', 'CHEQUE', 'CREDIT'],
+            enum: ['CASH', 'PETTY_CASH', 'BANK_TRANSFER', 'CARD', 'CHEQUE', 'CREDIT'],
           },
           amountPaid:  { type: 'number' },
           vendorName:  { type: 'string', description: 'Vendor or payee name (optional)' },
@@ -495,5 +495,4 @@ export const aiWorkerTools: OpenAI.Chat.ChatCompletionTool[] = [
   },
 },
 ];
-
 

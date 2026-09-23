@@ -53,6 +53,7 @@ function paymentAccount(
     return requireAccount(accounts, AccountSubType.BANK);
   }
   if (method === PaymentMethod.CASH) return requireAccount(accounts, AccountSubType.CASH);
+  if (method === PaymentMethod.PETTY_CASH) return requireAccount(accounts, AccountSubType.PETTY_CASH);
   throw new Error(`Unsupported tender payment method: ${method}`);
 }
 

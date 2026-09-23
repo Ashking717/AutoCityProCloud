@@ -25,7 +25,7 @@ export interface IExpense extends Document {
   grandTotal: number;
   
   // Payment
-  paymentMethod: 'CASH' | 'BANK_TRANSFER' | 'CARD' | 'CHEQUE' | 'CREDIT';
+  paymentMethod: 'CASH' | 'PETTY_CASH' | 'BANK_TRANSFER' | 'CARD' | 'CHEQUE' | 'CREDIT';
   paymentAccount?: mongoose.Types.ObjectId; // Cash or Bank account used
   amountPaid: number;
   balanceDue: number;
@@ -63,7 +63,7 @@ export interface IExpense extends Document {
   payments?: Array<{
     paymentKey: string;
     amount: number;
-    method: 'CASH' | 'BANK_TRANSFER' | 'CARD' | 'CHEQUE';
+    method: 'CASH' | 'PETTY_CASH' | 'BANK_TRANSFER' | 'CARD' | 'CHEQUE';
     accountId?: mongoose.Types.ObjectId;
     voucherId: mongoose.Types.ObjectId;
     date: Date;
@@ -102,7 +102,7 @@ const ExpenseSchema = new Schema<IExpense>(
     
     paymentMethod: {
       type: String,
-      enum: ['CASH', 'BANK_TRANSFER', 'CARD', 'CHEQUE', 'CREDIT'],
+      enum: ['CASH', 'PETTY_CASH', 'BANK_TRANSFER', 'CARD', 'CHEQUE', 'CREDIT'],
       required: true,
     },
     paymentAccount: { type: Schema.Types.ObjectId, ref: 'Account' },
@@ -143,7 +143,7 @@ const ExpenseSchema = new Schema<IExpense>(
       _id: false,
       paymentKey: { type: String, required: true },
       amount: { type: Number, required: true, min: 0.01 },
-      method: { type: String, enum: ['CASH', 'BANK_TRANSFER', 'CARD', 'CHEQUE'], required: true },
+      method: { type: String, enum: ['CASH', 'PETTY_CASH', 'BANK_TRANSFER', 'CARD', 'CHEQUE'], required: true },
       accountId: { type: Schema.Types.ObjectId, ref: 'Account' },
       voucherId: { type: Schema.Types.ObjectId, ref: 'Voucher', required: true },
       date: { type: Date, required: true },

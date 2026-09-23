@@ -227,7 +227,7 @@ interface CartItem {
 
 interface Payment {
   id: string;
-  method: "cash" | "card" | "bank_transfer" | "cheque";
+  method: "cash" | "petty_cash" | "card" | "bank_transfer" | "cheque";
   amount: number;
   reference?: string;
 }
@@ -1457,7 +1457,7 @@ export default function NewSalePage() {
                         className="w-full px-3 py-2 mb-2 rounded text-sm focus:ring-1 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                         style={inputStyle}
                       >
-                        {["cash", "card", "bank_transfer", "cheque"].map((m) => (
+                        {["cash", "petty_cash", "card", "bank_transfer", "cheque"].map((m) => (
                           <option key={m} value={m} style={{ background: selectOptBg }}>
                             {m.charAt(0).toUpperCase() + m.slice(1).replace("_", " ")}
                           </option>

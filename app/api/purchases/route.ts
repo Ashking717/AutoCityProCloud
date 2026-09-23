@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
       const grandTotal = round(subtotal + totalTax);
       const amountPaid = round(Number(body.amountPaid || 0));
       const paymentMethod = String(body.paymentMethod || 'CREDIT').toUpperCase();
-      if (!['CASH', 'CARD', 'BANK_TRANSFER', 'CHEQUE', 'CREDIT'].includes(paymentMethod)) {
+      if (!['CASH', 'PETTY_CASH', 'CARD', 'BANK_TRANSFER', 'CHEQUE', 'CREDIT'].includes(paymentMethod)) {
         throw new Error('Invalid payment method');
       }
       if (amountPaid < 0 || amountPaid > grandTotal + 0.01) throw new Error('Invalid purchase amount paid');

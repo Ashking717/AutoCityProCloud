@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     ]);
     const accountMap = new Map((accounts as any[]).map((account) => [String(account._id), account]));
     const cashIds = new Set((accounts as any[])
-      .filter((account) => [AccountSubType.CASH, AccountSubType.BANK].includes(account.subType))
+      .filter((account) => [AccountSubType.CASH, AccountSubType.PETTY_CASH, AccountSubType.BANK].includes(account.subType))
       .map((account) => String(account._id)));
     if (!cashIds.size) throw new Error('Cash and bank system accounts are missing');
 
@@ -84,6 +84,7 @@ export async function GET(request: NextRequest) {
         account.type === AccountType.ASSET
         && ![
           AccountSubType.CASH,
+          AccountSubType.PETTY_CASH,
           AccountSubType.BANK,
           AccountSubType.ACCOUNTS_RECEIVABLE,
           AccountSubType.INVENTORY,

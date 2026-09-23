@@ -36,7 +36,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ error: 'Payment amount must be greater than zero' }, { status: 400 });
     }
     const method = String(body.paymentMethod || '').toUpperCase();
-    if (!['CASH', 'CARD', 'BANK_TRANSFER', 'CHEQUE'].includes(method)) {
+    if (!['CASH', 'PETTY_CASH', 'CARD', 'BANK_TRANSFER', 'CHEQUE'].includes(method)) {
       return NextResponse.json({ error: 'Invalid payment method' }, { status: 400 });
     }
     const date = body.paymentDate ? new Date(body.paymentDate) : new Date();

@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import AddProductModal from "@/components/products/AddProductModal";
 import EditProductModal from "@/components/products/EditProductModal";
+import ProductSearchSelect from "@/components/products/ProductSearchSelect";
 import { sanitizeBarcodeValue } from "@/lib/utils/barcode";
 import {
   formatProductQuantity,
@@ -70,6 +71,7 @@ export default function ProductsClient({
   const [currentSKU, setCurrentSKU]       = useState(nextSKU);
 
   const [searchTerm, setSearchTerm]       = useState("");
+  const [selectedSearchProductId, setSelectedSearchProductId] = useState("");
   const [showAddModal, setShowAddModal]   = useState(false);
   const [pendingProductKey, setPendingProductKey] = useState(() => crypto.randomUUID());
   const [showEditModal, setShowEditModal] = useState(false);
@@ -277,7 +279,8 @@ export default function ProductsClient({
 
   // ── Data fetching ─────────────────────────────────────────────────────────
   const appendProductFilters = (params: URLSearchParams) => {
-    if (searchTerm)      params.append("search", searchTerm);
+    if (selectedSearchProductId) params.append("productId", selectedSearchProductId);
+    else if (searchTerm) params.append("search", searchTerm);
     if (filterCategory)  params.append("categoryId", filterCategory);
     if (filterMake)      params.append("carMake", filterMake);
     if (filterModel)     params.append("carModel", filterModel);
@@ -317,7 +320,7 @@ export default function ProductsClient({
 
   useEffect(() => {
     fetchProducts(1);
-  }, [searchTerm, filterStatus, filterUnit, filterLocationId, filterCategory, filterMake, filterModel, filterVariant, filterColor, filterYear, filterIsVehicle]);
+  }, [searchTerm, selectedSearchProductId, filterStatus, filterUnit, filterLocationId, filterCategory, filterMake, filterModel, filterVariant, filterColor, filterYear, filterIsVehicle]);
 
   // ── PDF Export (unchanged) ────────────────────────────────────────────────
   const downloadProductsPDF = async () => {
@@ -619,6 +622,20 @@ export default function ProductsClient({
     setFilterYear("");
     setFilterIsVehicle("all");
     setSearchTerm("");
+    setSelectedSearchProductId("");
+  };
+
+  const updateProductSearch = (value: string) => {
+    setSelectedSearchProductId("");
+    setSearchTerm(value);
+  };
+  const selectSearchProduct = (product: any) => {
+    setSelectedSearchProductId(String(product._id));
+    setSearchTerm(`${product.sku} · ${product.name}`);
+  };
+  const clearProductSearch = () => {
+    setSelectedSearchProductId("");
+    setSearchTerm("");
   };
   const handleLogout = async () => { await fetch("/api/auth/logout",{method:"POST",credentials:"include"}); window.location.href="/autocityPro/login"; };
 
@@ -721,13 +738,20 @@ export default function ProductsClient({
                 <MoreVertical className="h-5 w-5" />
               </button>
             </div>
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-[color:var(--autocity-accent)]" />
-              <input ref={searchInputRef} type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                placeholder="Search products..."
-                className="w-full pl-10 pr-4 py-2 rounded-xl text-sm focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent transition-colors duration-500"
-                style={{ background: th.mobileSearchBg, border:`1px solid ${th.mobileSearchBorder}`, color: th.mobileSearchText }} />
-            </div>
+            <ProductSearchSelect
+              products={products}
+              value={searchTerm}
+              selectedProductId={selectedSearchProductId}
+              onChange={updateProductSearch}
+              onSelect={selectSearchProduct}
+              onClear={clearProductSearch}
+              inputRef={searchInputRef}
+              inputClassName="w-full pl-10 pr-10 py-2 rounded-xl text-sm focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent transition-colors duration-500"
+              inputStyle={{ background: th.mobileSearchBg, border:`1px solid ${th.mobileSearchBorder}`, color: th.mobileSearchText }}
+              panelStyle={{ background: th.filterBg, border: `1px solid ${th.filterBorder}` }}
+              primaryColor={th.cellPrimary}
+              secondaryColor={th.cellMuted}
+            />
             <div className="grid grid-cols-3 gap-2 mt-3">
               {[
                 { label:"Total",     value: pagination.total||0,                         color: th.cardValue },
@@ -813,7 +837,7 @@ export default function ProductsClient({
                       </div>
                     </div>
 
-                    <div className="w-[360px] ml-2 rounded-2xl shadow-2xl overflow-hidden" style={{ background: th.filterBg, border: `1px solid ${th.filterBorder}` }}>
+                    <div className="w-[360px] ml-2 rounded-2xl shadow-2xl overflow-visible" style={{ background: th.filterBg, border: `1px solid ${th.filterBorder}` }}>
                       {activeDesktopFilterMenu === 'search' && (
                         <>
                           <div className="px-4 py-3" style={{ borderBottom: `1px solid ${th.tableRowDivider}` }}>
@@ -821,10 +845,19 @@ export default function ProductsClient({
                             <p className="text-xs mt-1" style={{ color: th.cellMuted }}>Search by name, SKU, barcode, make, model, variant, or colour.</p>
                           </div>
                           <div className="p-4">
-                            <div className="relative">
-                              <Search className="absolute left-3 top-3 h-4 w-4 text-[color:var(--autocity-accent)]" />
-                              <input ref={searchInputRef} type="text" value={searchTerm} onChange={event => setSearchTerm(event.target.value)} placeholder="Search products..." className="w-full pl-10 pr-4 py-3 text-sm rounded-xl focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent" style={selectStyle} />
-                            </div>
+                            <ProductSearchSelect
+                              products={products}
+                              value={searchTerm}
+                              selectedProductId={selectedSearchProductId}
+                              onChange={updateProductSearch}
+                              onSelect={selectSearchProduct}
+                              onClear={clearProductSearch}
+                              inputRef={searchInputRef}
+                              inputStyle={selectStyle}
+                              panelStyle={{ background: th.filterBg, border: `1px solid ${th.filterBorder}` }}
+                              primaryColor={th.cellPrimary}
+                              secondaryColor={th.cellMuted}
+                            />
                           </div>
                         </>
                       )}
@@ -931,7 +964,7 @@ export default function ProductsClient({
                             {(activeFilterTags.length > 0 || searchTerm) ? (
                               <>
                                 <div className="flex flex-wrap gap-2">
-                                  {searchTerm && <button type="button" onClick={() => setSearchTerm('')} className="px-3 py-1.5 text-xs rounded-full flex items-center gap-2" style={{ background: 'var(--autocity-accent-10)', color: 'var(--autocity-accent)' }}><span>Search: {searchTerm}</span><X className="h-3 w-3" /></button>}
+                                  {searchTerm && <button type="button" onClick={clearProductSearch} className="px-3 py-1.5 text-xs rounded-full flex items-center gap-2" style={{ background: 'var(--autocity-accent-10)', color: 'var(--autocity-accent)' }}><span>Search: {searchTerm}</span><X className="h-3 w-3" /></button>}
                                   {activeFilterTags.map(tag => <button key={tag.label} type="button" onClick={tag.clear} className="px-3 py-1.5 text-xs rounded-full flex items-center gap-2" style={{ background: 'var(--autocity-accent-10)', color: 'var(--autocity-accent)' }}><span>{tag.label}</span><X className="h-3 w-3" /></button>)}
                                 </div>
                                 <button type="button" onClick={clearFilters} className="w-full px-3 py-2.5 rounded-xl text-sm" style={{ background: th.filterBtnBg, border: `1px solid ${th.filterBtnBorder}`, color: th.filterText }}>Clear All</button>
@@ -978,7 +1011,7 @@ export default function ProductsClient({
               <div className="flex-1">
                 <p className="text-xs uppercase tracking-[0.2em] mb-2" style={{ color: th.cellMuted }}>Active Filters</p>
                 <div className="flex flex-wrap gap-2">
-                  {searchTerm && <button type="button" onClick={() => setSearchTerm('')} className="px-3 py-1.5 text-xs rounded-full flex items-center gap-2" style={{ background: 'var(--autocity-accent-10)', color: 'var(--autocity-accent)' }}><span>Search: {searchTerm}</span><X className="h-3 w-3" /></button>}
+                  {searchTerm && <button type="button" onClick={clearProductSearch} className="px-3 py-1.5 text-xs rounded-full flex items-center gap-2" style={{ background: 'var(--autocity-accent-10)', color: 'var(--autocity-accent)' }}><span>Search: {searchTerm}</span><X className="h-3 w-3" /></button>}
                   {activeFilterTags.map(tag => <button key={tag.label} type="button" onClick={tag.clear} className="px-3 py-1.5 text-xs rounded-full flex items-center gap-2" style={{ background: 'var(--autocity-accent-10)', color: 'var(--autocity-accent)' }}><span>{tag.label}</span><X className="h-3 w-3" /></button>)}
                 </div>
               </div>

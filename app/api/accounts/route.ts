@@ -9,6 +9,7 @@ import { verifyToken } from '@/lib/auth/jwt';
 import { connectDB } from '@/lib/db/mongodb';
 import { calculateBalanceChange } from '@/lib/services/balanceEngine';
 import { hasPermission } from '@/lib/types/roles';
+import { seedSystemAccounts } from '@/lib/accounting/seedSystemAccounts';
 
 function mapAccountFields(account: any) {
   return {
@@ -32,6 +33,8 @@ export async function GET() {
     if (!user.outletId || !mongoose.Types.ObjectId.isValid(user.outletId)) {
       return NextResponse.json({ error: 'Outlet is required' }, { status: 400 });
     }
+    const hasPettyCash = await Account.exists({ outletId: user.outletId, code: 'PETTY-001' });
+    if (!hasPettyCash) await seedSystemAccounts(user.outletId);
     const [accounts, rows] = await Promise.all([
       Account.find({ outletId: user.outletId }).sort({ code: 1 }).lean(),
       LedgerEntry.aggregate([

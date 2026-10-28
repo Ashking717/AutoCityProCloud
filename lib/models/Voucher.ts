@@ -26,6 +26,7 @@ export enum ReferenceType {
 }
 
 export interface IVoucherEntry {
+  referenceId?: mongoose.Types.ObjectId;
   accountId: mongoose.Types.ObjectId;
   accountNumber?: string;
   accountName: string;
@@ -56,6 +57,7 @@ export interface IVoucher extends Document {
 
 const VoucherEntrySchema = new Schema(
   {
+    referenceId: { type: Schema.Types.ObjectId },
     accountId: { type: Schema.Types.ObjectId, ref: 'Account', required: true },
     accountNumber: String,
     accountName: { type: String, required: true },

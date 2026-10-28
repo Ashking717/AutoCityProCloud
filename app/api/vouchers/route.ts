@@ -174,6 +174,7 @@ export async function PATCH(request: NextRequest) {
     } else if (body.action === 'cancel') {
       const existing = await Voucher.findOne({ _id: body.voucherId, outletId: user.outletId });
       if (!existing) return NextResponse.json({ error: 'Voucher not found' }, { status: 404 });
+      if (existing.metadata?.source === 'PURCHASE_SUPPLIER_REASSIGNMENT') return NextResponse.json({ error: 'Change the supplier or cancel the bill from Purchase corrections; this allocation voucher cannot be cancelled separately' }, { status: 400 });
       if (existing.status === 'draft') {
         existing.status = 'cancelled';
         await existing.save();

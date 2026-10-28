@@ -10,6 +10,7 @@ import Voucher, {
 import { applyVoucherBalances } from '@/lib/services/balanceEngine';
 
 export interface PostingEntryInput {
+  referenceId?: mongoose.Types.ObjectId | string;
   accountId: mongoose.Types.ObjectId | string;
   debit?: number;
   credit?: number;
@@ -120,6 +121,7 @@ async function createPostedVoucherInSession(
       debit: Number(entry.debit || 0),
       credit: Number(entry.credit || 0),
       narration: entry.narration,
+      referenceId: entry.referenceId ? objectId(entry.referenceId) : undefined,
     };
   });
 
@@ -157,7 +159,7 @@ async function createPostedVoucherInSession(
       narration: entry.narration || voucher.narration,
       date: voucher.date,
       referenceType: input.referenceType,
-      referenceId: input.referenceId ? objectId(input.referenceId) : undefined,
+      referenceId: entry.referenceId || (input.referenceId ? objectId(input.referenceId) : undefined),
       referenceNumber: input.referenceNumber,
       isReversal: input.isReversal === true,
       reversalReason: input.reversalReason,
@@ -241,7 +243,7 @@ async function postDraftVoucherInSession(
     narration: entry.narration || voucher.narration,
     date: voucher.date,
     referenceType: voucher.referenceType,
-    referenceId: voucher.referenceId,
+    referenceId: entry.referenceId || voucher.referenceId,
     referenceNumber: voucher.referenceNumber,
     outletId,
     createdBy: voucher.createdBy,
@@ -298,6 +300,7 @@ async function reverseVoucherInSession(
       accountId: entry.accountId,
       debit: entry.credit,
       credit: entry.debit,
+      referenceId: entry.referenceId,
     })),
     referenceType: ReferenceType.REVERSAL,
     referenceId: voucher.referenceId || voucher._id,

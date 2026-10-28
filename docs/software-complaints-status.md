@@ -4,7 +4,7 @@ The code changes address the workflows reported in `software complaints.docx`. T
 
 | Complaint | Implementation / remaining work |
 | --- | --- |
-| 1. Barcode label | Model, variant, year range, SKU, barcode and selling price. Unit cost is also shown using the Stock page's FIND MOTHER code (whole-number format), per the updated request. |
+| 1. Barcode label | Model, variant, year range, color, SKU, barcode and selling price. Unit cost is also shown using the Stock page's FIND MOTHER code (whole-number format), per the updated request. |
 | 2. Purchase default location | A receiving-location selector applies to new cart lines; otherwise the product’s current location is suggested. Missing destinations require a choice. |
 | 3. All purchase locations | Every active outlet location is selectable, including locations with no stock for that product. |
 | 4. Product name search | Token matching across product name, SKU, barcode, make, model, variant and part number; literal punctuation; compatibility years; server lookup from purchase entry. |
@@ -25,11 +25,15 @@ Corrections commit purchase, stock, supplier, voucher and ledger effects in one 
 
 Price corrections apportion the value change between current inventory and cost of goods sold, using current quantity capped at the purchased quantity. This is an adjustment under the existing weighted-cost model, not batch/FIFO reconstruction. Return stock is removed at current weighted cost, with the price difference posted to cost of goods sold. Amount edits after returns are blocked to preserve the return’s historical amounts. Legacy purchases lacking their original posted accounting need reconciliation before financial correction.
 
+Purchase corrections also support changing the supplier, including paid purchases and purchases with returns. The corrected supplier receives the bill and its linked payments. Allocated supplier-wide payments get an explicit, balanced AP reclassification for just this bill's share; the original payment and all cash/stock entries remain intact. Repeated supplier changes do not duplicate that reclassification. Cancellation reverses it and refreshes both suppliers. Supplier changes require a reason and retain the old supplier in history. Reports attribute purchase-linked entries to the current corrected supplier, including earlier reporting periods; original vouchers remain unchanged.
+
 ## Verification
 
 TypeScript checks and the production build passed.
 
-All 129 isolated regression scenarios passed. The suite covers the existing sales/inventory behavior and the complaint workflows, including concurrent returns, fractional quantities, tax rounding, rollback, idempotency, supplier opening reversals, journal reversal and balanced complete ledger postings. It only runs against a disposable local database on port 27029. The purchase form, printable return voucher and selling-price-only labels (50 × 30 mm and 38 × 25 mm) were also checked in the browser; physical printer/scanner verification remains a deployment check.
+All 139 isolated regression scenarios passed. The suite covers the existing sales/inventory behavior and the complaint workflows, including concurrent returns, fractional quantities, tax rounding, rollback, idempotency, supplier opening reversals, journal reversal, supplier reassignment with allocated payments/returns/cancellation, and balanced complete ledger postings. It only runs against a disposable local database on port 27029. The initial purchase form, printable return voucher and label layout (50 × 30 mm and 38 × 25 mm) were also checked in the browser; physical printer/scanner verification remains a deployment check.
+
+The supplier-change selector and the 38 × 25 mm barcode label with color, encoded cost and selling price were verified in the browser after these additions.
 
 ## Tenant investigation
 

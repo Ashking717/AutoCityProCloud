@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
     const directPaymentIds = new Set(directPayments.map(voucher => String(voucher._id)));
     const bills = supplierPurchases.filter(purchase => new Date(purchase.purchaseDate) <= toDate).map(purchase => {
       const billEntries = supplierEntries.filter(entry => String(entry.referenceId) === String(purchase._id) && new Date(entry.date) <= toDate);
-      const allocated = (purchase.payments || []).filter((payment: any) => directPaymentIds.has(String(payment.voucherId))).reduce((sum: number, payment: any) => sum + Number(payment.amount), 0);
+      const allocated = (purchase.payments || []).filter((payment: any) => directPaymentIds.has(String(payment.voucherId)) && (!payment.supplierReassignedAt || new Date(payment.supplierReassignedAt) > toDate)).reduce((sum: number, payment: any) => sum + Number(payment.amount), 0);
       return { purchaseId: purchase._id, purchaseNumber: purchase.purchaseNumber, supplierBillNumber: purchase.supplierBillNumber, date: purchase.purchaseDate,
         balance: round(billEntries.reduce((sum, entry) => sum + Number(entry.credit || 0) - Number(entry.debit || 0), 0) - allocated),
         hasLedgerEntries: billEntries.length > 0 };

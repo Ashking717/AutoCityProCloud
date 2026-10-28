@@ -37,6 +37,7 @@ interface Product {
   carMake?: string;
   carModel?: string;
   variant?: string;
+  color?: string;
   yearFrom?: number;
   yearTo?: number;
   category?: { name?: string };
@@ -378,7 +379,7 @@ function PrintableLabel({
           {product.name}
         </p>
         <p className="truncate text-center text-[6px] leading-tight">
-          SKU: {product.sku}
+          SKU: {product.sku}{product.color ? ` · ${product.color}` : ''}
         </p>
         <p className="truncate text-center text-[6px] leading-tight">{[product.carMake, product.carModel, product.variant].filter(Boolean).join(' ')} {product.yearFrom ? `${product.yearFrom}–${product.yearTo || 'onwards'}` : ''}</p>
       </div>

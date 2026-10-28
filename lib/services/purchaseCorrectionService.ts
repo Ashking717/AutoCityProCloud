@@ -9,6 +9,7 @@ import ActivityLog from '@/lib/models/ActivityLog';
 import { supplierLedgerBalance } from '@/lib/services/supplierLedgerBalance';
 import { adjustProductLocationStock, ensureProductHasLocationStock } from '@/lib/services/locationStockService';
 import { createPostedVoucher, reversePostedVoucher } from '@/lib/services/voucherPostingService';
+import { changePurchaseSupplier } from '@/lib/services/purchaseSupplierCorrection';
 
 const round = (value: number) => Number(value.toFixed(2));
 
@@ -27,8 +28,12 @@ export async function correctPurchase(id: string, outletId: mongoose.Types.Objec
       const original = await Voucher.findOne({ _id: purchase.voucherId, outletId, status: { $in: ['posted', 'approved'] } }).session(session);
       if (!original || !purchase.isPostedToGL) throw new Error('This legacy purchase needs accounting reconciliation before correction');
       const action = body.action;
-      if (!['edit', 'return', 'cancel'].includes(action)) throw new Error('Invalid purchase action');
+      if (!['edit', 'return', 'cancel', 'supplier'].includes(action)) throw new Error('Invalid purchase action');
       if (!String(body.reason || '').trim()) throw new Error('A correction reason is required');
+      if (action === 'supplier') {
+        result = await changePurchaseSupplier(purchase, outletId, userId, body, key, session);
+        return;
+      }
       if (action === 'cancel' && Number(purchase.returnedTotal || 0) > 0) throw new Error('A purchase with returns cannot be cancelled; return the remaining items');
       if (action === 'edit' && Number(purchase.returnedTotal || 0) > 0) throw new Error('Amounts cannot be edited after a purchase return');
       const accounts: any[] = await Account.find({ outletId, isActive: true, isSystem: true }).session(session).lean();
@@ -38,6 +43,7 @@ export async function correctPurchase(id: string, outletId: mongoose.Types.Objec
         return found._id;
       };
       const entries: any[] = [];
+      const affectedSupplierIds = new Set<string>();
       const add = (type: AccountSubType, debit: number) => {
         const amount = round(debit);
         if (amount) entries.push({ accountId: account(type), debit: amount > 0 ? amount : 0, credit: amount < 0 ? -amount : 0 });
@@ -146,6 +152,7 @@ export async function correctPurchase(id: string, outletId: mongoose.Types.Objec
         const posted = await Voucher.find({ outletId, referenceId: purchase._id, status: { $in: ['posted', 'approved'] }, referenceType: { $ne: 'REVERSAL' } }).session(session);
         if (!posted.some(v => String(v._id) === String(original._id))) throw new Error('Original purchase posting not found');
         for (const voucher of posted) {
+          for (const supplierId of voucher.metadata?.affectedSupplierIds || []) affectedSupplierIds.add(String(supplierId));
           payableDelta -= voucher.entries.filter(entry => String(entry.accountId) === String(account(AccountSubType.ACCOUNTS_PAYABLE))).reduce((sum, entry) => sum + entry.credit - entry.debit, 0);
           const reversal = await reversePostedVoucher(voucher._id as mongoose.Types.ObjectId, outletId, userId, body.reason, session);
           voucherId ||= reversal.reversal?._id;
@@ -165,6 +172,10 @@ export async function correctPurchase(id: string, outletId: mongoose.Types.Objec
       const correction = { key, action, reason: String(body.reason).trim(), date, userId, voucherId, referenceNumber, amount: correctionTotal, refund, refundMethod: method, payableDelta, before, changes };
       purchase.corrections ||= []; purchase.corrections.push(correction);
       await purchase.save({ session });
+      for (const id of affectedSupplierIds) {
+        const supplierId = new mongoose.Types.ObjectId(id);
+        await Supplier.updateOne({ _id: supplierId, outletId }, { $set: { currentBalance: await supplierLedgerBalance(outletId, supplierId, session) } }, { session });
+      }
       await ActivityLog.create([{ userId, username: String(userId), actionType: 'update', module: 'purchases', description: `${referenceNumber}: ${body.reason}`, outletId, timestamp: date }], { session });
       result = { purchase, correction };
     });

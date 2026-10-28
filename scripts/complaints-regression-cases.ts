@@ -13,6 +13,7 @@ import LedgerEntry from '@/lib/models/LedgerEntry';
 import InventoryMovement from '@/lib/models/InventoryMovement';
 import { supplierLedgerBalance } from '@/lib/services/supplierLedgerBalance';
 import { matchesProductSearch } from '@/lib/utils/productSearch';
+import { runPurchaseSupplierTests } from './purchase-supplier-regression-cases';
 
 export async function runComplaintTests({ test, request, cookie, outlet, otherOutlet, user, makeProduct, postSale }: any) {
   await Purchase.syncIndexes();
@@ -33,6 +34,7 @@ export async function runComplaintTests({ test, request, cookie, outlet, otherOu
   const balance = () => supplierLedgerBalance(outlet._id, supplier._id);
   const stock = async (id: any) => (await Product.findById(id).lean()).currentStock;
   const assertOk = (result: any) => assert.equal(result.response.status, 200, JSON.stringify(result.body));
+  await runPurchaseSupplierTests({ test, call, get, purchase, correct, assertOk, outlet, otherOutlet });
 
   await test('name search matches words across name, model and variant', async () => {
     const p = await makeProduct({ name: 'Mirror [Left]', carMake: 'Toyota', carModel: 'Land Cruiser', variant: 'VX', yearFrom: 2008, yearTo: 2015 });

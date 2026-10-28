@@ -49,6 +49,7 @@ export interface IPurchase extends Document {
     reference?: string;
     voucherId: mongoose.Types.ObjectId;
     paidAt: Date;
+    supplierReassignedAt?: Date;
   }>;
 }
 
@@ -159,6 +160,7 @@ const PurchaseSchema = new Schema<IPurchase>(
       reference: { type: String, trim: true },
       voucherId: { type: Schema.Types.ObjectId, ref: 'Voucher', required: true },
       paidAt: { type: Date, default: Date.now },
+      supplierReassignedAt: Date,
     }],
   },
   {

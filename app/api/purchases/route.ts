@@ -9,6 +9,7 @@ import Product from '@/lib/models/ProductEnhanced';
 import Purchase from '@/lib/models/Purchase';
 import Supplier from '@/lib/models/Supplier';
 import User from '@/lib/models/User';
+import StockLocation from '@/lib/models/StockLocation';
 import { verifyToken } from '@/lib/auth/jwt';
 import { hasPermission } from '@/lib/types/roles';
 import { connectDB } from '@/lib/db/mongodb';
@@ -72,6 +73,11 @@ export async function POST(request: NextRequest) {
       ]);
       if (!outlet) throw new Error('Outlet not found');
       if (!supplier) throw new Error('Active supplier not found in this outlet');
+      const supplierBillNumber = String(body.supplierBillNumber || '').trim();
+      const supplierBillKey = supplierBillNumber ? supplierBillNumber.toLowerCase().replace(/\s+/g, ' ') : undefined;
+      if (supplierBillKey && await Purchase.exists({ outletId, supplierId: supplier._id, supplierBillKey }).session(session!)) {
+        throw new Error('Duplicate supplier bill number: this bill is already recorded');
+      }
 
       const items: any[] = [];
       const seen = new Set<string>();
@@ -96,10 +102,17 @@ export async function POST(request: NextRequest) {
         if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate > 100) {
           throw new Error(`Invalid tax rate for ${product.name}`);
         }
+        let locationId = input.locationId;
+        let locationName = input.locationName || input.location || product.location;
+        if (!locationId && !locationName) {
+          const locations = await StockLocation.find({ outletId, isActive: true }).session(session!).limit(2);
+          if (locations.length !== 1) throw new Error(`Receiving location is required for ${product.name}`);
+          locationId = locations[0]._id;
+        }
         const location = await getOrCreateStockLocation({
           outletId,
-          locationId: input.locationId,
-          name: input.locationName || input.location,
+          locationId,
+          name: locationName,
           createdBy: userId,
           session,
         });
@@ -115,6 +128,7 @@ export async function POST(request: NextRequest) {
           productId: product._id,
           name: product.name,
           sku: product.sku,
+          vehicle: [product.carMake, product.carModel, product.variant, product.yearFrom, product.yearTo].filter(Boolean).join(' '),
           locationId: location._id,
           locationName: location.name,
           quantity,
@@ -132,7 +146,7 @@ export async function POST(request: NextRequest) {
       if (!['CASH', 'PETTY_CASH', 'CARD', 'BANK_TRANSFER', 'CHEQUE', 'CREDIT'].includes(paymentMethod)) {
         throw new Error('Invalid payment method');
       }
-      if (amountPaid < 0 || amountPaid > grandTotal + 0.01) throw new Error('Invalid purchase amount paid');
+      if (!Number.isFinite(amountPaid) || amountPaid < 0 || amountPaid > grandTotal) throw new Error('Invalid purchase amount paid');
       if (paymentMethod === 'CREDIT' && amountPaid > 0) {
         throw new Error('A credit purchase cannot contain an immediate payment');
       }
@@ -153,6 +167,8 @@ export async function POST(request: NextRequest) {
         balanceDue,
         status: balanceDue <= 0.01 ? 'PAID' : 'COMPLETED',
         notes: body.notes,
+        supplierBillNumber,
+        supplierBillKey,
         createdBy: userId,
         purchaseDate,
         isPostedToGL: false,
@@ -164,7 +180,7 @@ export async function POST(request: NextRequest) {
         await ensureProductHasLocationStock(item.product, outletId, userId, session!);
         const oldStock = Number(item.product.currentStock || 0);
         const oldCost = Number(item.product.costPrice || 0);
-        const newStock = round(oldStock + item.quantity);
+        const newStock = Number((oldStock + item.quantity).toFixed(6));
         const newCost = newStock > 0
           ? round((oldStock * oldCost + item.quantity * item.unitPrice) / newStock)
           : oldCost;
@@ -255,6 +271,7 @@ export async function POST(request: NextRequest) {
     }, { status: 201 });
   } catch (error: any) {
     console.error('PURCHASE ERROR:', error);
+    if (error.code === 11000) return NextResponse.json({ error: 'Duplicate purchase request or supplier bill number; check existing purchases before retrying' }, { status: 409 });
     const status = /required|invalid|not found|duplicate|mismatch|cannot|concurrent/i.test(error.message) ? 400 : 500;
     return NextResponse.json({ error: error.message || 'Failed to create purchase' }, { status });
   } finally {

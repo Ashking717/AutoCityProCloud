@@ -32,6 +32,11 @@ interface Product {
   sku: string;
   barcode?: string;
   sellingPrice?: number;
+  carMake?: string;
+  carModel?: string;
+  variant?: string;
+  yearFrom?: number;
+  yearTo?: number;
   category?: { name?: string };
 }
 
@@ -69,6 +74,7 @@ export default function ProductBarcodeLabelPage() {
   const [generating, setGenerating] = useState(false);
   const [labelSize, setLabelSize] = useState<LabelSizeKey>("50x30");
   const [labelCount, setLabelCount] = useState(1);
+  const sellCode = product?.sellingPrice !== undefined ? `QAR ${Number(product.sellingPrice).toFixed(2)}` : '';
 
   const selectedSize = LABEL_SIZES[labelSize];
   const hasDistinctBarcode = Boolean(
@@ -279,7 +285,7 @@ export default function ProductBarcodeLabelPage() {
           <div className="flex min-h-[360px] items-center justify-center rounded-3xl bg-zinc-900/80 p-8">
             <div className="scale-[2.4] origin-center">
               {barcodeData ? (
-                <PrintableLabel barcodeData={barcodeData} product={product} />
+                <PrintableLabel barcodeData={barcodeData} product={product} sellCode={sellCode} />
               ) : (
                 <div className="rounded-2xl border border-dashed border-white/20 p-6 text-center text-sm text-zinc-400">
                   Generate a barcode to preview the label.
@@ -345,6 +351,7 @@ export default function ProductBarcodeLabelPage() {
             key={index}
             barcodeData={barcodeData}
             product={product}
+            sellCode={sellCode}
           />
         ))}
       </div>
@@ -355,9 +362,11 @@ export default function ProductBarcodeLabelPage() {
 function PrintableLabel({
   barcodeData,
   product,
+  sellCode,
 }: {
   barcodeData: BarcodeRenderData;
   product: Product;
+  sellCode: string;
 }) {
   return (
     <div className="barcode-label flex flex-col justify-between bg-white p-[2mm] text-black shadow-2xl">
@@ -368,19 +377,16 @@ function PrintableLabel({
         <p className="truncate text-center text-[6px] leading-tight">
           SKU: {product.sku}
         </p>
+        <p className="truncate text-center text-[6px] leading-tight">{[product.carMake, product.carModel, product.variant].filter(Boolean).join(' ')} {product.yearFrom ? `${product.yearFrom}–${product.yearTo || 'onwards'}` : ''}</p>
       </div>
-      <div className="h-[13mm] w-full">
+      <div className="min-h-[8mm] flex-1 w-full py-[0.5mm]">
         <BarcodeSvg data={barcodeData} />
       </div>
       <div>
         <p className="text-center font-mono text-[8px] font-bold leading-tight">
           {barcodeData.value}
         </p>
-        {product.sellingPrice !== undefined && (
-          <p className="text-center text-[7px] font-semibold leading-tight">
-            QAR {Number(product.sellingPrice || 0).toFixed(2)}
-          </p>
-        )}
+        {sellCode && <p className="text-center text-[7px] font-semibold leading-tight">{sellCode}</p>}
       </div>
     </div>
   );

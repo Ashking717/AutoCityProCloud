@@ -9,6 +9,7 @@ import {
 
 import {
   useState,
+  useRef,
   useEffect,
   useMemo } from "react";
 import { useRouter } from "next/navigation";
@@ -34,12 +35,14 @@ import {
   Filter,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { matchesProductSearch } from '@/lib/utils/productSearch';
 
 // ─── Time-based theme hook ────────────────────────────────────────────────────
 interface CartItem {
   productId: string;
   productName: string;
   sku: string;
+  vehicle?: string;
   locationId?: string;
   locationName?: string;
   availableLocations?: Array<{
@@ -110,6 +113,8 @@ export default function NewPurchasePage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
   const [pendingPurchaseKey, setPendingPurchaseKey] = useState<string | null>(null);
+  const submittingPurchase = useRef(false);
+  const productSearchRequest = useRef(0);
   const [supplierSaving, setSupplierSaving] = useState(false);
   const [pendingSupplierKey, setPendingSupplierKey] = useState<string | null>(null);
   const [pendingProductKey, setPendingProductKey] = useState<string | null>(null);
@@ -138,6 +143,10 @@ export default function NewPurchasePage() {
   const [newCategoryName, setNewCategoryName] = useState("");
   const [nextSKU, setNextSKU] = useState<string>("10001");
   const [showOCR, setShowOCR] = useState(false);
+  const [stockLocations, setStockLocations] = useState<any[]>([]);
+  const [defaultLocationId, setDefaultLocationId] = useState('');
+  const [supplierBillNumber, setSupplierBillNumber] = useState('');
+  const [notes, setNotes] = useState('');
 
   const [newSupplier, setNewSupplier] = useState({
     name: "", phone: "", email: "", address: "",
@@ -208,7 +217,21 @@ export default function NewPurchasePage() {
 
   useEffect(() => {
     fetchUser(); fetchProducts(); fetchSuppliers(); fetchCategories(); fetchNextSKU();
+    fetch('/api/stock-locations').then(r => r.json()).then(data => setStockLocations(data.locations || []))
+      .catch(() => toast.error('Failed to load receiving locations'));
   }, []);
+
+  const receivingLocations = (product: any) => stockLocations.map(location => ({
+    locationId: location._id, locationName: location.name,
+    quantity: product?.locations?.find((row: any) => String(row.locationId) === String(location._id))?.quantity || 0,
+  }));
+
+  const chooseReceivingLocation = (product: any, locations: any[]) =>
+    locations.find(row => row.locationId === defaultLocationId)
+    || locations.find(row => row.locationName === product?.location)
+    || locations.find(row => row.locationId === product?.locations?.find((stock: any) => stock.quantity > 0)?.locationId)
+    || locations.find(row => row.locationName === product?.locations?.[0]?.locationName)
+    || (locations.length === 1 ? locations[0] : undefined);
 
   const fetchUser = async () => {
     try {
@@ -231,6 +254,24 @@ export default function NewPurchasePage() {
     } catch { toast.error("Failed to load products"); }
     finally { setProductsLoading(false); }
   };
+
+  useEffect(() => {
+    const requestId = ++productSearchRequest.current;
+    if (searchTerm.trim().length < 2) return;
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/products?searchMode=true&limit=500&search=${encodeURIComponent(searchTerm)}`, { signal: controller.signal });
+        const data = await response.json();
+        if (response.ok && requestId === productSearchRequest.current) setProducts(previous => {
+          const merged = new Map(previous.map(product => [product._id, product]));
+          for (const product of data.products || []) merged.set(product._id, product);
+          return [...merged.values()];
+        });
+      } catch (error: any) { if (error.name !== 'AbortError') toast.error('Product search failed'); }
+    }, 250);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [searchTerm]);
 
   const fetchSuppliers = async () => {
     try {
@@ -330,8 +371,9 @@ export default function NewPurchasePage() {
       taxRate: number;
     }>,
     supplierName?: string,
-    _invoiceNote?: string
+    invoiceNote?: string
   ) => {
+    if (invoiceNote) setNotes(invoiceNote);
     const newCartItems: CartItem[] = parsedItems.map((parsed) => {
       const lower = parsed.name.toLowerCase();
       const skuLower = (parsed.sku || "").toLowerCase();
@@ -347,15 +389,14 @@ export default function NewPurchasePage() {
       const qty = parsed.quantity;
       const taxRate = parsed.taxRate || 0;
       const taxAmount = (price * qty * taxRate) / 100;
-      const availableLocations = matched?.locations || [];
-      const defaultLocation =
-        availableLocations.find((location: any) => (location.quantity || 0) > 0) ||
-        availableLocations[0];
+      const availableLocations = receivingLocations(matched);
+      const defaultLocation = chooseReceivingLocation(matched, availableLocations);
 
       return {
         productId,
         productName: matched?.name || parsed.name,
         sku: matched?.sku || parsed.sku || "OCR",
+        vehicle: [matched?.carMake, matched?.carModel, matched?.variant, matched?.yearFrom, matched?.yearTo].filter(Boolean).join(' '),
         locationId: defaultLocation?.locationId,
         locationName: defaultLocation?.locationName || matched?.location,
         availableLocations,
@@ -401,14 +442,13 @@ export default function NewPurchasePage() {
       updateCartItem(existing.productId, "quantity", existing.quantity + 1);
     } else {
       const price = product.costPrice || product.sellingPrice || 0;
-      const availableLocations = product.locations || [];
-      const defaultLocation =
-        availableLocations.find((location: any) => (location.quantity || 0) > 0) ||
-        availableLocations[0];
+      const availableLocations = receivingLocations(product);
+      const defaultLocation = chooseReceivingLocation(product, availableLocations);
       setCart([...cart, {
         productId: product._id,
         productName: product.name,
         sku: product.sku,
+        vehicle: [product.carMake, product.carModel, product.variant, product.yearFrom, product.yearTo].filter(Boolean).join(' '),
         locationId: defaultLocation?.locationId,
         locationName: defaultLocation?.locationName || product.location,
         availableLocations,
@@ -467,11 +507,14 @@ export default function NewPurchasePage() {
   };
 
   const handleSubmit = async () => {
+    if (submittingPurchase.current) return;
     if (cart.length === 0) { toast.error("Cart is empty"); return; }
     if (!selectedSupplier) { toast.error("Please select a supplier"); return; }
+    if (cart.some(item => !item.locationId)) { toast.error('Select a receiving location for every item'); return; }
     const { total } = calculateTotals();
     if (amountPaid > total) { toast.error(`Amount paid cannot exceed total (${formatCurrency(total)})`); return; }
     const idempotencyKey = pendingPurchaseKey || crypto.randomUUID();
+    submittingPurchase.current = true;
     setPendingPurchaseKey(idempotencyKey);
     setLoading(true);
     try {
@@ -492,7 +535,7 @@ export default function NewPurchasePage() {
             unitPrice: i.unitPrice,
             taxRate: i.taxRate,
           })),
-          paymentMethod: getEffectivePaymentMethod(), amountPaid, notes: "", idempotencyKey,
+          paymentMethod: getEffectivePaymentMethod(), amountPaid, notes, supplierBillNumber, idempotencyKey,
         }),
       });
       if (res.ok) {
@@ -504,7 +547,7 @@ export default function NewPurchasePage() {
         router.push("/autocityPro/purchases");
       } else toast.error((await res.json()).error || "Failed to create purchase");
     } catch { toast.error("Failed to create purchase"); }
-    finally { setLoading(false); }
+    finally { setLoading(false); submittingPurchase.current = false; }
   };
 
   const productFilterOptions = useMemo(() => {
@@ -539,9 +582,7 @@ export default function NewPurchasePage() {
     if (searchTerm.length < 2 && !hasProductFilters) return [];
     const l = searchTerm.toLowerCase();
     return products.filter((product) => {
-      const matchesSearch = searchTerm.length < 2 || [
-        product.name, product.sku, product.barcode, product.partNumber, product.carMake, product.carModel,
-      ].some((value) => String(value || "").toLowerCase().includes(l));
+      const matchesSearch = searchTerm.length < 2 || matchesProductSearch(product, l);
       const categoryId = String(product.category?._id || product.category || "");
       const matchesYear = !productYearFilter || (
         (!product.yearFrom || Number(product.yearFrom) <= Number(productYearFilter))
@@ -657,6 +698,16 @@ export default function NewPurchasePage() {
 
         {/* ── Main Content ──────────────────────────────────────────────────── */}
         <div className="px-4 md:px-6 pt-[100px] md:pt-6 pb-6">
+          <div className="grid md:grid-cols-3 gap-3 mb-4 p-4 rounded-xl" style={{ background: th.cardBg, color: th.textPrimary }}>
+            <label>Receiving location for new lines
+              <select className="block w-full p-2 rounded" style={inputStyle} value={defaultLocationId} onChange={e => setDefaultLocationId(e.target.value)}>
+                <option value="">Use product location / choose per item</option>
+                {stockLocations.map(location => <option key={location._id} value={location._id}>{location.name}</option>)}
+              </select>
+            </label>
+            <label>Supplier bill number<input className="block w-full p-2 rounded" style={inputStyle} value={supplierBillNumber} onChange={e => setSupplierBillNumber(e.target.value)} /></label>
+            <label>Narration<input className="block w-full p-2 rounded" style={inputStyle} value={notes} onChange={e => setNotes(e.target.value)} /></label>
+          </div>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
 
             {/* Left Column */}
@@ -765,7 +816,7 @@ export default function NewPurchasePage() {
                               </div>
                             </div>
                             <div className="mt-2 space-y-0.5">
-                              {(product.carMake || product.carModel) && <p className="text-xs truncate" style={{ color: th.textSecondary }}>{product.carMake} {product.carModel}</p>}
+                              <p className="text-xs truncate" style={{ color: th.textSecondary }}>{[product.carMake, product.carModel, product.variant, product.yearFrom, product.yearTo].filter(Boolean).join(' ')}</p>
                               {product.color && <p className="text-[11px]" style={{ color: th.textSecondary }}>Color: {product.color}</p>}
                               {(product.yearFrom || product.yearTo) && <p className="text-[11px]" style={{ color: th.textSecondary }}>Years: {product.yearFrom || "—"} – {product.yearTo || "—"}</p>}
                             </div>
@@ -822,13 +873,15 @@ export default function NewPurchasePage() {
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold truncate" style={{ color: th.textPrimary }}>{item.productName}</h3>
                             <p className="text-xs mt-1" style={{ color: th.textSecondary }}>SKU: {item.sku}</p>
-                            {item.availableLocations && item.availableLocations.length > 1 ? (
+                            <p className="text-xs" style={{ color: th.textSecondary }}>{item.vehicle}</p>
+                            {item.availableLocations && item.availableLocations.length > 0 ? (
                               <select
                                 value={item.locationId || ""}
                                 onChange={e => updateCartLocation(item.productId, e.target.value)}
                                 className={`mt-2 px-2 py-1 rounded-lg text-xs ${inputClass}`}
                                 style={inputStyle}
                               >
+                                <option value="">Select receiving location</option>
                                 {item.availableLocations.map(location => (
                                   <option key={location.locationId} value={location.locationId}>
                                     {location.locationName} ({location.quantity})
@@ -1065,13 +1118,15 @@ export default function NewPurchasePage() {
                         <div className="flex-1 min-w-0 pr-2">
                           <h3 className="font-semibold truncate" style={{ color: th.textPrimary }}>{item.productName}</h3>
                           <p className="text-xs mt-1" style={{ color: th.textSecondary }}>SKU: {item.sku}</p>
-                          {item.availableLocations && item.availableLocations.length > 1 ? (
+                          <p className="text-xs" style={{ color: th.textSecondary }}>{item.vehicle}</p>
+                          {item.availableLocations && item.availableLocations.length > 0 ? (
                             <select
                               value={item.locationId || ""}
                               onChange={e => updateCartLocation(item.productId, e.target.value)}
                               className={`mt-2 px-2 py-1 rounded-lg text-xs ${inputClass}`}
                               style={inputStyle}
                             >
+                              <option value="">Select receiving location</option>
                               {item.availableLocations.map(location => (
                                 <option key={location.locationId} value={location.locationId}>
                                   {location.locationName} ({location.quantity})

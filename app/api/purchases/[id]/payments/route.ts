@@ -10,6 +10,7 @@ import { verifyToken } from '@/lib/auth/jwt';
 import { hasPermission } from '@/lib/types/roles';
 import { connectDB } from '@/lib/db/mongodb';
 import { postPurchasePaymentAccounting } from '@/lib/services/transactionalAccountingService';
+import { supplierLedgerBalance } from '@/lib/services/supplierLedgerBalance';
 
 function round(value: number) {
   return Number(value.toFixed(2));
@@ -96,13 +97,14 @@ export async function POST(
 
       const paidAt = body.paymentDate ? new Date(body.paymentDate) : new Date();
       if (Number.isNaN(paidAt.getTime())) throw new Error('Invalid payment date');
+      const supplierBalance = await supplierLedgerBalance(outletId, purchase.supplierId, session!);
+      if (amount > supplierBalance + 0.01) throw new Error('Payment exceeds supplier ledger balance; allocate prior supplier credits first');
       const updatedSupplier = await Supplier.findOneAndUpdate(
         {
           _id: purchase.supplierId,
           outletId,
-          currentBalance: { $gte: round(amount - 0.01) },
         },
-        { $inc: { currentBalance: -amount } },
+        { $set: { currentBalance: round(supplierBalance - amount) } },
         { new: true, session }
       );
       if (!updatedSupplier) {

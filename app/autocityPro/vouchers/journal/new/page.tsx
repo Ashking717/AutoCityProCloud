@@ -36,6 +36,8 @@ export default function NewJournalVoucherPage() {
   const [loading, setLoading] = useState(false);
   const [pendingVoucherKey] = useState(() => crypto.randomUUID());
   const [accounts, setAccounts] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [supplierId, setSupplierId] = useState('');
   const [loadingAccounts, setLoadingAccounts] = useState(true);
   
   // Form fields
@@ -66,6 +68,7 @@ export default function NewJournalVoucherPage() {
   useEffect(() => {
     fetchUser();
     fetchAccounts();
+    fetch('/api/suppliers').then(r => r.json()).then(data => setSuppliers(data.suppliers || [])).catch(() => toast.error('Failed to load suppliers'));
   }, []);
 
   const fetchUser = async () => {
@@ -195,6 +198,7 @@ export default function NewJournalVoucherPage() {
         voucherType: 'journal',
         date,
         narration,
+        supplierId: supplierId || undefined,
         referenceNumber: referenceNumber || undefined,
         referenceType: 'ADJUSTMENT',
         entries: validEntries.map(e => ({
@@ -326,6 +330,13 @@ export default function NewJournalVoucherPage() {
             </div>
           </div>
 
+          <label className="block mb-6 text-white">Supplier (optional)
+            <select className="block w-full bg-slate-900 rounded p-3 mt-2" value={supplierId} onChange={e => setSupplierId(e.target.value)}>
+              <option value="">No supplier</option>
+              {suppliers.map(supplier => <option key={supplier._id} value={supplier._id}>{supplier.name}</option>)}
+            </select>
+            <span className="text-sm text-slate-400">Include Accounts Payable to debit or credit this supplier’s ledger.</span>
+          </label>
           {/* Journal Entries Card */}
           <div className="bg-gradient-to-br from-[#0A0A0A] to-[#050505] border border-white/10 rounded-2xl shadow-xl p-6 mb-6">
             <div className="flex items-center justify-between mb-6">

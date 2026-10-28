@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 
 import ActivityLog from '@/lib/models/ActivityLog';
 import Customer from '@/lib/models/Customer';
+import Supplier from '@/lib/models/Supplier';
 import InventoryMovement from '@/lib/models/InventoryMovement';
 import Job, { JobStatus } from '@/lib/models/Job';
 import Outlet from '@/lib/models/Outlet';
@@ -128,7 +129,7 @@ export async function POST(request: NextRequest) {
     if (!operationKey || operationKey.length > 160) {
       return NextResponse.json({ error: 'A valid idempotencyKey is required' }, { status: 400 });
     }
-    if (!body.customerId || !Array.isArray(body.items) || body.items.length === 0) {
+    if ((!body.customerId && !body.supplierId) || !Array.isArray(body.items) || body.items.length === 0) {
       return NextResponse.json({ error: 'Customer and at least one item are required' }, { status: 400 });
     }
 
@@ -146,10 +147,18 @@ export async function POST(request: NextRequest) {
         return;
       }
 
-      const [outlet, customer] = await Promise.all([
-        Outlet.findById(outletId).session(session!),
-        Customer.findOne({ _id: body.customerId, outletId, isActive: true }).session(session!),
-      ]);
+      const outlet = await Outlet.findById(outletId).session(session!);
+      let customer;
+      if (body.supplierId) {
+        if (body.customerId) throw new Error('Select either a customer or a supplier');
+        const supplier = await Supplier.findOne({ _id: body.supplierId, outletId, isActive: true }).session(session!);
+        if (!supplier) throw new Error('Active supplier not found in this outlet');
+        // Keep receivables distinct from purchase payables while retaining the supplier identity.
+        customer = await Customer.findOneAndUpdate({ outletId, supplierId: supplier._id }, {
+          $set: { name: supplier.name, phone: supplier.phone, isActive: true },
+          $setOnInsert: { code: `SUP-${supplier._id}`, currentBalance: 0, creditLimit: 0 },
+        }, { upsert: true, new: true, session });
+      } else customer = await Customer.findOne({ _id: body.customerId, outletId, isActive: true }).session(session!);
       if (!outlet) throw new Error('Outlet not found');
       if (!customer) throw new Error('Active customer not found in this outlet');
 
@@ -318,6 +327,7 @@ export async function POST(request: NextRequest) {
         outletId,
         customerId: customer._id,
         customerName: customer.name,
+        supplierId: body.supplierId || undefined,
         items: saleItems,
         subtotal,
         totalDiscount: round(totalItemDiscount + overallDiscount),

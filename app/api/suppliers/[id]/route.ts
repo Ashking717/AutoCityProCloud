@@ -9,6 +9,7 @@ import { verifyToken } from '@/lib/auth/jwt';
 import { hasPermission } from '@/lib/types/roles';
 import mongoose from 'mongoose';
 import { createPostedVoucher } from '@/lib/services/voucherPostingService';
+import { supplierLedgerBalance, supplierOpeningLedgerBalance } from '@/lib/services/supplierLedgerBalance';
 
 function round(value: number) {
   return Number(value.toFixed(2));
@@ -30,6 +31,7 @@ export async function GET(
     }
     
     const user = verifyToken(token);
+    if (!user.outletId || !mongoose.Types.ObjectId.isValid(user.outletId)) return NextResponse.json({ error: 'Outlet is required' }, { status: 400 });
     if (!hasPermission(user.role, 'canProcessPurchases') && !hasPermission(user.role, 'canViewFinancials')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -44,24 +46,13 @@ export async function GET(
       return NextResponse.json({ error: 'Supplier not found' }, { status: 404 });
     }
     
-    const legacyOpening: any = !supplier.openingBalanceDate
-      ? await Voucher.findOne({
-          outletId: user.outletId,
-          referenceType: ReferenceType.OPENING_BALANCE,
-          referenceId: supplier._id,
-          'metadata.source': 'SUPPLIER_OPENING_BALANCE',
-        }).sort({ date: 1, createdAt: 1 }).lean()
-      : null;
+    const opening = await supplierOpeningLedgerBalance(new mongoose.Types.ObjectId(user.outletId), supplier._id);
     const supplierData = supplier.toObject();
     return NextResponse.json({
       supplier: {
         ...supplierData,
-        openingBalance: round(Number(
-          supplierData.openingBalanceDate
-            ? supplierData.openingBalance || 0
-            : legacyOpening?.totalCredit ?? supplierData.openingBalance ?? 0
-        )),
-        openingBalanceDate: supplierData.openingBalanceDate || legacyOpening?.date,
+        openingBalance: opening.amount,
+        openingBalanceDate: supplierData.openingBalanceDate || opening.date,
       },
     });
   } catch (error: any) {
@@ -138,20 +129,9 @@ export async function PUT(
         openingDate = body.openingBalanceDate ? new Date(body.openingBalanceDate) : openingDate;
         if (Number.isNaN(openingDate.getTime())) throw new Error('Invalid opening balance date');
 
-        let previousOpeningBalance = supplier.openingBalance;
-        if (!supplier.openingBalanceDate) {
-          const originalOpening: any = await Voucher.findOne({
-            outletId,
-            referenceType: ReferenceType.OPENING_BALANCE,
-            referenceId: supplier._id,
-            'metadata.source': 'SUPPLIER_OPENING_BALANCE',
-          }).sort({ date: 1, createdAt: 1 }).session(session!).lean();
-          previousOpeningBalance = Number(originalOpening?.totalCredit || 0);
-        }
+        const previousOpeningBalance = (await supplierOpeningLedgerBalance(outletId, supplier._id, session!)).amount;
         openingDelta = round(newOpeningBalance - Number(previousOpeningBalance || 0));
-        if (round(Number(supplier.currentBalance || 0) + openingDelta) < 0) {
-          throw new Error('Opening balance cannot be reduced below amounts already paid');
-        }
+        supplier.currentBalance = await supplierLedgerBalance(outletId, supplier._id, session!);
 
         if (Math.abs(openingDelta) > 0.001) {
           const payable: any = await Account.findOne({
@@ -206,15 +186,9 @@ export async function PUT(
         supplier.currentBalance = round(Number(supplier.currentBalance || 0) + openingDelta);
       }
 
-      supplier.code = code;
-      supplier.name = name;
-      supplier.contactPerson = contactPerson;
-      supplier.phone = phone;
-      supplier.email = email;
-      supplier.address = address;
-      supplier.taxNumber = taxNumber;
-      supplier.creditLimit = creditLimit;
-      supplier.paymentTerms = paymentTerms;
+      for (const field of ['code', 'name', 'contactPerson', 'phone', 'email', 'address', 'taxNumber', 'creditLimit', 'paymentTerms']) {
+        if (body[field] !== undefined) supplier[field] = body[field];
+      }
       if (typeof isActive === 'boolean') supplier.isActive = isActive;
       await supplier.save({ session });
 

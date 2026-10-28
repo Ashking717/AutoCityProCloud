@@ -6,6 +6,7 @@ import Account, { AccountSubType } from '@/lib/models/Account';
 import LedgerEntry from '@/lib/models/LedgerEntry';
 import Purchase from '@/lib/models/Purchase';
 import Supplier from '@/lib/models/Supplier';
+import Voucher from '@/lib/models/Voucher';
 import { verifyToken } from '@/lib/auth/jwt';
 import { connectDB } from '@/lib/db/mongodb';
 import { hasPermission } from '@/lib/types/roles';
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
     const [apAccount, suppliers, purchases] = await Promise.all([
       Account.findOne({ outletId, subType: AccountSubType.ACCOUNTS_PAYABLE }).lean(),
       Supplier.find({ outletId }).sort({ name: 1 }).lean(),
-      Purchase.find({ outletId }).select('_id supplierId grandTotal amountPaid status purchaseNumber').lean(),
+      Purchase.find({ outletId }).select('_id supplierId grandTotal amountPaid returnedTotal status purchaseNumber supplierBillNumber purchaseDate payments').lean(),
     ]);
     if (!apAccount) throw new Error('Accounts Payable system account is missing');
     const entries: any[] = await LedgerEntry.find({ outletId, accountId: (apAccount as any)._id })
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
           const docs = (purchases as any[]).filter((purchase) => String(purchase.supplierId) === String(supplier._id) && purchase.status !== 'CANCELLED');
           return {
             ...supplier,
-            totalPurchases: round(docs.reduce((sum, purchase) => sum + Number(purchase.grandTotal || 0), 0)),
+            totalPurchases: round(docs.reduce((sum, purchase) => sum + Number(purchase.grandTotal || 0) - Number(purchase.returnedTotal || 0), 0)),
             totalPaid: round(docs.reduce((sum, purchase) => sum + Number(purchase.amountPaid || 0), 0)),
             balance: round(balanceMap.get(String(supplier._id)) || 0),
             purchasesCount: docs.length,
@@ -97,9 +98,21 @@ export async function GET(request: NextRequest) {
         };
       });
     const supplierPurchases = (purchases as any[]).filter((purchase) => String(purchase.supplierId) === supplierId && purchase.status !== 'CANCELLED');
+    const directPayments: any[] = await Voucher.find({ outletId, referenceId: supplier._id, referenceType: { $in: ['SUPPLIER_PAYMENT', 'PAYMENT'] }, status: { $in: ['posted', 'approved'] }, date: { $lte: toDate } }).select('_id').lean();
+    const directPaymentIds = new Set(directPayments.map(voucher => String(voucher._id)));
+    const bills = supplierPurchases.filter(purchase => new Date(purchase.purchaseDate) <= toDate).map(purchase => {
+      const billEntries = supplierEntries.filter(entry => String(entry.referenceId) === String(purchase._id) && new Date(entry.date) <= toDate);
+      const allocated = (purchase.payments || []).filter((payment: any) => directPaymentIds.has(String(payment.voucherId))).reduce((sum: number, payment: any) => sum + Number(payment.amount), 0);
+      return { purchaseId: purchase._id, purchaseNumber: purchase.purchaseNumber, supplierBillNumber: purchase.supplierBillNumber, date: purchase.purchaseDate,
+        balance: round(billEntries.reduce((sum, entry) => sum + Number(entry.credit || 0) - Number(entry.debit || 0), 0) - allocated),
+        hasLedgerEntries: billEntries.length > 0 };
+    });
+    const unallocatedBalance = round(runningBalance - bills.reduce((sum, bill) => sum + bill.balance, 0));
     return NextResponse.json({
       supplier,
       ledgerEntries,
+      bills,
+      unallocatedBalance,
       summary: {
         openingBalance,
         totalDebit: round(ledgerEntries.reduce((sum, entry) => sum + entry.debit, 0)),

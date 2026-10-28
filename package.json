@@ -9,7 +9,8 @@
     "lint": "next lint",
     "init-db": "tsx scripts/init-db.ts",
     "migrate-accounting-integrity": "tsx scripts/migrate-accounting-integrity.ts",
-    "test:real-world": "tsx scripts/test-real-world-regression.ts"
+    "test:real-world": "tsx scripts/test-real-world-regression.ts",
+    "audit:purchase-complaints": "tsx scripts/audit-purchase-complaints.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",

@@ -70,6 +70,7 @@ export interface ISale extends Document {
   invoiceNumber: string;
   customerId: mongoose.Types.ObjectId;
   customerName: string;
+  supplierId?: mongoose.Types.ObjectId;
   items: ISaleItem[];
   
   subtotal: number;
@@ -201,6 +202,7 @@ const SaleSchema = new Schema<ISale, ISaleModel>(
     invoiceNumber: { type: String, required: true, trim: true },
     customerId: { type: Schema.Types.ObjectId, ref: 'Customer', required: true, index: true },
     customerName: { type: String, required: true },
+    supplierId: { type: Schema.Types.ObjectId, ref: 'Supplier' },
     items: [SaleItemSchema],
     
     // Financial totals

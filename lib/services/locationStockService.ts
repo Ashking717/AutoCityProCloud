@@ -147,6 +147,7 @@ async function nextAvailableCode(
 
 export async function getOrCreateStockLocation(input: LocationInput) {
   const outletId = toObjectId(input.outletId);
+  if (input.locationId && !mongoose.Types.ObjectId.isValid(String(input.locationId))) throw new Error('Invalid stock location ID');
 
   if (input.locationId && mongoose.Types.ObjectId.isValid(String(input.locationId))) {
     const existing = await StockLocation.findOne({
@@ -333,22 +334,22 @@ export async function adjustProductLocationStock(input: AdjustLocationStockInput
   if (!Number.isFinite(quantityDelta)) throw new Error('Invalid stock quantity');
 
   const baseQuery: any = { outletId, productId, locationId: location._id };
-  if (quantityDelta < 0) baseQuery.quantity = { $gte: Math.abs(quantityDelta) };
+  if (quantityDelta < 0) baseQuery.quantity = { $gte: Math.abs(quantityDelta) - 1e-8 };
 
   const updatedStock = await ProductLocationStock.findOneAndUpdate(
     baseQuery,
-    {
-      $inc: { quantity: quantityDelta },
+    [{
       $set: {
-        productName: input.product.name,
-        sku: input.product.sku,
-        locationName: location.name,
-        updatedBy: input.userId ? toObjectId(input.userId) : undefined,
+        // Round within the atomic update so 0.3 - 0.1 - 0.1 - 0.1 is exactly zero.
+        quantity: { $max: [0, { $round: [{ $add: [{ $ifNull: ['$quantity', 0] }, quantityDelta] }, 6] }] },
+        productName: { $literal: input.product.name },
+        sku: { $literal: input.product.sku },
+        locationName: { $literal: location.name },
+        ...(input.userId ? { updatedBy: toObjectId(input.userId) } : {}),
+        outletId, productId, locationId: location._id,
+        createdAt: { $ifNull: ['$createdAt', '$$NOW'] },
       },
-      ...(quantityDelta >= 0 ? {
-        $setOnInsert: { outletId, productId, locationId: location._id },
-      } : {}),
-    },
+    }],
     {
       upsert: quantityDelta >= 0,
       new: true,
@@ -702,7 +703,7 @@ export async function findProductIdsByLocationSearch(
   const matchingLocations = await StockLocation.find({
     outletId,
     isActive: true,
-    name: { $regex: searchTerm, $options: 'i' },
+    name: { $regex: escapeRegex(searchTerm), $options: 'i' },
   }).select('_id');
 
   if (matchingLocations.length === 0) return [];

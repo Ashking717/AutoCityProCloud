@@ -305,7 +305,7 @@ async function reverseVoucherInSession(
     postingKey: `voucher-reversal:${voucher._id}`,
     outletId,
     createdBy: userId,
-    metadata: { originalVoucherId: voucher._id, originalVoucherNumber: voucher.voucherNumber },
+    metadata: { ...voucher.metadata, originalVoucherId: voucher._id, originalVoucherNumber: voucher.voucherNumber },
     isReversal: true,
     reversalReason: reason,
   }, session);

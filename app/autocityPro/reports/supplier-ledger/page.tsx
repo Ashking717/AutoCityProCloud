@@ -337,6 +337,13 @@ export default function SupplierLedgerPage() {
         <div className="px-4 md:px-8 pt-[240px] md:pt-0 pb-6">
           {ledgerData && (
             <>
+              <section className="bg-[#0A0A0A] text-white rounded-xl p-4 mb-6 overflow-x-auto">
+                <h2 className="font-semibold mb-2">Bill balances as of {dateRange.toDate}</h2>
+                <table className="w-full text-sm text-left"><thead><tr><th className="p-2">Purchase</th><th className="p-2">Supplier bill</th><th className="p-2 text-right">Payable / credit</th></tr></thead>
+                  <tbody>{(ledgerData.bills || []).map((bill: any) => <tr key={bill.purchaseId} className="border-t border-white/10"><td className="p-2"><a className="underline" href={`/autocityPro/purchases/${bill.purchaseId}`}>{bill.purchaseNumber}</a></td><td className="p-2">{bill.supplierBillNumber || '—'}</td><td className="p-2 text-right">QAR {Number(bill.balance).toFixed(2)}</td></tr>)}</tbody>
+                </table>
+                <p className="mt-3 text-sm text-gray-400">Opening balances, journals and payments not allocated to a bill: QAR {Number(ledgerData.unallocatedBalance || 0).toFixed(2)}</p>
+              </section>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
                 <div className="bg-[#0A0A0A] rounded-xl shadow-lg border border-white/5 p-3 md:p-4">
                   <p className="text-xs md:text-sm text-white/60 mb-1">Total Debit</p>

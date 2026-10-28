@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { productSearchFields, productSearchTokens, escapeProductSearch } from '@/lib/utils/productSearch';
 import { connectDB } from '@/lib/db/mongodb';
 import '@/lib/models/Category';
 import ActivityLog from '@/lib/models/ActivityLog';
@@ -69,22 +70,17 @@ export async function GET(request: NextRequest) {
     // SEARCH FUNCTIONALITY - Server-side search for performance
     // ─────────────────────────────────────────────────────────────
     const searchTerm = searchParams.get('search');
-    if (searchTerm) {
+    if (searchTerm?.trim()) {
       const productIdsByLocation = await findProductIdsByLocationSearch(
         outletIdObj,
         searchTerm
       );
-      query.$or = [
-        { name: { $regex: searchTerm, $options: 'i' } },
-        { sku: { $regex: searchTerm, $options: 'i' } },
-        { barcode: { $regex: searchTerm, $options: 'i' } },
-        { location: { $regex: searchTerm, $options: 'i' } },
-        { carMake: { $regex: searchTerm, $options: 'i' } },
-        { carModel: { $regex: searchTerm, $options: 'i' } },
-        { variant: { $regex: searchTerm, $options: 'i' } },
-        { color: { $regex: searchTerm, $options: 'i' } },
-        { partNumber: { $regex: searchTerm, $options: 'i' } },
-      ];
+      query.$or = [{ $and: productSearchTokens(searchTerm).map(token => ({
+        $or: [
+          ...productSearchFields.map(field => ({ [field]: { $regex: escapeProductSearch(token), $options: 'i' } })),
+          ...(/^\d{4}$/.test(token) ? [{ yearFrom: { $lte: Number(token) }, $or: [{ yearTo: { $gte: Number(token) } }, { yearTo: null }] }] : []),
+        ],
+      })) }];
       if (productIdsByLocation.length > 0) {
         query.$or.push({ _id: { $in: productIdsByLocation } });
       }

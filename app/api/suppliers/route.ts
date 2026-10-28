@@ -12,17 +12,23 @@ import { connectDB } from '@/lib/db/mongodb';
 import { createPostedVoucher } from '@/lib/services/voucherPostingService';
 import Voucher, { ReferenceType, VoucherType } from '@/lib/models/Voucher';
 import { hasPermission } from '@/lib/types/roles';
+import { supplierOpeningLedgerStates } from '@/lib/services/supplierLedgerBalance';
 
 function round(value: number) {
   return Number(value.toFixed(2));
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     await connectDB();
     const token = cookies().get('auth-token')?.value;
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const user = verifyToken(token);
+    if (request.nextUrl.searchParams.get('forSales') === 'true') {
+      if (!user.outletId || !hasPermission(user.role, 'canProcessSales')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      const suppliers = await Supplier.find({ outletId: user.outletId, isActive: true }).select('name code phone').sort({ name: 1 }).lean();
+      return NextResponse.json({ suppliers });
+    }
     if (!hasPermission(user.role, 'canProcessPurchases') && !hasPermission(user.role, 'canViewFinancials')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -32,7 +38,7 @@ export async function GET() {
     const outletId = new mongoose.Types.ObjectId(user.outletId);
     const [suppliers, purchases, apAccount] = await Promise.all([
       Supplier.find({ outletId, isActive: { $ne: false } }).sort({ name: 1 }).lean(),
-      Purchase.find({ outletId }).select('_id supplierId grandTotal status').lean(),
+      Purchase.find({ outletId }).select('_id supplierId grandTotal returnedTotal status').lean(),
       Account.findOne({ outletId, subType: AccountSubType.ACCOUNTS_PAYABLE, isActive: true }).lean(),
     ]);
     const purchaseToSupplier = new Map((purchases as any[]).map((purchase) => [String(purchase._id), String(purchase.supplierId)]));
@@ -57,32 +63,18 @@ export async function GET() {
       if (purchase.status === 'CANCELLED') continue;
       const key = String(purchase.supplierId);
       const current = metrics.get(key) || { totalPurchases: 0, count: 0 };
-      current.totalPurchases += Number(purchase.grandTotal || 0);
+      current.totalPurchases += Number(purchase.grandTotal || 0) - Number(purchase.returnedTotal || 0);
       current.count += 1;
       metrics.set(key, current);
     }
-    const openingVouchers = await Voucher.find({
-      outletId,
-      referenceType: ReferenceType.OPENING_BALANCE,
-      referenceId: { $in: (suppliers as any[]).map((supplier) => supplier._id) },
-      'metadata.source': 'SUPPLIER_OPENING_BALANCE',
-    }).sort({ date: 1, createdAt: 1 }).lean();
-    const legacyOpeningBySupplier = new Map<string, any>();
-    for (const voucher of openingVouchers as any[]) {
-      const key = String(voucher.referenceId);
-      if (!legacyOpeningBySupplier.has(key)) legacyOpeningBySupplier.set(key, voucher);
-    }
+    const openings = await supplierOpeningLedgerStates(outletId);
     return NextResponse.json({
       suppliers: (suppliers as any[]).map((supplier) => {
-        const legacyOpening = legacyOpeningBySupplier.get(String(supplier._id));
+        const opening = openings.get(String(supplier._id));
         return {
           ...supplier,
-          openingBalance: round(Number(
-            supplier.openingBalanceDate
-              ? supplier.openingBalance || 0
-              : legacyOpening?.totalCredit ?? supplier.openingBalance ?? 0
-          )),
-          openingBalanceDate: supplier.openingBalanceDate || legacyOpening?.date,
+          openingBalance: opening?.amount || 0,
+          openingBalanceDate: supplier.openingBalanceDate || opening?.date,
           totalPurchases: round(metrics.get(String(supplier._id))?.totalPurchases || 0),
           purchasesCount: metrics.get(String(supplier._id))?.count || 0,
           currentBalance: round(balanceBySupplier.get(String(supplier._id)) || 0),

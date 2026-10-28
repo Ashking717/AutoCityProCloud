@@ -1,6 +1,7 @@
 // @ts-nocheck -- Mongoose's cached-model union erases document types in test-only queries.
 import assert from 'node:assert/strict';
 import mongoose from 'mongoose';
+import { runComplaintTests } from './complaints-regression-cases';
 
 import Account, { AccountSubType } from '@/lib/models/Account';
 import Category from '@/lib/models/Category';
@@ -569,23 +570,30 @@ async function main() {
     createdBy: user._id,
   });
 
-  await test('product edit location allocation rejects a total stock change', async () => {
+  await test('product edit quantity change creates audited inventory adjustment', async () => {
+    const adjustmentProduct = await makeProduct({ currentStock: 10, location: 'Edit Quantity Source' });
+    await ensureProductHasLocationStock(adjustmentProduct, outlet._id, user._id);
+    const adjustmentSource = await ProductLocationStock.findOne({ productId: adjustmentProduct._id });
     const key = `allocation-total-${id()}`;
     const response = await request('/api/stock-locations/rebalance', {
       method: 'POST',
       headers: { 'content-type': 'application/json', cookie, 'idempotency-key': key },
       body: JSON.stringify({
-        productId: allocationProduct._id,
+        productId: adjustmentProduct._id,
         idempotencyKey: key,
         allocations: [
-          { locationId: allocationSource!.locationId, quantity: 8 },
+          { locationId: adjustmentSource!.locationId, quantity: 8 },
           { locationId: allocationTarget._id, quantity: 1 },
         ],
       }),
     });
-    assert.equal(response.response.status, 400);
-    assert.match(response.body.error, /must equal current stock/i);
-    assert.equal((await ProductLocationStock.findById(allocationSource!._id).lean())!.quantity, 10);
+    assert.equal(response.response.status, 200, response.body?.error);
+    assert.equal((await ProductLocationStock.findById(adjustmentSource!._id).lean())!.quantity, 8);
+    assert.equal((await Product.findById(adjustmentProduct._id).lean())!.currentStock, 9);
+    const adjustment = await InventoryMovement.findOne({ productId: adjustmentProduct._id, movementType: 'ADJUSTMENT' });
+    assert.equal(adjustment!.quantity, -1);
+    assert(adjustment!.voucherId);
+    assert.equal((await Voucher.findById(adjustment!.voucherId))!.totalDebit, 40);
   });
 
   await test('product edit location allocation rejects duplicate locations', async () => {
@@ -1198,6 +1206,7 @@ async function main() {
     assert.equal(updated!.costPrice, 25);
     assert.equal((await ProductLocationStock.findOne({ productId: product._id }).lean())!.quantity, 12);
   });
+  await runComplaintTests({ test, request, cookie, outlet, otherOutlet, user, makeProduct, postSale });
   await test('every posted voucher remains balanced', async () => {
     const unbalanced = await Voucher.countDocuments({ status: 'posted', $expr: { $gt: [{ $abs: { $subtract: ['$totalDebit', '$totalCredit'] } }, 0.01] } });
     assert.equal(unbalanced, 0);

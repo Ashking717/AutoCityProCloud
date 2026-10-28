@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import mongoose from 'mongoose';
 
-import Account from '@/lib/models/Account';
+import Account, { AccountSubType } from '@/lib/models/Account';
+import Supplier from '@/lib/models/Supplier';
 import ActivityLog from '@/lib/models/ActivityLog';
 import Voucher, { VoucherType } from '@/lib/models/Voucher';
 import { verifyToken } from '@/lib/auth/jwt';
@@ -75,6 +76,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'A valid idempotencyKey is required for posted vouchers' }, { status: 400 });
     }
 
+    let supplierMetadata: any;
+    if (body.supplierId) {
+      const supplier = await Supplier.findOne({ _id: body.supplierId, outletId: user.outletId, isActive: true });
+      if (!supplier) return NextResponse.json({ error: 'Supplier not found in this outlet' }, { status: 400 });
+      const payable: any = await Account.findOne({ outletId: user.outletId, subType: AccountSubType.ACCOUNTS_PAYABLE, isActive: true });
+      if (body.voucherType !== 'journal' || !payable || !body.entries.some((entry: any) => String(entry.accountId) === String(payable._id))) return NextResponse.json({ error: 'Supplier journals must include Accounts Payable' }, { status: 400 });
+      body.referenceType = 'MANUAL'; body.referenceId = supplier._id;
+      supplierMetadata = { source: 'MANUAL_SUPPLIER_JOURNAL', supplierId: String(supplier._id) };
+    }
     let voucher: any;
     if (body.status === 'posted') {
       const result = await createPostedVoucher({
@@ -88,6 +98,7 @@ export async function POST(request: NextRequest) {
         postingKey: `manual:${operationKey}`,
         outletId: user.outletId,
         createdBy: user.userId,
+        metadata: supplierMetadata,
       });
       voucher = result.voucher;
     } else {
@@ -115,6 +126,7 @@ export async function POST(request: NextRequest) {
           narration: entry.narration,
         })),
         status: 'draft',
+        metadata: supplierMetadata,
         referenceType: body.referenceType || 'MANUAL',
         referenceId: body.referenceId,
         referenceNumber: body.referenceNumber,

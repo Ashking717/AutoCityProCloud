@@ -28,13 +28,14 @@ import {
   X,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import PurchaseCorrections from '@/components/purchases/PurchaseCorrections';
 
 // ─── Time-based theme hook ────────────────────────────────────────────────────
 interface User { id: string; firstName: string; lastName: string; email: string; role: string; }
 interface Purchase {
   _id: string; purchaseNumber: string; purchaseDate: string;
   supplierId: any; supplierName: string; items: any[];
-  subtotal: number; taxAmount: number; grandTotal: number;
+  subtotal: number; totalTax: number; taxAmount?: number; grandTotal: number; returnedTotal?: number;
   amountPaid: number; balanceDue: number; paymentMethod: string;
   status: string; notes?: string; createdBy?: any; createdAt: string;
 }
@@ -290,6 +291,7 @@ export default function PurchaseDetailPage() {
                 </div>
               </div>
 
+              <PurchaseCorrections purchase={purchase} onSaved={() => { fetchPurchase(); fetchPayments(); }} />
               {/* Items Table */}
               <div className="rounded-2xl shadow-lg p-6 border transition-colors duration-500" style={{ background: th.cardBg, borderColor: th.cardBorder }}>
                 <h2 className="text-lg font-bold mb-4 flex items-center" style={{ color: th.textPrimary }}>
@@ -312,6 +314,7 @@ export default function PurchaseDetailPage() {
                           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                           <td className="px-4 py-4">
                             <p className="font-medium" style={{ color: th.textPrimary }}>{item.name}</p>
+                            <p className="text-xs" style={{ color: th.textSecondary }}>{item.vehicle}</p>
                             <p className="text-sm" style={{ color: th.textSecondary }}>SKU: {item.sku}</p>
                           </td>
                           <td className="px-4 py-4 text-center" style={{ color: th.textPrimary }}>{item.quantity} {item.unit}</td>
@@ -387,7 +390,8 @@ export default function PurchaseDetailPage() {
                 <div className="space-y-4">
                   {[
                     { label: 'Subtotal:', value: formatCurrency(purchase.subtotal) },
-                    { label: 'Tax:', value: formatCurrency(Number(purchase.taxAmount || 0)) },
+                    { label: 'Tax:', value: formatCurrency(Number(purchase.totalTax ?? purchase.taxAmount ?? 0)) },
+                    { label: 'Returned:', value: formatCurrency(Number(purchase.returnedTotal || 0)) },
                   ].map(row => (
                     <div key={row.label} className="flex justify-between items-center py-2 border-b" style={{ borderColor: th.summaryDivider }}>
                       <span style={{ color: th.textSecondary }}>{row.label}</span>

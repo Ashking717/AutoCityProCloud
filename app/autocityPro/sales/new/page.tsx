@@ -10,6 +10,7 @@ import {
 
 import {
   useState,
+  useRef,
   useEffect } from "react";
 import { useRouter } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
@@ -41,7 +42,6 @@ import { ChevronLeft,
   MoreVertical,
   DollarSign,
 } from "lucide-react";
-import { useRef } from "react";
 
 // ─── Time-based theme hook ────────────────────────────────────────────────────
 // ─── Theme token builder ──────────────────────────────────────────────────────
@@ -247,6 +247,9 @@ export default function NewSalePage() {
   const [products, setProducts] = useState<any[]>([]);
   const [frequentProducts, setFrequentProducts] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [partyType, setPartyType] = useState('customer');
+  const productSearchRequest = useRef(0);
   const [isMobile, setIsMobile] = useState(false);
   const [showDynamicIsland, setShowDynamicIsland] = useState(true);
   type SalesOverlay = 'mobileMenu' | 'addCustomer' | 'addLabor' | 'mobileFilters' | 'keyboardHints' | 'jobsModal' | null;
@@ -307,6 +310,7 @@ export default function NewSalePage() {
     fetchProducts();
     fetchFrequentProducts();
     fetchCustomers();
+    fetch('/api/suppliers?forSales=true').then(r => r.json()).then(data => setSuppliers(data.suppliers || [])).catch(() => {});
     fetchCategories();
     fetchCompletedJobs();
   }, []);
@@ -419,11 +423,15 @@ export default function NewSalePage() {
   };
 
   const fetchProducts = async (search = "") => {
+    const requestId = ++productSearchRequest.current;
     try {
       const params = new URLSearchParams({ limit: "50" });
       if (search) params.append("search", search);
       const res = await fetch(`/api/products?${params.toString()}`, { credentials: "include" });
-      if (res.ok) setProducts((await res.json()).products || []);
+      if (res.ok) {
+        const data = await res.json();
+        if (requestId === productSearchRequest.current) setProducts(data.products || []);
+      }
     } catch {}
   };
 
@@ -463,6 +471,7 @@ export default function NewSalePage() {
   };
 
   const loadJobIntoCart = (job: any) => {
+    setPartyType('customer');
     setActiveJobId(job._id);
     const customerData = job.customerId;
     setSelectedCustomer({
@@ -537,6 +546,7 @@ export default function NewSalePage() {
       if (res.ok) {
         const data = await res.json();
         toast.success("Customer added!");
+        setPartyType('customer');
         setCustomers([...customers, data.customer]);
         setSelectedCustomer(data.customer);
         setActiveOverlay(null);
@@ -724,7 +734,8 @@ export default function NewSalePage() {
         },
         credentials: "include",
         body: JSON.stringify({
-          customerId: selectedCustomer._id,
+          customerId: partyType === 'customer' ? selectedCustomer._id : undefined,
+          supplierId: partyType === 'supplier' ? selectedCustomer._id : undefined,
           customerName: selectedCustomer.name,
           items: saleItems,
           payments: paymentDetails,
@@ -1379,16 +1390,18 @@ export default function NewSalePage() {
 
                 {/* Customer */}
                 <div className="rounded-lg shadow-lg p-6" style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}>
-                  <h2 className="text-lg font-bold mb-4" style={{ color: th.cardTitle }}>Customer</h2>
+                  <h2 className="text-lg font-bold mb-4" style={{ color: th.cardTitle }}>Sale to</h2>
+                  <select aria-label="Sale party type" className="w-full p-2 rounded mb-3" style={inputStyle} value={partyType} onChange={e => { setPartyType(e.target.value); setSelectedCustomer(null); }}><option value="customer">Customer</option><option value="supplier">Supplier</option></select>
+                  {partyType === 'supplier' && <p className="text-xs mb-3" style={{ color: th.customerCardSub }}>Unpaid sales appear in this supplier’s customer ledger. Purchase payables remain separate.</p>}
                   <div className="mb-3">
                     <select
                       value={selectedCustomer?._id || ""}
-                      onChange={(e) => setSelectedCustomer(customers.find((c) => c._id === e.target.value))}
+                      onChange={(e) => setSelectedCustomer((partyType === 'supplier' ? suppliers : customers).find((c) => c._id === e.target.value))}
                       className="w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
                       style={inputStyle}
                     >
-                      <option value="" style={{ background: selectOptBg }}>Select Customer</option>
-                      {customers.map((customer) => (
+                      <option value="" style={{ background: selectOptBg }}>Select {partyType}</option>
+                      {(partyType === 'supplier' ? suppliers : customers).map((customer) => (
                         <option key={customer._id} value={customer._id} style={{ background: selectOptBg }}>
                           {customer.name} - {customer.phone}{customer.vehicleRegistrationNumber && ` - ${customer.vehicleRegistrationNumber}`}
                         </option>

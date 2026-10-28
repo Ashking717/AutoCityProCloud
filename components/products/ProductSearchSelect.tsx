@@ -1,6 +1,7 @@
 "use client";
 
 import { Search, X } from "lucide-react";
+import { matchesProductSearch } from '@/lib/utils/productSearch';
 import { useMemo, useState, type CSSProperties, type RefObject } from "react";
 
 interface ProductSearchSelectProps {
@@ -38,17 +39,7 @@ export default function ProductSearchSelect({
   const query = value.trim().toLowerCase();
   const suggestions = useMemo(() => {
     if (selectedProductId || query.length < 2) return [];
-    return products.filter((product) => {
-      const values = [
-        product.name,
-        product.sku,
-        product.barcode,
-        product.partNumber,
-        product.carMake,
-        product.carModel,
-      ];
-      return values.some((candidate) => String(candidate || "").toLowerCase().includes(query));
-    }).slice(0, 8);
+    return products.filter(product => matchesProductSearch(product, query)).slice(0, 50);
   }, [products, query, selectedProductId]);
 
   return (
@@ -98,6 +89,7 @@ export default function ProductSearchSelect({
                 </span>
                 <span className="block truncate text-xs" style={{ color: secondaryColor }}>
                   SKU {product.sku}{product.partNumber ? ` · Part ${product.partNumber}` : ""}
+                  {` · ${[product.carMake, product.carModel, product.variant, product.yearFrom, product.yearTo].filter(Boolean).join(' ')}`}
                 </span>
               </span>
               <span className="flex-shrink-0 text-xs" style={{ color: secondaryColor }}>

@@ -27,6 +27,7 @@ export interface ICustomer extends Document {
   isActive: boolean;
   notes?: string;
   operationKey?: string;
+  supplierId?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -116,6 +117,7 @@ const CustomerSchema = new Schema<ICustomer>(
       trim: true,
     },
     operationKey: { type: String, trim: true },
+    supplierId: { type: Schema.Types.ObjectId, ref: 'Supplier' },
   },
   {
     timestamps: true,
@@ -124,6 +126,7 @@ const CustomerSchema = new Schema<ICustomer>(
 
 // Compound index for unique customer code per outlet
 CustomerSchema.index({ outletId: 1, code: 1 }, { unique: true });
+CustomerSchema.index({ outletId: 1, supplierId: 1 }, { unique: true, partialFilterExpression: { supplierId: { $type: 'objectId' } } });
 CustomerSchema.index({ outletId: 1, isActive: 1 });
 CustomerSchema.index({ outletId: 1, email: 1 }, { sparse: true });
 CustomerSchema.index(

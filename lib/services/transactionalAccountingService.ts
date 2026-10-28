@@ -226,7 +226,7 @@ export async function postPurchaseAccounting(
   const result = await createPostedVoucher({
     voucherType: VoucherType.PAYMENT,
     date: purchase.purchaseDate,
-    narration: `Purchase ${purchase.purchaseNumber} from ${purchase.supplierName}`,
+    narration: `Purchase ${purchase.purchaseNumber} from ${purchase.supplierName}${purchase.supplierBillNumber ? ` — Bill ${purchase.supplierBillNumber}` : ''}${purchase.notes ? ` — ${purchase.notes}` : ''}`,
     entries,
     referenceType: ReferenceType.PURCHASE,
     referenceId: purchase._id,

@@ -5,6 +5,8 @@ export interface IPurchaseItem {
   productId: mongoose.Types.ObjectId;
   name: string;
   sku: string;
+  vehicle?: string;
+  returnedQuantity?: number;
   locationId?: mongoose.Types.ObjectId;
   locationName?: string;
   quantity: number;
@@ -29,6 +31,10 @@ export interface IPurchase extends Document {
   balanceDue: number;
   status: 'DRAFT' | 'COMPLETED' | 'PAID' | 'CANCELLED';  // ← ADDED 'PAID'
   notes?: string;
+  supplierBillNumber?: string;
+  supplierBillKey?: string;
+  returnedTotal?: number;
+  corrections?: any[];
   voucherId?: mongoose.Types.ObjectId;  // Link to accounting voucher
   isPostedToGL?: boolean;  // Track if posted to general ledger
   createdBy: mongoose.Types.ObjectId;
@@ -50,6 +56,8 @@ const PurchaseItemSchema = new Schema<IPurchaseItem>({
   productId: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
   name: { type: String, required: true },
   sku: { type: String, required: true },
+  vehicle: String,
+  returnedQuantity: { type: Number, default: 0, min: 0 },
   locationId: { type: Schema.Types.ObjectId, ref: 'StockLocation' },
   locationName: { type: String, trim: true },
   quantity: { type: Number, required: true, min: 0 },
@@ -121,6 +129,10 @@ const PurchaseSchema = new Schema<IPurchase>(
       type: String,
       trim: true,
     },
+    supplierBillNumber: { type: String, trim: true },
+    supplierBillKey: String,
+    returnedTotal: { type: Number, default: 0 },
+    corrections: { type: [Schema.Types.Mixed], default: [] },
     voucherId: {
       type: Schema.Types.ObjectId,
       ref: 'Voucher',
@@ -156,6 +168,9 @@ const PurchaseSchema = new Schema<IPurchase>(
 
 // Indexes
 PurchaseSchema.index({ outletId: 1, purchaseNumber: 1 }, { unique: true });
+PurchaseSchema.index({ outletId: 1, supplierId: 1, supplierBillKey: 1 }, {
+  unique: true, partialFilterExpression: { supplierBillKey: { $type: 'string' } },
+});
 PurchaseSchema.index({ outletId: 1, purchaseDate: -1 });
 PurchaseSchema.index({ outletId: 1, status: 1 });
 PurchaseSchema.index({ outletId: 1, supplierId: 1, purchaseDate: -1 });
@@ -166,7 +181,7 @@ PurchaseSchema.index(
 
 PurchaseSchema.pre('save', function(next) {
   const expectedTotal = Number((Number(this.subtotal || 0) + Number(this.totalTax || 0)).toFixed(2));
-  const expectedBalance = Number((Number(this.grandTotal || 0) - Number(this.amountPaid || 0)).toFixed(2));
+  const expectedBalance = this.status === 'CANCELLED' ? 0 : Number((Number(this.grandTotal || 0) - Number(this.returnedTotal || 0) - Number(this.amountPaid || 0)).toFixed(2));
   if (Math.abs(expectedTotal - Number(this.grandTotal || 0)) > 0.01) {
     return next(new Error('Purchase subtotal plus tax must equal grand total'));
   }

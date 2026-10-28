@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ProductSearchSelect from '@/components/products/ProductSearchSelect';
+import { convertToStockCode } from '@/lib/utils/stockCode';
 import {
   formatProductQuantity,
   getProductUnitLabel,
@@ -184,11 +185,6 @@ export default function StockPage() {
     const from = product.yearFrom || year;
     const to   = product.yearTo   || from;
     return year >= from && year <= to;
-  };
-
-  const convertToStockCode = (value: number) => {
-    const map: Record<number, string> = { 0:'R',1:'F',2:'I',3:'N',4:'D',5:'M',6:'O',7:'T',8:'H',9:'E' };
-    return Math.floor(value).toString().split('').map(d => map[parseInt(d)] ?? d).join('');
   };
 
   const formatCompactCurrency = (n: number) =>

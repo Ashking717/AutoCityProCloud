@@ -12,6 +12,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { convertToStockCode } from "@/lib/utils/stockCode";
 import {
   getCode128BRenderData,
   sanitizeBarcodeValue,
@@ -31,6 +32,7 @@ interface Product {
   name: string;
   sku: string;
   barcode?: string;
+  costPrice?: number;
   sellingPrice?: number;
   carMake?: string;
   carModel?: string;
@@ -368,6 +370,7 @@ function PrintableLabel({
   product: Product;
   sellCode: string;
 }) {
+  const costCode = product.costPrice != null ? convertToStockCode(Number(product.costPrice)) : '';
   return (
     <div className="barcode-label flex flex-col justify-between bg-white p-[2mm] text-black shadow-2xl">
       <div className="min-h-0">
@@ -386,7 +389,12 @@ function PrintableLabel({
         <p className="text-center font-mono text-[8px] font-bold leading-tight">
           {barcodeData.value}
         </p>
-        {sellCode && <p className="text-center text-[7px] font-semibold leading-tight">{sellCode}</p>}
+        {(costCode || sellCode) && (
+          <p className="flex justify-center gap-2 text-[7px] font-semibold leading-tight">
+            {costCode && <span className="font-mono">{costCode}</span>}
+            {sellCode && <span>{sellCode}</span>}
+          </p>
+        )}
       </div>
     </div>
   );

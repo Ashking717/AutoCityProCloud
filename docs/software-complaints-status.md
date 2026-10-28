@@ -4,7 +4,7 @@ The code changes address the workflows reported in `software complaints.docx`. T
 
 | Complaint | Implementation / remaining work |
 | --- | --- |
-| 1. Barcode label | Model, variant, year range, SKU, barcode and selling price. Purchase cost is excluded, as requested. |
+| 1. Barcode label | Model, variant, year range, SKU, barcode and selling price. Unit cost is also shown using the Stock page's FIND MOTHER code (whole-number format), per the updated request. |
 | 2. Purchase default location | A receiving-location selector applies to new cart lines; otherwise the product’s current location is suggested. Missing destinations require a choice. |
 | 3. All purchase locations | Every active outlet location is selectable, including locations with no stock for that product. |
 | 4. Product name search | Token matching across product name, SKU, barcode, make, model, variant and part number; literal punctuation; compatibility years; server lookup from purchase entry. |

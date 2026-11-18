@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { signedSupplierOpening } from '@/lib/utils/supplierOpening';
 import { connectDB } from '@/lib/db/mongodb';
 import Supplier from '@/lib/models/Supplier';
 import ActivityLog from '@/lib/models/ActivityLog';
@@ -122,10 +123,7 @@ export async function PUT(
       let newOpeningBalance = Number(supplier.openingBalance || 0);
       let openingDate = supplier.openingBalanceDate || new Date();
       if (changesOpeningBalance) {
-        newOpeningBalance = round(Number(body.openingBalance));
-        if (!Number.isFinite(newOpeningBalance) || newOpeningBalance < 0) {
-          throw new Error('Opening payable must be a non-negative amount');
-        }
+        newOpeningBalance = signedSupplierOpening(body.openingBalance, body.openingBalanceType);
         openingDate = body.openingBalanceDate ? new Date(body.openingBalanceDate) : openingDate;
         if (Number.isNaN(openingDate.getTime())) throw new Error('Invalid opening balance date');
 

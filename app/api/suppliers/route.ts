@@ -13,6 +13,7 @@ import { createPostedVoucher } from '@/lib/services/voucherPostingService';
 import Voucher, { ReferenceType, VoucherType } from '@/lib/models/Voucher';
 import { hasPermission } from '@/lib/types/roles';
 import { supplierOpeningLedgerStates } from '@/lib/services/supplierLedgerBalance';
+import { signedSupplierOpening } from '@/lib/utils/supplierOpening';
 
 function round(value: number) {
   return Number(value.toFixed(2));
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest) {
     const outletId = new mongoose.Types.ObjectId(user.outletId);
     const [suppliers, purchases, apAccount] = await Promise.all([
       Supplier.find({ outletId, isActive: { $ne: false } }).sort({ name: 1 }).lean(),
-      Purchase.find({ outletId }).select('_id supplierId grandTotal returnedTotal status').lean(),
+      Purchase.find({ outletId }).select('_id supplierId grandTotal returnedTotal settlementDiscountTotal status').lean(),
       Account.findOne({ outletId, subType: AccountSubType.ACCOUNTS_PAYABLE, isActive: true }).lean(),
     ]);
     const purchaseToSupplier = new Map((purchases as any[]).map((purchase) => [String(purchase._id), String(purchase.supplierId)]));
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest) {
       if (purchase.status === 'CANCELLED') continue;
       const key = String(purchase.supplierId);
       const current = metrics.get(key) || { totalPurchases: 0, count: 0 };
-      current.totalPurchases += Number(purchase.grandTotal || 0) - Number(purchase.returnedTotal || 0);
+      current.totalPurchases += Number(purchase.grandTotal || 0) - Number(purchase.returnedTotal || 0) - Number(purchase.settlementDiscountTotal || 0);
       current.count += 1;
       metrics.set(key, current);
     }
@@ -108,10 +109,7 @@ export async function POST(request: NextRequest) {
     if (!code || !name) {
       return NextResponse.json({ error: 'Code and name are required' }, { status: 400 });
     }
-    const openingPayable = round(Number(body.openingBalance || 0));
-    if (!Number.isFinite(openingPayable) || openingPayable < 0) {
-      return NextResponse.json({ error: 'Opening payable must be a non-negative amount' }, { status: 400 });
-    }
+    const openingPayable = signedSupplierOpening(body.openingBalance ?? 0, body.openingBalanceType);
     const openingDate = body.openingBalanceDate ? new Date(body.openingBalanceDate) : new Date();
     if (Number.isNaN(openingDate.getTime())) {
       return NextResponse.json({ error: 'Invalid opening balance date' }, { status: 400 });
@@ -132,7 +130,7 @@ export async function POST(request: NextRequest) {
       }
       let openingEquity: any;
       let payable: any;
-      if (openingPayable > 0) {
+      if (openingPayable !== 0) {
         payable = await Account.findOne({ outletId, subType: AccountSubType.ACCOUNTS_PAYABLE, isActive: true }).session(session!);
         if (!payable) throw new Error('Accounts Payable system account is missing');
         openingEquity = await Account.findOne({ outletId, code: 'OB-EQUITY', isActive: true }).session(session!);
@@ -167,15 +165,15 @@ export async function POST(request: NextRequest) {
         operationKey: key,
       }], { session });
       let openingVoucher: any = null;
-      if (openingPayable > 0) {
+      if (openingPayable !== 0) {
         const result = await createPostedVoucher({
           voucherType: VoucherType.JOURNAL,
           date: openingDate,
           narration: `Supplier opening balance - ${supplier.name}`,
-          entries: [
+          entries: openingPayable > 0 ? [
             { accountId: openingEquity._id, debit: openingPayable },
             { accountId: payable._id, credit: openingPayable },
-          ],
+          ] : [{ accountId: payable._id, debit: -openingPayable }, { accountId: openingEquity._id, credit: -openingPayable }],
           referenceType: ReferenceType.OPENING_BALANCE,
           referenceId: supplier._id,
           referenceNumber: supplier.code,

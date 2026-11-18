@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { productSearchFields, productSearchTokens, escapeProductSearch } from '@/lib/utils/productSearch';
+import { productSearchFields, productSearchTokens, productSearchPattern } from '@/lib/utils/productSearch';
 import { connectDB } from '@/lib/db/mongodb';
 import '@/lib/models/Category';
 import ActivityLog from '@/lib/models/ActivityLog';
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
     
     const query: any = {
       outletId: outletIdObj,
-      isActive: true
+      isActive: { $ne: false }
     };
 
     const productId = searchParams.get('productId');
@@ -77,7 +77,8 @@ export async function GET(request: NextRequest) {
       );
       query.$or = [{ $and: productSearchTokens(searchTerm).map(token => ({
         $or: [
-          ...productSearchFields.map(field => ({ [field]: { $regex: escapeProductSearch(token), $options: 'i' } })),
+          ...productSearchFields.map(field => ({ [field]: { $regex: productSearchPattern(token), $options: 'i' } })),
+          ...['sku', 'barcode', 'partNumber'].map(field => ({ $expr: { $regexMatch: { input: { $convert: { input: `$${field}`, to: 'string', onError: '', onNull: '' } }, regex: productSearchPattern(token), options: 'i' } } })),
           ...(/^\d{4}$/.test(token) ? [{ yearFrom: { $lte: Number(token) }, $or: [{ yearTo: { $gte: Number(token) } }, { yearTo: null }] }] : []),
         ],
       })) }];

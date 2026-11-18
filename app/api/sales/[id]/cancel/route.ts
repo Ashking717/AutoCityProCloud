@@ -104,7 +104,7 @@ export async function POST(
         }], { session });
       }
 
-      if (sale.balanceDue > 0) {
+      if (sale.balanceDue > 0 && sale.supplierSettlementMode !== 'PAYABLE_OFFSET') {
         await Customer.updateOne(
           { _id: sale.customerId, outletId },
           { $inc: { currentBalance: -Number(sale.balanceDue) } },

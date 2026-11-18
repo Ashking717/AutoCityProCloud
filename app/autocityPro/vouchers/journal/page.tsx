@@ -2,6 +2,7 @@
 
 import {
   useState,
+  useRef,
   useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
@@ -30,9 +31,10 @@ export default function JournalVouchersPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [vouchers, setVouchers] = useState<any[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -41,7 +43,6 @@ export default function JournalVouchersPage() {
   
   useEffect(() => {
     fetchUser();
-    fetchVouchers();
     
     const checkIfMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -51,7 +52,12 @@ export default function JournalVouchersPage() {
     window.addEventListener('resize', checkIfMobile);
     
     return () => window.removeEventListener('resize', checkIfMobile);
-  }, [filterType, filterStatus]);
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => fetchVouchers(), 250);
+    return () => clearTimeout(timer);
+  }, [filterStatus, page, searchTerm]);
   
   const formatCompactCurrency = (amount: number) => {
     if (amount >= 1000000) return `QR${(amount / 1000000).toFixed(1)}M`;
@@ -71,22 +77,26 @@ export default function JournalVouchersPage() {
     }
   };
   
+  const voucherRequest = useRef(0);
   const fetchVouchers = async () => {
+    const requestId = ++voucherRequest.current;
     try {
       setLoading(true);
-      let url = '/api/vouchers?type=journal';
-      if (filterType !== 'all') url += `&voucherType=${filterType}`;
+      let url = `/api/vouchers?voucherType=journal&page=${page}&limit=50&search=${encodeURIComponent(searchTerm)}`;
+
       if (filterStatus !== 'all') url += `&status=${filterStatus}`;
       
       const res = await fetch(url, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
+        if (requestId !== voucherRequest.current) return;
         setVouchers(data.vouchers || []);
-      }
+        setTotalPages(data.pagination?.pages || 1);
+      } else { toast.error((await res.json()).error || 'Failed to load journals'); }
     } catch (error) {
-      console.error('Failed to fetch vouchers');
+      toast.error('Failed to load journals');
     } finally {
-      setLoading(false);
+      if (requestId === voucherRequest.current) setLoading(false);
     }
   };
   
@@ -95,7 +105,7 @@ export default function JournalVouchersPage() {
       case 'draft': return <Clock className="h-3 w-3" />;
       case 'posted': return <CheckCircle className="h-3 w-3" />;
       case 'approved': return <CheckCircle className="h-3 w-3" />;
-      case 'void': return <Ban className="h-3 w-3" />;
+      case 'cancelled': return <Ban className="h-3 w-3" />;
       default: return <AlertCircle className="h-3 w-3" />;
     }
   };
@@ -105,17 +115,13 @@ export default function JournalVouchersPage() {
       case 'draft': return 'text-yellow-400 bg-yellow-900/20 border border-yellow-800/50';
       case 'posted': return 'text-blue-400 bg-blue-900/20 border border-blue-800/50';
       case 'approved': return 'text-green-400 bg-green-900/20 border border-green-800/50';
-      case 'void': return 'text-red-400 bg-red-900/20 border border-red-800/50';
+      case 'cancelled': return 'text-red-400 bg-red-900/20 border border-red-800/50';
       default: return 'text-gray-400 bg-gray-900/20 border border-gray-800/50';
     }
   };
   
-  const filteredVouchers = vouchers.filter(v =>
-    v.voucherNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    v.narration?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    v.referenceNumber?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  
+  const filteredVouchers = vouchers;
+
   const totalJournalAmount = filteredVouchers.reduce((sum, v) => sum + (v.totalDebit || 0), 0);
   
   const handleDeleteVoucher = async (id: string, voucherNumber: string) => {
@@ -147,13 +153,12 @@ export default function JournalVouchersPage() {
   };
   
   const clearFilters = () => {
-    setFilterType('all');
+    setPage(1);
     setFilterStatus('all');
     setSearchTerm('');
   };
   
   const activeFiltersCount = [
-    filterType !== 'all',
     filterStatus !== 'all',
   ].filter(Boolean).length;
   
@@ -256,7 +261,7 @@ export default function JournalVouchersPage() {
               <input
                 type="text"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => { setPage(1); setSearchTerm(e.target.value); }}
                 placeholder="Search journal vouchers..."
                 className="w-full pl-10 pr-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/70 text-sm focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent"
               />
@@ -301,7 +306,7 @@ export default function JournalVouchersPage() {
                   <BookOpen className="h-4 w-4 md:h-5 md:w-5 text-[color:var(--autocity-accent)]" />
                 </div>
               </div>
-              <p className="text-xs text-slate-400 mb-1">Total Vouchers</p>
+              <p className="text-xs text-slate-400 mb-1">Vouchers on page</p>
               <p className="text-lg md:text-xl font-bold text-white">{filteredVouchers.length}</p>
             </div>
 
@@ -311,7 +316,7 @@ export default function JournalVouchersPage() {
                   <FileText className="h-4 w-4 md:h-5 md:w-5 text-[color:var(--autocity-accent)]" />
                 </div>
               </div>
-              <p className="text-xs text-slate-400 mb-1">Total Amount</p>
+              <p className="text-xs text-slate-400 mb-1">Page amount</p>
               <p className="text-lg md:text-xl font-bold text-[color:var(--autocity-accent)] truncate">
                 {formatCompactCurrency(totalJournalAmount)}
               </p>
@@ -350,7 +355,7 @@ export default function JournalVouchersPage() {
                 <input
                   type="text"
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => { setPage(1); setSearchTerm(e.target.value); }}
                   placeholder="Search by voucher #, narration..."
                   className="w-full pl-10 pr-3 py-2.5 text-sm bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent text-white placeholder-slate-400"
                 />
@@ -359,14 +364,14 @@ export default function JournalVouchersPage() {
               <div className="relative">
                 <select
                   value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
+                  onChange={(e) => { setPage(1); setFilterStatus(e.target.value); }}
                   className="w-full px-3 py-2.5 text-sm bg-[#050505] border border-white/10 rounded-lg focus:ring-2 focus:ring-[color:var(--autocity-accent)] focus:border-transparent text-white appearance-none"
                 >
                   <option value="all">All Status</option>
                   <option value="draft">Draft</option>
                   <option value="posted">Posted</option>
                   <option value="approved">Approved</option>
-                  <option value="void">Void</option>
+                  <option value="cancelled">Cancelled</option>
                 </select>
                 <div className="absolute right-2 top-2.5 pointer-events-none">
                   <Filter className="h-4 w-4 text-slate-400" />
@@ -400,7 +405,7 @@ export default function JournalVouchersPage() {
               <div className="text-center py-12">
                 <BookOpen className="h-16 w-16 mx-auto mb-4 text-slate-600" />
                 <p className="text-slate-400 text-lg font-medium">No journal vouchers found</p>
-                {(filterType !== 'all' || filterStatus !== 'all' || searchTerm) && (
+                {(filterStatus !== 'all' || searchTerm) && (
                   <button
                     onClick={clearFilters}
                     className="mt-2 text-[color:var(--autocity-accent)] hover:text-[color:var(--autocity-accent-strong)] text-sm transition-colors"
@@ -435,7 +440,7 @@ export default function JournalVouchersPage() {
                       </div>
 
                       <div className="mb-3">
-                        <p className="text-sm text-slate-200 line-clamp-2">{voucher.narration}</p>
+                        <p className="text-sm text-slate-200 line-clamp-2">{voucher.narration}</p><details className="mt-2 text-xs text-slate-300"><summary className="cursor-pointer">Debit / credit entries</summary>{(voucher.entries || []).map((entry: any, index: number) => <p key={index}>{entry.accountName}: Dr {Number(entry.debit || 0).toFixed(2)} · Cr {Number(entry.credit || 0).toFixed(2)}</p>)}</details>
                         {voucher.referenceNumber && (
                           <p className="text-xs text-slate-500 mt-1">Ref: {voucher.referenceNumber}</p>
                         )}
@@ -504,7 +509,7 @@ export default function JournalVouchersPage() {
                             {new Date(voucher.date).toLocaleDateString()}
                           </td>
                           <td className="px-6 py-4">
-                            <p className="text-sm text-slate-200 line-clamp-2 max-w-xs">{voucher.narration}</p>
+                            <p className="text-sm text-slate-200 line-clamp-2 max-w-xs">{voucher.narration}</p><details className="mt-2 text-xs text-slate-300"><summary className="cursor-pointer">Debit / credit entries</summary>{(voucher.entries || []).map((entry: any, index: number) => <p key={index}>{entry.accountName}: Dr {Number(entry.debit || 0).toFixed(2)} · Cr {Number(entry.credit || 0).toFixed(2)}</p>)}</details>
                           </td>
                           <td className="px-6 py-4 text-sm text-slate-300">
                             {voucher.referenceNumber || '-'}
@@ -582,14 +587,14 @@ export default function JournalVouchersPage() {
                 <select
                   id="journal-filter-status"
                   value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
+                  onChange={(e) => { setPage(1); setFilterStatus(e.target.value); }}
                   className="w-full px-3 py-2 bg-[#0A0A0A] border border-white/10 rounded-lg text-white"
                 >
                   <option value="all">All Status</option>
                   <option value="draft">Draft</option>
                   <option value="posted">Posted</option>
                   <option value="approved">Approved</option>
-                  <option value="void">Void</option>
+                  <option value="cancelled">Cancelled</option>
                 </select>
               </div>
               <div className="flex gap-3 pt-4">
@@ -663,6 +668,6 @@ export default function JournalVouchersPage() {
           </div>
         </div>
       )}
-    </MainLayout>
+    <div className="flex justify-center items-center gap-4 p-4"><button disabled={page <= 1 || loading} onClick={() => setPage(p => p - 1)}>Previous</button><span>Page {page} of {totalPages}</span><button disabled={page >= totalPages || loading} onClick={() => setPage(p => p + 1)}>Next</button></div></MainLayout>
   );
 }

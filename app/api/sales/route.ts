@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
           product = await Product.findOne({
             _id: input.productId,
             outletId,
-            isActive: true,
+            isActive: { $ne: false },
           }).session(session!);
           if (!product) throw new Error(`Active product not found in this outlet: ${input.productId}`);
           if (input.unit && input.unit !== product.unit) {
@@ -301,7 +301,7 @@ export async function POST(request: NextRequest) {
       if (amountPaid > grandTotal + 0.01) throw new Error('Overpayment is not allowed on a sale');
       const balanceDue = round(grandTotal - amountPaid);
 
-      if (customer.creditLimit > 0 && balanceDue > 0) {
+      if (!body.supplierId && customer.creditLimit > 0 && balanceDue > 0) {
         const updatedCustomer = await Customer.findOneAndUpdate(
           {
             _id: customer._id,
@@ -312,7 +312,7 @@ export async function POST(request: NextRequest) {
           { new: true, session }
         );
         if (!updatedCustomer) throw new Error('Customer credit limit would be exceeded');
-      } else if (balanceDue > 0) {
+      } else if (!body.supplierId && balanceDue > 0) {
         await Customer.updateOne(
           { _id: customer._id, outletId },
           { $inc: { currentBalance: balanceDue } },
@@ -328,6 +328,7 @@ export async function POST(request: NextRequest) {
         customerId: customer._id,
         customerName: customer.name,
         supplierId: body.supplierId || undefined,
+        supplierSettlementMode: body.supplierId ? 'PAYABLE_OFFSET' : undefined,
         items: saleItems,
         subtotal,
         totalDiscount: round(totalItemDiscount + overallDiscount),

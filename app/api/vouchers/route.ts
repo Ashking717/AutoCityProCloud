@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 
 import Account, { AccountSubType } from '@/lib/models/Account';
 import Supplier from '@/lib/models/Supplier';
+import '@/lib/models/User';
 import ActivityLog from '@/lib/models/ActivityLog';
 import Voucher, { VoucherType } from '@/lib/models/Voucher';
 import { verifyToken } from '@/lib/auth/jwt';
@@ -27,7 +28,10 @@ export async function GET(request: NextRequest) {
     }
     const { searchParams } = new URL(request.url);
     const query: any = { outletId: user.outletId };
-    if (searchParams.get('voucherType')) query.voucherType = searchParams.get('voucherType');
+    const voucherType = searchParams.get('voucherType') || searchParams.get('type');
+    if (voucherType) query.voucherType = voucherType;
+    const search = searchParams.get('search')?.trim();
+    if (search) { const literal = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); query.$or = ['voucherNumber', 'narration', 'referenceNumber'].map(field => ({ [field]: { $regex: literal, $options: 'i' } })); }
     if (searchParams.get('status')) query.status = searchParams.get('status');
     if (searchParams.get('fromDate') && searchParams.get('toDate')) {
       query.date = {
@@ -174,6 +178,7 @@ export async function PATCH(request: NextRequest) {
     } else if (body.action === 'cancel') {
       const existing = await Voucher.findOne({ _id: body.voucherId, outletId: user.outletId });
       if (!existing) return NextResponse.json({ error: 'Voucher not found' }, { status: 404 });
+      if (existing.metadata?.source === 'SUPPLIER_SALE_OFFSET') return NextResponse.json({ error: 'Correct or cancel this transaction from Sales to preserve its supplier balance' }, { status: 400 });
       if (existing.metadata?.source === 'PURCHASE_SUPPLIER_REASSIGNMENT') return NextResponse.json({ error: 'Change the supplier or cancel the bill from Purchase corrections; this allocation voucher cannot be cancelled separately' }, { status: 400 });
       if (existing.status === 'draft') {
         existing.status = 'cancelled';

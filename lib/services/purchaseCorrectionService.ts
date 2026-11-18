@@ -34,8 +34,9 @@ export async function correctPurchase(id: string, outletId: mongoose.Types.Objec
         result = await changePurchaseSupplier(purchase, outletId, userId, body, key, session);
         return;
       }
-      if (action === 'cancel' && Number(purchase.returnedTotal || 0) > 0) throw new Error('A purchase with returns cannot be cancelled; return the remaining items');
-      if (action === 'edit' && Number(purchase.returnedTotal || 0) > 0) throw new Error('Amounts cannot be edited after a purchase return');
+      const hasReturns = purchase.items.some(item => Number(item.returnedQuantity || 0) > 0) || Number(purchase.returnedTotal || 0) > 0;
+      if (action === 'cancel' && hasReturns) throw new Error('A purchase with returns cannot be cancelled; return the remaining items');
+      if (action === 'edit' && hasReturns) throw new Error('Amounts cannot be edited after a purchase return');
       const accounts: any[] = await Account.find({ outletId, isActive: true, isSystem: true }).session(session).lean();
       const account = (type: AccountSubType) => {
         const found = accounts.find(row => row.subType === type);
@@ -91,6 +92,7 @@ export async function correctPurchase(id: string, outletId: mongoose.Types.Objec
           changes.push({ index, oldUnitPrice: item.unitPrice, unitPrice, oldTaxRate: item.taxRate, taxRate, inventoryDelta });
           item.unitPrice = unitPrice; item.taxRate = taxRate; item.taxAmount = taxAmount;
           item.total = round(item.quantity * unitPrice + taxAmount);
+          if (item.total < Number(item.settlementDiscountRemaining || 0)) throw new Error('Corrected item amount cannot be below its settlement discount');
         } else {
           const requestedQuantity = Number(input.quantity);
           const remaining = Number((Number(item.quantity) - Number(item.returnedQuantity || 0)).toFixed(6));
@@ -103,21 +105,24 @@ export async function correctPurchase(id: string, outletId: mongoose.Types.Objec
           const base = round(round((previouslyReturned + quantity) * item.unitPrice) - round(previouslyReturned * item.unitPrice));
           // Difference of cumulative tax avoids rounding drift across partial returns.
           const tax = round(round(item.taxAmount * (previouslyReturned + quantity) / item.quantity) - round(item.taxAmount * previouslyReturned / item.quantity));
+          const returnedDiscount = action === 'return' ? round(Number(item.settlementDiscountRemaining || 0) * quantity / remaining) : 0;
           const stockValue = round(quantity * cost);
-          correctionTotal = round(correctionTotal + base + tax);
+          correctionTotal = round(correctionTotal + base + tax - returnedDiscount);
           product.currentStock = Number((stock - quantity).toFixed(6));
           await product.save({ session });
           if (action === 'return') {
             add(AccountSubType.INVENTORY, -stockValue);
             add(AccountSubType.COGS, round(stockValue - base));
             add(AccountSubType.VAT_RECEIVABLE, -tax);
+            add(AccountSubType.PURCHASE_DISCOUNT, returnedDiscount);
+            item.settlementDiscountRemaining = round(Number(item.settlementDiscountRemaining || 0) - returnedDiscount);
             item.returnedQuantity = Number((Number(item.returnedQuantity || 0) + quantity).toFixed(6));
           } else {
             // The original voucher reversal removes purchase cost; this entry reconciles it to current weighted stock cost.
             add(AccountSubType.INVENTORY, round(base - stockValue));
             add(AccountSubType.COGS, round(stockValue - base));
           }
-          changes.push({ index, quantity, locationId: location.location._id, amount: round(base + tax) });
+          changes.push({ index, quantity, locationId: location.location._id, amount: round(base + tax - returnedDiscount), returnedDiscount });
           movements.push({ productId: product._id, productName: item.name, sku: item.sku, movementType: 'RETURN', quantity: -quantity, unit: item.unit, unitCost: cost, totalValue: -stockValue, referenceType: 'PURCHASE', referenceId: purchase._id, referenceNumber, locationId: location.location._id, locationName: location.location.name, locationBalanceAfter: location.newQuantity, outletId, balanceAfter: product.currentStock, date, createdBy: userId, notes: body.reason, operationKey: `purchase:${id}:${key}:${index}` });
         }
       }
@@ -133,9 +138,11 @@ export async function correctPurchase(id: string, outletId: mongoose.Types.Objec
         purchase.subtotal = round(purchase.items.reduce((sum, item) => sum + round(item.quantity * item.unitPrice), 0));
         purchase.totalTax = round(purchase.items.reduce((sum, item) => sum + item.taxAmount, 0));
         purchase.grandTotal = round(purchase.subtotal + purchase.totalTax);
-        refund = round(Math.max(0, purchase.amountPaid - purchase.grandTotal));
+        const netTotal = round(purchase.grandTotal - Number(purchase.settlementDiscountTotal || 0));
+        if (netTotal < 0) throw new Error('Corrected total cannot be below settlement discounts');
+        refund = round(Math.max(0, purchase.amountPaid - netTotal));
         purchase.amountPaid = round(purchase.amountPaid - refund);
-        purchase.balanceDue = round(purchase.grandTotal - purchase.amountPaid);
+        purchase.balanceDue = round(netTotal - purchase.amountPaid);
         payableDelta = round(purchase.balanceDue - before.balanceDue - (method === 'CREDIT' ? refund : 0));
         add(AccountSubType.ACCOUNTS_PAYABLE, round(before.balanceDue - purchase.balanceDue));
         add(refundAccounts[method], refund);

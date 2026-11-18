@@ -347,7 +347,7 @@ export default function NewSalePage() {
   useEffect(() => {
     const delay = setTimeout(() => fetchProducts(searchTerm), 300);
     return () => clearTimeout(delay);
-  }, [searchTerm]);
+  }, [searchTerm, filterYear, filterMake, filterCategory]);
 
   useEffect(() => {
     searchInputRef.current?.focus();
@@ -427,6 +427,9 @@ export default function NewSalePage() {
     try {
       const params = new URLSearchParams({ limit: "50" });
       if (search) params.append("search", search);
+      if (filterYear && filterYear !== 'all') params.append('year', filterYear);
+      if (filterMake && filterMake !== 'all') params.append('carMake', filterMake);
+      if (filterCategory && filterCategory !== 'all') params.append('categoryId', filterCategory);
       const res = await fetch(`/api/products?${params.toString()}`, { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
@@ -1392,7 +1395,7 @@ export default function NewSalePage() {
                 <div className="rounded-lg shadow-lg p-6" style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}` }}>
                   <h2 className="text-lg font-bold mb-4" style={{ color: th.cardTitle }}>Sale to</h2>
                   <select aria-label="Sale party type" className="w-full p-2 rounded mb-3" style={inputStyle} value={partyType} onChange={e => { setPartyType(e.target.value); setSelectedCustomer(null); }}><option value="customer">Customer</option><option value="supplier">Supplier</option></select>
-                  {partyType === 'supplier' && <p className="text-xs mb-3" style={{ color: th.customerCardSub }}>Unpaid sales appear in this supplier’s customer ledger. Purchase payables remain separate.</p>}
+                  {partyType === 'supplier' && <p className="text-xs mb-3" style={{ color: th.customerCardSub }}>The unpaid amount reduces this supplier’s payable balance. Any excess appears as a supplier debit balance.</p>}
                   <div className="mb-3">
                     <select
                       value={selectedCustomer?._id || ""}

@@ -96,7 +96,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         const allocation = round(Math.min(Number(purchase.balanceDue || 0), remaining));
         if (allocation <= 0) continue;
         purchase.amountPaid = round(Number(purchase.amountPaid || 0) + allocation);
-        purchase.balanceDue = round(Number(purchase.grandTotal || 0) - Number(purchase.returnedTotal || 0) - purchase.amountPaid);
+        purchase.balanceDue = round(Number(purchase.grandTotal || 0) - Number(purchase.returnedTotal || 0) - Number(purchase.settlementDiscountTotal || 0) - purchase.amountPaid);
         if (purchase.balanceDue <= 0.01) purchase.status = 'PAID';
         purchase.payments ||= [];
         purchase.payments.push({

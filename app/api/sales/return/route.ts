@@ -272,7 +272,7 @@ export async function POST(request: NextRequest) {
       if (Math.abs(totalReturned - sale.grandTotal) <= 0.01) sale.status = 'REFUNDED';
       await sale.save({ session });
 
-      if (receivableReduction > 0) {
+      if (receivableReduction > 0 && sale.supplierSettlementMode !== 'PAYABLE_OFFSET') {
         await Customer.updateOne(
           { _id: sale.customerId, outletId },
           { $inc: { currentBalance: -receivableReduction } },

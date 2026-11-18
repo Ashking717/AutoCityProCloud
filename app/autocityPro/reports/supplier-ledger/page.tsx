@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import {
@@ -18,6 +18,8 @@ import toast from 'react-hot-toast';
 export default function SupplierLedgerPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
+  const [error, setError] = useState('');
+  const ledgerRequest = useRef(0);
   const [loading, setLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showDynamicIsland, setShowDynamicIsland] = useState(true);
@@ -48,24 +50,25 @@ export default function SupplierLedgerPage() {
   };
 
   const fetchSuppliers = async () => {
-    setLoading(true);
+    setError(''); setLoading(true);
     try {
       const res = await fetch('/api/reports/supplier-ledger', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setSuppliers(data.suppliers || []);
       } else {
-        toast.error((await res.json()).error || 'Failed to fetch suppliers');
+        const message = (await res.json()).error || 'Failed to fetch suppliers'; setError(message); toast.error(message);
       }
     } catch {
-      toast.error('Failed to fetch suppliers');
+      setError('Unable to load suppliers. Please retry.'); toast.error('Failed to fetch suppliers');
     } finally {
       setLoading(false);
     }
   };
 
   const fetchLedger = async (supplierId: string) => {
-    setLoading(true);
+    const requestId = ++ledgerRequest.current;
+    setError(''); setLoading(true);
     try {
       const res = await fetch(
         `/api/reports/supplier-ledger?supplierId=${supplierId}&fromDate=${dateRange.fromDate}&toDate=${dateRange.toDate}`,
@@ -73,21 +76,24 @@ export default function SupplierLedgerPage() {
       );
       if (res.ok) {
         const data = await res.json();
+        if (requestId !== ledgerRequest.current) return;
         setLedgerData(data);
         setSelectedSupplier(data.supplier);
       } else {
-        toast.error((await res.json()).error || 'Failed to fetch ledger');
+        const message = (await res.json()).error || 'Failed to fetch ledger'; if (requestId !== ledgerRequest.current) return; setError(message); toast.error(message);
       }
     } catch {
-      toast.error('Failed to fetch ledger');
+      if (requestId !== ledgerRequest.current) return;
+      setError('Unable to load supplier ledger. Please retry.'); toast.error('Failed to fetch ledger');
     } finally {
-      setLoading(false);
+      if (requestId === ledgerRequest.current) setLoading(false);
     }
   };
 
   const handleBack = () => {
+    ++ledgerRequest.current;
     setSelectedSupplier(null);
-    setLedgerData(null);
+    setLedgerData(null); setError(''); setLoading(false);
   };
 
   const handleLogout = async () => {
@@ -106,6 +112,7 @@ export default function SupplierLedgerPage() {
     return (
       <MainLayout user={user} onLogout={handleLogout}>
         <div className="min-h-screen bg-[#050505]">
+          {error && <div role="alert" className="p-4 bg-red-950 text-white">{error}<button className="ml-4 underline" onClick={() => selectedSupplier ? fetchLedger(selectedSupplier._id) : fetchSuppliers()}>Retry</button></div>}
           {isMobile && showDynamicIsland && (
             <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-2 px-4 pointer-events-none">
               <div className="bg-black rounded-[28px] px-6 py-3 shadow-2xl border border-white/10 backdrop-blur-xl pointer-events-auto animate-in slide-in-from-top duration-500">
@@ -254,6 +261,7 @@ export default function SupplierLedgerPage() {
   return (
     <MainLayout user={user} onLogout={handleLogout}>
       <div className="min-h-screen bg-[#050505]">
+          {error && <div role="alert" className="p-4 bg-red-950 text-white">{error}<button className="ml-4 underline" onClick={() => selectedSupplier ? fetchLedger(selectedSupplier._id) : fetchSuppliers()}>Retry</button></div>}
         {isMobile && showDynamicIsland && ledgerData && (
           <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-2 px-4 pointer-events-none">
             <div className="bg-black rounded-[28px] px-6 py-3 shadow-2xl border border-white/10 backdrop-blur-xl pointer-events-auto animate-in slide-in-from-top duration-500">

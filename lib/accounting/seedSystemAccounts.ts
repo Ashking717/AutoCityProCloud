@@ -27,6 +27,7 @@ export const SYSTEM_ACCOUNTS = [
   { code: "REV-001", name: "Sales Revenue", type: AccountType.REVENUE, subType: AccountSubType.SALES_REVENUE },
   { code: "REV-002", name: "Service Revenue", type: AccountType.REVENUE, subType: AccountSubType.SERVICE_REVENUE },
   { code: "REV-003", name: "Sales Returns", type: AccountType.REVENUE, subType: AccountSubType.SALES_RETURNS },
+  { code: "DISC-001", name: "Purchase Settlement Discounts", type: AccountType.REVENUE, subType: AccountSubType.PURCHASE_DISCOUNT },
 
   // ───────── EXPENSES ─────────
   { code: "EXP-001", name: "Cost of Goods Sold", type: AccountType.EXPENSE, subType: AccountSubType.COGS },

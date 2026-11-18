@@ -45,6 +45,17 @@ function round(value: number) {
   return Number(value.toFixed(2));
 }
 
+function salePartyAccount(accounts: AccountMap, sale: any) {
+  return sale.supplierSettlementMode === 'PAYABLE_OFFSET'
+    ? { accountId: requireAccount(accounts, AccountSubType.ACCOUNTS_PAYABLE), referenceId: sale.supplierId }
+    : { accountId: requireAccount(accounts, AccountSubType.ACCOUNTS_RECEIVABLE) };
+}
+
+function salePartyMetadata(sale: any) {
+  return sale.supplierSettlementMode === 'PAYABLE_OFFSET'
+    ? { source: 'SUPPLIER_SALE_OFFSET', supplierId: String(sale.supplierId) } : {};
+}
+
 function paymentAccount(
   accounts: AccountMap,
   method: string
@@ -100,7 +111,7 @@ export async function postSaleAccounting(
   }));
   if (balanceDue > 0) {
     receiptEntries.push({
-      accountId: requireAccount(accounts, AccountSubType.ACCOUNTS_RECEIVABLE),
+      ...salePartyAccount(accounts, sale),
       debit: balanceDue,
     });
   }
@@ -136,6 +147,7 @@ export async function postSaleAccounting(
     voucherType: VoucherType.RECEIPT,
     date: sale.saleDate,
     narration: `Sale ${sale.invoiceNumber}`,
+    metadata: salePartyMetadata(sale),
     entries: receiptEntries,
     referenceType: ReferenceType.SALE,
     referenceId: sale._id,
@@ -241,24 +253,28 @@ export async function postPurchaseAccounting(
 
 export async function postPurchasePaymentAccounting(
   purchase: any,
-  payment: { amount: number; method: string; date: Date; reference?: string; paymentKey: string },
+  payment: { amount: number; method: string; date: Date; reference?: string; paymentKey: string; tenders?: Array<{ method: string; amount: number }>; discount?: number },
   userId: mongoose.Types.ObjectId,
   session: mongoose.ClientSession
 ) {
   const outletId = new mongoose.Types.ObjectId(purchase.outletId);
   const accounts = await loadSystemAccounts(outletId, session);
   const amount = round(Number(payment.amount || 0));
-  if (amount <= 0) throw new Error('Payment amount must be greater than zero');
+  const discount = round(Number(payment.discount || 0));
+  if (amount + discount <= 0) throw new Error('Payment or discount must be greater than zero');
+  const tenders = groupTenderPayments(accounts, payment.tenders || [{ method: payment.method, amount }]);
 
   const result = await createPostedVoucher({
     voucherType: VoucherType.PAYMENT,
     date: payment.date,
     narration: `Payment for purchase ${purchase.purchaseNumber}`,
     entries: [
-      { accountId: requireAccount(accounts, AccountSubType.ACCOUNTS_PAYABLE), debit: amount },
-      { accountId: paymentAccount(accounts, payment.method), credit: amount },
+      { accountId: requireAccount(accounts, AccountSubType.ACCOUNTS_PAYABLE), debit: round(amount + discount) },
+      ...tenders.map(tender => ({ accountId: tender.accountId, credit: tender.amount })),
+      ...(discount > 0 ? [{ accountId: requireAccount(accounts, AccountSubType.PURCHASE_DISCOUNT), credit: discount }] : []),
     ],
     referenceType: ReferenceType.PURCHASE_PAYMENT,
+    metadata: { paymentMethod: new Set(payment.tenders?.filter(tender => tender.amount > 0).map(tender => tender.method)).size > 1 ? 'SPLIT' : payment.method, tenders: payment.tenders, cashAmount: amount, discount, referenceNumber: payment.reference },
     referenceId: purchase._id,
     referenceNumber: payment.reference || purchase.purchaseNumber,
     postingKey: payment.paymentKey,
@@ -417,7 +433,7 @@ export async function postReturnAccounting(
   }
   if (input.receivableReduction > 0) {
     entries.push({
-      accountId: requireAccount(accounts, AccountSubType.ACCOUNTS_RECEIVABLE),
+      ...salePartyAccount(accounts, sale),
       credit: round(input.receivableReduction),
     });
   }
@@ -442,7 +458,7 @@ export async function postReturnAccounting(
     postingKey: `sale:${sale._id}:return:${input.returnNumber}`,
     outletId,
     createdBy: userId,
-    metadata: { operation: 'SALE_RETURN' },
+    metadata: { operation: 'SALE_RETURN', ...salePartyMetadata(sale) },
   }, session);
   return { voucherId: result.voucher._id as mongoose.Types.ObjectId };
 }
@@ -460,8 +476,9 @@ export async function postCustomerRefundAccounting(
     voucherType: VoucherType.PAYMENT,
     date: new Date(),
     narration: `Customer overpayment refund for ${sale.invoiceNumber}`,
+    metadata: salePartyMetadata(sale),
     entries: [
-      { accountId: requireAccount(accounts, AccountSubType.ACCOUNTS_RECEIVABLE), debit: amount },
+      { ...salePartyAccount(accounts, sale), debit: amount },
       { accountId: paymentAccount(accounts, refund.method), credit: amount },
     ],
     referenceType: ReferenceType.PAYMENT,

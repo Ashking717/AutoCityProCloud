@@ -296,13 +296,16 @@ export default function ProductsClient({
     return params;
   };
 
+  const searchRequestId = useRef(0);
   const fetchProducts = async (page = 1, append = false) => {
+    const requestId = ++searchRequestId.current;
     try {
       if (!append) setIsLoadingMore(true);
       const params = appendProductFilters(new URLSearchParams({ page: page.toString(), limit: "50" }));
       const res = await fetch(`/api/products?${params}`, { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
+        if (requestId !== searchRequestId.current) return;
         startTransition(() => {
           if (append) setProducts(prev => [...prev, ...data.products]);
           else        setProducts(data.products || []);
@@ -311,7 +314,7 @@ export default function ProductsClient({
         });
       } else toast.error("Failed to load products");
     } catch { toast.error("Failed to load products"); }
-    finally  { setIsLoadingMore(false); }
+    finally  { if (requestId === searchRequestId.current) setIsLoadingMore(false); }
   };
 
   const loadMoreProducts = () => {

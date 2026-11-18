@@ -35,7 +35,8 @@ export default function PurchaseCorrectionDocument() {
           return <tr key={change.index} className="border-b"><td className="p-2">{item.name}<br />{item.sku}<br />{item.vehicle}</td><td className="p-2">{change.quantity ?? item.quantity} {item.unit}</td><td className="p-2">{money(change.unitPrice ?? item.unitPrice)}</td><td className="p-2">{money(change.amount ?? (item.quantity * (change.unitPrice - item.unitPrice)))}</td></tr>;
         })}</tbody>
       </table>
-      <p className="mt-6 text-lg font-semibold">{correction.action === 'edit' ? 'Total change (including tax)' : 'Total (including tax)'}: {money(correction.amount)}</p>
+      {correction.changes.some((change: any) => change.returnedDiscount > 0) && <p className="mt-4">Settlement discount deducted from returned goods: {money(correction.changes.reduce((sum: number, change: any) => sum + Number(change.returnedDiscount || 0), 0))}</p>}
+      <p className="mt-6 text-lg font-semibold">{correction.action === 'edit' ? 'Total change (including tax)' : 'Total (including tax, after settlement discount)'}: {money(correction.amount)}</p>
       </>}
       {correction.refund > 0 && <p className="mt-2">{correction.refundMethod === 'CREDIT' ? 'Supplier credit' : `Refund received (${correction.refundMethod})`}: {money(correction.refund)}</p>}
       {correction.action === 'return' && <p>Bill payable reduced by: {money(correction.amount - correction.refund)}</p>}

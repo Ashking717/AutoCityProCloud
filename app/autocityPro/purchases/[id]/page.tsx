@@ -36,12 +36,12 @@ interface Purchase {
   _id: string; purchaseNumber: string; purchaseDate: string;
   supplierId: any; supplierName: string; items: any[];
   subtotal: number; totalTax: number; taxAmount?: number; grandTotal: number; returnedTotal?: number;
-  amountPaid: number; balanceDue: number; paymentMethod: string;
+  settlementDiscountTotal?: number; amountPaid: number; balanceDue: number; paymentMethod: string;
   status: string; notes?: string; createdBy?: any; createdAt: string;
 }
 interface Payment {
   _id: string; voucherNumber: string; date: string; totalCredit: number;
-  narration: string; metadata?: { paymentMethod: string; referenceNumber?: string; };
+  narration: string; metadata?: { paymentMethod: string; referenceNumber?: string; cashAmount?: number; discount?: number; tenders?: Array<{ method: string; amount: number }>; };
   createdBy?: any;
 }
 
@@ -59,6 +59,8 @@ export default function PurchaseDetailPage() {
   const [showPaymentHistory, setShowPaymentHistory] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [pendingPaymentKey, setPendingPaymentKey] = useState(() => crypto.randomUUID());
+  const [extraPayments, setExtraPayments] = useState<Array<{ method: string; amount: string }>>([]);
+  const [paymentDiscount, setPaymentDiscount] = useState('');
   const [paymentForm, setPaymentForm] = useState({
     amount: "", paymentMethod: "CASH",
     paymentDate: new Date().toISOString().split("T")[0],
@@ -142,18 +144,22 @@ export default function PurchaseDetailPage() {
   };
 
   const handlePayment = async () => {
-    if (!paymentForm.amount || Number(paymentForm.amount) <= 0) { toast.error("Please enter a valid payment amount"); return; }
-    if (Number(paymentForm.amount) > (purchase?.balanceDue || 0)) { toast.error("Payment amount exceeds outstanding balance"); return; }
+    if (paymentLoading) return;
+    const tenders = [{ method: paymentForm.paymentMethod, amount: Number(paymentForm.amount || 0) }, ...extraPayments.map(row => ({ method: row.method, amount: Number(row.amount || 0) }))];
+    const discount = Number(paymentDiscount || 0);
+    const settlement = tenders.reduce((sum, row) => sum + row.amount, 0) + discount;
+    if (!Number.isFinite(settlement) || discount < 0 || tenders.some(row => row.amount < 0) || settlement <= 0) { toast.error('Enter valid payment amounts or a discount'); return; }
+    if (Number(settlement.toFixed(2)) > (purchase?.balanceDue || 0)) { toast.error('Payments plus discount exceed the outstanding balance'); return; }
     setPaymentLoading(true);
     try {
       const idempotencyKey = pendingPaymentKey;
       const r = await fetch(`/api/purchases/${purchaseId}/payments`, {
         method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey }, credentials: "include",
-        body: JSON.stringify({ amount: Number(paymentForm.amount), paymentMethod: paymentForm.paymentMethod, paymentDate: paymentForm.paymentDate, referenceNumber: paymentForm.referenceNumber, notes: paymentForm.notes, idempotencyKey }),
+        body: JSON.stringify({ payments: tenders, discount, paymentDate: paymentForm.paymentDate, referenceNumber: paymentForm.referenceNumber, notes: paymentForm.notes, idempotencyKey }),
       });
       if (r.ok) {
         toast.success((await r.json()).message || "Payment recorded successfully");
-        setShowPaymentModal(false);
+        setShowPaymentModal(false); setExtraPayments([]); setPaymentDiscount('');
         setPendingPaymentKey(crypto.randomUUID());
         setPaymentForm({ amount: "", paymentMethod: "CASH", paymentDate: new Date().toISOString().split("T")[0], referenceNumber: "", notes: "" });
         fetchPurchase(); fetchPayments();
@@ -358,9 +364,10 @@ export default function PurchaseDetailPage() {
                             <p className="text-sm" style={{ color: th.textSecondary }}>
                               {new Date(payment.date).toLocaleDateString()} • {payment.metadata?.paymentMethod?.replace("_", " ")}
                               {payment.metadata?.referenceNumber && ` • Ref: ${payment.metadata.referenceNumber}`}
+                              {!!payment.metadata?.discount && ` • Discount: ${formatCurrency(payment.metadata.discount)}`}
                             </p>
                           </div>
-                          <p className="text-green-400 font-bold text-lg">{formatCurrency(payment.totalCredit)}</p>
+                          <p className="text-green-400 font-bold text-lg">{formatCurrency(payment.metadata?.cashAmount ?? payment.totalCredit)}</p>
                         </div>
                       </div>
                     ))}
@@ -392,6 +399,7 @@ export default function PurchaseDetailPage() {
                     { label: 'Subtotal:', value: formatCurrency(purchase.subtotal) },
                     { label: 'Tax:', value: formatCurrency(Number(purchase.totalTax ?? purchase.taxAmount ?? 0)) },
                     { label: 'Returned:', value: formatCurrency(Number(purchase.returnedTotal || 0)) },
+                    { label: 'Settlement discounts:', value: formatCurrency(Number(purchase.settlementDiscountTotal || 0)) },
                   ].map(row => (
                     <div key={row.label} className="flex justify-between items-center py-2 border-b" style={{ borderColor: th.summaryDivider }}>
                       <span style={{ color: th.textSecondary }}>{row.label}</span>
@@ -456,7 +464,7 @@ export default function PurchaseDetailPage() {
         {/* Payment Modal */}
         {showPaymentModal && (
           <div className="fixed inset-0 backdrop-blur-md flex items-center justify-center z-50 p-4" style={{ background: th.modalOverlay }}>
-            <div className="rounded-2xl shadow-2xl max-w-md w-full border transition-colors duration-500" style={{ background: th.modalBg, borderColor: th.modalBorder }}>
+            <div className="rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border transition-colors duration-500" style={{ background: th.modalBg, borderColor: th.modalBorder }}>
               <div className="flex justify-between items-center px-6 py-4 border-b" style={{ borderColor: th.summaryDivider }}>
                 <h2 className="text-xl font-bold" style={{ color: th.modalTitle }}>Record Payment</h2>
                 <button onClick={() => setShowPaymentModal(false)} className="p-2 rounded-xl active:scale-95 transition-all"
@@ -475,9 +483,9 @@ export default function PurchaseDetailPage() {
                   </label>
                   <input id="payment-amount" type="number" value={paymentForm.amount}
                     onChange={e => setPaymentForm({ ...paymentForm, amount: e.target.value })}
-                    placeholder="0.00" max={purchase.balanceDue} step="0.01"
+                    placeholder="0.00" min="0" max={purchase.balanceDue} step="0.01"
                     className={`w-full px-4 py-3 rounded-xl ${inputClass}`} style={inputStyle} />
-                  <button onClick={() => setPaymentForm({ ...paymentForm, amount: purchase.balanceDue.toString() })}
+                  <button onClick={() => { setExtraPayments([]); setPaymentForm({ ...paymentForm, amount: Math.max(0, purchase.balanceDue - Number(paymentDiscount || 0)).toFixed(2) }); }}
                     className="mt-2 text-[color:var(--autocity-accent)] text-sm hover:text-[color:var(--autocity-accent-strong)] transition-colors">
                     Pay full amount
                   </button>
@@ -493,8 +501,17 @@ export default function PurchaseDetailPage() {
                     <option value="PETTY_CASH">Petty Cash</option>
                     <option value="CARD">Card</option>
                     <option value="BANK_TRANSFER">Bank Transfer</option>
+                    <option value="CHEQUE">Cheque</option>
                   </select>
                 </div>
+                {extraPayments.map((row, index) => <div key={index} className="flex flex-wrap gap-2">
+                  <select aria-label={`Payment method ${index + 2}`} value={row.method} onChange={e => setExtraPayments(rows => rows.map((r, i) => i === index ? { ...r, method: e.target.value } : r))} className={`min-w-0 flex-1 px-3 py-2 rounded-xl ${inputClass}`} style={inputStyle}>{['CASH', 'PETTY_CASH', 'CARD', 'BANK_TRANSFER', 'CHEQUE'].map(method => <option key={method} value={method}>{method.replaceAll('_', ' ')}</option>)}</select>
+                  <input aria-label={`Payment amount ${index + 2}`} type="number" min="0" step="0.01" value={row.amount} onChange={e => setExtraPayments(rows => rows.map((r, i) => i === index ? { ...r, amount: e.target.value } : r))} placeholder="0.00" className={`w-28 px-3 py-2 rounded-xl ${inputClass}`} style={inputStyle} />
+                  <button className="text-sm text-red-500" onClick={() => setExtraPayments(rows => rows.filter((_, i) => i !== index))}>Remove</button>
+                </div>)}
+                <button disabled={extraPayments.length >= 19} className="text-sm text-red-500 disabled:opacity-50" onClick={() => setExtraPayments(rows => [...rows, { method: 'BANK_TRANSFER', amount: '' }])}>+ Add payment method</button>
+                <label className="block" style={{ color: th.textPrimary }}>Settlement discount (QAR)<input type="number" min="0" step="0.01" value={paymentDiscount} onChange={e => setPaymentDiscount(e.target.value)} className={`block w-full px-4 py-3 rounded-xl ${inputClass}`} style={inputStyle} /></label>
+                <p style={{ color: th.textSecondary }}>Discount reduces the balance due and is recorded separately from cash paid.</p>
                 {/* Date */}
                 <div>
                   <label htmlFor="payment-date" className="block text-sm font-medium mb-2" style={{ color: th.textPrimary }}>Payment Date</label>
@@ -563,7 +580,7 @@ export default function PurchaseDetailPage() {
                           </div>
                           <p className="text-sm" style={{ color: th.textSecondary }}>{new Date(payment.date).toLocaleString()}</p>
                         </div>
-                        <p className="text-green-400 font-bold text-lg">{formatCurrency(payment.totalCredit)}</p>
+                        <p className="text-green-400 font-bold text-lg">{formatCurrency(payment.metadata?.cashAmount ?? payment.totalCredit)}</p>
                       </div>
                       <div className="grid grid-cols-2 gap-3 pt-3 border-t" style={{ borderColor: th.summaryDivider }}>
                         <div>
@@ -577,6 +594,8 @@ export default function PurchaseDetailPage() {
                           </div>
                         )}
                       </div>
+                      {!!payment.metadata?.discount && <p className="mt-2 text-sm" style={{ color: th.textSecondary }}>Settlement discount: {formatCurrency(payment.metadata.discount)}</p>}
+                      {payment.metadata?.tenders?.filter(t => t.amount > 0).map((t, index) => <p key={index} className="mt-1 text-sm" style={{ color: th.textSecondary }}>{t.method.replaceAll('_', ' ')}: {formatCurrency(t.amount)}</p>)}
                       {payment.narration && (
                         <div className="mt-3 pt-3 border-t" style={{ borderColor: th.summaryDivider }}>
                           <p className="text-sm" style={{ color: th.textSecondary }}>{payment.narration}</p>

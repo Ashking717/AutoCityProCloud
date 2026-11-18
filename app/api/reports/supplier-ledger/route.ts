@@ -35,12 +35,14 @@ export async function GET(request: NextRequest) {
     }
     const [apAccount, suppliers, purchases] = await Promise.all([
       Account.findOne({ outletId, subType: AccountSubType.ACCOUNTS_PAYABLE }).lean(),
-      Supplier.find({ outletId }).sort({ name: 1 }).lean(),
-      Purchase.find({ outletId }).select('_id supplierId grandTotal amountPaid returnedTotal status purchaseNumber supplierBillNumber purchaseDate payments').lean(),
+      Supplier.find({ outletId, ...(supplierId ? { _id: supplierId } : {}) }).sort({ name: 1 }).lean(),
+      Purchase.find({ outletId, ...(supplierId ? { supplierId } : {}) }).select('_id supplierId grandTotal amountPaid returnedTotal settlementDiscountTotal status purchaseNumber supplierBillNumber purchaseDate payments').lean(),
     ]);
     if (!apAccount) throw new Error('Accounts Payable system account is missing');
-    const entries: any[] = await LedgerEntry.find({ outletId, accountId: (apAccount as any)._id })
+    const entries: any[] = await LedgerEntry.find({ outletId, accountId: (apAccount as any)._id, ...(supplierId ? { referenceId: { $in: [new mongoose.Types.ObjectId(supplierId), ...purchases.map(p => p._id)] } } : {}) })
+      .select('date createdAt lineNumber referenceId referenceNumber referenceType voucherNumber narration debit credit')
       .sort({ date: 1, createdAt: 1, lineNumber: 1 })
+      .allowDiskUse(true)
       .lean();
     const supplierIds = new Set((suppliers as any[]).map((supplier) => String(supplier._id)));
     const purchaseToSupplier = new Map((purchases as any[]).map((purchase) => [String(purchase._id), String(purchase.supplierId)]));
@@ -61,7 +63,7 @@ export async function GET(request: NextRequest) {
           const docs = (purchases as any[]).filter((purchase) => String(purchase.supplierId) === String(supplier._id) && purchase.status !== 'CANCELLED');
           return {
             ...supplier,
-            totalPurchases: round(docs.reduce((sum, purchase) => sum + Number(purchase.grandTotal || 0) - Number(purchase.returnedTotal || 0), 0)),
+            totalPurchases: round(docs.reduce((sum, purchase) => sum + Number(purchase.grandTotal || 0) - Number(purchase.returnedTotal || 0) - Number(purchase.settlementDiscountTotal || 0), 0)),
             totalPaid: round(docs.reduce((sum, purchase) => sum + Number(purchase.amountPaid || 0), 0)),
             balance: round(balanceMap.get(String(supplier._id)) || 0),
             purchasesCount: docs.length,

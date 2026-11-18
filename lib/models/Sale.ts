@@ -71,6 +71,7 @@ export interface ISale extends Document {
   customerId: mongoose.Types.ObjectId;
   customerName: string;
   supplierId?: mongoose.Types.ObjectId;
+  supplierSettlementMode?: 'PAYABLE_OFFSET';
   items: ISaleItem[];
   
   subtotal: number;
@@ -203,6 +204,7 @@ const SaleSchema = new Schema<ISale, ISaleModel>(
     customerId: { type: Schema.Types.ObjectId, ref: 'Customer', required: true, index: true },
     customerName: { type: String, required: true },
     supplierId: { type: Schema.Types.ObjectId, ref: 'Supplier' },
+    supplierSettlementMode: { type: String, enum: ['PAYABLE_OFFSET'] },
     items: [SaleItemSchema],
     
     // Financial totals

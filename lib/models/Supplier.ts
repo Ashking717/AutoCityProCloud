@@ -34,7 +34,7 @@ const SupplierSchema = new Schema<ISupplier>(
     creditLimit: { type: Number, default: 0, min: 0 },
     paymentTerms: { type: String },
     currentBalance: { type: Number, default: 0 },
-    openingBalance: { type: Number, default: 0, min: 0 },
+    openingBalance: { type: Number, default: 0 },
     openingBalanceDate: { type: Date },
     lastOpeningBalanceKey: { type: String, trim: true },
     isActive: { type: Boolean, default: true },

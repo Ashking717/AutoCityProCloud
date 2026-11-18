@@ -13,6 +13,7 @@ import LedgerEntry from '@/lib/models/LedgerEntry';
 import InventoryMovement from '@/lib/models/InventoryMovement';
 import { supplierLedgerBalance } from '@/lib/services/supplierLedgerBalance';
 import { matchesProductSearch } from '@/lib/utils/productSearch';
+import { runComplaintsOneTests } from './complaints-one-regression-cases';
 import { runPurchaseSupplierTests } from './purchase-supplier-regression-cases';
 
 export async function runComplaintTests({ test, request, cookie, outlet, otherOutlet, user, makeProduct, postSale }: any) {
@@ -259,11 +260,14 @@ export async function runComplaintTests({ test, request, cookie, outlet, otherOu
     const r = await get(`/api/reports/supplier-ledger?supplierId=${s._id}&fromDate=2020-01-01&toDate=2099-12-31`); assertOk(r);
     assert.equal(r.body.bills[0].balance, 140); assert.equal(r.body.unallocatedBalance, 0); assert.equal(r.body.summary.closingBalance, 140);
   });
-  await test('sale to a supplier creates a linked receivable without reducing purchase payable', async () => {
+  await test('new supplier credit sale reduces payable and leaves linked customer receivable unchanged', async () => {
     const product = await makeProduct({ taxRate: 0 }); const before = await balance();
     const r = await postSale(product, { customerId: undefined, supplierId: String(supplier._id), payments: [], amountPaid: 0 }); assert.equal(r.response.status, 201, JSON.stringify(r.body));
-    const c = await Customer.findOne({ outletId: outlet._id, supplierId: supplier._id }); assert(c); assert.equal(c.currentBalance, 100); assert.equal(await balance(), before);
+    const c = await Customer.findOne({ outletId: outlet._id, supplierId: supplier._id }); assert(c); assert.equal(c.currentBalance, 0); assert.equal(await balance(), before - 100);
     const again = await postSale(product, { customerId: undefined, supplierId: String(supplier._id), payments: [{ method: 'CASH', amount: 100 }], amountPaid: 100 }); assert.equal(again.response.status, 201);
+    assert.equal(await balance(), before - 100);
     assert.equal(await Customer.countDocuments({ outletId: outlet._id, supplierId: supplier._id }), 1);
   });
+  await runComplaintsOneTests({ test, call, get, purchase, correct, assertOk, outlet, otherOutlet, makeProduct, postSale });
+
 }

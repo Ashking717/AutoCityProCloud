@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
         const product = await Product.findOne({
           _id: input.productId,
           outletId,
-          isActive: true,
+          isActive: { $ne: false },
         }).session(session!);
         if (!product) throw new Error(`Active product not found in this outlet: ${input.productId}`);
         if (input.unit && input.unit !== product.unit) {

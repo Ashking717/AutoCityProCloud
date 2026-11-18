@@ -393,7 +393,7 @@ function PrintableLabel({
         {(costCode || sellCode) && (
           <p className="flex justify-center gap-2 text-[7px] font-semibold leading-tight">
             {costCode && <span className="font-mono">{costCode}</span>}
-            {sellCode && <span>{sellCode}</span>}
+            {sellCode && <span>{sellCode} · <span lang="ar" dir="rtl">{new Intl.NumberFormat('ar-QA', { minimumFractionDigits: 2, maximumFractionDigits: 2, numberingSystem: 'arab' }).format(Number(product.sellingPrice))} ر.ق</span></span>}
           </p>
         )}
       </div>

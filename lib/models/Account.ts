@@ -29,6 +29,7 @@ export enum AccountSubType {
   FIXED_ASSET = 'fixed_asset',
   LOAN = 'loan',
   OTHER_INCOME = 'other_income',
+  PURCHASE_DISCOUNT = 'purchase_discount',
   FINANCIAL_EXPENSE = 'financial_expense',
   INVENTORY_ADJUSTMENT = 'inventory_adjustment',
 }

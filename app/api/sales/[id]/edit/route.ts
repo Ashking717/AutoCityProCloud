@@ -256,14 +256,14 @@ export async function PUT(
       const customer: any = await Customer.findOne({ _id: sale.customerId, outletId, isActive: true }).session(session!);
       if (!customer) throw new Error('Active customer not found in this outlet');
       const balanceDelta = round(balanceDue - Number(sale.balanceDue || 0));
-      if (balanceDelta > 0 && customer.creditLimit > 0) {
+      if (sale.supplierSettlementMode !== 'PAYABLE_OFFSET' && balanceDelta > 0 && customer.creditLimit > 0) {
         const updatedCustomer = await Customer.findOneAndUpdate(
           { _id: customer._id, outletId, currentBalance: { $lte: round(customer.creditLimit - balanceDelta) } },
           { $inc: { currentBalance: balanceDelta } },
           { new: true, session }
         );
         if (!updatedCustomer) throw new Error('Customer credit limit would be exceeded');
-      } else if (Math.abs(balanceDelta) > 0.001) {
+      } else if (sale.supplierSettlementMode !== 'PAYABLE_OFFSET' && Math.abs(balanceDelta) > 0.001) {
         const updatedCustomer = await Customer.findOneAndUpdate(
           { _id: customer._id, outletId, currentBalance: { $gte: Math.max(0, -balanceDelta) } },
           { $inc: { currentBalance: balanceDelta } },

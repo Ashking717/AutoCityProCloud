@@ -63,12 +63,17 @@ export async function POST(
       request.headers.get('idempotency-key') || body.idempotencyKey || ''
     ).trim();
     const paymentKey = `purchase:${params.id}:payment:${clientKey}`;
-    const amount = round(Number(body.amount || 0));
-    const method = String(body.paymentMethod || '').toUpperCase();
-    if (!clientKey || clientKey.length > 160 || !Number.isFinite(amount) || amount <= 0) {
-      return NextResponse.json({ error: 'idempotencyKey and a positive amount are required' }, { status: 400 });
+    const submitted = body.payments ?? [{ method: body.paymentMethod || 'CASH', amount: body.amount || 0 }];
+    if (!Array.isArray(submitted) || submitted.length > 20) return NextResponse.json({ error: 'Invalid payment details' }, { status: 400 });
+    const tenders = submitted.map((row: any) => ({ method: String(row?.method || '').toUpperCase(), amount: round(Number(row?.amount)) }));
+    const amount = round(tenders.reduce((sum, row) => sum + row.amount, 0));
+    const discount = round(Number(body.discount ?? 0));
+    const settlement = round(amount + discount);
+    const method = tenders.find(row => row.amount > 0)?.method || 'CASH';
+    if (!clientKey || clientKey.length > 160 || !Number.isFinite(discount) || discount < 0 || !Number.isFinite(amount) || tenders.some(row => !Number.isFinite(row.amount) || row.amount < 0) || settlement <= 0) {
+      return NextResponse.json({ error: 'A valid idempotencyKey and positive payment or discount are required' }, { status: 400 });
     }
-    if (!['CASH', 'PETTY_CASH', 'CARD', 'BANK_TRANSFER', 'CHEQUE'].includes(method)) {
+    if (tenders.some(row => !['CASH', 'PETTY_CASH', 'CARD', 'BANK_TRANSFER', 'CHEQUE'].includes(row.method))) {
       return NextResponse.json({ error: 'Invalid payment method' }, { status: 400 });
     }
 
@@ -84,6 +89,7 @@ export async function POST(
         result = {
           voucherId: prior.voucherId,
           amount: prior.amount,
+          discount: prior.discount || 0,
           newBalance: purchase.balanceDue,
           newAmountPaid: purchase.amountPaid,
           idempotent: true,
@@ -91,20 +97,20 @@ export async function POST(
         return;
       }
       if (purchase.status === 'CANCELLED') throw new Error('Cancelled purchases cannot be paid');
-      if (amount > Number(purchase.balanceDue) + 0.01) {
+      if (settlement > round(Number(purchase.balanceDue))) {
         throw new Error(`Payment exceeds balance due of QAR ${Number(purchase.balanceDue).toFixed(2)}`);
       }
 
       const paidAt = body.paymentDate ? new Date(body.paymentDate) : new Date();
       if (Number.isNaN(paidAt.getTime())) throw new Error('Invalid payment date');
       const supplierBalance = await supplierLedgerBalance(outletId, purchase.supplierId, session!);
-      if (amount > supplierBalance + 0.01) throw new Error('Payment exceeds supplier ledger balance; allocate prior supplier credits first');
+      if (settlement > supplierBalance + 0.01) throw new Error('Payment exceeds supplier ledger balance; allocate prior supplier credits first');
       const updatedSupplier = await Supplier.findOneAndUpdate(
         {
           _id: purchase.supplierId,
           outletId,
         },
-        { $set: { currentBalance: round(supplierBalance - amount) } },
+        { $set: { currentBalance: round(supplierBalance - settlement) } },
         { new: true, session }
       );
       if (!updatedSupplier) {
@@ -112,17 +118,35 @@ export async function POST(
       }
       const accounting = await postPurchasePaymentAccounting(
         purchase,
-        { amount, method, date: paidAt, reference: body.referenceNumber, paymentKey },
+        { amount, method, tenders, discount, date: paidAt, reference: body.referenceNumber, paymentKey },
         userId,
         session!
       );
       purchase.amountPaid = round(Number(purchase.amountPaid) + amount);
-      purchase.balanceDue = round(Number(purchase.balanceDue) - amount);
+      purchase.balanceDue = round(Number(purchase.balanceDue) - settlement);
+      purchase.settlementDiscountTotal = round(Number(purchase.settlementDiscountTotal || 0) + discount);
+      if (discount > 0) {
+        const eligible = purchase.items.filter(item => item.quantity > Number(item.returnedQuantity || 0));
+        const weights = eligible.map(item => round(item.total * (item.quantity - Number(item.returnedQuantity || 0)) / item.quantity - Number(item.settlementDiscountRemaining || 0)));
+        const total = weights.reduce((sum, value) => sum + value, 0);
+        if (total < discount || total <= 0) throw new Error('Discount exceeds remaining goods value');
+        let allocated = 0;
+        let cumulativeWeight = 0;
+        eligible.forEach((item, index) => {
+          cumulativeWeight += weights[index];
+          const target = index === eligible.length - 1 ? discount : round(discount * cumulativeWeight / total);
+          const share = round(target - allocated);
+          item.settlementDiscountRemaining = round(Number(item.settlementDiscountRemaining || 0) + share);
+          allocated = round(allocated + share);
+        });
+      }
       if (purchase.balanceDue <= 0.01) purchase.status = 'PAID';
       purchase.payments ||= [];
       purchase.payments.push({
         paymentKey,
         amount,
+        discount,
+        tenders,
         method: method as any,
         reference: body.referenceNumber,
         voucherId: accounting.voucherId,
@@ -142,6 +166,8 @@ export async function POST(
         voucherId: accounting.voucherId,
         voucherNumber: accounting.voucherNumber,
         amount,
+        discount,
+        settlement,
         newBalance: purchase.balanceDue,
         newAmountPaid: purchase.amountPaid,
         supplierBalance: updatedSupplier.currentBalance,

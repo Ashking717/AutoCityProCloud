@@ -44,6 +44,7 @@ export default function SuppliersPage() {
     address: '', taxNumber: '', creditLimit: 0, paymentTerms: '',
     openingBalance: 0, openingBalanceDate: new Date().toISOString().split('T')[0],
   });
+  const [openingSide, setOpeningSide] = useState('CR');
   const [pendingSupplierKey, setPendingSupplierKey] = useState(() => crypto.randomUUID());
   const [pendingPaymentKey, setPendingPaymentKey] = useState(() => crypto.randomUUID());
   const [paymentForm, setPaymentForm] = useState({
@@ -148,7 +149,7 @@ export default function SuppliersPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const supplierData = { ...formData, code: formData.code || generateSupplierCode(formData.name), operationKey: pendingSupplierKey };
+    const supplierData = { ...formData, openingBalanceType: openingSide, code: formData.code || generateSupplierCode(formData.name), operationKey: pendingSupplierKey };
     try {
       const url = editingSupplier ? `/api/suppliers/${editingSupplier._id}` : '/api/suppliers';
       const res = await fetch(url, { method: editingSupplier ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': pendingSupplierKey }, credentials: 'include', body: JSON.stringify(supplierData) });
@@ -164,8 +165,9 @@ export default function SuppliersPage() {
 
   const handleEdit = (supplier: any) => {
     setEditingSupplier(supplier);
+    setOpeningSide(Number(supplier.openingBalance || 0) < 0 ? 'DR' : 'CR');
     setPendingSupplierKey(crypto.randomUUID());
-    setFormData({ code:supplier.code, name:supplier.name, contactPerson:supplier.contactPerson||'', phone:supplier.phone, email:supplier.email||'', address:supplier.address||'', taxNumber:supplier.taxNumber||'', creditLimit:supplier.creditLimit||0, paymentTerms:supplier.paymentTerms||'', openingBalance:Number(supplier.openingBalance||0), openingBalanceDate:supplier.openingBalanceDate ? new Date(supplier.openingBalanceDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0] });
+    setFormData({ code:supplier.code, name:supplier.name, contactPerson:supplier.contactPerson||'', phone:supplier.phone, email:supplier.email||'', address:supplier.address||'', taxNumber:supplier.taxNumber||'', creditLimit:supplier.creditLimit||0, paymentTerms:supplier.paymentTerms||'', openingBalance:Math.abs(Number(supplier.openingBalance||0)), openingBalanceDate:supplier.openingBalanceDate ? new Date(supplier.openingBalanceDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0] });
     setShowAddModal(true);
   };
 
@@ -186,7 +188,7 @@ export default function SuppliersPage() {
     s.phone?.includes(searchTerm)
   );
 
-  const resetForm = () => { setEditingSupplier(null); setPendingSupplierKey(crypto.randomUUID()); setFormData({ code:'', name:'', contactPerson:'', phone:'', email:'', address:'', taxNumber:'', creditLimit:0, paymentTerms:'', openingBalance:0, openingBalanceDate:new Date().toISOString().split('T')[0] }); setShowAddModal(true); };
+  const resetForm = () => { setOpeningSide('CR'); setEditingSupplier(null); setPendingSupplierKey(crypto.randomUUID()); setFormData({ code:'', name:'', contactPerson:'', phone:'', email:'', address:'', taxNumber:'', creditLimit:0, paymentTerms:'', openingBalance:0, openingBalanceDate:new Date().toISOString().split('T')[0] }); setShowAddModal(true); };
   const resetPaymentForm = () => setPaymentForm({ amount:'', paymentMethod:'CASH', paymentDate:new Date().toISOString().split('T')[0], referenceNumber:'', notes:'' });
   const openPaymentModal = (supplier: any) => {
     setPaymentSupplier(supplier);
@@ -484,7 +486,8 @@ export default function SuppliersPage() {
                   )}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="supplier-opening-balance" className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Opening Payable Balance</label>
+                      <label htmlFor="supplier-opening-balance" className="block text-sm font-medium mb-2" style={{ color: th.modalLabel }}>Opening Balance</label>
+                      <select aria-label="Opening balance side" value={openingSide} onChange={e => setOpeningSide(e.target.value)} className={modalInputCls} style={modalInputStyle}><option value="CR">Cr — We owe the supplier</option><option value="DR">Dr — Supplier owes us / advance</option></select>
                       <input id="supplier-opening-balance" type="number" value={formData.openingBalance} onChange={e => setFormData({ ...formData, openingBalance: parseFloat(e.target.value)||0 })}
                         step="0.01" min="0" placeholder="0.00" className={modalInputCls} style={modalInputStyle} />
                     </div>
